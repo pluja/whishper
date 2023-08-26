@@ -14,7 +14,6 @@ if ! [ -x "$(command -v docker)" ]; then
         echo "Aborting installation"
         exit 1
     fi
-    exit 1
 fi
 
 # Ask if user wants to get everything in the current directory or in a new directory
