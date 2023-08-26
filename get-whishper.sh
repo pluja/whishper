@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 # Check if docker is installed
 if ! [ -x "$(command -v docker)" ]; then
     echo "Docker is not installed. Please install docker first."
