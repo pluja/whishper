@@ -44,7 +44,7 @@ services:
 
   transcription-api:
     container_name: whisper-api
-    build: ./transcription-api
+    image: pluja/whishper-transcription-api:latest
     env_file:
       - .env
     volumes:
@@ -59,7 +59,7 @@ services:
 
   whishper-backend:
     container_name: whishper-backend
-    build: ./backend
+    image: pluja/whishper-backend:latest
     env_file:
       - .env
     volumes:
@@ -83,12 +83,7 @@ services:
 
   whishper-frontend:
     container_name: whishper-web
-    build: 
-      context: ./frontend
-      args:
-        PUBLIC_API_HOST: ${WHISHPER_PUBLIC_URL}
-        PUBLIC_TRANSLATION_API_HOST: ""
-        PUBLIC_INTERNAL_API_HOST: "http://nginx:80"
+    image: pluja/whishper-frontend:latest
     env_file:
       - .env
     restart: unless-stopped
