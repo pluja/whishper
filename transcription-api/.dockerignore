@@ -1,0 +1,6 @@
+.env
+__pycache__/
+.ruff_cache
+.venv
+.vscode
+whisper_models/

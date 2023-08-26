@@ -1,0 +1,10 @@
+whishper_data/
+node_modules/
+__pycache__/
+whisper_models/
+.venv
+.vscode
+*cache*
+*override*
+*_WHSHPR_*
+.env

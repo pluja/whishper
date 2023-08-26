@@ -1,0 +1,8 @@
+.env
+node_modules/
+.svelte-kit
+Dockerfile
+.eslintignore
+.eslintrc.js
+.prettierrc
+.gitignore

@@ -1,0 +1,11 @@
+version: "3"
+
+services:
+  whisper-api:
+    container_name: whisper-api
+    build: .
+    ports:
+      - "8088:8000"
+    env_file:
+      - .env
+   
