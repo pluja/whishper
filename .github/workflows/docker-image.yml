@@ -39,4 +39,7 @@ jobs:
           file: ${{ matrix.directory }}/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ format('{0}/whishper-{1}:latest', secrets.DOCKERHUB_USERNAME, matrix.directory) }}
+          tags: |
+            ${{ format('{0}/whishper-{1}:{2}', secrets.DOCKERHUB_USERNAME, matrix.directory, github.event.release.tag_name) }}
+            ${{ format('{0}/whishper-{1}:latest', secrets.DOCKERHUB_USERNAME, matrix.directory) }}
+
