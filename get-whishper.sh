@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+
 # Check if docker is installed
 if ! [ -x "$(command -v docker)" ]; then
     echo "Docker is not installed. Please install docker first."
@@ -53,9 +54,13 @@ sudo mkdir -p ./whishper_data/libretranslate/{data,cache}
 
 # This permissions are for libretranslate docker container
 echo "Setting permissions for libretranslate"
-sudo chown -R 1032:1032 ./whishper_data/libretranslate
+case "$OSTYPE" in
+  darwin*)  echo "macOS detected... Leaving permissions as is." ;; 
+  linux*)   sudo chown -R 1032:1032 ./whishper_data/libretranslate ;;
+  *)        echo "unknown: $OSTYPE" ;;
+esac
 
-echo "Do you want to pull and build docker images? (y/n)"
+echo "Do you want to pull docker images? (y/n)"
 read answer
 if [ "$answer" != "${answer#[Yy]}" ] ;then
     echo "Pulling and building docker images"
