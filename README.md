@@ -49,3 +49,8 @@ Whishper is a collection of pieces that work together. The three main pieces are
 ## Development
 
 Check out the development documentation [here](https://whishper.net/guides/development/).
+
+## Credits
+
+- [Faster Whisper](https://github.com/guillaumekln/faster-whisper)
+- [LibreTranslate](https://github.com/LibreTranslate/LibreTranslate)
