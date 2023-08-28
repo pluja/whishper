@@ -29,6 +29,7 @@ Whishper (formerly known as Web Whisper Plus) is a complete transcription suite.
 
 - [ ] Support for GPU acceleration.
 - [ ] Audio recording from the browser.
+- [ ] Can we do something with [seamless_communication](https://github.com/facebookresearch/seamless_communication)?
 
 ## Self hosting
 
