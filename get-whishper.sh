@@ -33,6 +33,9 @@ fi
 echo "Getting the docker-compose.yml file from Github"
 curl -o docker-compose.yml https://raw.githubusercontent.com/pluja/whishper/main/docker-compose.yml
 
+echo "Getting the nginx.conf file from Github"
+curl -o docker-compose.yml https://raw.githubusercontent.com/pluja/whishper/main/nginx.conf
+
 # Copy env.example to .env
 # check if .env exists
 if [ -f .env ]; then
