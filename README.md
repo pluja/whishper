@@ -6,7 +6,7 @@ Whishper (formerly known as Web Whisper Plus) is a complete transcription suite.
 
 > [Checkout the website for more information](https://whishper.net)
 
-> [Demo videos available here](https://whishper.net/usage/transcriptions/)
+> [Demo videos available in the usage guide](https://whishper.net/usage/transcriptions/)
 
 ## Features
 
