@@ -8,3 +8,4 @@ whisper_models/
 *override*
 *_WHSHPR_*
 .env
+.DS_Store
