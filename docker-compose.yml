@@ -4,12 +4,14 @@ services:
   mongo:
     image: mongo
     restart: always
+    env_file:
+      - .env
     volumes:
       - ./whishper_data/db_data:/data/db
       - ./whishper_data/db_data/logs/:/var/log/mongodb/
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_ROOT_USERNAME: ${DB_USER:-whishper}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASS:-whishper}
     expose:
       - 27017
     command: ['--logpath', '/var/log/mongodb/mongod.log']

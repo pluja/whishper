@@ -21,6 +21,8 @@ func main() {
 	uploadDir := flag.String("updir", "/app/uploads", "upload directory")
 	asrEndpoint := flag.String("asr", "transcription-api:8000", "asr endpoint, i.e. localhost:9888")
 	dbHost := flag.String("db", "mongo:27017", "database endpoint host, i.e. localhost:27017")
+	dbUser := flag.String("dbuser", "whishper", "database user")
+	dbPass := flag.String("dbpass", "whishper", "database password")
 	translationEndpoint := flag.String("translation", "translate:5000", "translation endpoint, i.e. localhost:5000")
 	dev := flag.Bool("dev", false, "development mode")
 	flag.Parse()
@@ -37,6 +39,12 @@ func main() {
 	}
 	if os.Getenv("DB_ENDPOINT") == "" {
 		os.Setenv("DB_ENDPOINT", *dbHost)
+	}
+	if os.Getenv("DB_USER") == "" {
+		os.Setenv("DB_USER", *dbUser)
+	}
+	if os.Getenv("DB_PASS") == "" {
+		os.Setenv("DB_PASS", *dbPass)
 	}
 
 	// Configure dev mode
