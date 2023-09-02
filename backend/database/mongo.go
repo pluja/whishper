@@ -23,7 +23,20 @@ type MongoDb struct {
 func NewMongoDb() *MongoDb {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(fmt.Sprintf("mongodb://root:example@%v", os.Getenv("DB_ENDPOINT"))))
+	var client *mongo.Client
+	var err error
+	mongoUri := fmt.Sprintf("mongodb://%v", os.Getenv("DB_ENDPOINT"))
+	credentials := options.Credential{
+		Username: os.Getenv("DB_USER"),
+		Password: os.Getenv("DB_PASS"),
+	}
+
+	// Set auth method to PLAIN if using FerretDB
+	if os.Getenv("FERRETDB_MONGO_URL") != "" {
+		credentials.AuthMechanism = "PLAIN"
+	}
+
+	client, err = mongo.Connect(ctx, options.Client().ApplyURI(mongoUri).SetAuth(credentials))
 	if err != nil {
 		log.Error().Err(err).Msg("Error connecting to mongodb")
 	}

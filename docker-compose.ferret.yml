@@ -1,0 +1,110 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${DB_USER:-whishper}
+      - POSTGRES_PASSWORD=${DB_PASS:-whishper}
+      - POSTGRES_DB=whishper
+    volumes:
+      - ./whishper_data/db_data/ferret:/var/lib/postgresql/data
+
+  mongo:
+    image: ghcr.io/ferretdb/ferretdb
+    restart: on-failure
+    ports:
+      - 27017:27017
+    environment:
+      - FERRETDB_POSTGRESQL_URL=postgres://postgres:5432/whishper
+
+  translate:
+    container_name: whisper-libretranslate
+    image: libretranslate/libretranslate:latest
+    restart: unless-stopped
+    volumes:
+      - ./whishper_data/libretranslate/data:/home/libretranslate/.local/share
+      - ./whishper_data/libretranslate/cache:/home/libretranslate/.local/cache
+    env_file:
+      - .env
+    tty: true
+    environment:
+      LT_DISABLE_WEB_UI: True
+      #LT_UPDATE_MODELS: True
+    expose:
+      - 5000
+    healthcheck:
+      test: ['CMD-SHELL', './venv/bin/python scripts/healthcheck.py']
+      interval: 15s
+      timeout: 10s
+      start_period: 5s
+      retries: 5
+
+  transcription-api:
+    container_name: whisper-api
+    image: pluja/whishper-transcription-api:latest
+    env_file:
+      - .env
+    volumes:
+      - ./whishper_data/whisper_models:/app/models
+      - ./whishper_data/uploads:/app/uploads
+    environment:
+      - WHISPER_MODELS_DIR=/app/models
+      - UPLOAD_DIR=/app/uploads
+    restart: unless-stopped
+    expose:
+      - 8000
+
+  whishper-backend:
+    container_name: whishper-backend
+    image: pluja/whishper-backend:latest
+    env_file:
+      - .env
+    volumes:
+      - ./whishper_data/uploads:/app/uploads
+    restart: unless-stopped
+    environment:
+      - FERRETDB_MONGO_URL=mongodb://${DB_USER:-whishper}:${DB_PASS:-whishper}@mongo:27017/?authMechanism=PLAIN
+    depends_on:
+      translate:
+        condition: service_healthy
+      transcription-api:
+        condition: service_healthy
+    healthcheck:
+      test: curl --fail http://localhost:8080/api/transcriptions || exit 1
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+    expose:
+      - 8080
+
+  whishper-frontend:
+    container_name: whishper-web
+    image: pluja/whishper-frontend:latest
+    env_file:
+      - .env
+    restart: unless-stopped
+    environment:
+      PUBLIC_INTERNAL_API_HOST: "http://nginx:80"
+      PUBLIC_TRANSLATION_API_HOST: ""
+      PUBLIC_API_HOST: ${WHISHPER_PUBLIC_URL:-}
+    depends_on:
+      transcription-api:
+        condition: service_healthy
+    expose:
+      - 3000
+
+  nginx:
+    image: nginx:1
+    restart: unless-stopped
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./whishper_data/uploads:/app/uploads
+    depends_on:
+      whishper-backend:
+        condition: service_healthy
+    ports:
+      - 8082:80    
