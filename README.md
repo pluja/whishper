@@ -27,7 +27,6 @@ Whishper (formerly known as Web Whisper Plus) is a complete transcription suite.
 
 ### Coming soon
 
-- [ ] Alternative MariaDB/MySQL backend
 - [ ] Full-text search all transcriptions
 - [ ] Support for GPU acceleration.
 - [ ] Audio recording from the browser.
