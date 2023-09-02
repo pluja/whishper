@@ -3,9 +3,9 @@ version: "3.9"
 services:
   mongo:
     image: mongo
-    restart: always
     env_file:
       - .env
+    restart: unless-stopped
     volumes:
       - ./whishper_data/db_data:/data/db
       - ./whishper_data/db_data/logs/:/var/log/mongodb/

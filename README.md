@@ -27,6 +27,8 @@ Whishper (formerly known as Web Whisper Plus) is a complete transcription suite.
 
 ### Coming soon
 
+- [ ] Alternative MariaDB/MySQL backend
+- [ ] Full-text search all transcriptions
 - [ ] Support for GPU acceleration.
 - [ ] Audio recording from the browser.
 - [ ] Can we do something with [seamless_communication](https://github.com/facebookresearch/seamless_communication)?
@@ -49,3 +51,8 @@ Whishper is a collection of pieces that work together. The three main pieces are
 ## Development
 
 Check out the development documentation [here](https://whishper.net/guides/development/).
+
+## Credits
+
+- [Faster Whisper](https://github.com/guillaumekln/faster-whisper)
+- [LibreTranslate](https://github.com/LibreTranslate/LibreTranslate)
