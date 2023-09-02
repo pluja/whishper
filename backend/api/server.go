@@ -27,8 +27,8 @@ func NewServer(listenAddr string, db database.Db) *Server {
 		Router: fiber.New(fiber.Config{
 			JSONEncoder:  json.Marshal,
 			JSONDecoder:  json.Unmarshal,
-			BodyLimit:    100 * 1024 * 1024, // Increase body limit to 100MB
-			ServerHeader: "Fiber",           // Optional, for easier debugging
+			BodyLimit:    100000 * 1024 * 1024, // Increase body limit to 100000MB (100GB)
+			ServerHeader: "Fiber",              // Optional, for easier debugging
 		}),
 		Db:                 db,
 		clients:            make([]*websocket.Conn, 0),
