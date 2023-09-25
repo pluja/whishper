@@ -26,7 +26,7 @@
 		'es',
 		'fr',
 		'it',
-		'jp',
+		'ja',
 		'nl',
 		'pl',
 		'pt',
@@ -100,12 +100,12 @@
 
 <dialog id="modalNewTranscription" class="modal">
 	<form method="dialog" class="modal-box">
-		<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+		<button class="absolute btn btn-sm btn-circle btn-ghost right-2 top-2">✕</button>
 		{#if errorMessage != ''}
 			<div class="alert alert-error">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
-					class="stroke-current shrink-0 h-6 w-6"
+					class="w-6 h-6 stroke-current shrink-0"
 					fill="none"
 					viewBox="0 0 24 24"
 					><path
@@ -118,8 +118,8 @@
 				<span>{errorMessage}</span>
 			</div>
 		{/if}
-		<div class="space-y-2 mt-0">
-			<div class="form-control w-full max-w-xs">
+		<div class="mt-0 space-y-2">
+			<div class="w-full max-w-xs form-control">
 				<label for="file" class="label">
 					<span class="label-text">Pick a file</span>
 				</label>
@@ -127,11 +127,11 @@
 					name="file"
 					bind:this={fileInput}
 					type="file"
-					class="file-input file-input-sm file-input-bordered file-input-primary w-full max-w-xs"
+					class="w-full max-w-xs file-input file-input-sm file-input-bordered file-input-primary"
 				/>
 			</div>
 
-			<div class="form-control w-full max-w-xs">
+			<div class="w-full max-w-xs form-control">
 				<label for="sourceUrl" class="label">
 					<span class="label-text">Or a source URL</span>
 				</label>
@@ -140,15 +140,15 @@
 					bind:value={sourceUrl}
 					type="text"
 					placeholder="https://youtube.com/watch?v=Hd33fCdW"
-					class="input input-sm input-bordered input-primary w-full max-w-xs"
+					class="w-full max-w-xs input input-sm input-bordered input-primary"
 				/>
 			</div>
 		</div>
 
-		<div class="divider mb-0" />
+		<div class="mb-0 divider" />
 		<!-- Whisper Configuration -->
 		<div class="flex space-x-4">
-			<div class="form-control w-full max-w-xs">
+			<div class="w-full max-w-xs form-control">
 				<label for="modelSize" class="label">
 					<span class="label-text">Whisper model</span>
 				</label>
@@ -159,7 +159,7 @@
 				</select>
 			</div>
 
-			<div class="form-control w-full max-w-xs">
+			<div class="w-full max-w-xs form-control">
 				<label for="language" class="label">
 					<span class="label-text">Language</span>
 				</label>
@@ -171,7 +171,7 @@
 			</div>
 		</div>
 
-		<div class="divider mb-0" />
+		<div class="mb-0 divider" />
 		<!--Actions-->
 		<button class="btn btn-wide btn-primary" on:click={sendForm} disabled={disableSubmit}
 			>Start</button
