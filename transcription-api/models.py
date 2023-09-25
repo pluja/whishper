@@ -32,7 +32,7 @@ class Languages(str, Enum):
     es = "es"
     fr = "fr"
     it = "it"
-    jp = "jp"
+    ja = "ja"
     nl = "nl"
     pl = "pl"
     pt = "pt"
