@@ -1,3 +1,8 @@
+# v1.1.1 (2023-09-25)
+
+* Fix Japanese language code (jp -> ja) (#27)
+* Bump faster-whisper version to 0.9.0
+
 # v1.1.0 (2023-09-02)
 
 ## New features
