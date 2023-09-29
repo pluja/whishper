@@ -90,9 +90,9 @@ services:
       - .env
     restart: unless-stopped
     environment:
-      PUBLIC_INTERNAL_API_HOST: "http://nginx:80"
-      PUBLIC_TRANSLATION_API_HOST: ""
-      PUBLIC_API_HOST: ${WHISHPER_HOST:-}
+      INTERNAL_API_HOST: "http://nginx:80"
+      VITE_TRANSLATION_API_HOST: ""
+      VITE_API_HOST: ${WHISHPER_HOST:-}
     depends_on:
       transcription-api:
         condition: service_healthy

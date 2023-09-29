@@ -1,9 +1,10 @@
 import {transcriptions} from './stores';
-import { PUBLIC_API_HOST } from '$env/static/public';
 import { dev } from '$app/environment';
+import { browser } from '$app/environment';
 
-export const CLIENT_API_HOST = `${dev ? PUBLIC_API_HOST : ""}`;
-export const CLIENT_WS_HOST = `${dev ? PUBLIC_API_HOST.replace("http://", "").replace("https://", "") : ""}`;
+export let CLIENT_API_HOST = browser ? `${dev ? import.meta.env.VITE_API_HOST : ""}` : `${process.env.INTERNAL_API_HOST}`;
+export let CLIENT_WS_HOST = browser ? `${dev ? import.meta.env.VITE_API_HOST.replace("http://", "").replace("https://", "") : ""}` :  `${dev ? process.env.INTERNAL_API_HOST.replace("http://", "").replace("https://", "") : ""}`;
+export let TRANSLATION_API_HOST = browser ? `${dev ? import.meta.env.VITE_TRANSLATION_API_HOST : ""}` : `${dev ? process.env.VITE_TRANSLATION_API_HOST : ""}`;
 
 // URL Validator
 export const validateURL = function (url) {

@@ -216,21 +216,21 @@
 		<div
 			bind:textContent={segment.text}
 			on:input={handleKeystrokes}
-			class="border-2 font-mono font-bold rounded-lg p-3 max-w-md bg-base-100"
+			class="max-w-md p-3 font-mono font-bold border-2 rounded-lg bg-base-100"
 			class:border-error={getCps(segment) > 16}
 			contenteditable="true"
 		/>
 	</td>
 	<td>
 		<div>
-			<span class="flex flex-col text-xs flex-grow">
+			<span class="flex flex-col flex-grow text-xs">
 				<span class:text-error={getCps(segment) > 16}>
-					<span class="whitespace-nowrap font-mono font-bold">
+					<span class="font-mono font-bold whitespace-nowrap">
 						CPS: {getCps(segment)}
 					</span>
 				</span>
 				<span>
-					<span class="whitespace-nowrap font-mono font-bold">
+					<span class="font-mono font-bold whitespace-nowrap">
 						Duration: {Math.round((segment.end - segment.start) * 100) / 100}s
 					</span>
 				</span>
@@ -238,7 +238,7 @@
 		</div>
 	</td>
 	<td
-		class="space-x-1 flex flex-col items-center justify-center space-y-2 md:space-y-0 align-middle lg:flex-row"
+		class="flex flex-col items-center justify-center space-x-1 space-y-2 align-middle md:space-y-0 lg:flex-row"
 	>
 		<!-- Add above -->
 		<span class="tooltip" data-tip="Insert Above">
