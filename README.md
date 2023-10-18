@@ -47,7 +47,11 @@ Whishper is a collection of pieces that work together. The three main pieces are
 - MongoDB (3rd party): This is the database that stores all the information about your transcriptions.
 - Nginx (3rd party): This is the proxy that allows running everything from a single domain.
 
-## Development
+## Contributing
+
+Contributions are welcome! Feel free to open a PR with your changes, or take a look at the issues to see if there is something you can help with.
+
+### Development setup
 
 Check out the development documentation [here](https://whishper.net/guides/development/).
 
