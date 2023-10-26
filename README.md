@@ -2,30 +2,30 @@
 
 # [Whishper](https://whishper.net)
 
-Whishper (formerly known as Web Whisper Plus) is a complete transcription suite. In simple words, it is a frontend for OpenAI's Whisper, but with batteries included!
+Whishper (formerly known as Web Whisper Plus) is a complete transcription suite. In simple words, it is a frontend for the Whisper model family, but [with batteries included](#features)!
 
-> [Checkout the website for more information](https://whishper.net)
+> [Show me the screenshots!](#screenshots)
 
-> [Demo videos available in the usage guide](https://whishper.net/usage/transcriptions/)
+> [Self-hosting docs](https://whishper.net/guides/install/)
 
 ## Features
 
-- Transcribe any media to text: audio, video, etc.
+- [x] Transcribe any media to text: audio, video, etc.
     - Transcribe from URLs (any source supported by yt-dlp).
     - Upload a file to transcribe.
-- Download result in many formats: TXT, JSON, VTT, SRT or copy the raw text to your clipboard.
-- Translate your transcriptions to any language supported by [Libretranslate](https://libretranslate.com).
-- Edit your subtitles in a comfy and complete web UI!
+- [x] Download transcriptions in many formats: TXT, JSON, VTT, SRT or copy the raw text to your clipboard.
+- [x] Translate your transcriptions to any language supported by [Libretranslate](https://libretranslate.com).
+- [x] Edit your subtitles in a comfy and complete web UI!
+    - Transcription highlighting based on media position.
+    - CPS (Characters per second) warnings.
+    - Segment splitting.
+    - Segment insertion.
     - Subtitle language selection.
-    - Sentence splitting.
-    - Large CPS (Characters per second) warnings.
-    - See current transcription based on media position.
-    - Insert new segments to the subtitles.
-- Private: transcription, translation and subtitle edition happen 100% locally (can work offline!).
-- Fast: uses FasterWhisper as the Whisper backend: get much faster transcription times on CPU!
-- Local: transcripted files are stored locally, and you can download them!
+- [x] 100% Local: transcription, translation and subtitle edition happen 100% on your machine (can even work offline!).
+- [x] Fast: uses FasterWhisper as the Whisper backend: get much faster transcription times on CPU!
+- [x] Quick setup: the setup involves just a docker-compose and you're good to go!
 
-### Coming soon
+### Roadmap
 
 - [ ] Full-text search all transcriptions
 - [ ] Support for GPU acceleration.
@@ -54,6 +54,15 @@ Contributions are welcome! Feel free to open a PR with your changes, or take a l
 ### Development setup
 
 Check out the development documentation [here](https://whishper.net/guides/development/).
+
+## Screenshots
+
+These screenshots are available on [the official website](https://whishper.net/usage/transcriptions/), click any of the following links to see:
+
+- [A transcription creation](https://whishper.net/usage/transcriptions/)
+- [A transcription translation](https://whishper.net/usage/translate/)
+- [A transcription download](https://whishper.net/usage/download/)
+- [The subtitle editor](https://whishper.net/usage/editor/)
 
 ## Credits
 
