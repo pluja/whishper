@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Whishper frontend and backend images
 
 on:
   release:
@@ -11,26 +11,26 @@ jobs:
 
     strategy:
       matrix:
-        directory: ['backend', 'frontend', 'transcription-api']
+        directory: ['backend', 'frontend']
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker images
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.directory }}
           file: ${{ matrix.directory }}/Dockerfile
@@ -38,5 +38,15 @@ jobs:
           push: true
           tags: |
             ${{ format('{0}/whishper-{1}:{2}', secrets.DOCKERHUB_USERNAME, matrix.directory, github.event.release.tag_name) }}
+
+      - name: Build and push Docker images
+        if: ${{ !github.event.release.prerelease }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.directory }}
+          file: ${{ matrix.directory }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
             ${{ format('{0}/whishper-{1}:latest', secrets.DOCKERHUB_USERNAME, matrix.directory) }}
 
