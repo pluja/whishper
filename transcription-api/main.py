@@ -15,15 +15,18 @@ async def transcribe_endpoint(file: UploadFile = File(None),
                               filename: str = None,
                               model_size: ModelSize = ModelSize.small, 
                               language: Languages = Languages.auto,
-                              device: DeviceType = DeviceType.cpu):
+                              device: str = "cpu"):
     
-    print(f"Transcribing with model {model_size.value} on device {device.value}...")
+    if device != "cpu" and device != "cuda":
+        return {"detail": "Device must be either cpu or cuda"}
+    
+    print(f"Transcribing with model {model_size.value} on device {device}...")
     if file is not None:
         # if a file is uploaded, use it
-        return await transcribe_file(file, model_size.value, language.value, device.value)
+        return await transcribe_file(file, model_size.value, language.value, device)
     elif filename is not None:
         # if a filename is provided, use it
-        return await transcribe_from_filename(filename, model_size.value, language.value, device.value)
+        return await transcribe_from_filename(filename, model_size.value, language.value, device)
     else:
         return {"detail": "No file uploaded and no filename provided"}
 
