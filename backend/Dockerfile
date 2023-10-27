@@ -28,4 +28,4 @@ COPY --from=ytdlp_cache /usr/local/bin/yt-dlp /bin/yt-dlp
 RUN mkdir /app/uploads
 
 EXPOSE 8080
-ENTRYPOINT [ "/app/whishper", "-addr", ":8080", "-dev" ]
+ENTRYPOINT [ "/app/whishper", "-addr", ":8080" ]
