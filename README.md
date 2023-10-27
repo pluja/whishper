@@ -24,8 +24,8 @@ Whishper (formerly known as Web Whisper Plus) is a complete transcription suite.
 - [x] 🏠 100% Local: transcription, translation and subtitle edition happen 100% on your machine (can even work offline!).
 - [x] 🚀 Fast: uses FasterWhisper as the Whisper backend: get much faster transcription times on CPU!
 - [x] 👍 Quick setup: the setup involves just a docker-compose and you're good to go!
-- [ ] 🐎 CPU support: no GPU? No problem! Whishper can run on CPU too.
-- [ ] 🔥 NVIDIA GPU support: use your NVIDIA GPU to get even faster transcription times!
+- [x] 🐎 CPU support: no GPU? No problem! Whishper can run on CPU too.
+- [x] 🔥 NVIDIA GPU support: use your NVIDIA GPU to get even faster transcription times!
 
 ### Roadmap
 
