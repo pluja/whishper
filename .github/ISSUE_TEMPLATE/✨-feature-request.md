@@ -2,7 +2,7 @@
 name: "✨ Feature request"
 about: Suggest an idea for this project
 title: "[Feature] Feature Title"
-labels: enhancement
+labels: "enhancement"
 assignees: pluja
 
 ---
