@@ -2,7 +2,7 @@
 name: "\U0001FAB2 Bug report"
 about: Create a report to help improve whishper
 title: "[BUG] Bug Title"
-labels: bug
+labels: "bug"
 assignees: pluja
 
 ---
