@@ -1,7 +1,8 @@
 <script>
     import { onMount } from 'svelte';
     import toast from 'svelte-french-toast';
-    import { CLIENT_API_HOST, TRANSLATION_API_HOST } from '$lib/utils';
+    import { CLIENT_API_HOST } from '$lib/utils';
+	import { env } from '$env/dynamic/public';
     export let tr;
 
     let targetLanguage = null;
@@ -9,7 +10,7 @@
     let availableLanguages = [];
     const getAvailableLangs = () => {
         const fetchLanguages = () => {
-            fetch(`${TRANSLATION_API_HOST}/languages`)
+            fetch(`${env.PUBLIC_TRANSLATION_API_HOST}/languages`)
             .then(res => res.json())
             .then(data => {
                 if (data) {

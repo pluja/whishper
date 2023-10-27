@@ -5,10 +5,7 @@ import { env } from '$env/dynamic/public';
 
 export let CLIENT_API_HOST = browser ? `${dev ? env.PUBLIC_API_HOST : ""}` : `${env.PUBLIC_INTERNAL_API_HOST}`;
 export let CLIENT_WS_HOST = browser ? `${dev ? env.PUBLIC_API_HOST.replace("http://", "").replace("https://", "") : ""}` :  `${dev ? env.PUBLIC_INTERNAL_API_HOST.replace("http://", "").replace("https://", "") : ""}`;
-export let TRANSLATION_API_HOST = browser ? `${dev ? env.PUBLIC_TRANSLATION_API_HOST : ""}` : `${dev ? env.PUBLIC_TRANSLATION_API_HOST : ""}`;
-export let WHISHPER_GPU = env.PUBLIC_WHISHPER_GPU === 'true' ||
-                          env.PUBLIC_WHISHPER_GPU === 'True' ||
-                          env.PUBLIC_WHISHPER_GPU === '1';
+
 // URL Validator
 export const validateURL = function (url) {
     try {

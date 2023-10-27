@@ -1,5 +1,6 @@
 <script>
-	import { validateURL, CLIENT_API_HOST, WHISHPER_GPU } from '$lib/utils.js';
+	import { validateURL, CLIENT_API_HOST } from '$lib/utils.js';
+	import { env } from '$env/dynamic/public';
 
 	import toast from 'svelte-french-toast';
 
@@ -9,7 +10,7 @@
 	let language = 'auto';
 	let sourceUrl = '';
 	let fileInput;
-	let device = (WHISHPER_GPU) ? 'cuda' : 'cpu';
+	let device = (env.PUBLIC_WHISHPER_GPU) ? 'cuda' : 'cpu';
 
 	let languages = [
 		'auto',
@@ -181,7 +182,7 @@
 					<span class="label-text">Device</span>
 				</label>
 				<select name="device" bind:value={device} class="select select-bordered">
-					{#if WHISHPER_GPU }
+					{#if env.PUBLIC_WHISHPER_GPU }
 						<option selected value="cuda">GPU</option>
 						<option value="cpu">CPU</option>
 					{:else}

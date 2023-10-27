@@ -1,12 +1,11 @@
 import { transcriptions } from '$lib/stores';
 import { browser, dev } from '$app/environment';
-import { CLIENT_API_HOST } from '$lib/utils';
+import { env } from '$env/dynamic/public';
 
 /** @type {import('./$types').PageLoad} */
 export async function load({ fetch }) {
     // Use different endpoints for server-side and client-side
-    const endpoint = browser ? `${CLIENT_API_HOST}/api/transcriptions` : `${process.env.INTERNAL_API_HOST}/api/transcriptions`;
-    console.log(endpoint);
+    const endpoint = browser ? `${env.PUBLIC_API_HOST}/api/transcriptions` : `${env.PUBLIC_INTERNAL_API_HOST}/api/transcriptions`;
 
     const response = await fetch(endpoint);
     const ts = await response.json();
