@@ -10,6 +10,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Free disk space
+        run: |
+          sudo docker rmi $(docker image ls -aq) >/dev/null 2>&1 || true
+          sudo rm -rf /usr/share/dotnet  || true
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup /usr/lib/jvm || true
+          echo "some directories deleted"
+
       - name: Checkout
         uses: actions/checkout@v4
 
