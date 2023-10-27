@@ -158,7 +158,7 @@ services:
       PUBLIC_INTERNAL_API_HOST: "http://nginx:80"
       PUBLIC_TRANSLATION_API_HOST: ""
       PUBLIC_API_HOST: ${WHISHPER_HOST:-}
-      PUBLIC_WHISHPER_GPU: ${WHISHPER_GPU:-false}
+      PUBLIC_WHISHPER_PROFILE: ${COMPOSE_PROFILES:-false}
     expose:
       - 3000
 
