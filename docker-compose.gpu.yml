@@ -38,13 +38,14 @@ services:
       - 5000
     healthcheck:
       test: ['CMD-SHELL', './venv/bin/python scripts/healthcheck.py']
-      interval: 2s
-      timeout: 3s
+      interval: 15s
+      timeout: 10s
+      start_period: 5s
       retries: 5
 
   transcription-api:
     container_name: whisper-api
-    image: pluja/whishper-transcription-api:latest
+    image: pluja/whishper-transcription-api:latest-gpu
     env_file:
       - .env
     volumes:
@@ -56,6 +57,13 @@ services:
     restart: unless-stopped
     expose:
       - 8000
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
 
   whishper-backend:
     container_name: whishper-backend
@@ -65,18 +73,19 @@ services:
     volumes:
       - ./whishper_data/uploads:/app/uploads
     restart: unless-stopped
+    environment:
+      - FERRETDB_MONGO_URL=mongodb://${DB_USER:-whishper}:${DB_PASS:-whishper}@mongo:27017/?authMechanism=PLAIN
     depends_on:
-      mongo:
-        condition: service_healthy
       translate:
         condition: service_healthy
       transcription-api:
         condition: service_healthy
     healthcheck:
       test: curl --fail http://localhost:8080/api/transcriptions || exit 1
-      interval: 2s
-      timeout: 2s
+      interval: 15s
+      timeout: 10s
       retries: 5
+      start_period: 5s
     expose:
       - 8080
 
@@ -90,7 +99,7 @@ services:
       PUBLIC_INTERNAL_API_HOST: "http://nginx:80"
       PUBLIC_TRANSLATION_API_HOST: ""
       PUBLIC_API_HOST: ${WHISHPER_HOST:-}
-      PUBLIC_WHISHPER_GPU: ${WHISHPER_GPU:-false}
+      PUBLIC_WHISHPER_GPU: ${WHISHPER_GPU:-true}
     depends_on:
       transcription-api:
         condition: service_healthy

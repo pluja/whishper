@@ -1,5 +1,5 @@
 <script>
-	import { validateURL, CLIENT_API_HOST } from '$lib/utils.js';
+	import { validateURL, CLIENT_API_HOST, WHISHPER_GPU } from '$lib/utils.js';
 
 	import toast from 'svelte-french-toast';
 
@@ -9,6 +9,7 @@
 	let language = 'auto';
 	let sourceUrl = '';
 	let fileInput;
+	let device = (WHISHPER_GPU) ? 'cuda' : 'cpu';
 
 	let languages = [
 		'auto',
@@ -71,6 +72,11 @@
 		let formData = new FormData();
 		formData.append('language', language);
 		formData.append('modelSize', modelSize);
+		if (device == 'cuda' || device == 'cpu') {
+			formData.append('device', device);
+		} else {
+			formData.append('device', 'cpu');
+		}
 		formData.append('sourceUrl', sourceUrl);
 		if (sourceUrl == '') {
 			formData.append('file', fileInput.files[0]);
@@ -167,6 +173,21 @@
 					{#each languages as l}
 						<option value={l}>{l}</option>
 					{/each}
+				</select>
+			</div>
+
+			<div class="w-full max-w-xs form-control">
+				<label for="language" class="label">
+					<span class="label-text">Device</span>
+				</label>
+				<select name="device" bind:value={device} class="select select-bordered">
+					{#if WHISHPER_GPU }
+						<option selected value="cuda">GPU</option>
+						<option value="cpu">CPU</option>
+					{:else}
+						<option selected value="cpu">CPU</option>
+						<option disabled value="cuda">GPU</option>
+					{/if}
 				</select>
 			</div>
 		</div>

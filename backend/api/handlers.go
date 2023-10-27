@@ -87,8 +87,11 @@ func (s *Server) handlePostTranscription(c *fiber.Ctx) error {
 	transcription.Status = models.TranscriptionStatusPending
 	transcription.Task = "transcribe"
 	transcription.SourceUrl = c.FormValue("sourceUrl")
-	// TODO: Implement other device types
-	transcription.Device = "cpu"
+	transcription.Device = c.FormValue("device")
+	if transcription.Device != "cpu" && transcription.Device != "cuda" {
+		log.Warn().Msgf("Device %v not supported, using cpu", transcription.Device)
+		transcription.Device = "cpu"
+	}
 
 	log.Debug().Msgf("Transcription: %+v", transcription)
 	// Save transcription to database
