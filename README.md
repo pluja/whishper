@@ -10,25 +10,27 @@ Whishper (formerly known as Web Whisper Plus) is a complete transcription suite.
 
 ## Features
 
-- [x] Transcribe any media to text: audio, video, etc.
+- [x] 🗣️ Transcribe any media to text: audio, video, etc.
     - Transcribe from URLs (any source supported by yt-dlp).
     - Upload a file to transcribe.
-- [x] Download transcriptions in many formats: TXT, JSON, VTT, SRT or copy the raw text to your clipboard.
-- [x] Translate your transcriptions to any language supported by [Libretranslate](https://libretranslate.com).
-- [x] Edit your subtitles in a comfy and complete web UI!
+- [x] 📥 Download transcriptions in many formats: TXT, JSON, VTT, SRT or copy the raw text to your clipboard.
+- [x] 🌐 Translate your transcriptions to any language supported by [Libretranslate](https://libretranslate.com).
+- [x] ✍️ Edit your subtitles in a comfy and complete web UI!
     - Transcription highlighting based on media position.
     - CPS (Characters per second) warnings.
     - Segment splitting.
     - Segment insertion.
     - Subtitle language selection.
-- [x] 100% Local: transcription, translation and subtitle edition happen 100% on your machine (can even work offline!).
-- [x] Fast: uses FasterWhisper as the Whisper backend: get much faster transcription times on CPU!
-- [x] Quick setup: the setup involves just a docker-compose and you're good to go!
+- [x] 🏠 100% Local: transcription, translation and subtitle edition happen 100% on your machine (can even work offline!).
+- [x] 🚀 Fast: uses FasterWhisper as the Whisper backend: get much faster transcription times on CPU!
+- [x] 👍 Quick setup: the setup involves just a docker-compose and you're good to go!
+- [ ] 🐎 CPU support: no GPU? No problem! Whishper can run on CPU too.
+- [ ] 🔥 NVIDIA GPU support: use your NVIDIA GPU to get even faster transcription times!
 
 ### Roadmap
 
+- [x] ~~Support for GPU acceleration.~~
 - [ ] Full-text search all transcriptions
-- [ ] Support for GPU acceleration.
 - [ ] Audio recording from the browser.
 - [ ] Can we do something with [seamless_communication](https://github.com/facebookresearch/seamless_communication)?
 
