@@ -9,3 +9,4 @@ whisper_models/
 *_WHSHPR_*
 .env
 .DS_Store
+*.beta.yml

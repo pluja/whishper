@@ -1,8 +1,17 @@
 version: '3.9'
 
 services:
-  transcription-api:
-    build: ./transcription-api
+  transcription-api-gpu:
+    build: 
+      context: ./transcription-api
+      dockerfile: Dockerfile.gpu
+    ports:
+      - 8000:8000
+
+  transcription-api-cpu:
+    build: 
+        context: ./transcription-api
+        dockerfile: Dockerfile
     ports:
       - 8000:8000
       
@@ -14,11 +23,11 @@ services:
     ports:
       - 27017:27017
 
-  whishper-backend:
-    build: ./backend
-    ports:
-      - 8080:8080
+  #whishper-backend:
+  #  build: ./backend
+  #  ports:
+  #    - 8080:8080
     
-  whishper-frontend:
-    build: 
-      context: ./frontend
+  #whishper-frontend:
+  #  build: 
+  #    context: ./frontend
