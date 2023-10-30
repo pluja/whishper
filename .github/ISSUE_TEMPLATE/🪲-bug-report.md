@@ -7,7 +7,7 @@ assignees: pluja
 
 ---
 
-## **Describe what happens**
+## **Description**
 A clear and concise description of what the bug is.
 
 ### **To Reproduce**
@@ -20,24 +20,24 @@ Steps to reproduce the behavior:
 ### **Expected behavior**
 A clear and concise description of what you expected to happen.
 
-## Context
+## Environment
+- OS: [e.g., Linux]
+- Browser: [e.g., Chrome, Safari]
+- Version: [e.g., 22]
+- Hosting: [Local/Webserver/Reverse Proxy...]
 
-### **Docker compose logs**
+## Logs and Configuration
 
-> Go to the project folder, run `docker compose logs -f --tail 50`, add some newlines, and force the error. After that copy and paste the logs you see below:
+### Docker Compose Logs
+
+> Run the following command in the project folder, force the error, and paste the logs below: `docker compose logs -f --tail 50`
 
 ```
 PASTE LOGS HERE
 ```
 
-### **Docker Compose file**
+### Docker Compose File
 
 ```yaml
 PASTE YOUR DOCKER-COMPOSE.YML FILE HERE
 ```
-
-### **Additional Info (please complete the following information):**
- - OS: [e.g. Linux]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
- - Hosting: [Local / Webserver / Reverse Proxy...]
