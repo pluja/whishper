@@ -24,7 +24,7 @@ A clear and concise description of what you expected to happen.
 
 ### **Docker compose logs**
 
-> Go to the project folder, run `docker compose logs -f --tail 35`, add some newlines, and force the error. After that copy and paste the logs you see below:
+> Go to the project folder, run `docker compose logs -f --tail 50`, add some newlines, and force the error. After that copy and paste the logs you see below:
 
 ```
 PASTE LOGS HERE
