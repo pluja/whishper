@@ -1,6 +1,6 @@
 <script>
 	import { Toaster } from 'svelte-french-toast';
-	import { transcriptions } from '$lib/stores';
+	import { transcriptions, uploadProgress } from '$lib/stores';
 	import { browser, dev } from '$app/environment';
 	import { CLIENT_WS_HOST } from '$lib/utils';
 	import { onMount, onDestroy } from 'svelte';
@@ -89,21 +89,28 @@
 <ModalTranscriptionForm />
 
 <header>
-	<h1 class="flex items-center justify-center space-x-4 font-bold text-4xl mt-8">
+	<h1 class="flex items-center justify-center mt-8 space-x-4 text-4xl font-bold">
 		<span>
 			<img class="w-20 h-20" src="/logo.svg" alt="Logo: a cloud whispering" />
 		</span>
 		<span> Whishper </span>
 	</h1>
-	<h2 class="text-md text-center opacity-70 font-mono">{data.randomSentence}</h2>
+	<h2 class="font-mono text-center text-md opacity-70">{data.randomSentence}</h2>
 </header>
 
-<main class="card w-4/6 bg-neutral text-neutral-content mx-auto mt-4 mb-8">
-	<button
-		class="btn btn-primary mx-auto max-w-md mt-8 btn-md"
-		onclick="modalNewTranscription.showModal()">✨ new transcription</button
-	>
-	<div class="card-body items-center text-center mb-0">
+<main class="w-4/6 mx-auto mt-4 mb-8 card bg-neutral text-neutral-content">
+	{#if $uploadProgress > 0}
+		<div class="flex flex-col items-center justify-center px-4 pt-4 my-4">
+			<progress class="w-full mx-2 progress progress-success" value="{$uploadProgress}" max="100"></progress>
+			<span>Uploading...</span>
+		</div>
+	{:else}
+		<button
+			class="max-w-md mx-auto mt-8 btn btn-primary btn-md"
+			onclick="modalNewTranscription.showModal()">✨ new transcription</button
+		>
+	{/if}
+	<div class="items-center mb-0 text-center card-body">
 		{#if $transcriptions.length > 0}
 			{#each $transcriptions as tr (tr.id)}
 				{#if tr.status == 2}
@@ -120,7 +127,7 @@
 				{/if}
 			{/each}
 		{:else}
-			<p class="text-center font-bold text-2xl">🔮 No transcriptions yet 🔮</p>
+			<p class="text-2xl font-bold text-center">🔮 No transcriptions yet 🔮</p>
 		{/if}
 	</div>
 </main>

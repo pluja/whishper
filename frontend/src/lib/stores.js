@@ -13,6 +13,9 @@ export const downloadTranscription = writable(null);
 
 export const editorHistory = writable([]);
 
+// Upload progress and status
+export const uploadProgress = writable(0);
+
 // editor settings
 export let editorSettings = writable({
     autosave: false,

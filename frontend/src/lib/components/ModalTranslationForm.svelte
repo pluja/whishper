@@ -15,7 +15,6 @@
             .then(data => {
                 if (data) {
                     availableLanguages = data;
-                    console.log(availableLanguages)
                     // Languages fetched successfully, stop trying
                     clearInterval(fetchLanguagesInterval);
                 }
@@ -56,7 +55,7 @@
                 <!-- Language picker -->
                 <div class="w-full max-w-xs form-control">
                     <label for="target-lan" class="label">
-                      <span class="label-text">Target language</span>
+                      <span class="label-text">Target languages for {tr.result.language}</span>
                     </label>
                     <select bind:value={targetLanguage} name="target-lan" class="select select-bordered">
                       <option disabled selected>Pick one</option>

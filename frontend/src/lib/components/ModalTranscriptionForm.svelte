@@ -1,6 +1,7 @@
 <script>
 	import { validateURL, CLIENT_API_HOST } from '$lib/utils.js';
 	import { env } from '$env/dynamic/public';
+	import { uploadProgress } from '$lib/stores';
 
 	import toast from 'svelte-french-toast';
 
@@ -10,7 +11,7 @@
 	let language = 'auto';
 	let sourceUrl = '';
 	let fileInput;
-	let device = (env.PUBLIC_WHISHPER_PROFILE == "gpu") ? 'cuda' : 'cpu';
+	let device = env.PUBLIC_WHISHPER_PROFILE == 'gpu' ? 'cuda' : 'cpu';
 
 	let languages = [
 		'auto',
@@ -83,14 +84,44 @@
 			formData.append('file', fileInput.files[0]);
 		}
 
-		const res = await fetch(`${CLIENT_API_HOST}/api/transcriptions`, {
-			method: 'POST',
-			body: formData
+		return new Promise((resolve, reject) => {
+			const xhr = new XMLHttpRequest();
+
+			// Set up progress event listener
+			xhr.upload.addEventListener('progress', (event) => {
+				if (event.lengthComputable) {
+					const percentCompleted = Math.round((event.loaded * 100) / event.total);
+					uploadProgress.set(percentCompleted);
+				}
+			});
+
+			// Set up load event listener
+			xhr.addEventListener('load', () => {
+				if (xhr.status === 200) {
+					resolve(xhr.response);
+					toast.success('Success!');
+				} else {
+					reject(xhr.statusText);
+					toast.error('Upload failed');
+				}
+				uploadProgress.set(0); // Reset progress after completion
+			});
+
+			// Set up error event listener
+			xhr.addEventListener('error', () => {
+				reject(xhr.statusText);
+				toast.error('An error occurred during upload');
+				uploadProgress.set(0); // Reset progress on error
+			});
+
+			xhr.open('POST', `${CLIENT_API_HOST}/api/transcriptions`);
+			xhr.send(formData);
 		});
 
 		// Set file and sourceUrl to empty
 		sourceUrl = '';
 		fileInput.value = '';
+		uploadProgress.set(0);
 
 		toast.success('Success!');
 	}
@@ -182,7 +213,7 @@
 					<span class="label-text">Device</span>
 				</label>
 				<select name="device" bind:value={device} class="select select-bordered">
-					{#if env.PUBLIC_WHISHPER_PROFILE == "gpu" }
+					{#if env.PUBLIC_WHISHPER_PROFILE == 'gpu'}
 						<option selected value="cuda">GPU</option>
 						<option value="cpu">CPU</option>
 					{:else}
@@ -199,7 +230,7 @@
 			>Start</button
 		>
 	</form>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
+	<form method="dialog" class="modal-backdrop">
+		<button>close</button>
+	</form>
 </dialog>
