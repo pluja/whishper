@@ -2,7 +2,7 @@
 
 # [Whishper](https://whishper.net)
 
-Whishper (formerly known as Web Whisper Plus) is a complete transcription suite. In simple words, it is a frontend for the Whisper model family, but [with batteries included](#features)!
+**Whishper** is an open-source, 100% local audio transcription and subtitling suite with a full-featured web UI.
 
 > [Show me the screenshots!](#screenshots)
 
