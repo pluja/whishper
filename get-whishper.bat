@@ -25,10 +25,6 @@ rem Get docker-compose.yml
 echo Getting the docker-compose.yml file from Github
 curl -o docker-compose.yml https://raw.githubusercontent.com/pluja/whishper/main/docker-compose.yml
 
-rem Get nginx.conf
-echo Getting the nginx.conf file from Github 
-curl -o nginx.conf https://raw.githubusercontent.com/pluja/whishper/main/nginx.conf
-
 rem Get .env file
 if exist .env (
   echo .env file already exists

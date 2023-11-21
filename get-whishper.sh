@@ -60,11 +60,11 @@ fi
 
 echo ""
 echo -e "ℹ️  Getting the docker-compose.yml file from Github"
-curl -o docker-compose.yml https://raw.githubusercontent.com/pluja/whishper/main/docker-compose.yml > /dev/null 2>&1
-sleep 1
-
-echo -e "ℹ️  Getting the nginx.conf file from Github"
-curl -o nginx.conf https://raw.githubusercontent.com/pluja/whishper/main/nginx.conf > /dev/null 2>&1
+if [ "$gpu" = true ] ;then
+    curl -o docker-compose.yml https://raw.githubusercontent.com/pluja/whishper/main/docker-compose.gpu.yml > /dev/null 2>&1
+else
+    curl -o docker-compose.yml https://raw.githubusercontent.com/pluja/whishper/main/docker-compose.yml > /dev/null 2>&1
+fi
 sleep 1
 
 # check if .env exists
@@ -86,10 +86,6 @@ else
     sleep 1
 fi
 
-if [ "$gpu" = true ] ;then
-    sed -i 's/COMPOSE_PROFILES=cpu/COMPOSE_PROFILES=gpu/g' .env
-fi
-
 # Create necessary directories for libretranslate
 echo -e "ℹ️  Creating necessary directories for libretranslate"
 sudo mkdir -p ./whishper_data/libretranslate/{data,cache}
@@ -98,7 +94,7 @@ sleep 1
 # This permissions are for libretranslate docker container
 echo -e "ℹ️  Setting permissions for libretranslate"
 case "$OSTYPE" in
-  darwin*)  echo -e "ℹ️  macOS detected... Leaving permissions as is." ;; 
+  darwin*)  echo -e "ℹ️  macOS detected... Leaving permissions untouched." ;; 
   linux*)   sudo chown -R 1032:1032 ./whishper_data/libretranslate ;;
   *)        echo -e "${YELLOW}⚠️  unknown: $OSTYPE${NC}" ;;
 esac
