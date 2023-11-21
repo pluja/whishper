@@ -22,7 +22,6 @@ ARG TARGETARCH
 WORKDIR /app
 COPY --from=builder /app/whishper ./whishper 
 RUN chmod a+rx ./whishper
-
 COPY --from=ytdlp_cache /usr/local/bin/yt-dlp /bin/yt-dlp
 
 RUN mkdir /app/uploads

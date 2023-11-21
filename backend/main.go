@@ -19,7 +19,7 @@ func main() {
 
 	listenAddr := flag.String("addr", ":8080", "server listen address")
 	uploadDir := flag.String("updir", "/app/uploads", "upload directory")
-	asrEndpoint := flag.String("asr", "transcription-api:8000", "asr endpoint, i.e. localhost:9888")
+	asrEndpoint := flag.String("asr", "127.0.0.1:8000", "asr endpoint, i.e. localhost:9888")
 	dbHost := flag.String("db", "mongo:27017", "database endpoint host, i.e. localhost:27017")
 	dbUser := flag.String("dbuser", "root", "database user")
 	dbPass := flag.String("dbpass", "example", "database password")

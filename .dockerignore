@@ -1,0 +1,37 @@
+# General files
+*.yml
+*.log
+*.bat
+*.md
+*.txt
+.env*
+Dockerfile
+.gitignore
+.eslintignore
+.eslintrc.js
+.prettierrc
+
+# Directories
+.github
+.git
+node_modules
+.svelte-kit
+__pycache__
+.ruff_cache
+.venv
+.vscode
+whisper_models
+whishper_data
+misc
+
+# Recursive patterns
+**/node_modules/
+**/__pycache__/
+**/.ruff_cache
+**/.venv
+**/.vscode
+**/whisper_models
+**/whishper_data
+**/.github
+**/.git
+**/.svelte-kit

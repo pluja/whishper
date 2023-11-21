@@ -32,7 +32,8 @@ func NewMongoDb() *MongoDb {
 	}
 
 	// Set auth method to PLAIN if using FerretDB
-	if os.Getenv("FERRETDB_MONGO_URL") != "" {
+	if os.Getenv("FERRETDB_ENABLED") != "" {
+		log.Printf("FerretDB enabled, setting auth mechanism to PLAIN...")
 		credentials.AuthMechanism = "PLAIN"
 	}
 
