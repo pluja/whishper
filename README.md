@@ -29,10 +29,13 @@
 
 ### Roadmap
 
+- [ ] Local folder as media input ([#15](https://github.com/pluja/whishper/issues/15)).
+- [ ] Full-text search all transcriptions.
+- [ ] User authentication.
+- [ ] Audio recording from the browser.
+- [ ] Add [insanely-fast-whisper](https://github.com/Vaibhavs10/insanely-fast-whisper) as an optional backend ([#53](https://github.com/pluja/whishper/issues/53)).
 - [x] ~~Support for GPU acceleration.~~
   - [ ] Non NVIDIA GPU support. Is it possible with faster-whisper?
-- [ ] Full-text search all transcriptions
-- [ ] Audio recording from the browser.
 - [ ] Can we do something with [seamless_communication](https://github.com/facebookresearch/seamless_communication)?
 
 ## Self hosting
