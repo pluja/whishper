@@ -1,23 +1,20 @@
-![whishper banner](misc/banner.png)
+[![whishper banner](misc/banner.png)](https://whishper.net)
 
-[![](https://img.shields.io/badge/Website-8A2BE2)](https://whishper.net)
-[![](https://img.shields.io/badge/%F0%9F%96%BC%EF%B8%8FScreenshots-8A2BE2)](#🖼️-screenshots)
-[![](https://img.shields.io/badge/%F0%9F%8F%A0%20Selfhosting%20Guide-purple)](https://whishper.net/guides/install)
+[![](https://img.shields.io/badge/website-066da5?style=for-the-badge&logo=icloud&logoColor=white)](https://whishper.net)
+[![](https://img.shields.io/badge/self%20host%20guide-066da5?style=for-the-badge&logo=googledocs&logoColor=white)](https://whishper.net/guides/install)
+[![](https://img.shields.io/badge/screenshots-5c1f87?style=for-the-badge&logo=slickpic&logoColor=white)](#screenshots)
+[![](https://img.shields.io/docker/pulls/pluja/whishper?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/r/pluja/whishper)
 
 **Whishper** is an open-source, 100% local audio transcription and subtitling suite with a full-featured web UI.
 
-> [Show me the screenshots!](#-screenshots)
-
-> [Self-hosting docs](https://whishper.net/guides/install/)
-
-## ✨ Features
+## Features
 
 - [x] 🗣️ **Transcribe any media** to text: audio, video, etc.
   - Transcribe from URLs (any source supported by yt-dlp).
   - Upload a file to transcribe.
 - [x] 📥 **Download transcriptions in many formats**: TXT, JSON, VTT, SRT or copy the raw text to your clipboard.
 - [x] 🌐 **Translate your transcriptions** to any language supported by [Libretranslate](https://libretranslate.com).
-- [x] ✍️ **Edit your subtitles** in a comfy and complete web UI!
+- [x] ✍️ **Powerful subtitle editor** so you don't need to leave the UI!
   - Transcription highlighting based on media position.
   - CPS (Characters per second) warnings.
   - Segment splitting.
@@ -29,7 +26,7 @@
 - [x] 🔥 **GPU support**: use your NVIDIA GPU to get even faster transcription times!
 - [x] 🐎 **CPU support**: no GPU? No problem! Whishper can run on CPU too.
 
-### 🧭 Roadmap
+### Roadmap
 
 - [ ] Local folder as media input ([#15](https://github.com/pluja/whishper/issues/15)).
 - [ ] Full-text search all transcriptions.
@@ -40,7 +37,7 @@
   - [ ] Non NVIDIA GPU support. Is it possible with faster-whisper?
 - [ ] Can we do something with [seamless_communication](https://github.com/facebookresearch/seamless_communication)?
 
-## 🩻 Project structure
+## Project structure
 
 Whishper is a collection of pieces that work together. The three main pieces are:
 
@@ -59,7 +56,7 @@ Contributions are welcome! Feel free to open a PR with your changes, or take a l
 
 Check out the development documentation [here](https://whishper.net/guides/development/).
 
-## 🖼️ Screenshots
+## Screenshots
 
 These screenshots are available on [the official website](https://whishper.net/usage/transcriptions/), click any of the following links to see:
 
@@ -68,13 +65,23 @@ These screenshots are available on [the official website](https://whishper.net/u
 - [A transcription download](https://whishper.net/usage/download/)
 - [The subtitle editor](https://whishper.net/usage/editor/)
 
-## 🫀 Support
+## Support
 
 - [Monero](https://www.getmonero.org/): `82x6cn628oTUXV63DxBd6MJB8d997FhaSaGFvoWMgwihVmgiXYQPAwm2BCH31AovA9Qnnv1qQRrJk83TaJ8DaSZU2zkbWfM`
 - [Bitcoin](https://bitcoin.org/en/): `bc1qfph44jl4cy03stwfkk7g0qlwx2grldr9xpk086`
 - [Lightning Network (kycnotme)](https://getalby.com/p/kycnotme)
 
-## 🤝 Credits
+## Star History
+
+<a href="https://star-history.com/#pluja/whishper&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=pluja/whishper&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=pluja/whishper&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=pluja/whishper&type=Date" />
+  </picture>
+</a>
+
+## Credits
 
 - [Faster Whisper](https://github.com/guillaumekln/faster-whisper)
 - [LibreTranslate](https://github.com/LibreTranslate/LibreTranslate)
