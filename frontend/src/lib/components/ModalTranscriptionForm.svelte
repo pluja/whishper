@@ -50,7 +50,8 @@
 		'small.en',
 		'medium',
 		'medium.en',
-		'large-v2'
+		'large-v2',
+		'large-v3'
 	];
 	// Sort the languages
 	languages.sort((a, b) => {

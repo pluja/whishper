@@ -10,3 +10,4 @@ whisper_models/
 .env
 .DS_Store
 *.beta.yml
+venv
