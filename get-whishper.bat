@@ -31,8 +31,10 @@ if exist .env (
   echo Do you want to overwrite it? (Y/N)
   set /p answer=
   if /i "%answer%"=="Y" (
-    echo Copying env.example to .env
+    echo Overwriting .env file
     curl -o .env https://raw.githubusercontent.com/pluja/whishper/main/example.env
+  ) else (
+    echo Keeping the existing .env file
   )
 ) else (
   echo Getting the default .env file from Github
