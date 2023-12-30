@@ -53,7 +53,7 @@ export const getRandomSentence = function () {
 }
 
 // Expects a segments array with start, end and text properties
-export const downloadSRT = function (jsonData) {
+export const downloadSRT = function (jsonData, title) {
     let srtContent = '';
     
     jsonData.forEach((segment, index) => {
@@ -71,32 +71,32 @@ export const downloadSRT = function (jsonData) {
     let url = URL.createObjectURL(srtBlob);
     let link = document.createElement('a');
     link.href = url;
-    link.download = 'subtitles.srt';
+    link.download = `${title}.srt`;
     link.click();
 }
 
 // Downloads received text as a TXT file
-export const downloadTXT = function (text) {
+export const downloadTXT = function (text, title) {
     let srtBlob = new Blob([text], {type: 'text/plain'});
     let url = URL.createObjectURL(srtBlob);
     let link = document.createElement('a');
     link.href = url;
-    link.download = 'subtitles.txt';
+    link.download = `${title}.txt`;
     link.click();
 }
 
 // Downloads received JSON data as a JSON file
-export const downloadJSON = function (jsonData) {
+export const downloadJSON = function (jsonData, title) {
     let srtBlob = new Blob([JSON.stringify(jsonData)], {type: 'text/plain'});
     let url = URL.createObjectURL(srtBlob);
     let link = document.createElement('a');
     link.href = url;
-    link.download = 'subtitles.json';
+    link.download = `${title}.json`;
     link.click();
 }
 
 // Expects a segments array with start, end and text properties
-export const downloadVTT = function (jsonData) {
+export const downloadVTT = function (jsonData, title) {
     let vttContent = 'WEBVTT\n\n'; // VTT files start with "WEBVTT" line
   
     jsonData.forEach((segment, index) => {
@@ -115,7 +115,7 @@ export const downloadVTT = function (jsonData) {
     let url = URL.createObjectURL(vttBlob);
     let link = document.createElement('a');
     link.href = url;
-    link.download = 'subtitles.vtt';
+    link.download = `${title}.vtt`;
     link.click();
 }
   

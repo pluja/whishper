@@ -10,16 +10,19 @@
         console.log("download subtitle");
         let segments = [];
         let text = "";
+        let title = "subtitles";
 
         console.log(language)
         if (language == "original") {
             segments = tr.result.segments;
             text = tr.result.text;
+            title = tr.fileName.split("_WHSHPR_")[1]
         } else {
             for (const translation of tr.translations) {
                 if (translation.targetLanguage == language) {
                     segments = translation.result.segments;
                     text = translation.result.text;
+                    title = tr.fileName.split("_WHSHPR_")[1]
                     break;
                 }
             }
@@ -31,13 +34,13 @@
         }
 
         if (subtitleFormat == "srt") {
-            downloadSRT(segments);
+            downloadSRT(segments, title);
         } else if (subtitleFormat == "vtt") {
-            downloadVTT(segments);
+            downloadVTT(segments, title);
         } else if (subtitleFormat == "json") {
-            downloadJSON(tr.result);
+            downloadJSON(tr.result, title);
         } else if (subtitleFormat == "txt") {
-            downloadTXT(text);
+            downloadTXT(text, title);
         }
     }
 
