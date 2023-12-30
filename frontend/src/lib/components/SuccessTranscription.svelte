@@ -19,7 +19,7 @@
         <p class="font-bold text-info-content text-md">{tr.fileName.split("_WHSHPR_")[1]}</p>
         <p class="font-mono text-info-content text-sm opacity-60 flex space-x-2 md:space-x-4 lg:space-x-8">
             <span class="space-x-1">
-                <span class="font-bold text-xs">~{Math.round(tr.result.duration)}s long</span>
+                <span class="font-bold text-xs">{new Date(Math.round(tr.result.duration) * 1000).toISOString().substr(11, 8)} long</span>
             </span>
             <span class="space-x-1">
                 <span class="font-bold text-xs">{tr.translations.length} translations</span>
