@@ -112,7 +112,7 @@
 	{/if}
 	<div class="items-center mb-0 text-center card-body">
 		{#if $transcriptions.length > 0}
-			{#each $transcriptions as tr (tr.id)}
+			{#each $transcriptions.slice().reverse() as tr (tr.id)}
 				{#if tr.status == 2}
 					<SuccessTranscription {tr} on:download={handleDownload} on:translate={handleTranslate} />
 				{/if}
