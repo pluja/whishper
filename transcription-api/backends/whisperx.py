@@ -7,14 +7,16 @@ from faster_whisper import WhisperModel, download_model
 import whisperx
 
 class WhisperxBackend(Backend):
-    device: str = "cuda"  # cpu, cuda
+    device: str = "cpu"  # cpu, cuda
     compute_type: str = os.environ.get("WHISPER_COMPUTE_TYPE", "float16") 
     batch_size: int = os.environ.get("WHISPER_BATCH_SIZE", 16)
     model: WhisperModel | None = None
 
-    def __init__(self, model_size, device: str = "cuda"):
+    def __init__(self, model_size, device: str = "cpu"):
         self.model_size = model_size
         self.device = device
+        if device == "cpu":
+            self.compute_type = "int8"
         self.__post_init__()
 
     def model_path(self) -> str:
@@ -105,8 +107,8 @@ class WhisperxBackend(Backend):
         language_code = result["language"]
         print(f"Language code: {language_code}")
 
-        model_align, metadata = whisperx.load_align_model(language_code=language_code, device="cuda")
-        result = whisperx.align(result['segments'], model_align, metadata, input, "cuda", return_char_alignments=False)
+        model_align, metadata = whisperx.load_align_model(language_code=language_code, device=self.device)
+        result = whisperx.align(result['segments'], model_align, metadata, input, self.device, return_char_alignments=False)
 
         all_file_words = []
 
