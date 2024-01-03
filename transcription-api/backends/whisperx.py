@@ -16,7 +16,7 @@ class WhisperxBackend(Backend):
         self.model_size = model_size
         self.device = device
         if device == "cpu":
-            self.compute_type = "int8"
+            self.compute_type = os.environ.get("WHISPER_COMPUTE_TYPE", "int8")
         self.__post_init__()
 
     def model_path(self) -> str:
@@ -32,7 +32,7 @@ class WhisperxBackend(Backend):
     def load(self) -> None:
         print(f"Loading model: {self.model_path()}, {self.device}, {self.compute_type}")
         self.model = whisperx.load_model(
-            self.model_path(), device=self.device, compute_type=self.compute_type, cpu_threads=int(os.environ.get("CPU_THREADS", 4))
+            self.model_path(), device=self.device, compute_type=self.compute_type, cpu_threads=int(os.environ.get("WHISPER_CPU_THREADS", 4))
         )
 
     def get_model(self) -> None:

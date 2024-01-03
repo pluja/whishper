@@ -27,7 +27,7 @@ class FasterWhisperBackend(Backend):
         
     def load(self) -> None:
         # Get CPU threads env variable or default to 4
-        cpu_threads = int(os.environ.get("CPU_THREADS", 4))
+        cpu_threads = int(os.environ.get("WHISPER_CPU_THREADS", 4))
         self.model = WhisperModel(
             self.model_path(), device=self.device, compute_type=self.compute_type, cpu_threads=cpu_threads
         )
