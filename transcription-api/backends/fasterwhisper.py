@@ -26,8 +26,10 @@ class FasterWhisperBackend(Backend):
             raise RuntimeError(f"model not found in {local_model_path}")
         
     def load(self) -> None:
+        # Get CPU threads env variable or default to 4
+        cpu_threads = int(os.environ.get("CPU_THREADS", 4))
         self.model = WhisperModel(
-            self.model_path(), device=self.device, compute_type=self.quantization
+            self.model_path(), device=self.device, compute_type=self.quantization, cpu_threads=cpu_threads
         )
 
     def get_model(self) -> None:

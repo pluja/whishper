@@ -67,3 +67,4 @@ services:
       PUBLIC_WHISHPER_PROFILE: cpu
       WHISPER_MODELS_DIR: /app/models
       UPLOAD_DIR: /app/uploads
+      CPU_THREADS: 4
