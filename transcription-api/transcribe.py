@@ -1,4 +1,5 @@
 from backends.fasterwhisper import FasterWhisperBackend
+from backends.whisperx import WhisperxBackend
 from backends.backend import Transcription
 from faster_whisper import decode_audio
 from models import DeviceType
@@ -49,7 +50,10 @@ async def transcribe_audio(audio: np.ndarray,
         language = None
 
     # Load the model
-    model = FasterWhisperBackend(model_size=model_size, device=device)
+    if os.environ.get("WHISPER_BACKEND", "whisperx") == "whisperx":
+        model = WhisperxBackend(model_size=model_size, device=device)
+    else:
+        model = FasterWhisperBackend(model_size=model_size, device=device)
     model.get_model()
     model.load()
     # Transcribe the file
