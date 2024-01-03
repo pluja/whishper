@@ -39,7 +39,7 @@ FROM python:3.11-slim as base
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get -qq update \
     && apt-get -qq install --no-install-recommends \
-    ffmpeg curl nodejs nginx supervisor \
+    ffmpeg curl nodejs nginx supervisor git \
     && rm -rf /var/lib/apt/lists/*
 
 # Python service setup

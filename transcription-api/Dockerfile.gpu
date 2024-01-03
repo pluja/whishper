@@ -10,6 +10,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     python3-pip \
     ffmpeg \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 RUN ln -s -f /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 && \
@@ -26,7 +27,7 @@ WORKDIR /app
 COPY . .
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s \
-CMD ["python3", "healthcheck.py"]
+    CMD ["python3", "healthcheck.py"]
 
 EXPOSE 8000
 CMD ["python3", "main.py"]
