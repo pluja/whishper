@@ -32,7 +32,7 @@ Transcription = TypedDict(
 )
 
 class Backend:
-    name: str = "faster-whisper"
+    name: str = "whisperx"
     model_size: str
 
     def __post_init__(self):
@@ -44,7 +44,7 @@ class Backend:
         This is of not much use as of the moment, If we ever support multiple
         backends this can be utilized.
         """
-        return ["faster-whisper"]
+        return ["faster-whisper", "whisperx"]
 
     def model_path(self) -> str:
         """
