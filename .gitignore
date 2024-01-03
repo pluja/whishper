@@ -11,3 +11,4 @@ whisper_models/
 .DS_Store
 *.beta.yml
 venv
+transcription-api/backends/parallelization.py
