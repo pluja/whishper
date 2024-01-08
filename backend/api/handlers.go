@@ -101,9 +101,20 @@ func (s *Server) handlePostTranscription(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal server error")
 	}
 
-	// Write the JSON to the response body.
+	// Broadcast transcription to websocket clients
 	s.BroadcastTranscription(res)
 	s.NewTranscriptionCh <- true
+	
+	// Convert the transcription to JSON.
+	json, err := json.Marshal(res)
+	if err != nil {
+		// 503 On vacation!
+		return fiber.NewError(fiber.StatusServiceUnavailable, "On vacation!")
+	}
+
+	// Write the JSON to the response body.
+	c.Set("Content-Type", "application/json")
+	c.Write(json)
 	return nil
 }
 
