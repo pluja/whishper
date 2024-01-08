@@ -54,7 +54,7 @@ Contributions are welcome! Feel free to open a PR with your changes, or take a l
 
 ### Development setup
 
-Check out the development documentation [here](https://whishper.net/guides/development/).
+Check out the development documentation [here](https://whishper.net/guides/develop/).
 
 ## Screenshots
 
