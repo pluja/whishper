@@ -102,13 +102,13 @@ export const downloadVTT = function (jsonData, title) {
     jsonData.forEach((segment, index) => {
       let startSeconds = Math.floor(segment.start);
       let startMillis = Math.floor((segment.start - startSeconds) * 1000);
-      let start = new Date(startSeconds * 1000 + startMillis).toISOString().substr(11, 12).replace('.', ',');
+      let start = new Date(startSeconds * 1000 + startMillis).toISOString().substr(11, 12);
   
       let endSeconds = Math.floor(segment.end);
       let endMillis = Math.floor((segment.end - endSeconds) * 1000);
-      let end = new Date(endSeconds * 1000 + endMillis).toISOString().substr(11, 12).replace('.', ',');
+      let end = new Date(endSeconds * 1000 + endMillis).toISOString().substr(11, 12);
   
-      vttContent += `${index + 1}\n${start} --> ${end}\n- ${segment.text}\n\n`;
+      vttContent += `${index + 1}\n${start} --> ${end}\n${segment.text}\n\n`;
     });
   
     let vttBlob = new Blob([vttContent], {type: 'text/plain'});
