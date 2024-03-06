@@ -17,12 +17,15 @@ This is the branch where I'm working on a complete rewrite of the project. I wan
 - [x] 🏠 **100% Local**: transcription, translation and subtitle edition happen 100% on your machine (can even work offline!).
 - [x] 🚀 **Fast**: uses WhisperX as the Whisper backend: get much faster transcription times on CPU!
 - [x] 🐎 **CPU support**: no GPU? No problem! AnySub can run on CPU too.
+- [x] 📥 **Download transcriptions in**:
+  - [x] VTT - Speakers colorized
+  - [ ] JSON
+  - [ ] TXT
 
 ## Todos before release
 
 - [ ] Web UI
 - [ ] Transcribe from URLs (any source supported by yt-dlp)
-- [ ] 📥 **Download transcriptions in many formats**: TXT, JSON, VTT, SRT or copy the raw text to your clipboard
 - [ ] 🌐 **Translate your transcriptions** to any language supported by [Libretranslate](https://libretranslate.com)
 - [ ] ✍️ **Powerful subtitle editor**
   - Transcription highlighting based on media position
