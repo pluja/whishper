@@ -120,3 +120,28 @@ func (s *Server) getTranscriptionStatusByID(c iris.Context) {
 
 	c.JSON(iris.Map{"ID": transcription.ID, "status": transcription.Status})
 }
+
+func (s *Server) getTranscriptionSubtitles(c iris.Context) {
+	id, err := c.Params().GetInt("id")
+	if err != nil {
+		c.StatusCode(iris.StatusBadRequest)
+		c.JSON(iris.Map{"error": "invalid id"})
+		return
+	}
+
+	transcription, err := db.Client().Transcription.Get(c, id)
+	if err != nil {
+		status := iris.StatusInternalServerError
+		if ent.IsNotFound(err) {
+			status = iris.StatusNotFound
+		}
+		c.StatusCode(status)
+		c.JSON(iris.Map{"error": err.Error()})
+		return
+	}
+
+	subtitles := utils.GenerateSubsVTT(transcription)
+
+	c.ContentType("text/vtt")
+	c.Write([]byte(subtitles)) // Use c.Write to write bytes, not c.Text which is for strings
+}

@@ -47,6 +47,7 @@ func (s *Server) RegisterRoutes() {
 		v1Api.Get("/transcriptions", s.listTranscriptions)
 		v1Api.Get("/transcriptions/{id:int}", s.getTranscriptionByID)
 		v1Api.Get("/transcriptions/{id:int}/status", s.getTranscriptionStatusByID)
+		v1Api.Get("/transcriptions/{id:int}/subtitles", s.getTranscriptionSubtitles)
 
 		// Translate API
 		// v1Api.Post("/transcriptions/{id:int}/translations/{langTo:str}", s.createTranslation)
