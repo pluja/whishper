@@ -1,0 +1,8 @@
+whisperx @ git+https://github.com/m-bain/whisperx.git
+numpy
+pydantic
+python-dotenv
+Requests
+starlette
+uvicorn
+Werkzeug

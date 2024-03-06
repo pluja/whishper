@@ -1,9 +1,0 @@
-faster-whisper @ git+https://github.com/SYSTRAN/faster-whisper.git@0.10.0
-whisperx @ git+https://github.com/m-bain/whisperx.git
-fastapi==0.100.1
-pydantic==2.1.1
-python-dotenv==1.0.0
-uvicorn==0.23.2
-python-multipart
-ffmpeg-python
-soundfile

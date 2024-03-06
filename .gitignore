@@ -7,8 +7,10 @@ whisper_models/
 *cache*
 *override*
 *_WHSHPR_*
-.env
+*.env
 .DS_Store
 *.beta.yml
 venv
 transcription-api/backends/parallelization.py
+uploads/
+.vscode/
