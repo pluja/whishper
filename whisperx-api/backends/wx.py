@@ -132,9 +132,6 @@ class WhisperxBackend:
             word for segment in result["segments"] for word in segment["words"]
         ]
 
-        # Adjust the start and end timings of each word.
-        all_file_words = self._adjust_word_timing(all_file_words)
-
         # Split the transcript into segments based on punctuation and word count.
         srt_output = self._split_transcript(all_file_words)
 
@@ -154,17 +151,6 @@ class WhisperxBackend:
             "duration": duration,
             "segments": result_segments,
         }
-
-    def _adjust_word_timing(self, words: List[WordData]) -> List[WordData]:
-        # Ensure each word has accurate start and end times, and prevent overlaps.
-        for i, word in enumerate(words):
-            word["start"] = round(word.get("start", 0), 3)
-            word["end"] = round(word.get("end", word["start"] + 0.01), 3)
-            if i < len(words) - 1:
-                next_word_start = words[i + 1]["start"]
-                word["end"] = min(word["end"], round(next_word_start - 0.001, 3))
-            word["end"] = max(word["end"], round(word["start"] + 0.5, 3))
-        return words
 
     def _split_transcript(
         self, words: List[WordData], max_splits: int = 12
