@@ -31,7 +31,6 @@ Segment = TypedDict(
         "start": float,
         "end": float,
         "score": float,
-        "speaker": str,
         "words": List[WordData],
     },
 )
@@ -148,6 +147,7 @@ class WhisperxBackend:
         # Get the duration of the audio from the last segment's end time.
         duration = result_segments[-1]["end"] if result_segments else 0
 
+        print(result_segments)
         # Return the transcription as a structured dictionary.
         return {
             "text": text,
@@ -222,7 +222,6 @@ class WhisperxBackend:
                 "end": line["words"][-1]["end"],
                 "score": 0,  # Placeholder for future implementation of word confidence scores.
                 "words": line["words"],
-                "speaker": line.get("speaker", ""),
             }
             for index, line in enumerate(lines)
             if line["words"]

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/duke-git/lancet/v2/convertor"
 	"github.com/go-resty/resty/v2"
 	"github.com/pluja/anysub/db"
 	"github.com/pluja/anysub/ent"
@@ -35,6 +36,7 @@ func transcribe(t *ent.Transcription) error {
 			"language":   t.Language,
 			"device":     t.Device,
 			"filename":   t.FileName,
+			"diarize":    convertor.ToString(t.Diarize),
 		}).
 		SetHeader("Accept", "application/json").
 		SetResult(&res).

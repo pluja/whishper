@@ -26,7 +26,6 @@ async def transcribe_from_filename(
 ) -> dict:
     """Transcribe audio from a file saved on the server."""
     filepath = os.path.join(os.environ.get("UPLOAD_DIR", "/tmp"), secure_filename(filename))
-    print(filepath)
     # Check if the file exists
     if not os.path.isfile(filepath):
         raise HTTPException(status_code=404, detail=f"File not found: {filename}")
