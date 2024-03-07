@@ -27,66 +27,102 @@ var (
 	}
 )
 
-func GenerateSubsVTT(t *ent.Transcription) string {
-	var vttBuilder strings.Builder
-	cols := colors
+type SubtitleConfig struct {
+	ColorizeSpeakers bool              `json:"colorize_speakers"`
+	MaxLengthChars   int               `json:"max_length_chars"`
+	SpeakerColors    map[string]string `json:"speaker_colors"`
+}
 
-	// Write the WebVTT file header
+func GenerateSubsVTT(t *ent.Transcription, c SubtitleConfig) string {
+	var vttBuilder strings.Builder
+
 	vttBuilder.WriteString("WEBVTT\n\n")
 
-	// Define a map to keep track of speaker colors
-	speakerColors := make(map[string]string)
-
-	// Define the STYLE block if there are speaker colors to declare
-	if len(t.Result.Segments) > 0 && len(t.Result.Segments[0].Words) > 0 {
-		vttBuilder.WriteString("STYLE\n")
+	if c.ColorizeSpeakers {
+		addSpeakersStyle(&vttBuilder, t, c.SpeakerColors)
 	}
 
-	// Calculate the colors for the speakers and construct the STYLE block
-	for _, segment := range t.Result.Segments {
-		for _, word := range segment.Words {
-			if _, ok := speakerColors[word.Speaker]; !ok && word.Speaker != "" {
-				color, ind := slice.Random(cols)
-				slice.DeleteAt(cols, ind)
-				speakerColors[word.Speaker] = color
-
-				// Add the color style for the current speaker
-				vttBuilder.WriteString(fmt.Sprintf("::cue(v[voice=\"%s\"]) { color: %s; }\n", word.Speaker, color))
-			}
-		}
-	}
-	vttBuilder.WriteString("\n")
-
-	cueCounter := 1 // Start a counter for cue numbering
-
-	// Add the subtitle items (cues)
-	for _, segment := range t.Result.Segments {
-		for _, word := range segment.Words {
-			// Format the times for the start and end of the cue
-			startTime := formatVTTTime(word.Start)
-			endTime := formatVTTTime(word.End)
-
-			// Assign class if speaker is not an empty string
-			//class := ""
-			voice := ""
-			if word.Speaker != "" {
-				//class = fmt.Sprintf(" class=\"%s\"", word.Speaker)
-				voice = fmt.Sprintf("<v %s>", word.Speaker)
-			}
-
-			// Write the cue number, start and end times, class (if any), and the word
-			//vttBuilder.WriteString(fmt.Sprintf("%d\n", cueCounter))
-			vttBuilder.WriteString(fmt.Sprintf("%s --> %s\n", startTime, endTime)) //, class))
-			vttBuilder.WriteString(voice + word.Word + "\n\n")
-
-			cueCounter++ // Increment the cue counter
-		}
-	}
+	buildWordSubtitles(&vttBuilder, t, c)
 
 	return vttBuilder.String()
 }
 
-// Helper function to format a float64 seconds value into a WebVTT timestamp
+func buildWordSubtitles(b *strings.Builder, t *ent.Transcription, c SubtitleConfig) {
+	cueCounter := 1
+	var currentSpeaker string
+	var cueWords []string
+	var cueCharsCount int
+	var startTime, endTime float64
+
+	for _, segment := range t.Result.Segments {
+		for _, word := range segment.Words {
+			if cueCharsCount == 0 {
+				startTime = word.Start
+			}
+			if word.Speaker != currentSpeaker && currentSpeaker != "" {
+				endTime = word.Start
+				writeCue(b, cueCounter, startTime, endTime, currentSpeaker, cueWords)
+				cueCounter++
+				cueWords = cueWords[:0]
+				cueCharsCount = 0
+			}
+			currentSpeaker = word.Speaker
+
+			if cueCharsCount+len(word.Word)+1 <= c.MaxLengthChars {
+				cueWords = append(cueWords, word.Word)
+				cueCharsCount += len(word.Word) + 1
+			} else {
+				endTime = word.Start
+				writeCue(b, cueCounter, startTime, endTime, currentSpeaker, cueWords)
+				cueCounter++
+				cueWords = []string{word.Word}
+				cueCharsCount = len(word.Word) + 1
+				startTime = word.Start
+			}
+			endTime = word.End
+		}
+	}
+	if len(cueWords) > 0 {
+		writeCue(b, cueCounter, startTime, endTime, currentSpeaker, cueWords)
+	}
+}
+
+func writeCue(b *strings.Builder, cueCounter int, startTime, endTime float64, speaker string, words []string) {
+	b.WriteString(fmt.Sprintf("%d\n", cueCounter))
+	b.WriteString(fmt.Sprintf("%s --> %s\n", formatVTTTime(startTime), formatVTTTime(endTime)))
+	if speaker != "" {
+		b.WriteString(fmt.Sprintf("<v %s>", speaker))
+	}
+	cueText := strings.Join(words, " ")
+	// Ensure we split at punctuation if possible
+	// TODO: Make punctuation splits separate cues.
+	if idx := strings.LastIndexAny(cueText, ".!?,;:"); idx != -1 && idx < len(cueText)-1 {
+		cueText = cueText[:idx+1] + "\n" + cueText[idx+2:]
+	}
+	b.WriteString(cueText + "\n\n")
+}
+
+func addSpeakersStyle(b *strings.Builder, t *ent.Transcription, customColors map[string]string) {
+	b.WriteString("STYLE\n")
+	speakerColors := make(map[string]string)
+
+	for _, segment := range t.Result.Segments {
+		for _, word := range segment.Words {
+			if _, ok := speakerColors[word.Speaker]; !ok && word.Speaker != "" {
+				if color, ok := customColors[word.Speaker]; ok {
+					speakerColors[word.Speaker] = color
+				} else {
+					color, _ = slice.Random(colors)
+					speakerColors[word.Speaker] = color
+				}
+				color := speakerColors[word.Speaker]
+				b.WriteString(fmt.Sprintf("::cue(v[voice=\"%s\"]) { color: %s; }\n", word.Speaker, color))
+			}
+		}
+	}
+	b.WriteString("\n")
+}
+
 func formatVTTTime(seconds float64) string {
 	t := time.Duration(seconds * float64(time.Second))
 	hours := t / time.Hour
