@@ -131,6 +131,7 @@ func (s *Server) getTranscriptionSubtitles(c iris.Context) {
 
 	mlc := c.URLParamIntDefault("mlc", 10)
 	colorizeSpekers := c.URLParamBoolDefault("colorize", true)
+	format := strings.ToLower(c.URLParamDefault("format", "vtt"))
 
 	transcription, err := db.Client().Transcription.Get(c, id)
 	if err != nil {
@@ -149,8 +150,15 @@ func (s *Server) getTranscriptionSubtitles(c iris.Context) {
 		SpeakerColors:    map[string]string{},
 	}
 
-	subtitles := utils.GenerateSubsVTT(transcription, subsConfig)
+	var subtitles string
+	switch format {
+	case "vtt":
+		subtitles = utils.GenerateSubsVTT(transcription, subsConfig)
+		c.ContentType("text/vtt")
+	case "ass":
+		subtitles = utils.GenerateSubsASS(transcription, subsConfig)
+		c.ContentType("text/ass")
+	}
 
-	c.ContentType("text/vtt")
 	c.Write([]byte(subtitles)) // Use c.Write to write bytes, not c.Text which is for strings
 }
