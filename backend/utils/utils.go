@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 func SecureFilename(input string) string {
@@ -29,4 +30,14 @@ func Getenv(key, def string) string {
 		return value
 	}
 	return def
+}
+
+// Returns true if the string contains a Unicode punctuation character
+func ContainsPunctuation(s string) bool {
+	for _, r := range s {
+		if unicode.IsPunct(r) {
+			return true
+		}
+	}
+	return false
 }
