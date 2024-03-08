@@ -19,8 +19,10 @@ This is the branch where I'm working on a complete rewrite of the project. I wan
 - [x] 🐎 **CPU support**: no GPU? No problem! AnySub can run on CPU too.
 - [x] 📥 **Download transcriptions in**:
   - [x] VTT - Speakers colorized
+  - [x] ASS - Speakers colorized
   - [ ] JSON
   - [ ] TXT
+- [x] 🔥 **GPU support**: use NVIDIA GPU to get even faster transcription times
 
 ## Todos before release
 
@@ -34,7 +36,6 @@ This is the branch where I'm working on a complete rewrite of the project. I wan
   - Segment insertion
   - Subtitle language selection
 - [ ] 👍 **Quick and easy setup**: use the quick start script, or run through a few steps
-- [ ] 🔥 **GPU support**: use your NVIDIA GPU to get even faster transcription times!
 - [ ] **AI summarization of transcriptions**: either using OpenAI or Ollama
 
 ### What's New
