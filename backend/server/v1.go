@@ -165,7 +165,9 @@ func (s *Server) getTranscriptionSubtitles(c iris.Context) {
 		result = txp.Edges.Translations[0].Result
 	}
 
-	mlc := c.URLParamIntDefault("mlc", 10)
+	mlc := c.URLParamIntDefault("mlc", 40)
+	mtg := c.URLParamInt64Default("mtg", 900)
+	msd := c.URLParamInt64Default("msd", -15)
 	colorizeSpeakers := c.URLParamBoolDefault("colorize", true)
 	format := strings.ToLower(c.URLParamDefault("format", "vtt"))
 
@@ -173,8 +175,8 @@ func (s *Server) getTranscriptionSubtitles(c iris.Context) {
 		MaxLengthChars:   mlc,
 		ColorizeSpeakers: colorizeSpeakers,
 		SpeakerColors:    map[string]string{},
-		MaxTimeGap:       600,
-		MsDelay:          -20,
+		MaxTimeGap:       mtg,
+		MsDelay:          msd,
 	}
 
 	var subtitles string
