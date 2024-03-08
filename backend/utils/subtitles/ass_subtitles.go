@@ -7,6 +7,7 @@ import (
 
 	"github.com/duke-git/lancet/v2/slice"
 	"github.com/pluja/anysub/models"
+	"github.com/pluja/anysub/utils"
 )
 
 var (
@@ -47,39 +48,48 @@ func GenerateSubsASS(t models.TranscriptionResult, c SubtitleConfig) string {
 }
 
 func buildAssWordSubtitles(b *strings.Builder, t models.TranscriptionResult, c SubtitleConfig) {
+	cueCounter := 1
 	var currentSpeaker string
-	var cueWords []string
-	var cueCharsCount int
-	var startTime, endTime float64
+	cueWords := make([]string, 0)
+	cueCharsCount := 0
+	var startTime, endTime, prevWordEndTime float64
+	lastWordHadPunctuation := false
+	spaceLen := len(" ")
+	delay := float64(c.MsDelay) / 1000
 
 	for _, segment := range t.Segments {
-		for _, word := range segment.Words {
-			startTime, endTime = prepareAssCueTransitions(currentSpeaker, word, cueCharsCount, &cueWords, startTime, &cueCharsCount, c.MaxLengthChars, b)
+		for i, word := range segment.Words {
+			wordStartWithDelay := word.Start + delay
+
+			timeGap := word.Start - prevWordEndTime
+
+			newCueNeeded := word.Speaker != currentSpeaker && currentSpeaker != "" ||
+				cueCharsCount+len(word.Word)+spaceLen > c.MaxLengthChars ||
+				lastWordHadPunctuation ||
+				(i > 0 && timeGap > float64(c.MaxTimeGap))
+
+			if newCueNeeded {
+				endTime = prevWordEndTime + delay
+				writeAssCue(b, startTime, endTime, currentSpeaker, cueWords)
+				cueCounter++
+				cueWords = []string{word.Word}
+				cueCharsCount = len(word.Word) + spaceLen
+				startTime = wordStartWithDelay
+			} else {
+				cueWords = append(cueWords, word.Word)
+				cueCharsCount += len(word.Word) + spaceLen
+			}
 
 			currentSpeaker = word.Speaker
-			cueWords = append(cueWords, word.Word)
-			cueCharsCount += len(word.Word) + 1
+			endTime = word.End + delay
+			prevWordEndTime = word.End
+			lastWordHadPunctuation = utils.ContainsPunctuation(word.Word)
 		}
 	}
 
-	// If we have any remaining words for the last cue, write them out
 	if len(cueWords) > 0 {
-		endTime = t.Segments[len(t.Segments)-1].Words[len(t.Segments[len(t.Segments)-1].Words)-1].End
 		writeAssCue(b, startTime, endTime, currentSpeaker, cueWords)
 	}
-}
-
-func prepareAssCueTransitions(currentSpeaker string, word models.WordData, cueCharsCount int, cueWords *[]string, startTime float64, cueCharsCombined *int, maxLenChars int, b *strings.Builder) (float64, float64) {
-	endTime := word.End
-
-	if word.Speaker != currentSpeaker && currentSpeaker != "" || cueCharsCount+len(word.Word)+1 > maxLenChars {
-		writeAssCue(b, startTime, word.Start, currentSpeaker, *cueWords)
-		*cueWords = []string{}
-		*cueCharsCombined = 0
-		startTime = word.Start
-	}
-
-	return startTime, endTime
 }
 
 func writeAssCue(b *strings.Builder, startTime, endTime float64, speaker string, words []string) {
