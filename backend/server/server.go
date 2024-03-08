@@ -46,11 +46,14 @@ func (s *Server) RegisterRoutes() {
 		v1Api.Post("/transcriptions", s.createTranscription)
 		v1Api.Get("/transcriptions", s.listTranscriptions)
 		v1Api.Get("/transcriptions/{id:int}", s.getTranscriptionByID)
+		v1Api.Patch("/transcriptions/{id:int}", s.updateTranscriptionResultByID)
+		v1Api.Delete("/transcriptions/{id:int}", s.deleteTranscriptionByID)
 		v1Api.Get("/transcriptions/{id:int}/status", s.getTranscriptionStatusByID)
 		v1Api.Get("/transcriptions/{id:int}/subtitles", s.getTranscriptionSubtitles)
 
 		// Translate API
 		v1Api.Post("/transcriptions/{id:int}/translations/{langTo:string}", s.createTranslationTask)
+		v1Api.Patch("/transcriptions/{id:int}/translations/{langTo:string}", s.updateTranslation)
 		// v1Api.Get("/transcriptions/{id:int}/translations/{lang:str}", s.getTranslationByLanguage)
 		// v1Api.Get("/transcriptions/{id:int}/translations/{lang:str}/status", s.getTranslationStatusByLanguage)
 
