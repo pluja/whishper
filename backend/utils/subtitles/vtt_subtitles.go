@@ -45,58 +45,51 @@ func GenerateSubsVTT(t models.TranscriptionResult, c SubtitleConfig) string {
 func buildVttWordSubtitles(b *strings.Builder, t models.TranscriptionResult, c SubtitleConfig) {
 	cueCounter := 1
 	var currentSpeaker string
-	var cueWords []string
-	var cueCharsCount int
-	var startTime, endTime float64
-	var lastWordHadPunctuation bool
+	cueWords := make([]string, 0)
+	cueCharsCount := 0
+	var startTime, endTime, prevWordEndTime float64
+	lastWordHadPunctuation := false
+	spaceLen := len(" ")
+	delay := float64(c.MsDelay) / 1000
+
+	appendWordToCue := func(word models.WordData) {
+		cueWords = append(cueWords, word.Word)
+		cueCharsCount += len(word.Word) + spaceLen
+	}
 
 	for _, segment := range t.Segments {
-		for _, word := range segment.Words {
+		for i, word := range segment.Words {
 			if cueCharsCount == 0 {
-				// First word, marks the start time.
-				startTime = word.Start
+				startTime = word.Start + delay
 			}
 
-			if word.Speaker != currentSpeaker && currentSpeaker != "" {
-				// New speaker, we must end the cue here.
-				// The current work marks the end time of the cue
-				endTime = word.Start
+			wordStartWithDelay := word.Start + delay
 
-				// We write the cue.
+			timeGap := word.Start - prevWordEndTime
+
+			newCueNeeded := word.Speaker != currentSpeaker && currentSpeaker != "" ||
+				cueCharsCount+len(word.Word)+spaceLen > c.MaxLengthChars ||
+				lastWordHadPunctuation ||
+				(i > 0 && timeGap > float64(c.MaxTimeGap))
+
+			if newCueNeeded {
+				endTime = prevWordEndTime + delay
 				writeVttCue(b, cueCounter, startTime, endTime, currentSpeaker, cueWords)
-
-				cueCounter++
-				cueWords = cueWords[:0]
-				cueCharsCount = 0
-			}
-
-			// We assign the speaker
-			currentSpeaker = word.Speaker
-
-			if cueCharsCount+len(word.Word)+1 <= c.MaxLengthChars && !lastWordHadPunctuation {
-				// If the current cue still fits in the MaxLength
-				// we add the word, and increment the char count.
-				cueWords = append(cueWords, word.Word)
-				cueCharsCount += len(word.Word) + 1
-			} else {
-				// If we reached the MaxLengthChars, we must end the cue.
-				endTime = word.Start
-
-				// And write it
-				writeVttCue(b, cueCounter, startTime, endTime, currentSpeaker, cueWords)
-
 				cueCounter++
 				cueWords = []string{word.Word}
-				cueCharsCount = len(word.Word) + 1
-				startTime = word.Start
+				cueCharsCount = len(word.Word) + spaceLen
+				startTime = wordStartWithDelay
+			} else {
+				appendWordToCue(word)
 			}
 
-			endTime = word.End
+			currentSpeaker = word.Speaker
+			endTime = word.End + delay
+			prevWordEndTime = word.End
 			lastWordHadPunctuation = utils.ContainsPunctuation(word.Word)
 		}
 	}
 
-	// If we reach the end, and the cue has words left, we write them
 	if len(cueWords) > 0 {
 		writeVttCue(b, cueCounter, startTime, endTime, currentSpeaker, cueWords)
 	}
