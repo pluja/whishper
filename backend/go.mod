@@ -11,6 +11,7 @@ require (
 	github.com/kataras/iris/v12 v12.2.10
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/rs/zerolog v1.32.0
+	github.com/snakesel/libretranslate v0.0.2
 )
 
 require (
