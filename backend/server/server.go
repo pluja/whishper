@@ -50,7 +50,7 @@ func (s *Server) RegisterRoutes() {
 		v1Api.Get("/transcriptions/{id:int}/subtitles", s.getTranscriptionSubtitles)
 
 		// Translate API
-		// v1Api.Post("/transcriptions/{id:int}/translations/{langTo:str}", s.createTranslation)
+		v1Api.Post("/transcriptions/{id:int}/translations/{langTo:string}", s.createTranslationTask)
 		// v1Api.Get("/transcriptions/{id:int}/translations/{lang:str}", s.getTranslationByLanguage)
 		// v1Api.Get("/transcriptions/{id:int}/translations/{lang:str}/status", s.getTranslationStatusByLanguage)
 
