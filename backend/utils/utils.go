@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"unicode"
 )
 
 func SecureFilename(input string) string {
@@ -33,10 +32,14 @@ func Getenv(key, def string) string {
 }
 
 // Returns true if the string contains a Unicode punctuation character
+// Returns true if the string contains a Unicode punctuation character that implies a long pause or a logical new line in subtitles
 func ContainsPunctuation(s string) bool {
+	longPausePunctuation := []rune{'.', '!', '?', '…'}
 	for _, r := range s {
-		if unicode.IsPunct(r) {
-			return true
+		for _, lpp := range longPausePunctuation {
+			if r == lpp {
+				return true
+			}
 		}
 	}
 	return false
