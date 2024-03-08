@@ -16,7 +16,7 @@ func (Translation) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("sourceLanguage").StructTag(`json:"sourceLanguage"`),
 		field.String("targetLanguage").StructTag(`json:"targetLanguage"`),
-		field.Int("status").StructTag(`json:"status"`),
+		field.String("status").StructTag(`json:"status"`),
 		field.JSON("result", models.TranscriptionResult{}).StructTag(`json:"result"`),
 	}
 }

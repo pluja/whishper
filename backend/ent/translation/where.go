@@ -63,7 +63,7 @@ func TargetLanguage(v string) predicate.Translation {
 }
 
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
-func Status(v int) predicate.Translation {
+func Status(v string) predicate.Translation {
 	return predicate.Translation(sql.FieldEQ(FieldStatus, v))
 }
 
@@ -198,43 +198,68 @@ func TargetLanguageContainsFold(v string) predicate.Translation {
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v int) predicate.Translation {
+func StatusEQ(v string) predicate.Translation {
 	return predicate.Translation(sql.FieldEQ(FieldStatus, v))
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v int) predicate.Translation {
+func StatusNEQ(v string) predicate.Translation {
 	return predicate.Translation(sql.FieldNEQ(FieldStatus, v))
 }
 
 // StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...int) predicate.Translation {
+func StatusIn(vs ...string) predicate.Translation {
 	return predicate.Translation(sql.FieldIn(FieldStatus, vs...))
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...int) predicate.Translation {
+func StatusNotIn(vs ...string) predicate.Translation {
 	return predicate.Translation(sql.FieldNotIn(FieldStatus, vs...))
 }
 
 // StatusGT applies the GT predicate on the "status" field.
-func StatusGT(v int) predicate.Translation {
+func StatusGT(v string) predicate.Translation {
 	return predicate.Translation(sql.FieldGT(FieldStatus, v))
 }
 
 // StatusGTE applies the GTE predicate on the "status" field.
-func StatusGTE(v int) predicate.Translation {
+func StatusGTE(v string) predicate.Translation {
 	return predicate.Translation(sql.FieldGTE(FieldStatus, v))
 }
 
 // StatusLT applies the LT predicate on the "status" field.
-func StatusLT(v int) predicate.Translation {
+func StatusLT(v string) predicate.Translation {
 	return predicate.Translation(sql.FieldLT(FieldStatus, v))
 }
 
 // StatusLTE applies the LTE predicate on the "status" field.
-func StatusLTE(v int) predicate.Translation {
+func StatusLTE(v string) predicate.Translation {
 	return predicate.Translation(sql.FieldLTE(FieldStatus, v))
+}
+
+// StatusContains applies the Contains predicate on the "status" field.
+func StatusContains(v string) predicate.Translation {
+	return predicate.Translation(sql.FieldContains(FieldStatus, v))
+}
+
+// StatusHasPrefix applies the HasPrefix predicate on the "status" field.
+func StatusHasPrefix(v string) predicate.Translation {
+	return predicate.Translation(sql.FieldHasPrefix(FieldStatus, v))
+}
+
+// StatusHasSuffix applies the HasSuffix predicate on the "status" field.
+func StatusHasSuffix(v string) predicate.Translation {
+	return predicate.Translation(sql.FieldHasSuffix(FieldStatus, v))
+}
+
+// StatusEqualFold applies the EqualFold predicate on the "status" field.
+func StatusEqualFold(v string) predicate.Translation {
+	return predicate.Translation(sql.FieldEqualFold(FieldStatus, v))
+}
+
+// StatusContainsFold applies the ContainsFold predicate on the "status" field.
+func StatusContainsFold(v string) predicate.Translation {
+	return predicate.Translation(sql.FieldContainsFold(FieldStatus, v))
 }
 
 // And groups predicates with the AND operator between them.

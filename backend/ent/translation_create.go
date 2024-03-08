@@ -33,8 +33,8 @@ func (tc *TranslationCreate) SetTargetLanguage(s string) *TranslationCreate {
 }
 
 // SetStatus sets the "status" field.
-func (tc *TranslationCreate) SetStatus(i int) *TranslationCreate {
-	tc.mutation.SetStatus(i)
+func (tc *TranslationCreate) SetStatus(s string) *TranslationCreate {
+	tc.mutation.SetStatus(s)
 	return tc
 }
 
@@ -125,7 +125,7 @@ func (tc *TranslationCreate) createSpec() (*Translation, *sqlgraph.CreateSpec) {
 		_node.TargetLanguage = value
 	}
 	if value, ok := tc.mutation.Status(); ok {
-		_spec.SetField(translation.FieldStatus, field.TypeInt, value)
+		_spec.SetField(translation.FieldStatus, field.TypeString, value)
 		_node.Status = value
 	}
 	if value, ok := tc.mutation.Result(); ok {

@@ -57,23 +57,16 @@ func (tu *TranslationUpdate) SetNillableTargetLanguage(s *string) *TranslationUp
 }
 
 // SetStatus sets the "status" field.
-func (tu *TranslationUpdate) SetStatus(i int) *TranslationUpdate {
-	tu.mutation.ResetStatus()
-	tu.mutation.SetStatus(i)
+func (tu *TranslationUpdate) SetStatus(s string) *TranslationUpdate {
+	tu.mutation.SetStatus(s)
 	return tu
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (tu *TranslationUpdate) SetNillableStatus(i *int) *TranslationUpdate {
-	if i != nil {
-		tu.SetStatus(*i)
+func (tu *TranslationUpdate) SetNillableStatus(s *string) *TranslationUpdate {
+	if s != nil {
+		tu.SetStatus(*s)
 	}
-	return tu
-}
-
-// AddStatus adds i to the "status" field.
-func (tu *TranslationUpdate) AddStatus(i int) *TranslationUpdate {
-	tu.mutation.AddStatus(i)
 	return tu
 }
 
@@ -139,10 +132,7 @@ func (tu *TranslationUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		_spec.SetField(translation.FieldTargetLanguage, field.TypeString, value)
 	}
 	if value, ok := tu.mutation.Status(); ok {
-		_spec.SetField(translation.FieldStatus, field.TypeInt, value)
-	}
-	if value, ok := tu.mutation.AddedStatus(); ok {
-		_spec.AddField(translation.FieldStatus, field.TypeInt, value)
+		_spec.SetField(translation.FieldStatus, field.TypeString, value)
 	}
 	if value, ok := tu.mutation.Result(); ok {
 		_spec.SetField(translation.FieldResult, field.TypeJSON, value)
@@ -196,23 +186,16 @@ func (tuo *TranslationUpdateOne) SetNillableTargetLanguage(s *string) *Translati
 }
 
 // SetStatus sets the "status" field.
-func (tuo *TranslationUpdateOne) SetStatus(i int) *TranslationUpdateOne {
-	tuo.mutation.ResetStatus()
-	tuo.mutation.SetStatus(i)
+func (tuo *TranslationUpdateOne) SetStatus(s string) *TranslationUpdateOne {
+	tuo.mutation.SetStatus(s)
 	return tuo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (tuo *TranslationUpdateOne) SetNillableStatus(i *int) *TranslationUpdateOne {
-	if i != nil {
-		tuo.SetStatus(*i)
+func (tuo *TranslationUpdateOne) SetNillableStatus(s *string) *TranslationUpdateOne {
+	if s != nil {
+		tuo.SetStatus(*s)
 	}
-	return tuo
-}
-
-// AddStatus adds i to the "status" field.
-func (tuo *TranslationUpdateOne) AddStatus(i int) *TranslationUpdateOne {
-	tuo.mutation.AddStatus(i)
 	return tuo
 }
 
@@ -308,10 +291,7 @@ func (tuo *TranslationUpdateOne) sqlSave(ctx context.Context) (_node *Translatio
 		_spec.SetField(translation.FieldTargetLanguage, field.TypeString, value)
 	}
 	if value, ok := tuo.mutation.Status(); ok {
-		_spec.SetField(translation.FieldStatus, field.TypeInt, value)
-	}
-	if value, ok := tuo.mutation.AddedStatus(); ok {
-		_spec.AddField(translation.FieldStatus, field.TypeInt, value)
+		_spec.SetField(translation.FieldStatus, field.TypeString, value)
 	}
 	if value, ok := tuo.mutation.Result(); ok {
 		_spec.SetField(translation.FieldResult, field.TypeJSON, value)

@@ -23,7 +23,7 @@ type Translation struct {
 	// TargetLanguage holds the value of the "targetLanguage" field.
 	TargetLanguage string `json:"targetLanguage"`
 	// Status holds the value of the "status" field.
-	Status int `json:"status"`
+	Status string `json:"status"`
 	// Result holds the value of the "result" field.
 	Result                     models.TranscriptionResult `json:"result"`
 	transcription_translations *int
@@ -37,9 +37,9 @@ func (*Translation) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case translation.FieldResult:
 			values[i] = new([]byte)
-		case translation.FieldID, translation.FieldStatus:
+		case translation.FieldID:
 			values[i] = new(sql.NullInt64)
-		case translation.FieldSourceLanguage, translation.FieldTargetLanguage:
+		case translation.FieldSourceLanguage, translation.FieldTargetLanguage, translation.FieldStatus:
 			values[i] = new(sql.NullString)
 		case translation.ForeignKeys[0]: // transcription_translations
 			values[i] = new(sql.NullInt64)
@@ -77,10 +77,10 @@ func (t *Translation) assignValues(columns []string, values []any) error {
 				t.TargetLanguage = value.String
 			}
 		case translation.FieldStatus:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				t.Status = int(value.Int64)
+				t.Status = value.String
 			}
 		case translation.FieldResult:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -140,7 +140,7 @@ func (t *Translation) String() string {
 	builder.WriteString(t.TargetLanguage)
 	builder.WriteString(", ")
 	builder.WriteString("status=")
-	builder.WriteString(fmt.Sprintf("%v", t.Status))
+	builder.WriteString(t.Status)
 	builder.WriteString(", ")
 	builder.WriteString("result=")
 	builder.WriteString(fmt.Sprintf("%v", t.Result))

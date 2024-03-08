@@ -1003,8 +1003,7 @@ type TranslationMutation struct {
 	id             *int
 	sourceLanguage *string
 	targetLanguage *string
-	status         *int
-	addstatus      *int
+	status         *string
 	result         *models.TranscriptionResult
 	clearedFields  map[string]struct{}
 	done           bool
@@ -1183,13 +1182,12 @@ func (m *TranslationMutation) ResetTargetLanguage() {
 }
 
 // SetStatus sets the "status" field.
-func (m *TranslationMutation) SetStatus(i int) {
-	m.status = &i
-	m.addstatus = nil
+func (m *TranslationMutation) SetStatus(s string) {
+	m.status = &s
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *TranslationMutation) Status() (r int, exists bool) {
+func (m *TranslationMutation) Status() (r string, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -1200,7 +1198,7 @@ func (m *TranslationMutation) Status() (r int, exists bool) {
 // OldStatus returns the old "status" field's value of the Translation entity.
 // If the Translation object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TranslationMutation) OldStatus(ctx context.Context) (v int, err error) {
+func (m *TranslationMutation) OldStatus(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -1214,28 +1212,9 @@ func (m *TranslationMutation) OldStatus(ctx context.Context) (v int, err error) 
 	return oldValue.Status, nil
 }
 
-// AddStatus adds i to the "status" field.
-func (m *TranslationMutation) AddStatus(i int) {
-	if m.addstatus != nil {
-		*m.addstatus += i
-	} else {
-		m.addstatus = &i
-	}
-}
-
-// AddedStatus returns the value that was added to the "status" field in this mutation.
-func (m *TranslationMutation) AddedStatus() (r int, exists bool) {
-	v := m.addstatus
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
 // ResetStatus resets all changes to the "status" field.
 func (m *TranslationMutation) ResetStatus() {
 	m.status = nil
-	m.addstatus = nil
 }
 
 // SetResult sets the "result" field.
@@ -1378,7 +1357,7 @@ func (m *TranslationMutation) SetField(name string, value ent.Value) error {
 		m.SetTargetLanguage(v)
 		return nil
 	case translation.FieldStatus:
-		v, ok := value.(int)
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -1398,21 +1377,13 @@ func (m *TranslationMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *TranslationMutation) AddedFields() []string {
-	var fields []string
-	if m.addstatus != nil {
-		fields = append(fields, translation.FieldStatus)
-	}
-	return fields
+	return nil
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *TranslationMutation) AddedField(name string) (ent.Value, bool) {
-	switch name {
-	case translation.FieldStatus:
-		return m.AddedStatus()
-	}
 	return nil, false
 }
 
@@ -1421,13 +1392,6 @@ func (m *TranslationMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *TranslationMutation) AddField(name string, value ent.Value) error {
 	switch name {
-	case translation.FieldStatus:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddStatus(v)
-		return nil
 	}
 	return fmt.Errorf("unknown Translation numeric field %s", name)
 }

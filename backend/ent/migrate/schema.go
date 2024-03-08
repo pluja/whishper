@@ -33,7 +33,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "source_language", Type: field.TypeString},
 		{Name: "target_language", Type: field.TypeString},
-		{Name: "status", Type: field.TypeInt},
+		{Name: "status", Type: field.TypeString},
 		{Name: "result", Type: field.TypeJSON},
 		{Name: "transcription_translations", Type: field.TypeInt, Nullable: true},
 	}
