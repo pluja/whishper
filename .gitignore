@@ -1,4 +1,3 @@
-whishper_data/
 node_modules/
 __pycache__/
 whisper_models/
@@ -14,3 +13,5 @@ venv
 transcription-api/backends/parallelization.py
 uploads/
 .vscode/
+TODO.md
+*_data/
