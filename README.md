@@ -23,10 +23,16 @@ This is the branch where I'm working on a complete rewrite of the project. I wan
   - [ ] JSON
   - [ ] TXT
 - [x] 🔥 **GPU support**: use NVIDIA GPU to get even faster transcription times
+- [x] Web UI
+  - [x] Translate
+  - [x] Transcribe
 
 ## Todos before release
-
-- [ ] Web UI
+- [x] Web UI
+  - [ ] Edit subtitles
+  - [ ] Download subtitles
+  - [ ] Generate summaries
+  - [ ] Full-text search
 - [ ] Transcribe from URLs (any source supported by yt-dlp)
 - [ ] 🌐 **Translate your transcriptions** to any language supported by [Libretranslate](https://libretranslate.com)
 - [ ] ✍️ **Powerful subtitle editor**
@@ -42,6 +48,22 @@ This is the branch where I'm working on a complete rewrite of the project. I wan
 
 - Uses [WhisperX](https://github.com/m-bain/whisperX) backend: better accuracy, speaker diarization, alignment...
 - No longer using MongoDB. Uses an SQlite backend.
+
+### Tech Stack
+
+- Backend:
+  - Golang
+    - Iris
+    - Ent
+    - Sqlite
+  - Python3
+    - FastAPI
+    - WhisperX
+  - Libretranslate
+- Frontend:
+  - HTMX
+  - Hyperscript
+  - Golang Templates
 
 ### Roadmap
 
