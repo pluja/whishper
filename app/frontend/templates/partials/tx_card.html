@@ -48,7 +48,7 @@
 
         <p class="pr-4 mt-2 text-xs font-medium text-gray-500 border-r border-gray-600 sm:mt-0">{{ humanizeTime .CreatedAt }}</p>
 
-        <p class="mt-2 text-xs font-medium text-gray-500 sm:mt-0">Language: {{ .Result.Language }}</p>
+        <p class="mt-2 text-xs font-medium text-gray-500 sm:mt-0">Languages: {{ .Result.Language }}{{range $key, $tl := .Edges.Translations}},{{$tl.TargetLanguage}}{{end}}</p>
 
         {{if eq .Status "done"}}
         <button class="p-1 font-bold bg-red-600 rounded-lg" hx-confirm="Delete transcription #{{.ID}}?" hx-delete="/api/v1/transcriptions/{{.ID}}" hx-swap="outerHTML" hx-target="#tx-{{.ID}}">Delete</button>
