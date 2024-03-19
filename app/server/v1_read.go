@@ -19,7 +19,7 @@ func (s *Server) listTranscriptions(c iris.Context) {
 	client := db.Client()
 	var tss []*ent.Transcription
 	var err error
-	tss, err = client.Transcription.Query().Order(ent.Desc(transcription.FieldCreatedAt)).All(context.Background())
+	tss, err = client.Transcription.Query().Order(ent.Desc(transcription.FieldCreatedAt)).WithTranslations().All(context.Background())
 	if err != nil {
 		c.StatusCode(iris.StatusInternalServerError)
 		c.JSON(iris.Map{"error": err.Error()})
@@ -27,29 +27,11 @@ func (s *Server) listTranscriptions(c iris.Context) {
 	}
 	jsonFormat := c.URLParamDefault("json", "")
 
-	// For each transcription, generate an HTML element, to return for HTMX
-	htmlElements := make([]map[string]interface{}, len(tss))
-	for i, ts := range tss {
-		htmlElements[i] = map[string]interface{}{
-			"ID":        ts.ID,
-			"Status":    ts.Status,
-			"Diarize":   ts.Diarize,
-			"Language":  ts.Language,
-			"Task":      ts.Task,
-			"Device":    ts.Device,
-			"ModelSize": ts.ModelSize,
-			"SourceUrl": ts.SourceUrl,
-			"FileName":  ts.FileName,
-			"Result":    ts.Result,
-			"CreatedAt": ts.CreatedAt,
-		}
-	}
-
 	if jsonFormat != "" {
 		c.JSON(tss)
 		return
 	}
-	err = c.View("partials/tx_list", iris.Map{"Transcriptions": htmlElements})
+	err = c.View("partials/tx_list", iris.Map{"Transcriptions": tss})
 	if err != nil {
 		c.StatusCode(iris.StatusInternalServerError)
 		c.JSON(iris.Map{"error": err.Error()})
