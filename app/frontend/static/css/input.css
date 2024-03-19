@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* @font-face {
+    font-family: 'monocraft';
+    src: url('../fonts/Monocraft.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'miracode';
+    src: url('../fonts/Miracode.ttf') format('truetype');
+} */

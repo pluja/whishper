@@ -1,0 +1,64 @@
+<article class="px-6 py-3 mx-4 my-2 w-full max-w-4xl bg-gray-900 rounded-xl ring ring-gray-800 hover:bg-gray-800 hover:ring-gray-700" id="tx-{{.ID}}">
+  <div class="flex items-center sm:gap-8">
+    <div class="hidden sm:grid sm:size-20 sm:shrink-0 sm:place-content-center [&>svg]:size-12" aria-hidden="true">
+      {{if eq .Status "done"}}
+      <svg xmlns="http://www.w3.org/2000/svg" class="text-green-500/70" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-circle-check">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+        <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+        <path d="M9 12l2 2l4 -4" />
+      </svg>
+     {{else if eq .Status "translating"}}
+        <svg xmlns="http://www.w3.org/2000/svg" class="animate-pulse text-sky-500/70" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            class="icon icon-tabler icons-tabler-outline icon-tabler-language-hiragana">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+            <path d="M4 5h7" />
+            <path d="M7 4c0 4.846 0 7 .5 8" />
+            <path
+                d="M10 8.5c0 2.286 -2 4.5 -3.5 4.5s-2.5 -1.135 -2.5 -2c0 -2 1 -3 3 -3s5 .57 5 2.857c0 1.524 -.667 2.571 -2 3.143" />
+            <path d="M12 20l4 -9l4 9" />
+            <path d="M19.1 18h-6.2" />
+        </svg>
+      {{else}}
+      <svg xmlns="http://www.w3.org/2000/svg" class="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-loader-2">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+        <path d="M12 3a9 9 0 1 0 9 9" />
+      </svg>
+      {{end}}
+    </div>
+
+    <div class="my-1">
+      <div _="on click go to url '/tx/{{.ID}}'" class="font-medium cursor-pointer text-md">
+        <span class="text-xs text-gray-600">#{{.ID}}</span>
+        <a href="#">{{makeTitle .FileName }} </a>
+      </div>
+
+      <!-- <p class="mt-1 text-sm text-gray-400">
+                Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptates, commodi!
+            </p> -->
+
+      <div class="mt-4 sm:flex sm:items-center sm:gap-4">
+        <div class="flex gap-1 justify-center items-center pr-4 text-gray-500 border-r border-gray-600">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+
+          <p class="text-xs font-medium">{{.Result.Duration}}s</p>
+        </div>
+
+        <p class="pr-4 mt-2 text-xs font-medium text-gray-500 border-r border-gray-600 sm:mt-0">{{ humanizeTime .CreatedAt }}</p>
+
+        <p class="mt-2 text-xs font-medium text-gray-500 sm:mt-0">Language: {{ .Result.Language }}</p>
+
+        {{if eq .Status "done"}}
+        <button class="p-1 font-bold bg-red-600 rounded-lg" hx-confirm="Delete transcription #{{.ID}}?" hx-delete="/api/v1/transcriptions/{{.ID}}" hx-swap="outerHTML" hx-target="#tx-{{.ID}}">Delete</button>
+        <button hx-get="/html/v1/modal-new-tl/{{.ID}}" hx-target="body" hx-swap="beforeend" class="p-1 font-bold bg-sky-600 rounded-lg" hx-swap="outerHTML" hx-target="#tx-{{.ID}}">Translate</button>
+        <button _="on click go to url '/tx/{{.ID}}'" class="p-1 font-bold bg-sky-600 rounded-lg">Edit</button>
+        <button class="p-1 font-bold bg-sky-600 rounded-lg" hx-swap="outerHTML" hx-target="#tx-{{.ID}}">Download</button>
+        {{else if ne .Status "error"}}
+        <button class="p-1 font-bold bg-red-600 rounded-lg" hx-confirm="Cancel transcription #{{.ID}}?">Cancel</button>
+        {{end}}
+      </div>
+    </div>
+  </div>
+</article>

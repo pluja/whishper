@@ -1,0 +1,34 @@
+<div id="modal" _="on closeModal add .closing then wait for animationend then remove me">
+  <div class="modal-underlay" _="on click trigger closeModal"></div>
+  <div class="modal-content" class="bg-white">
+    <h1 class="text-lg font-bold">New subtitle task</h1>
+
+    <form class="space-y-4" hx-target="#tx-list" hx-swap="afterbegin" hx-encoding="multipart/form-data" hx-post="/api/v1/transcriptions" _="on htmx:xhr:progress(loaded, total) set #progress.value to (loaded/total)*100">
+      <div>
+        <label for="device" class="block text-sm font-medium text-gray-300"> Device </label>
+
+        <select name="device" id="device" class="mt-1.5 w-full text-gray-600 rounded-lg border-gray-900 sm:text-sm">
+          <option value="cpu">CPU</option>
+          <option value="cuda">GPU</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="language" class="block text-sm font-medium text-gray-300"> Source Language </label>
+
+        <select name="language" id="language" class="mt-1.5 w-full text-gray-600 rounded-lg border-gray-900 sm:text-sm">
+          <option value="auto">Auto-detect</option>
+          <option value="es">ES</option>
+          <option value="en">EN</option>
+        </select>
+      </div>
+
+      <input type="file" name="file" />
+      <progress id="progress" value="0" max="100"></progress>
+
+      <button class="p-3 text-black bg-white" _="on click trigger closeModal" type="submit">Submit</button>
+    </form>
+
+    <button class="p-3 text-black bg-white" _="on click trigger closeModal">Close</button>
+  </div>
+</div>

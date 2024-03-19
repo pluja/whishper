@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  translate:
+    container_name: libretranslate
+    image: libretranslate/libretranslate:latest
+    restart: unless-stopped
+    user: "root"
+    volumes:
+      - ./anysub_data/libretranslate/data:/home/libretranslate/.local/share
+      - ./anysub_data/libretranslate/cache:/home/libretranslate/.local/cache
+    tty: true
+    environment:
+      LT_DISABLE_WEB_UI: True
+      LT_UPDATE_MODELS: True
+      LT_LOAD_ONLY: en,es
+    expose:
+      - 5000
+    ports:
+      - 5000:5000
+    networks:
+      default:
+        aliases:
+          - translate
+    healthcheck:
+      test: ['CMD-SHELL', './venv/bin/python scripts/healthcheck.py']
+      interval: 10s
+      timeout: 3s
+      retries: 5
