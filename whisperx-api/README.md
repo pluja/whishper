@@ -10,7 +10,7 @@ Create a `.env` file, add [the config](#environment-variables) variables and run
 docker run --name whisperx-api -p 8088:8000 --gpus=all pluja/whisperx-api
 ```
 
-> Visit http://localhost:8088/docs for the API documentation
+> Visit http://localhost:8088/docs for the API documentation / UI
 
 ### Docker Compose
 
@@ -30,7 +30,7 @@ services:
       - .env
 ```
 
-> Visit http://localhost:8088/docs for the API documentation
+> Visit http://localhost:8088/docs for the API documentation / UI
 
 #### Use with GPU
 
@@ -59,7 +59,7 @@ services:
             capabilities: [gpu]
 ```
 
-> Visit http://localhost:8088/docs for the API documentation
+> Visit http://localhost:8088/docs for the API documentation / UI
 
 ## Environment Variables
 
