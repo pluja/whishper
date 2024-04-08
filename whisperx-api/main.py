@@ -52,8 +52,6 @@ async def healthcheck():
 if __name__ == "__main__":
     load_dotenv()
 
-    print(os.getenv("UPLOAD_DIR"))
-
     # Preload models specified in the environment variable
     model_list = os.getenv("WHISPER_MODELS", "tiny,base,small").split(",")
     for model in model_list:

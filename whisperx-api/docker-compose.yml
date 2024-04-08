@@ -10,7 +10,7 @@ services:
       - ../uploads:/app/data
       - ./whisper_models:/app/wx_models
     environment:
-      WHISPER_MODELS: tiny
+      WHISPER_MODELS: tiny,small
       UPLOAD_DIR: /app/data
       WHISPER_MODELS_DIR: /app/wx_models
       WHISPER_THREADS: 2

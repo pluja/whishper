@@ -25,7 +25,7 @@ async def transcribe_from_filename(
     diarize: bool = False,
 ) -> dict:
     """Transcribe audio from a file saved on the server."""
-    filepath = os.path.join(os.environ.get("UPLOAD_DIR", "/tmp"), secure_filename(filename))
+    filepath = os.path.join(os.environ.get("UPLOAD_DIR", "/app/data"), secure_filename(filename))
     # Check if the file exists
     if not os.path.isfile(filepath):
         raise HTTPException(status_code=404, detail=f"File not found: {filename}")
@@ -84,4 +84,5 @@ async def transcribe_audio(
     model.load()
 
     # Transcribe the audio and return the result
+    # TODO: No language specified?
     return model.transcribe(audio, silent=True, language=language)

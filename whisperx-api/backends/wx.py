@@ -64,7 +64,7 @@ class WhisperxBackend:
     def _get_model_path(self) -> str:
         # Construct the local model path based on the environment variable or default to current directory.
         return os.path.join(
-            os.getenv("WHISPER_MODELS_DIR", "."), f"faster-whisper-{self.model_size.strip()}"
+            os.getenv("WHISPER_MODELS_DIR", "/app/wx_models"), f"faster-whisper-{self.model_size.strip()}"
         )
 
     def load(self) -> None:
