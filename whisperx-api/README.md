@@ -1,4 +1,4 @@
-# Stand-alone Whipser-X API
+# Stand-alone Whisper-X API
 
 This is the stand-alone API that is used by [anysub](#), the new work-in-progress version of [whishper](https://whishper.net).
 
