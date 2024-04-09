@@ -6,3 +6,4 @@ Requests
 starlette
 uvicorn
 Werkzeug
+fastapi

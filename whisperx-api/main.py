@@ -1,24 +1,39 @@
 import os
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from starlette.responses import JSONResponse
-from classes import ModelSize, Languages
+from classes import ModelSize, Languages, DeviceType
 from transcribe import transcribe_file, transcribe_from_filename
 import uvicorn
 from dotenv import load_dotenv
 from backends.wx import WhisperxBackend
+import logging
 
-app = FastAPI()
+description = """
+WhisperX-API is a REST endpoint to transcribe anything using WhisperX model. 🚀
+"""
+
+app = FastAPI(
+    title="WhisperX-API",
+    description=description,
+    version="0.0.1-beta",
+    license_info={
+        "name": "Apache 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+
+    }
+)
 
 
 @app.post("/transcription/")
 async def transcribe_endpoint(
     file: UploadFile = File(None),
-    filename: str = None,
+    #filename: str = None,
     model_size: ModelSize = ModelSize.small,
     language: Languages = Languages.auto,
-    device: str = "cpu",
+    device: DeviceType = DeviceType.cpu,
     diarize: bool = False,
 ):
+    filename = False # TODO: Allow filesystem filepaths for transcriptions without uploads.
     # Validate device type
     if device not in ["cpu", "cuda"]:
         raise HTTPException(
@@ -55,7 +70,9 @@ if __name__ == "__main__":
     # Preload models specified in the environment variable
     model_list = os.getenv("WHISPER_MODELS", "tiny,base,small").split(",")
     for model in model_list:
+        logging.info(f"Downloading {model} model...")
         WhisperxBackend(model_size=model).download_model()
 
     # Start the server
+    logging.info("Starting server...")
     uvicorn.run(app, host="0.0.0.0", port=8000)

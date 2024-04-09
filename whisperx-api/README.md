@@ -26,8 +26,6 @@ services:
     environment:
       WHISPER_THREADS: 2
       WHISPER_DEVICE: cpu
-    env_file:
-      - .env
 ```
 
 > Visit http://localhost:8088/docs for the API documentation / UI
@@ -48,8 +46,6 @@ services:
     environment:
       WHISPER_THREADS: 8
       WHISPER_DEVICE: cuda
-    env_file:
-      - .env
     deploy:
       resources:
         reservations:
@@ -81,3 +77,7 @@ WHISPER_DEVICE=cpu  # Device to run (`cpu` or `cuda`)
 ```
 WHISPER_HF_TOKEN="hf_xxxx"
 ```
+
+## License
+
+This part of Anysub is licensed under Apache 2.0. You are free to use it as you wish. However, the community and me would be greatly thankful if you contribute your improvements, tweaks and fixes to the software back!
