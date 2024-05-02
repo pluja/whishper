@@ -1,0 +1,21 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY . .
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt-get -qq update \
+    && apt-get -qq install ffmpeg curl git \
+    && pip install --no-cache --upgrade pip \
+    && pip install --no-cache -r requirements.txt \
+    && pip install --no-cache python-multipart \
+    && pip freeze | grep nvidia | xargs pip uninstall -y && pip uninstall -y torch torchaudio \
+    && pip install --no-cache torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu \
+    && rm -rf /var/lib/apt/lists/* \ 
+    && rm -rf /root/.cache/pip/
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s \
+    CMD ["python3", "healthcheck.py"]
+
+EXPOSE 8000
+CMD ["python3", "main.py"]

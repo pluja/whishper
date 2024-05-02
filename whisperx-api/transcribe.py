@@ -50,7 +50,7 @@ async def transcribe_file(
     else:
         # Save the file temporarily if it's too large
         filename = secure_filename(file.filename)
-        temp_path = os.path.join(UPLOAD_DIR, filename)
+        temp_path = os.path.join(os.environ.get("UPLOAD_DIR", "/app/data"), filename)
         with open(temp_path, "wb") as temp_file:
             temp_file.write(contents)
 

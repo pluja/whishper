@@ -27,13 +27,13 @@ app = FastAPI(
 @app.post("/transcription/")
 async def transcribe_endpoint(
     file: UploadFile = File(None),
-    #filename: str = None,
+    filename: str = None,
     model_size: ModelSize = ModelSize.small,
     language: Languages = Languages.auto,
     device: DeviceType = DeviceType.cpu,
     diarize: bool = False,
 ):
-    filename = False # TODO: Allow filesystem filepaths for transcriptions without uploads.
+    #filename = False # TODO: Allow filesystem filepaths for transcriptions without uploads.
     # Validate device type
     if device not in ["cpu", "cuda"]:
         raise HTTPException(

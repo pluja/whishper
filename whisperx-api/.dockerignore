@@ -26,6 +26,10 @@ __pypackages__/
 # Environments
 .env
 .venv
+.venv_cpu
+__pycache__
+.ruff_cache
+whisper_models
 env/
 venv/
 ENV/

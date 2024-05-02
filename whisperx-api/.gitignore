@@ -17,6 +17,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+.venv_cpu
 lib64/
 parts/
 sdist/

@@ -7,3 +7,4 @@ starlette
 uvicorn
 Werkzeug
 fastapi
+# pip3 install "torch>=2+cpu" "torchaudio>=2+cpu" -f https://download.pytorch.org/whl/torch_stable.html

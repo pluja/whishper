@@ -14,37 +14,47 @@ docker run --name whisperx-api -p 8088:8000 --gpus=all pluja/whisperx-api
 
 ### Docker Compose
 
+
+#### CPU-Only
+
+This is a more lightweight version of the api, which works with CPU only.
+
 ```yml
 services:
   whisperx-api:
-    image: pluja/whisperx-api
+    image: pluja/whisperx-api:cpu
     ports:
       - "8088:8000"
     volumes:
       - ./data/uploads:/app/data
       - ./data/whisper_models:/app/wx_models
     environment:
-      WHISPER_THREADS: 2
       WHISPER_DEVICE: cpu
 ```
 
-> Visit http://localhost:8088/docs for the API documentation / UI
+After running `docker compose up` for the first time, you will need to wait a few minutes for the models to download. You can start using the API when you see the following logs:
 
-#### Use with GPU
+```
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+```
+
+> You can visit http://localhost:8088/docs for the API documentation / UI
+
+#### With GPU
 
 Only NVIDIA GPUs available.
 
 ```yml
 services:
   whisperx-api:
-    image: pluja/whisperx-api
+    image: pluja/whisperx-api:latest
     ports:
       - "8088:8000"
     volumes:
       - ./data/uploads:/app/data
       - ./data/whisper_models:/app/wx_models
     environment:
-      WHISPER_THREADS: 8
       WHISPER_DEVICE: cuda
     deploy:
       resources:
@@ -55,14 +65,21 @@ services:
             capabilities: [gpu]
 ```
 
-> Visit http://localhost:8088/docs for the API documentation / UI
+After running `docker compose up` for the first time, you will need to wait a few minutes for the models to download. You can start using the API when you see the following logs:
+
+```
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+```
+
+> You can visit http://localhost:8088/docs for the API documentation / UI
 
 ## Environment Variables
 
 ```
 WHISPER_MODELS=tiny # Comma separated list of models to pre-load
 WHISPER_THREADS=8   # Number of threads to run whisperX
-WHISPER_DEVICE=cpu  # Device to run (`cpu` or `cuda`)
+WHISPER_DEVICE=cpu  # Device to run (`cpu` or `cuda`). When using `cuda`, `cpu` is also available as an option.
 ```
 
 ## To use diarization model
