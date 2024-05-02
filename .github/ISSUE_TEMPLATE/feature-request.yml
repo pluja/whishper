@@ -1,0 +1,34 @@
+name: ✨ Feature request
+description: Request a feature
+title: "[Feature]: "
+labels: ["feature", "triage"]
+assignees:
+  - pluja
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to suggest a feature!
+  - type: textarea
+    id: feature
+    attributes:
+      label: Feature Description
+      description: Describe the feature you would like to see. What problem does it solve?
+      placeholder: Describe the feature in detail. What do you expect it to achieve?
+    validations:
+      required: true
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      description: Please provide a use case to better understand the feature and its importance.
+      placeholder: Describe a scenario in which this feature would be used.
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I have searched for similar feature requests
+          required: true
+        - label: I have provided a clear and detailed explanation
+          required: true
