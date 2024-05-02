@@ -20,7 +20,7 @@ This is the branch where I'm working on a complete rewrite of the project. I wan
 - [x] 📥 **Download transcriptions in**:
   - [x] VTT - Speakers colorized
   - [x] ASS - Speakers colorized
-  - [ ] JSON
+  - [x] JSON
   - [ ] TXT
 - [x] 🔥 **GPU support**: use NVIDIA GPU to get even faster transcription times
 - [x] Web UI
@@ -30,11 +30,11 @@ This is the branch where I'm working on a complete rewrite of the project. I wan
 ## Todos before release
 - [x] Web UI
   - [ ] Edit subtitles
-  - [ ] Download subtitles
+  - [x] Download subtitles
   - [ ] Generate summaries
   - [ ] Full-text search
 - [ ] Transcribe from URLs (any source supported by yt-dlp)
-- [ ] 🌐 **Translate your transcriptions** to any language supported by [Libretranslate](https://libretranslate.com)
+- [x] 🌐 **Translate your transcriptions** to any language supported by [Libretranslate](https://libretranslate.com)
 - [ ] ✍️ **Powerful subtitle editor**
   - Transcription highlighting based on media position
   - CPS (Characters per second) warnings
