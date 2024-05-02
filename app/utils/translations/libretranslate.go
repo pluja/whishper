@@ -1,23 +1,32 @@
 package translations
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/pluja/anysub/db"
 	"github.com/pluja/anysub/ent"
 	"github.com/pluja/anysub/models"
 	"github.com/rs/zerolog/log"
-	ltr "github.com/snakesel/libretranslate"
 )
 
-func Translate(translation *ent.Translation, trx_id int) error {
+type Language struct {
+	Code    string   `json:"code"`
+	Name    string   `json:"name"`
+	Targets []string `json:"targets"`
+}
+
+func MakeTranslation(translation *ent.Translation, trx_id int) error {
 	log.Debug().Msgf("Translating %d...", trx_id)
-	translate := ltr.New(ltr.Config{
-		Url: fmt.Sprintf("http://%v", os.Getenv("LIBRETRANSLATE_ENDPOINT")),
-	})
 
 	ctx := context.Background()
 
@@ -33,7 +42,7 @@ func Translate(translation *ent.Translation, trx_id int) error {
 
 	// For each segment in the transcription result
 	for i, segment := range translation.Result.Segments {
-		translatedText, err := translate.Translate(segment.Text, translation.SourceLanguage, translation.TargetLanguage)
+		translatedText, err := Translate(segment.Text, translation.SourceLanguage, translation.TargetLanguage)
 		if err != nil {
 			log.Debug().Err(err).Msg("Error translating text...")
 			return err
@@ -104,6 +113,98 @@ func Translate(translation *ent.Translation, trx_id int) error {
 	}
 	log.Debug().Msgf("Done translating %d...", trx_id)
 	return nil
+}
+
+func Translate(text, sourceLang, targetLang string) (string, error) {
+	params := url.Values{}
+	params.Set("q", text)
+	params.Add("source", sourceLang)
+	params.Add("target", targetLang)
+
+	key := os.Getenv("LIBRETRANSLATE_KEY")
+	if len(key) > 0 {
+		params.Add("api_key", key)
+	}
+
+	uri, _ := url.Parse(os.Getenv("LIBRETRANSLATE_ENDPOINT"))
+	uri.Path = path.Join(uri.Path, "/translate")
+
+	res, err := http.Post(uri.String(), "application/x-www-form-urlencoded", bytes.NewBufferString(params.Encode()))
+	if err != nil {
+		fmt.Println("Post error")
+		return "", err
+	}
+	defer res.Body.Close()
+
+	// Decode the JSON response
+	var result interface{}
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	m := result.(map[string]interface{})
+	if val, ok := m["translatedText"]; ok {
+		return fmt.Sprintf("%v", val), nil
+	}
+
+	if val, ok := m["error"]; ok {
+		return "", fmt.Errorf("%v", val)
+
+	}
+
+	return "", errors.New("unknown answer")
+}
+
+func AvailableLanguages() (map[string]Language, error) {
+	var languages map[string]Language = make(map[string]Language) // initialize the map before using it
+	var languagesResponse []Language
+	var err error
+
+	params := url.Values{}
+
+	key := os.Getenv("LIBRETRANSLATE_KEY")
+	if len(key) > 0 {
+		params.Add("api_key", key)
+	}
+
+	uri, _ := url.Parse(os.Getenv("LIBRETRANSLATE_ENDPOINT"))
+	uri.Path = path.Join(uri.Path, "languages") // remove the leading "/" as path.Join automatically handles this
+	uri.RawQuery = params.Encode()
+
+	req, err := http.NewRequest("GET", uri.String(), nil)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return languages, err
+	}
+
+	req.Header.Set("accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return languages, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return languages, err
+	}
+
+	err = json.Unmarshal(body, &languagesResponse)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return languages, err
+	}
+
+	// Create the languages map
+	for _, lang := range languagesResponse {
+		languages[lang.Code] = lang
+	}
+
+	return languages, nil // return nil as error since it is successful
 }
 
 // SplitIntoWords is a helper function that takes a string and

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang='en' data-theme="dark">
+<html lang='en' data-theme="dark" class="h-full dark">
 
 <head>
     <meta charset='utf-8'>
@@ -15,7 +15,8 @@
     <meta name="htmx-config" content='{"selfRequestsOnly":false}'>
 </head>
 
-
-<body class="p-0 m-0 w-screen h-screen font-mono text-gray-200 bg-gray-900">
+<body class="p-0 m-0 w-screen h-screen min-h-full font-mono antialiased text-gray-300 bg-zinc-900">
     {{ template "content" . }}
 </body>
+
+</html>

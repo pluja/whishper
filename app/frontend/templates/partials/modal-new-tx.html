@@ -3,7 +3,7 @@
   <div class="modal-content" class="bg-white">
     <h1 class="text-lg font-bold">New subtitle task</h1>
 
-    <form class="space-y-4" hx-target="#tx-list" hx-swap="afterbegin" hx-encoding="multipart/form-data" hx-post="/api/v1/transcriptions" _="on htmx:xhr:progress(loaded, total) set #progress.value to (loaded/total)*100">
+    <form class="space-y-4" hx-target="#tx-list" hx-swap="afterbegin" hx-encoding="multipart/form-data" hx-post="/api/v1/transcriptions?htmx=true" _="on htmx:xhr:progress(loaded, total) set #progress.value to (loaded/total)*100">
       <div>
         <label for="device" class="block text-sm font-medium text-gray-300"> Device </label>
 
@@ -22,6 +22,22 @@
           <option value="en">EN</option>
         </select>
       </div>
+
+      <label for="diarize"
+        class="flex cursor-pointer items-start gap-4 rounded-lg border border-slate-500 p-4 transition hover:bg-blue-600/60 has-[:checked]:bg-blue-800/50">
+        <div class="flex items-center">
+          &#8203;
+          <input type="checkbox" class="rounded border-gray-300 size-4" id="diarize" name="diarize" />
+        </div>
+      
+        <div>
+          <strong class="font-medium text-gray-200"> Detect speakers </strong>
+      
+          <p class="mt-1 text-sm text-gray-400 text-pretty">
+            Diarize the audio detecting speakers. Processing time and resource consumption will be higher.
+          </p>
+        </div>
+      </label>
 
       <input type="file" name="file" />
       <progress id="progress" value="0" max="100"></progress>

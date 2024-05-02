@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/duke-git/lancet/v2/convertor"
 	"github.com/google/uuid"
 	"github.com/kataras/iris/v12"
 	"github.com/pluja/anysub/db"
@@ -24,8 +23,8 @@ func (s *Server) createTranscription(c iris.Context) {
 	language := strings.ToLower(c.FormValueDefault("language", c.URLParamDefault("language", "auto")))
 	device := strings.ToLower(c.FormValueDefault("device", c.URLParamDefault("device", "cpu")))
 	modelSize := strings.ToLower(c.FormValueDefault("modelSize", c.URLParamDefault("modelSize", "small")))
-	diarize := strings.ToLower(c.FormValueDefault("diarize", c.URLParamDefault("diarize", "small")))
-	jsonFormat := c.URLParamDefault("json", "")
+	diarize := strings.ToLower(c.FormValueDefault("diarize", c.URLParamDefault("diarize", "on"))) == "on"
+	htmxFormat := c.URLParamDefault("htmx", "")
 
 	log.Debug().Msg("Got it")
 
@@ -47,11 +46,6 @@ func (s *Server) createTranscription(c iris.Context) {
 	dest := filepath.Join("../uploads", safeFileName)
 	c.SaveFormFile(fileHeader, dest)
 
-	var diarizeBool bool
-	if diarizeBool, err = convertor.ToBool(diarize); err != nil {
-		diarizeBool = false
-	}
-
 	client := db.Client()
 
 	var tx *ent.Transcription
@@ -59,7 +53,7 @@ func (s *Server) createTranscription(c iris.Context) {
 		SetLanguage(language).
 		SetDevice(device).
 		SetModelSize(modelSize).
-		SetDiarize(diarizeBool).
+		SetDiarize(diarize).
 		SetFileName(safeFileName).
 		SetStatus(models.TsStatusPending).
 		Save(context.Background())
@@ -70,26 +64,26 @@ func (s *Server) createTranscription(c iris.Context) {
 		return
 	}
 
-	// Return the service as JSON
 	worker.NewTranscriptionChannel <- true
-	if jsonFormat != "" {
-		// Return json if json url parameter
-		c.JSON(tx)
+	if htmxFormat != "" {
+		// Return html if htmx url parameter
+		err = c.View("partials/tx_card", *tx)
+		if err != nil {
+			c.StatusCode(iris.StatusInternalServerError)
+			c.JSON(iris.Map{"error": err.Error()})
+			return
+		}
 		return
 	}
-	// Otherwise return html for use with htmx
-	err = c.View("partials/tx_card", *tx)
-	if err != nil {
-		c.StatusCode(iris.StatusInternalServerError)
-		c.JSON(iris.Map{"error": err.Error()})
-		return
-	}
+
+	// Return the service as JSON
+	c.JSON(tx)
 }
 
 func (s *Server) createTranslationTask(c iris.Context) {
 	// Validate all required parameters at the beginning
 	langTo := strings.ToLower(c.FormValueDefault("langTo", c.URLParamDefault("langTo", "en")))
-	jsonFormat := c.URLParamDefault("json", "")
+	htmxFormat := c.URLParamDefault("htmx", "")
 
 	id, err := c.Params().GetInt("id")
 	if err != nil {
@@ -154,18 +148,18 @@ func (s *Server) createTranslationTask(c iris.Context) {
 	transcription.Status = models.TsStatusTranslating
 
 	// Issue a translation request to the translation service
-	go translations.Translate(tk, transcription.ID)
-	if jsonFormat != "" {
-		// Return json if json url parameter
-		c.JSON(transcription)
+	go translations.MakeTranslation(tk, transcription.ID)
+	if htmxFormat != "" {
+		// return html for use with htmx
+		err = c.View("partials/tx_card", *transcription)
+		if err != nil {
+			c.StatusCode(iris.StatusInternalServerError)
+			c.JSON(iris.Map{"error": err.Error()})
+			return
+		}
 		return
 	}
 
-	// Otherwise return html for use with htmx
-	err = c.View("partials/tx_card", *transcription)
-	if err != nil {
-		c.StatusCode(iris.StatusInternalServerError)
-		c.JSON(iris.Map{"error": err.Error()})
-		return
-	}
+	// Return json
+	c.JSON(transcription)
 }

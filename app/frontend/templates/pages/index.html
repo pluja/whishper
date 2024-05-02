@@ -1,20 +1,22 @@
 
 <div class="py-6 my-6 text-center">
     <div>
-        <span class="px-1 py-0.5 w-14 text-xs text-blue-400 rounded-md border border-blue-400">v202403</span>
-        <h1 class="mt-2 text-3xl font-bold leading-7 text-gray-300">ANYSUB</h1>
+        <span class="px-1 py-0.5 w-14 text-xs rounded-md border text-emerald-400/70 border-emerald-400/70">v202403</span>
+        <h1 class="mt-3 text-4xl font-bold leading-7">
+			<span class="text-green-600">ANY</span><span>SUB</span>
+		</h1>
     </div>
-    <p class="mt-1 text-sm leading-6 text-gray-300 uppercase">Subtitle anything.</p>
+    <p class="mt-1 text-sm leading-6 text-gray-300 uppercase">Subtitle anything</p>
 </div>
 
 <div class="flex justify-center items-center my-4">
-	<button class="inline-block px-8 py-3 text-sm font-medium text-white bg-indigo-600 rounded transition hover:rotate-2 hover:scale-110 focus:outline-none focus:ring active:bg-indigo-500" 
+	<button class="inline-flex overflow-hidden gap-0.5 justify-center p-3 font-medium text-white rounded-2xl transition text-md bg-zinc-900 hover:bg-zinc-700 dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-1 dark:ring-inset dark:ring-emerald-400/20 dark:hover:bg-emerald-400/10 dark:hover:text-emerald-300 dark:hover:ring-emerald-300" 
 		hx-get="/html/v1/modal-new-tx" 
 		hx-target="body" 
 		hx-swap="beforeend">New transcription</button>
 </div>
 
-<div hx-get="/api/v1/transcriptions" hx-trigger="load">
+<div hx-get="/api/v1/transcriptions?htmx=yes" hx-trigger="load">
     <img alt="Result loading..." class="htmx-indicator" width="150" src="https://v2-0v2-0.htmx.org/img/bars.svg" />
 </div>
 

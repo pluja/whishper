@@ -1,5 +1,5 @@
 
-<div hx-get="/api/v1/transcriptions" hx-swap="outerHTML" hx-trigger="every 3s" id="tx-list" class="flex flex-col justify-center items-center">
+<div hx-get="/api/v1/transcriptions?htmx=yes" hx-params="*" hx-swap="outerHTML" hx-trigger="every 3s" id="tx-list" class="flex flex-col justify-center items-center">
     {{ range .Transcriptions }}
         {{partial "partials/tx_card" .}}
     {{ end }}

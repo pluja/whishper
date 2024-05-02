@@ -51,6 +51,7 @@ func (s *Server) RegisterRoutes() {
 		htmlv1 := s.Router.Party("/html/v1")
 		htmlv1.Get("/modal-new-tx", s.NewTxModal)
 		htmlv1.Get("/modal-new-tl/{id:int}", s.NewTlModal)
+		htmlv1.Get("/modal-download/{id:int}", s.DownloadModal)
 	}
 
 	// API v1 Routes

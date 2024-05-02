@@ -3,9 +3,9 @@ package worker
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
-	"github.com/duke-git/lancet/v2/convertor"
 	"github.com/go-resty/resty/v2"
 	"github.com/pluja/anysub/db"
 	"github.com/pluja/anysub/ent"
@@ -26,7 +26,7 @@ func transcribe(t *ent.Transcription) error {
 	}
 
 	rest := resty.New()
-	transcribe_api := fmt.Sprintf("http://%s/transcription", utils.Getenv("AS_WX_API_HOST", "wxapi:8000"))
+	transcribe_api := fmt.Sprintf("%s/transcription", utils.Getenv("AS_WX_API_HOST", "wxapi:8000"))
 
 	var res models.TranscriptionResult
 
@@ -37,7 +37,7 @@ func transcribe(t *ent.Transcription) error {
 			"language":   t.Language,
 			"device":     t.Device,
 			"filename":   t.FileName,
-			"diarize":    convertor.ToString(t.Diarize),
+			"diarize":    strconv.FormatBool(t.Diarize),
 		}).
 		SetHeader("Accept", "application/json").
 		SetResult(&res).
@@ -47,6 +47,9 @@ func transcribe(t *ent.Transcription) error {
 		log.Err(err).Int("ID", t.ID).Str("detail", res.Detail).Msg("Error with transcription")
 		return fmt.Errorf("%s: %s", err.Error(), res.Detail)
 	}
+
+	log.Debug().Msgf("Result: %+v", res)
+	log.Debug().Msgf("Response: %+v", string(resp.Body()))
 
 	log.Info().Str("elapsed_time", resp.Time().String()).Msg("Transcription done.")
 	t, err = client.Transcription.UpdateOneID(t.ID).SetResult(res).SetLanguage(res.Language).SetDuration(time.Duration(int64(res.Duration * 1e9)).String()).Save(context.Background())

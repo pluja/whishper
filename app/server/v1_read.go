@@ -10,7 +10,6 @@ import (
 	"github.com/pluja/anysub/db"
 	"github.com/pluja/anysub/ent"
 	"github.com/pluja/anysub/ent/transcription"
-	"github.com/pluja/anysub/ent/translation"
 	"github.com/pluja/anysub/models"
 	subs "github.com/pluja/anysub/utils/subtitles"
 )
@@ -25,18 +24,19 @@ func (s *Server) listTranscriptions(c iris.Context) {
 		c.JSON(iris.Map{"error": err.Error()})
 		return
 	}
-	jsonFormat := c.URLParamDefault("json", "")
+	htmxFormat := c.URLParamDefault("htmx", "")
 
-	if jsonFormat != "" {
-		c.JSON(tss)
+	if htmxFormat != "" {
+		err = c.View("partials/tx_list", iris.Map{"Transcriptions": tss})
+		if err != nil {
+			c.StatusCode(iris.StatusInternalServerError)
+			c.JSON(iris.Map{"error": err.Error()})
+			return
+		}
 		return
 	}
-	err = c.View("partials/tx_list", iris.Map{"Transcriptions": tss})
-	if err != nil {
-		c.StatusCode(iris.StatusInternalServerError)
-		c.JSON(iris.Map{"error": err.Error()})
-		return
-	}
+
+	c.JSON(tss)
 }
 
 func (s *Server) getTranscriptionByID(c iris.Context) {
@@ -84,36 +84,34 @@ func (s *Server) getTranscriptionSubtitles(c iris.Context) {
 	language := strings.ToLower(c.URLParamDefault("language", ""))
 
 	var result models.TranscriptionResult
+	var filename string
+
+	tx, err := db.Client().Transcription.Query().
+		Where(transcription.IDEQ(id)).
+		WithTranslations().
+		Only(context.Background())
+	if err != nil {
+		c.StopWithError(iris.StatusNotFound, err)
+		return
+	}
+
+	filename = tx.FileName
 	switch language {
 	case "":
-		tx, err := db.Client().Transcription.Get(context.Background(), id)
-		if err != nil {
-			c.StopWithError(iris.StatusNotFound, err)
-			return
-		}
 		result = tx.Result
 	default:
-		tx, err := db.Client().Transcription.Query().
-			Where(transcription.IDEQ(id)).
-			WithTranslations(func(q *ent.TranslationQuery) {
-				q.Where(translation.TargetLanguageEQ(language))
-			}).
-			Only(context.Background())
-		if err != nil {
-			c.StopWithError(iris.StatusNotFound, err)
-			return
-		}
 		if len(tx.Edges.Translations) == 0 {
 			c.StopWithError(iris.StatusNotFound, fmt.Errorf("no translation found for %q language", language))
 			return
 		}
 		result = tx.Edges.Translations[0].Result
+		filename = language + "_" + filename
 	}
 
 	mlc := c.URLParamIntDefault("mlc", 40)
 	mtg := c.URLParamInt64Default("mtg", 900)
 	msd := c.URLParamInt64Default("msd", -15)
-	colorizeSpeakers := c.URLParamBoolDefault("colorize", true)
+	colorizeSpeakers := c.URLParamDefault("colorize", "on") == "on"
 	format := strings.ToLower(c.URLParamDefault("format", "vtt"))
 
 	subsConfig := subs.SubtitleConfig{
@@ -124,16 +122,24 @@ func (s *Server) getTranscriptionSubtitles(c iris.Context) {
 		MsDelay:          msd,
 	}
 
+	fn := strings.Split(filename, "-")[1] + "." + format
+	c.Header("Content-Disposition", "attachment; filename="+fn)
+	c.Header("HX-Redirect", c.Request().RequestURI)
+
 	var subtitles string
-	contentType := "text/plain"
+	c.ContentType("text/plain")
 	switch format {
 	case "vtt":
 		subtitles = subs.GenerateSubsVTT(result, subsConfig)
-		contentType = "text/vtt"
+		c.ContentType("text/vtt")
 	case "ass":
 		subtitles = subs.GenerateSubsASS(result, subsConfig)
-		contentType = "text/ass"
+		c.ContentType("text/ass")
+	case "json":
+		c.ContentType("application/json")
+		c.JSON(tx)
+		return
 	}
-	c.ContentType(contentType)
+
 	_, _ = c.Write([]byte(subtitles))
 }

@@ -3,21 +3,32 @@
   <div class="modal-content" class="bg-white">
     <h1 class="text-lg font-bold">New translation task</h1>
 
-    <form class="space-y-4" hx-target="#tx-{{.ID}}" hx-swap="outerHTML" hx-encoding="multipart/form-data" hx-post="/api/v1/transcriptions/{{.ID}}/translations" _="on htmx:xhr:progress(loaded, total) set #progress.value to (loaded/total)*100">
+    <form class="space-y-4" hx-target="#tx-{{.ID}}" hx-swap="outerHTML" hx-encoding="multipart/form-data" hx-post="/api/v1/transcriptions/{{.ID}}/translations?htmx=true" _="on htmx:xhr:progress(loaded, total) set #progress.value to (loaded/total)*100">
       <div>
         <label for="langFrom" class="block text-sm font-medium text-gray-300"> Source Language </label>
 
         <select disabled name="langFrom" id="langFrom" class="mt-1.5 w-full text-gray-600 rounded-lg border-gray-900 sm:text-sm">
-          <option selected value="en">EN</option>
+          <option selected value="{{.Lang}}">{{with (index .Languages .Lang)}} {{.Name}} {{end}}</option>
         </select>
       </div>
 
       <div>
         <label for="langTo" class="block text-sm font-medium text-gray-300"> Translate to </label>
-
+        
         <select name="langTo" id="langTo" class="mt-1.5 w-full text-gray-600 rounded-lg border-gray-900 sm:text-sm">
-          <option value="es">ES</option>
-          <option value="en">EN</option>
+          
+          {{ $currentLang := .Lang }}
+          {{ $languages := .Languages }}
+          {{ $currentLang := (index $languages .Lang) }}
+          {{ range $targetLang := $currentLang.Targets }}
+              {{if ne $targetLang $currentLang.Code }}
+                  <option value="{{$targetLang}}">
+                  {{with (index $languages $targetLang)}} 
+                      {{.Name}}
+                  {{end}}
+                  </option>
+              {{end}}
+          {{end}} 
         </select>
       </div>
 
