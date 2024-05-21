@@ -4,7 +4,7 @@
 
 This is the branch where I'm working on a complete rewrite of the project.
 
-This rewrite is under development. The initial stages of development are focused on enhancing the quality and reliability of the APIs. The goal is to ensure easier scalability, broader compatibility, and overall improved performance. After the APIs are reliable and ready, the focus will move on the implementation of a better web UI.
+This rewrite is under development. The initial stages of development are focused on enhancing the quality and reliability of the APIs. The goal is to ensure easier scalability, broader compatibility, and overall improved performance. After the APIs are reliable and ready, the focus will move to the implementation of a better web UI.
 
 **AnySub** is an open-source, 100% local audio transcription and subtitling suite with a full-featured web UI.
 
