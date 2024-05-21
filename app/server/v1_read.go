@@ -123,6 +123,9 @@ func (s *Server) getTranscriptionSubtitles(c iris.Context) {
 	}
 
 	fn := strings.Split(filename, "-")[1] + "." + format
+	if language != "" {
+		fn = language + "_" + fn
+	}
 	c.Header("Content-Disposition", "attachment; filename="+fn)
 	c.Header("HX-Redirect", c.Request().RequestURI)
 

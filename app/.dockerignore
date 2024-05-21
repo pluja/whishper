@@ -1,0 +1,4 @@
+*.sql
+*.env
+uploads/
+.gitignore

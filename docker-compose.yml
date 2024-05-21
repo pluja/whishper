@@ -1,8 +1,47 @@
 services:
+  redis:
+    container_name: anysub_redis
+    restart: unless-stopped
+    image: valkey/valkey:unstable
+
+  worker:
+    container_name: anysub_worker
+    restart: unless-stopped
+    build:
+      context: ./app
+      dockerfile: worker.cpu.Dockerfile
+    volumes:
+      - ./uploads:/app/data
+      - ./whisperx-api/whisper_models:/app/wx_models
+    env_file: .env
+    environment:
+      REDIS_HOST: redis:6379
+      WHISPER_MODELS: tiny,small
+      UPLOAD_DIR: /app/data
+      WHISPER_MODELS_DIR: /app/wx_models
+      WHISPER_THREADS: 2
+      WHISPER_DEVICE: cpu
+    deploy:
+      replicas: 1
+    depends_on:
+      database:
+        condition: service_started
+  
+  database:
+    container_name: anysub_database
+    restart: unless-stopped
+    image: mariadb:latest
+    env_file: .env
+    environment:
+      MARIADB_RANDOM_ROOT_PASSWORD: yes
+      MARIADB_DATABASE: anysub
+      MARIADB_USER: ${DB_USER:-anysub}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-anysub}
+
   translate:
     container_name: libretranslate
-    image: libretranslate/libretranslate:latest
     restart: unless-stopped
+    image: libretranslate/libretranslate:latest
     user: "root"
     volumes:
       - ./anysub_data/libretranslate/data:/home/libretranslate/.local/share

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,9 +14,9 @@ import (
 	"github.com/pluja/anysub/ent"
 	"github.com/pluja/anysub/ent/transcription"
 	"github.com/pluja/anysub/models"
+	"github.com/pluja/anysub/tasks"
 	"github.com/pluja/anysub/utils"
 	"github.com/pluja/anysub/utils/translations"
-	"github.com/pluja/anysub/worker"
 	"github.com/rs/zerolog/log"
 )
 
@@ -64,7 +65,20 @@ func (s *Server) createTranscription(c iris.Context) {
 		return
 	}
 
-	worker.NewTranscriptionChannel <- true
+	task, err := tasks.NewTranscriptionTask(*tx)
+	if err != nil {
+		log.Error().Err(err).Msgf("could not create task")
+		os.Exit(1)
+	}
+
+	info, err := s.TaskClient.Enqueue(task)
+	if err != nil {
+		log.Error().Err(err).Msgf("could not enqueue task")
+		os.Exit(1)
+	}
+	log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
+
+	//worker.NewTranscriptionChannel <- true
 	if htmxFormat != "" {
 		// Return html if htmx url parameter
 		err = c.View("partials/tx_card", *tx)

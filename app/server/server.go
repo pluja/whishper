@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/hibiken/asynq"
 	"github.com/kataras/iris/v12"
 )
 
@@ -18,6 +19,7 @@ type Server struct {
 	ListenAddr string
 	Router     *iris.Application
 	HttpClient *http.Client
+	TaskClient *asynq.Client
 }
 
 func NewServer(listenAddr string) *Server {
@@ -27,6 +29,7 @@ func NewServer(listenAddr string) *Server {
 		ListenAddr: listenAddr,
 		Router:     app,
 		HttpClient: &http.Client{},
+		TaskClient: asynq.NewClient(asynq.RedisClientOpt{Addr: "127.0.0.1:6379"}),
 	}
 }
 
@@ -79,7 +82,6 @@ func (s *Server) RegisterRoutes() {
 
 		// Info APIS
 		// v1Api.Get("/translation/languages", s.getTranscriptions)
-		// v1Api.Get("/service/{name:string}/summary", s.handleScoreSummary)
 	}
 }
 

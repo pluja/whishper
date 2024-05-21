@@ -10,6 +10,9 @@
                 <select name="language" id="language"
                     class="mt-1.5 w-full text-gray-600 rounded-lg border-gray-900 sm:text-sm">
                     <option value="">{{.Transcription.Language}}</option>
+                    {{range .Transcription.Edges.Translations}}
+                        <option value="{{.TargetLanguage}}">{{.TargetLanguage}}</option>
+                    {{end}}
                 </select>
             </div>
 

@@ -9,15 +9,17 @@ require (
 	github.com/duke-git/lancet/v2 v2.3.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-resty/resty/v2 v2.12.0
+	github.com/go-sql-driver/mysql v1.8.1
 	github.com/google/uuid v1.6.0
+	github.com/hibiken/asynq v0.24.1
 	github.com/joho/godotenv v1.5.1
 	github.com/kataras/iris/v12 v12.2.11
-	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/rs/zerolog v1.32.0
 )
 
 require (
 	ariga.io/atlas v0.22.0 // indirect
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/CloudyKit/fastprinter v0.0.0-20200109182630-33d98a066a53 // indirect
 	github.com/CloudyKit/jet/v6 v6.2.0 // indirect
@@ -27,10 +29,13 @@ require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/flosch/pongo2/v4 v4.0.2 // indirect
 	github.com/go-openapi/inflect v0.21.0 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gomarkdown/markdown v0.0.0-20240419095408-642f0ee99ae2 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
@@ -48,11 +53,15 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.26 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
+	github.com/redis/go-redis/v9 v9.5.1 // indirect
+	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/schollz/closestmatch v2.1.0+incompatible // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
+	github.com/spf13/cast v1.3.1 // indirect
 	github.com/tdewolff/minify/v2 v2.20.20 // indirect
 	github.com/tdewolff/parse/v2 v2.7.13 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
