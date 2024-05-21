@@ -1,8 +1,7 @@
-name: Docker Transcription-API
+name: "[CPU] Docker whisperx-api"
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -28,11 +27,11 @@ jobs:
       - name: Build and push Docker images
         uses: docker/build-push-action@v5
         with:
-          context: transcription-api
-          file: transcription-api/Dockerfile
+          context: whisperx-api
+          file: whisperx-api/Dockerfile.cpu
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ format('{0}/whishper-transcription-api:{1}', secrets.DOCKERHUB_USERNAME, github.event.release.tag_name) }}
+          tags: ${{ format('{0}/whishperx-api:{1}-cpu', secrets.DOCKERHUB_USERNAME, github.event.release.tag_name) }}
 
       - name: Build and push Docker images as latest
         if: ${{ !github.event.release.prerelease }}
@@ -42,4 +41,4 @@ jobs:
           file: transcription-api/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ format('{0}/whishper-transcription-api:latest', secrets.DOCKERHUB_USERNAME) }}
+          tags: ${{ format('{0}/whishper-transcription-api:cpu', secrets.DOCKERHUB_USERNAME) }}

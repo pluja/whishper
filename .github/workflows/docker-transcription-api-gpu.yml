@@ -1,8 +1,7 @@
-name: Docker Transcription-API GPU
+name: "[GPU] Docker whisperx-api"
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -10,14 +9,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Free disk space
-        run: |
-          sudo docker rmi $(docker image ls -aq) >/dev/null 2>&1 || true
-          sudo rm -rf /usr/share/dotnet  || true
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
-          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup /usr/lib/jvm || true
-          echo "some directories deleted"
-
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -36,18 +27,18 @@ jobs:
       - name: Build and push Docker images
         uses: docker/build-push-action@v5
         with:
-          context: transcription-api
-          file: transcription-api/Dockerfile.gpu
+          context: whisperx-api
+          file: whisperx-api/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ format('{0}/whishper-transcription-api:{1}-gpu', secrets.DOCKERHUB_USERNAME, github.event.release.tag_name) }}
+          tags: ${{ format('{0}/whishperx-api:{1}', secrets.DOCKERHUB_USERNAME, github.event.release.tag_name) }}
 
       - name: Build and push Docker images as latest
         if: ${{ !github.event.release.prerelease }}
         uses: docker/build-push-action@v5
         with:
           context: transcription-api
-          file: transcription-api/Dockerfile.gpu
+          file: transcription-api/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ format('{0}/whishper-transcription-api:latest-gpu', secrets.DOCKERHUB_USERNAME) }}
+          tags: ${{ format('{0}/whishper-transcription-api:latest', secrets.DOCKERHUB_USERNAME) }}

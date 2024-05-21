@@ -58,7 +58,7 @@ async def transcribe_endpoint(
         )
 
 
-@app.get("/healthcheck/")
+@app.get("/health")
 async def healthcheck():
     # Simple health check endpoint
     return JSONResponse(content={"status": "healthy"})
