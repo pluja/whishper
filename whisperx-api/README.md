@@ -26,7 +26,7 @@ services:
     ports:
       - "8088:8000"
     volumes:
-      - ./data/uploads:/app/data
+      - ./data/uploads:/app/uploads
       - ./data/whisper_models:/app/wx_models
     environment:
       WHISPER_DEVICE: cpu
@@ -52,7 +52,7 @@ services:
     ports:
       - "8088:8000"
     volumes:
-      - ./data/uploads:/app/data
+      - ./data/uploads:/app/uploads
       - ./data/whisper_models:/app/wx_models
     environment:
       WHISPER_DEVICE: cuda

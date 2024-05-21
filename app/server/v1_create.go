@@ -27,8 +27,6 @@ func (s *Server) createTranscription(c iris.Context) {
 	diarize := strings.ToLower(c.FormValueDefault("diarize", c.URLParamDefault("diarize", "on"))) == "on"
 	htmxFormat := c.URLParamDefault("htmx", "")
 
-	log.Debug().Msg("Got it")
-
 	// File handling
 	c.SetMaxRequestBodySize(20 * iris.GB)
 
@@ -44,7 +42,7 @@ func (s *Server) createTranscription(c iris.Context) {
 
 	safeFileName := fmt.Sprintf("%s-%s", uuid.New().String()[:6], utils.SecureFilename(fileHeader.Filename))
 	// Upload the file to specific destination.
-	dest := filepath.Join("../uploads", safeFileName)
+	dest := filepath.Join(utils.Getenv("UPLOAD_DIR", "/app/uploads"), safeFileName)
 	c.SaveFormFile(fileHeader, dest)
 
 	client := db.Client()

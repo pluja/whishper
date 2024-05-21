@@ -15,5 +15,6 @@ uploads/
 .vscode/
 TODO.md
 *_data/
+data/
 node_modules
 web/

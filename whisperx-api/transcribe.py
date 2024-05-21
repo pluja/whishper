@@ -25,7 +25,7 @@ async def transcribe_from_filename(
     diarize: bool = False,
 ) -> dict:
     """Transcribe audio from a file saved on the server."""
-    filepath = os.path.join(os.environ.get("UPLOAD_DIR", "/app/data"), secure_filename(filename))
+    filepath = os.path.join(os.environ.get("UPLOAD_DIR", "/app/uploads"), secure_filename(filename))
     # Check if the file exists
     if not os.path.isfile(filepath):
         raise HTTPException(status_code=404, detail=f"File not found: {filename}")
@@ -50,7 +50,7 @@ async def transcribe_file(
     else:
         # Save the file temporarily if it's too large
         filename = secure_filename(file.filename)
-        temp_path = os.path.join(os.environ.get("UPLOAD_DIR", "/app/data"), filename)
+        temp_path = os.path.join(os.environ.get("UPLOAD_DIR", "/app/uploads"), filename)
         with open(temp_path, "wb") as temp_file:
             temp_file.write(contents)
 
