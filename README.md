@@ -1,12 +1,17 @@
-[![anysub banner](misc/banner2.png)](https://anysub.org)
+<p align="center"><a href="https://anysub.org"><img alt="AnySub banner" width="350" src="misc/banner2.png"/></a></p>
 
-# 🚧 WORK IN PROGRESS...
+<p align="center"><b>❇️ Open-source, 100% local audio transcription and subtitling suite with a full-featured web UI ❇️</b></p>
 
-This is the branch where I'm working on a complete rewrite of the project.
+---
+<h3 align="center">🚧 WORK IN PROGRESS...</h3>
 
-This rewrite is under development. The initial stages of development are focused on enhancing the quality and reliability of the APIs. The goal is to ensure easier scalability, broader compatibility, and overall improved performance. After the APIs are reliable and ready, the focus will move to the implementation of a better web UI.
+> [!WARNING]
+> This rewrite is under development. The initial stages of development are focused on enhancing the quality and reliability of the APIs. The goal is to ensure easier scalability, broader compatibility, and overall improved performance. After the APIs are reliable and ready, the focus will move to the implementation of a better web UI.
 
-**AnySub** is an open-source, 100% local audio transcription and subtitling suite with a full-featured web UI.
+> [!TIP]
+> The WhisperX API, which powers Anysub, is available for testing. For instructions on how to run it, refer to the [README](https://github.com/pluja/whishper/blob/v4/whisperx-api/README.md#stand-alone-whisper-x-api).
+
+---
 
 ## ✅ Currently working
 
