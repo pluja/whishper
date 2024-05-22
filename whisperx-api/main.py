@@ -7,6 +7,7 @@ import uvicorn
 from dotenv import load_dotenv
 from backends.wx import WhisperxBackend
 import logging
+from typing import Optional
 
 description = """
 WhisperX-API is a REST endpoint to transcribe anything using WhisperX model. 🚀
@@ -32,6 +33,8 @@ async def transcribe_endpoint(
     language: Languages = Languages.auto,
     device: DeviceType = DeviceType.cpu,
     diarize: bool = False,
+    speaker_min: Optional[int] = None,
+    speaker_max: Optional[int] = None,
 ):
     #filename = False # TODO: Allow filesystem filepaths for transcriptions without uploads.
     # Validate device type
@@ -44,12 +47,12 @@ async def transcribe_endpoint(
     if file:
         # Use uploaded file for transcription
         return await transcribe_file(
-            file, model_size.value, language.value, device, diarize
+            file, model_size.value, language.value, device, diarize, speaker_min, speaker_max
         )
     elif filename:
         # Use provided filename for transcription
         return await transcribe_from_filename(
-            filename, model_size.value, language.value, device, diarize
+            filename, model_size.value, language.value, device, diarize, speaker_min, speaker_max
         )
     else:
         # No file or filename provided

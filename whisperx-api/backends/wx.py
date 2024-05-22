@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from typing import List, TypedDict
+from typing import List, TypedDict, Optional
 from faster_whisper import WhisperModel, download_model
 import whisperx
 
@@ -103,6 +103,8 @@ class WhisperxBackend:
         audio: np.ndarray,
         silent: bool = False,
         language: str = None,
+        speaker_min: Optional[int] = None,
+        speaker_max: Optional[int] = None,
     ) -> Transcription:
         assert self.model is not None, "Model must be loaded before transcription"
 
@@ -124,7 +126,7 @@ class WhisperxBackend:
         )
 
         if self.diarize:
-            diarize_segments = self.diarize_model(audio)
+            diarize_segments = self.diarize_model(audio, min_speakers=speaker_min, max_speakers=speaker_max)
             result = whisperx.assign_word_speakers(diarize_segments, result)
 
         # Flatten the list of words from all segments for further processing.
