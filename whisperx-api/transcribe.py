@@ -23,6 +23,8 @@ async def transcribe_from_filename(
     language: Optional[str] = None,
     device: str = "cpu",
     diarize: bool = False,
+    speaker_min: Optional[int] = None,
+    speaker_max: Optional[int] = None,
 ) -> dict:
     """Transcribe audio from a file saved on the server."""
     filepath = os.path.join(os.environ.get("UPLOAD_DIR", "/app/uploads"), secure_filename(filename))
@@ -31,7 +33,7 @@ async def transcribe_from_filename(
         raise HTTPException(status_code=404, detail=f"File not found: {filename}")
 
     audio = convert_audio(filepath)
-    return await transcribe_audio(audio, model_size, language, device, diarize)
+    return await transcribe_audio(audio, model_size, language, device, diarize, speaker_min, speaker_max)
 
 
 async def transcribe_file(
@@ -40,6 +42,8 @@ async def transcribe_file(
     language: Optional[str] = None,
     device: str = "cpu",
     diarize: bool = False,
+    speaker_min: Optional[int] = None,
+    speaker_max: Optional[int] = None,
 ) -> dict:
     """Transcribe audio from an uploaded file."""
     contents = await file.read()
@@ -62,7 +66,7 @@ async def transcribe_file(
         os.remove(temp_path)
 
     # Transcribe the audio content
-    return await transcribe_audio(audio, model_size, language, device, diarize)
+    return await transcribe_audio(audio, model_size, language, device, diarize, speaker_min, speaker_max)
 
 
 async def transcribe_audio(
@@ -71,6 +75,8 @@ async def transcribe_audio(
     language: Optional[str] = None,
     device: str = "cpu",
     diarize: bool = False,
+    speaker_min: Optional[int] = None,
+    speaker_max: Optional[int] = None,
 ) -> dict:
     """Transcribe the given audio using the Whisper model."""
     # Handle the 'auto' language option
@@ -85,4 +91,4 @@ async def transcribe_audio(
 
     # Transcribe the audio and return the result
     # TODO: No language specified?
-    return model.transcribe(audio, silent=True, language=language)
+    return model.transcribe(audio, silent=True, language=language, speaker_min=speaker_min, speaker_max=speaker_max)
