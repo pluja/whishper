@@ -1,0 +1,17 @@
+{
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.13",
+    "concurrently": "^8.2.2",
+    "tailwindcss": "^3.4.3"
+  },
+  "scripts": {
+    "tailwind:dev": "npx tailwindcss -i src/frontend/static/css/input.css -o src/frontend/static/css/style.css --watch",
+    "templ:dev": "cd ./src/webui && templ generate --watch",
+    "go:dev": "cd src && gow run . -dev",
+    "dev": "concurrently --kill-others npm:tailwind:dev npm:templ:dev npm:go:dev",
+    "templ:build": "cd ./src/webui && templ generate",
+    "tailwind:build": "npx tailwindcss -i src/frontend/static/css/input.css -o src/frontend/static/css/style.css --minify",
+    "build": "npm run tailwind:build && npm run templ:build"
+  }
+}

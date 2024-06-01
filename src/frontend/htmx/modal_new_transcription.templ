@@ -1,0 +1,64 @@
+package htmx
+
+templ ModalNewTranscription() {
+	<div id="modal" _="on closeModal add .closing then wait for animationend then remove me">
+		<div class="modal-underlay" _="on click trigger closeModal"></div>
+		<div class="modal-content" class="bg-white">
+			<h1 class="text-lg font-bold">New subtitle task</h1>
+			<form class="space-y-4" hx-target="#tx-list" hx-swap="afterbegin" hx-encoding="multipart/form-data" hx-post="/api/v1/transcriptions?htmx=true" _="on htmx:xhr:progress(loaded, total) set #progress.value to (loaded/total)*100">
+				<div>
+					<label for="device" class="block text-sm font-medium text-gray-300">Device </label>
+					<select name="device" id="device" class="mt-1.5 w-full text-gray-600 rounded-lg border-gray-900 sm:text-sm">
+						<option value="cpu">CPU</option>
+						<option value="cuda">GPU</option>
+					</select>
+				</div>
+				<div>
+					<label for="language" class="block text-sm font-medium text-gray-300">Source Language </label>
+					<select name="language" id="language" class="mt-1.5 w-full text-gray-600 rounded-lg border-gray-900 sm:text-sm">
+						<option value="auto">Auto-detect</option>
+						<!-- TODO: List all languages -->
+						<option value="es">Spanish</option>
+						<option value="en">English</option>
+						<option value="fr">French</option>
+					</select>
+				</div>
+				<label
+					for="diarize"
+					class="flex cursor-pointer items-start gap-4 rounded-lg border border-slate-500 p-4 transition hover:bg-blue-600/60 has-[:checked]:bg-blue-800/50"
+				>
+					<div class="flex items-center">
+						<input
+							_="on click if my.checked then remove .hidden from #speakers else add .hidden to #speakers"
+							type="checkbox"
+							class="border-gray-300 rounded size-4 diarize"
+							id="diarize"
+							name="diarize"
+						/>
+					</div>
+					<div>
+						<strong class="font-medium text-gray-200">Detect speakers </strong>
+						<p class="mt-1 text-sm text-gray-400 text-pretty">
+							Diarize the audio detecting speakers. Processing time and resource consumption will be higher.
+						</p>
+					</div>
+				</label>
+				<!-- When diarize is enabled, show this options -->
+				<div id="speakers" class="hidden p-4 space-y-4">
+					<div>
+						<label for="speaker_min" class="block mb-1 text-sm font-medium text-gray-300">Minimum speakers</label>
+						<input type="number" name="speaker_min" class="block w-full px-3 py-2 text-gray-300 placeholder-gray-500 bg-gray-800 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"/>
+					</div>
+					<div>
+						<label for="speaker_max" class="block mb-1 text-sm font-medium text-gray-300">Maximum speakers</label>
+						<input type="number" name="speaker_max" class="block w-full px-3 py-2 text-gray-300 placeholder-gray-500 bg-gray-800 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"/>
+					</div>
+				</div>
+				<input type="file" name="file"/>
+				<progress id="progress" value="0" max="100"></progress>
+				<button class="p-3 text-black bg-white" _="on click trigger closeModal" type="submit">Submit</button>
+			</form>
+			<button class="p-3 text-black bg-white" _="on click trigger closeModal">Close</button>
+		</div>
+	</div>
+}

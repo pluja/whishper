@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
     build:
       context: ./app
-      dockerfile: worker.cpu.Dockerfile
+      dockerfile: worker.gpu.Dockerfile
     volumes:
       - ./data/uploads:/app/uploads
       - ./data/whisper_models:/app/wx_models
@@ -22,12 +22,21 @@ services:
       WHISPER_MODELS_DIR: ${WHISPER_MODELS_DIR:-/app/wx_models}
       WHISPER_THREADS: ${WHISPER_THREADS:-2}
       WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
+      WHISPER_HF_TOKEN: "hf_xxx"
+    ports:
+      - 8082:8000
     deploy:
       replicas: 1
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     depends_on:
       database:
-        condition: service_started
-  
+        condition: service_healthy
+
   database:
     container_name: anysub_database
     restart: unless-stopped
@@ -38,6 +47,18 @@ services:
       MARIADB_DATABASE: anysub
       MARIADB_USER: ${DB_USER:-anysub}
       MARIADB_PASSWORD: ${DB_PASSWORD:-anysub}
+    healthcheck:
+      interval: 5s
+      retries: 5
+      timeout: 30s
+      test:
+        [
+          "CMD",
+          "healthcheck.sh",
+          "--su-mysql",
+          "--connect",
+          "--innodb_initialized",
+        ]
 
   translate:
     container_name: libretranslate
@@ -46,7 +67,7 @@ services:
     user: "root"
     volumes:
       - ./anysub_data/libretranslate/data:/home/libretranslate/.local/share
-      - ./anysub_data/libretranslate/cache:/home/libretranslate/.local/cache     
+      - ./anysub_data/libretranslate/cache:/home/libretranslate/.local/cache
     env_file: .env
     environment:
       LT_DISABLE_WEB_UI: True
@@ -55,7 +76,7 @@ services:
     expose:
       - 5000
     healthcheck:
-      test: ['CMD-SHELL', './venv/bin/python scripts/healthcheck.py']
+      test: ["CMD-SHELL", "./venv/bin/python scripts/healthcheck.py"]
       interval: 10s
-      timeout: 3s
+      timeout: 30s
       retries: 5

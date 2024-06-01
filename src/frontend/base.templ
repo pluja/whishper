@@ -1,0 +1,114 @@
+package frontend
+
+templ BaseStyle() {
+	<style>
+        /***** MODAL DIALOG ****/
+        #modal {
+            /* Underlay covers entire screen. */
+            position: fixed;
+            top:0px;
+            bottom: 0px;
+            left:0px;
+            right:0px;
+            z-index:1000;
+
+            /* Flexbox centers the .modal-content vertically and horizontally */
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+
+            /* Animate when opening */
+            animation-name: fadeIn;
+            animation-duration:150ms;
+            animation-timing-function: ease;
+        }
+
+        #modal > .modal-underlay {
+            /* underlay takes up the entire viewport. This is only
+            required if you want to click to dismiss the popup */
+            position: absolute;
+            z-index: -1;
+            top:0px;
+            bottom:0px;
+            left: 0px;
+            right: 0px;
+        }
+
+        #modal > .modal-content {
+            /* Position visible dialog near the top of the window */
+            margin-top:10vh;
+
+            /* Sizing for visible dialog */
+            width:80%;
+            max-width:600px;
+
+            /* Display properties for visible dialog*/
+            border:solid 1px #999;
+            border-radius:8px;
+            box-shadow: 0px 0px 20px 0px rgba(0,0,0,0.3);
+            background-color:rgb(35, 39, 70);
+            padding:20px;
+
+            /* Animate when opening */
+            animation-name:zoomIn;
+            animation-duration:150ms;
+            animation-timing-function: ease;
+        }
+
+        #modal.closing {
+            /* Animate when closing */
+            animation-name: fadeOut;
+            animation-duration:150ms;
+            animation-timing-function: ease;
+        }
+
+        #modal.closing > .modal-content {
+            /* Animate when closing */
+            animation-name: zoomOut;
+            animation-duration:150ms;
+            animation-timing-function: ease;
+        }
+
+        @keyframes fadeIn {
+            0% {opacity: 0;}
+            100% {opacity: 1;}
+        } 
+
+        @keyframes fadeOut {
+            0% {opacity: 1;}
+            100% {opacity: 0;}
+        } 
+
+        @keyframes zoomIn {
+            0% {transform: scale(0.9);}
+            100% {transform: scale(1);}
+        } 
+
+        @keyframes zoomOut {
+            0% {transform: scale(1);}
+            100% {transform: scale(0.9);}
+        } 
+    </style>
+}
+
+templ Base() {
+	<!DOCTYPE html>
+	<html lang="en" data-theme="dark" class="h-full dark">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Anysub</title>
+			<link rel="stylesheet" href="/static/css/style.css"/>
+			<link rel="stylesheet" href="/static/css/tabler-icons.min.css"/>
+			<link rel="shortcut icon" href="/static/assets/favicon.webp" type="image/x-icon"/>
+			<script src="https://unpkg.com/htmx.org@1.9.11" integrity="sha384-0gxUXCCR8yv9FM2b+U3FDbsKthCI66oH5IA9fHppQq9DDMHuMauqq1ZHBpJxQ0J0" crossorigin="anonymous"></script>
+			<script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/ws.js"></script>
+			<script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+			<meta name="htmx-config" content='{"selfRequestsOnly":false}'/>
+		</head>
+		<body class="font-mono text-gray-300 bg-zinc-900">
+			{ children... }
+			@BaseStyle()
+		</body>
+	</html>
+}

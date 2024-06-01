@@ -1,0 +1,20 @@
+package frontend
+
+import (
+	"github.com/pluja/anysub/ent"
+	"github.com/pluja/anysub/frontend/components"
+)
+
+templ TranscriptionList(transcriptions []*ent.Transcription) {
+    <div hx-get="/api/v1/transcriptions?htmx=yes" 
+         hx-params="*" 
+         hx-swap="outerHTML" 
+         hx-trigger="every 3s" 
+         id="tx-list" 
+         class="flex flex-col justify-center items-center">
+
+        for _, tx := range transcriptions {
+            @components.TranscriptionCard(tx)
+        }
+    </div>
+}

@@ -1,0 +1,116 @@
+package components
+
+import (
+    "github.com/pluja/anysub/utils"
+	"github.com/pluja/anysub/models"
+	"github.com/dustin/go-humanize"
+	"github.com/pluja/anysub/ent"
+    "fmt"
+)
+
+templ TranscriptionCard(tx *ent.Transcription) {
+    <article class="flex items-center w-full max-w-4xl px-6 py-3 mx-4 my-2 transition duration-300 bg-transparent border-2 border-gray-700 rounded-xl sm:gap-8 hover:border-emerald-900" id={ fmt.Sprintf("tx-%d", tx.ID) }>
+        <div class="hidden sm:grid sm:size-20 sm:shrink-0 sm:place-content-center [&>svg]:size-12" aria-hidden="true">
+            @statusIndicator(tx.Status)
+        </div>
+
+        <div class="my-1">
+            <div _={ fmt.Sprintf("on click go to url '/tx/%d'", tx.ID) } class="font-medium cursor-pointer text-md">
+                <span class="text-xs text-gray-600">#{ utils.ToString(tx.ID) } </span>
+                <a href="#">{tx.FileName }</a>
+            </div>
+
+            <!-- <p class="mt-1 text-sm text-gray-400">
+                        Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptates, commodi!
+                    </p> -->
+
+            <div class="mt-4 sm:flex sm:items-center sm:gap-3">
+                <div class="flex items-center justify-center gap-1 pr-4 text-gray-500 border-r border-gray-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+
+                <p class="text-xs font-medium">
+                    { utils.ToString(tx.Result.Duration)}s
+                </p>
+                </div>
+
+                <p class="pr-4 mt-2 text-xs font-medium text-gray-500 border-r border-gray-600 sm:mt-0">{ humanize.Time(tx.CreatedAt) }</p>
+
+                <p class="mt-2 text-xs font-medium text-gray-500 sm:mt-0">
+                    Languages: {tx.Result.Language} 
+                    for _,tl := range tx.Edges.Translations { 
+                        , { tl.TargetLanguage }
+                    }
+                </p>
+            </div>
+        </div>
+        
+        if tx.Status == models.TsStatusDone {
+            <!-- TRANSLATE -->
+            <button class="p-1 font-bold transition duration-300 rounded-lg text-sky-200 bg-sky-800/60 hover:bg-sky-800" 
+                    hx-get={ fmt.Sprintf("/html/v1/modal-new-tl/%d?lang=%s", tx.ID, tx.Result.Language) }                    
+                    hx-target="body" 
+                    hx-swap="beforeend" 
+                    hx-swap="outerHTML" 
+                    hx-target={fmt.Sprintf("#tx-%d", tx.ID) }>
+                <i class="px-1 text-xl ti ti-language-hiragana"></i>
+            </button>
+            
+            <!-- EDIT -->
+            <button _={ fmt.Sprintf("on click go to url '/tx/%d'", tx.ID) } class="p-1 font-bold transition duration-300 rounded-lg text-emerald-200 bg-emerald-700/60 hover:bg-emerald-700">
+                <i class="px-1 text-xl ti ti-edit"></i>
+            </button>
+
+            <!-- DOWNLOAD -->
+            <button hx-get={ fmt.Sprintf("/html/v1/modal-download/%d", tx.ID) } hx-target="body" 
+                    hx-swap="beforeend" 
+                    class="p-1 font-bold transition duration-300 rounded-lg text-emerald-200 bg-emerald-700/60 hover:bg-emerald-700">
+                <i class="px-1 text-xl ti ti-download"></i>
+            </button>
+
+        }
+
+        // Show delete for done and error transcriptions
+        if tx.Status == models.TsStatusDone || tx.Status == models.TsStatusError {
+            <!-- DELETE -->
+            <button hx-delete={ fmt.Sprintf("/api/v1/transcriptions/%d", tx.ID) } 
+                    class="flex items-center justify-center p-1 font-bold text-red-200 transition duration-300 rounded-lg bg-red-800/60 hover:bg-red-800"
+                    hx-confirm={ fmt.Sprintf("Delete transcription #%d?", tx.ID) }
+                    hx-swap="outerHTML"
+                    hx-target={ fmt.Sprintf("#tx-%d", tx.ID) }>
+                <i class="px-1 text-xl ti ti-trash"></i>
+            </button>
+        }
+
+    </article>
+}
+
+templ statusIndicator(status string) {
+    if status == models.TsStatusDone {
+        <svg xmlns="http://www.w3.org/2000/svg" class="text-green-500/70" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-circle-check">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+            <path d="M9 12l2 2l4 -4" />
+        </svg>
+    } else if status == models.TsStatusTranslating {
+        <svg xmlns="http://www.w3.org/2000/svg" class="animate-pulse text-sky-500/70" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            class="icon icon-tabler icons-tabler-outline icon-tabler-language-hiragana">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+            <path d="M4 5h7" />
+            <path d="M7 4c0 4.846 0 7 .5 8" />
+            <path
+                d="M10 8.5c0 2.286 -2 4.5 -3.5 4.5s-2.5 -1.135 -2.5 -2c0 -2 1 -3 3 -3s5 .57 5 2.857c0 1.524 -.667 2.571 -2 3.143" />
+            <path d="M12 20l4 -9l4 9" />
+            <path d="M19.1 18h-6.2" />
+        </svg>
+    } else if status == models.TsStatusError {
+        <h1> error </h1>
+    } else {
+        <svg xmlns="http://www.w3.org/2000/svg" class="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-loader-2">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+            <path d="M12 3a9 9 0 1 0 9 9" />
+        </svg>
+    }
+}

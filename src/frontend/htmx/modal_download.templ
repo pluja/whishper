@@ -1,0 +1,89 @@
+package htmx
+
+import (
+	"github.com/pluja/anysub/ent"
+)
+
+templ AdvancedConfig() {
+    <details class="p-2 space-y-2 rounded-lg" _="on click toggle .border">
+        <summary class="cursor-pointer">Advanced configuration</summary>
+        <div>
+            <label for="mlc" class="block mb-1 text-sm font-medium text-gray-900 dark:text-white">Max characters per line:</label>
+            <input name="mlc" type="number" id="mlc" aria-describedby="helper-text-explanation"
+                class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                value="40" required />
+        </div>
+
+        <div>
+            <label for="msd" class="block mb-1 text-sm font-medium text-gray-900 dark:text-white">Delay (ms):</label>
+            <input name="msd" type="number" id="msd" aria-describedby="helper-text-explanation"
+                class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                value="-10" required />
+        </div>
+
+        <div>
+            <label for="mtg" class="block mb-1 text-sm font-medium text-gray-900 dark:text-white">Max time gap (ms):</label>
+            <input name="mtg" type="number" id="mtg" aria-describedby="helper-text-explanation"
+                class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                value="900" required />
+        </div>
+
+        <label for="colorize"
+            class="flex cursor-pointer items-start gap-4 rounded-lg border border-slate-500 p-4 transition hover:bg-blue-600/60 has-[:checked]:bg-blue-800/50">
+            <div class="flex items-center">
+                &#8203;
+                <input checked type="checkbox" class="border-gray-300 rounded size-4" id="colorize" name="colorize" />
+            </div>
+        
+            <div>
+                <strong class="font-medium text-gray-200"> Colorize speakers </strong>
+        
+                <p class="mt-1 text-sm text-gray-400 text-pretty">
+                    Set each speaker text with a different color.
+                </p>
+            </div>
+        </label>
+    </details>
+}
+
+templ ModalDownload(tx *ent.Transcription) {
+    <div id="modal" _="on closeModal add .closing then wait for animationend then remove me">
+        <div class="modal-underlay" _="on click trigger closeModal"></div>
+        <div class="modal-content" class="bg-white">
+            <h1 class="text-lg font-bold">Download transcription</h1>
+
+            <form class="space-y-4" method="get" hx-get="/api/v1/transcriptions/{tx.ID}/subtitles">
+                <div>
+                    <label for="language" class="block text-sm font-medium text-gray-300"> Language </label>
+
+                    <select name="language" id="language"
+                        class="mt-1.5 w-full text-gray-600 rounded-lg border-gray-900 sm:text-sm">
+                        <option value="">{tx.Result.Language}</option>
+                        for _ , tl := range tx.Edges.Translations {
+                            <option value="{tl.TargetLanguage}">{tl.TargetLanguage}</option>
+                        }
+                    </select>
+                </div>
+
+                <div>
+                    <label for="format" class="block text-sm font-medium text-gray-300"> Format </label>
+                
+                    <select name="format" id="format" class="mt-1.5 w-full text-gray-600 rounded-lg border-gray-900 sm:text-sm">
+                        <option value="ass">.ass</option>
+                        <option value="srt">.srt</option>
+                        <option value="json">.json</option>
+                    </select>
+                </div>
+
+
+                @AdvancedConfig()
+                
+
+                <button class="p-3 text-gray-900 bg-gray-300 rounded-lg">Download</button>
+                <button type="button" class="p-3 text-gray-900 bg-gray-300 rounded-lg cursor-pointer" _="on click trigger closeModal" hx-disabled>Close</button>
+                <button type="button" class="p-3 text-gray-900 bg-gray-300 rounded-lg cursor-pointer" _="" hx-disabled>Copy raw</button>
+            </form>
+        </div>
+    </div>
+}
+

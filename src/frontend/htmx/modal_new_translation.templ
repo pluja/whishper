@@ -1,0 +1,42 @@
+package htmx
+
+import (
+	"github.com/pluja/anysub/utils/translations"
+    "fmt"
+)
+
+templ ModalNewTranslation(languages map[string]translations.Language, id int, lang string) {
+    <div id="modal" _="on closeModal add .closing then wait for animationend then remove me">
+        <div class="modal-underlay" _="on click trigger closeModal"></div>
+        <div class="modal-content" class="bg-white">
+            <h1 class="text-lg font-bold">New translation task</h1>
+
+            <form class="space-y-4" hx-target={ fmt.Sprintf("#tx-%d", id) } hx-swap="outerHTML" hx-encoding="multipart/form-data" hx-post={ fmt.Sprintf("/api/v1/transcriptions/%d/translations?htmx=true", id) } _="on htmx:xhr:progress(loaded, total) set #progress.value to (loaded/total)*100">
+            <div>
+                <label for="langFrom" class="block text-sm font-medium text-gray-300"> Source Language </label>
+
+                <select disabled name="langFrom" id="langFrom" class="mt-1.5 w-full text-gray-600 rounded-lg border-gray-900 sm:text-sm">
+                <option selected value={ lang }> { languages[lang].Name } </option>
+                </select>
+            </div>
+
+            <div>
+                <label for="langTo" class="block text-sm font-medium text-gray-300"> Translate to </label>
+                
+                <select name="langTo" id="langTo" class="mt-1.5 w-full text-gray-600 rounded-lg border-gray-900 sm:text-sm">
+                    for _, l := range languages {
+                        if l.Code != languages[lang].Code {
+                            <option value={l.Code}>
+                                { l.Name }
+                            </option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <button class="p-3 text-black bg-white" _="on click trigger closeModal" type="submit">Translate</button>
+            <span class="p-3 text-black bg-white cursor-pointer" _="on click trigger closeModal" hx-disabled>Close</span>
+            </form>
+        </div>
+    </div>
+}

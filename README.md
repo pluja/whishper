@@ -34,20 +34,19 @@
   - Anysub can seamlessly orchestrate multiple whisperx-api workers, balancing the job queue across all available resources. Uses [asynq](https://github.com/hibiken/asynq).
 
 ## 🏁 Todos before release
-- [ ] Web UI
-  - [ ] Create
-  - [ ] Translate
+- [x] Web UI
+  - [x] Create
+  - [x] Translate
+  - [x] Download subtitles
   - [ ] Summarize
-  - [ ] Download
   - [ ] Subtitle editor
-  - [ ] Download subtitles
 - [ ] Transcribe from URLs (any source supported by yt-dlp)
-- [ ] **Powerful subtitle editor**
-  - Transcription highlighting based on media position
-  - CPS (Characters per second) warnings
-  - Segment splitting
-  - Segment insertion
-  - Subtitle language selection
+- **Subtitle editor**
+  - [ ] Transcription highlighting based on media position
+  - [ ] CPS (Characters per second) warnings
+  - [ ] Segment splitting
+  - [ ] Segment insertion
+  - [ ] Subtitle language selection
 - [ ] **Quick and easy setup**: use the quick start script, or run through a few steps
 - [ ] **AI summarization of transcriptions**: either using OpenAI or Ollama
 
@@ -60,6 +59,16 @@
 ### 🧪 Testing
 
 At present, there is no testing documentation. Comprehensive testing guidelines will be provided once the [To-Dos Before Release](#-todos-before-release) are completed.
+
+The WhisperX-API is available for testing as standalone; [check out the README for running instructions](https://github.com/pluja/whishper/blob/v4/whisperx-api/README.md#stand-alone-whisper-x-api).
+
+### Development environment
+
+You will need [golang](https://go.dev), [templ](https://templ.guide), [docker](https://docs.docker.com/engine/install/), [npm](https://www.npmjs.com/) and optionally [gow](https://github.com/mitranim/gow).
+
+1. `docker compose up`
+2.  Run `npm run dev` to start development environment.
+3.  Visit http://localhost:1337
 
 ### 🗺️ Post-release Roadmap
 
@@ -81,4 +90,6 @@ At present, there is no testing documentation. Comprehensive testing guidelines 
   - Libretranslate
   - MariaDB
 - Frontend:
-  - (To be done)
+  - Templ
+  - TailwindCSS
+  - Hyperscript
