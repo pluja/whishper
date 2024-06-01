@@ -55,6 +55,8 @@ class WhisperxBackend:
             self.diarize_model = whisperx.DiarizationPipeline(
                 use_auth_token=os.getenv("WHISPER_HF_TOKEN"), device=device
             )
+        elif (os.getenv("WHISPER_HF_TOKEN", False) == False):
+            print("WHISPER_HF_TOKEN variable not set. Diarization will not work!")
 
     def _validate_model_size(self):
         # Check if the provided model size is within the supported models.

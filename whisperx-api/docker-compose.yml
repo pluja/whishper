@@ -1,11 +1,9 @@
-version: "3"
-
 services:
   whisperx-api:
     container_name: whisperx-api
-    build: .
+    image: pluja/whisperx-api:beta
     ports:
-      - "8088:8000"
+      - "8089:8000"
     volumes:
       - ../uploads:/app/uploads
       - ./whisper_models:/app/wx_models
@@ -14,7 +12,14 @@ services:
       UPLOAD_DIR: /app/uploads
       WHISPER_MODELS_DIR: /app/wx_models
       WHISPER_THREADS: 2
-      WHISPER_DEVICE: cpu
+      WHISPER_DEVICE: cuda
     env_file:
       - .env
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
    
