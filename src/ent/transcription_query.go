@@ -14,6 +14,7 @@ import (
 	"github.com/pluja/anysub/ent/predicate"
 	"github.com/pluja/anysub/ent/transcription"
 	"github.com/pluja/anysub/ent/translation"
+	"github.com/pluja/anysub/ent/user"
 )
 
 // TranscriptionQuery is the builder for querying Transcription entities.
@@ -24,6 +25,8 @@ type TranscriptionQuery struct {
 	inters           []Interceptor
 	predicates       []predicate.Transcription
 	withTranslations *TranslationQuery
+	withUser         *UserQuery
+	withFKs          bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -75,6 +78,28 @@ func (tq *TranscriptionQuery) QueryTranslations() *TranslationQuery {
 			sqlgraph.From(transcription.Table, transcription.FieldID, selector),
 			sqlgraph.To(translation.Table, translation.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, transcription.TranslationsTable, transcription.TranslationsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(tq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryUser chains the current query on the "user" edge.
+func (tq *TranscriptionQuery) QueryUser() *UserQuery {
+	query := (&UserClient{config: tq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := tq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := tq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(transcription.Table, transcription.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, transcription.UserTable, transcription.UserColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(tq.driver.Dialect(), step)
 		return fromU, nil
@@ -275,6 +300,7 @@ func (tq *TranscriptionQuery) Clone() *TranscriptionQuery {
 		inters:           append([]Interceptor{}, tq.inters...),
 		predicates:       append([]predicate.Transcription{}, tq.predicates...),
 		withTranslations: tq.withTranslations.Clone(),
+		withUser:         tq.withUser.Clone(),
 		// clone intermediate query.
 		sql:  tq.sql.Clone(),
 		path: tq.path,
@@ -289,6 +315,17 @@ func (tq *TranscriptionQuery) WithTranslations(opts ...func(*TranslationQuery)) 
 		opt(query)
 	}
 	tq.withTranslations = query
+	return tq
+}
+
+// WithUser tells the query-builder to eager-load the nodes that are connected to
+// the "user" edge. The optional arguments are used to configure the query builder of the edge.
+func (tq *TranscriptionQuery) WithUser(opts ...func(*UserQuery)) *TranscriptionQuery {
+	query := (&UserClient{config: tq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	tq.withUser = query
 	return tq
 }
 
@@ -369,11 +406,19 @@ func (tq *TranscriptionQuery) prepareQuery(ctx context.Context) error {
 func (tq *TranscriptionQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Transcription, error) {
 	var (
 		nodes       = []*Transcription{}
+		withFKs     = tq.withFKs
 		_spec       = tq.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			tq.withTranslations != nil,
+			tq.withUser != nil,
 		}
 	)
+	if tq.withUser != nil {
+		withFKs = true
+	}
+	if withFKs {
+		_spec.Node.Columns = append(_spec.Node.Columns, transcription.ForeignKeys...)
+	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Transcription).scanValues(nil, columns)
 	}
@@ -396,6 +441,12 @@ func (tq *TranscriptionQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 		if err := tq.loadTranslations(ctx, query, nodes,
 			func(n *Transcription) { n.Edges.Translations = []*Translation{} },
 			func(n *Transcription, e *Translation) { n.Edges.Translations = append(n.Edges.Translations, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := tq.withUser; query != nil {
+		if err := tq.loadUser(ctx, query, nodes, nil,
+			func(n *Transcription, e *User) { n.Edges.User = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -430,6 +481,38 @@ func (tq *TranscriptionQuery) loadTranslations(ctx context.Context, query *Trans
 			return fmt.Errorf(`unexpected referenced foreign-key "transcription_translations" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
+	}
+	return nil
+}
+func (tq *TranscriptionQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*Transcription, init func(*Transcription), assign func(*Transcription, *User)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*Transcription)
+	for i := range nodes {
+		if nodes[i].user_transcriptions == nil {
+			continue
+		}
+		fk := *nodes[i].user_transcriptions
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(user.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "user_transcriptions" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
 	}
 	return nil
 }

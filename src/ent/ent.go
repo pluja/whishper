@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/pluja/anysub/ent/transcription"
 	"github.com/pluja/anysub/ent/translation"
+	"github.com/pluja/anysub/ent/user"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -76,6 +77,7 @@ func checkColumn(table, column string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			transcription.Table: transcription.ValidColumn,
 			translation.Table:   translation.ValidColumn,
+			user.Table:          user.ValidColumn,
 		})
 	})
 	return columnCheck(table, column)

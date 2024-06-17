@@ -24,12 +24,21 @@ var (
 		{Name: "speaker_max", Type: field.TypeInt64, Nullable: true},
 		{Name: "result", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "user_transcriptions", Type: field.TypeInt},
 	}
 	// TranscriptionsTable holds the schema information for the "transcriptions" table.
 	TranscriptionsTable = &schema.Table{
 		Name:       "transcriptions",
 		Columns:    TranscriptionsColumns,
 		PrimaryKey: []*schema.Column{TranscriptionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "transcriptions_users_transcriptions",
+				Columns:    []*schema.Column{TranscriptionsColumns[14]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
 	}
 	// TranslationsColumns holds the columns for the "translations" table.
 	TranslationsColumns = []*schema.Column{
@@ -54,13 +63,27 @@ var (
 			},
 		},
 	}
+	// UsersColumns holds the columns for the "users" table.
+	UsersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "email", Type: field.TypeString, Unique: true},
+		{Name: "password", Type: field.TypeString},
+	}
+	// UsersTable holds the schema information for the "users" table.
+	UsersTable = &schema.Table{
+		Name:       "users",
+		Columns:    UsersColumns,
+		PrimaryKey: []*schema.Column{UsersColumns[0]},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		TranscriptionsTable,
 		TranslationsTable,
+		UsersTable,
 	}
 )
 
 func init() {
+	TranscriptionsTable.ForeignKeys[0].RefTable = UsersTable
 	TranslationsTable.ForeignKeys[0].RefTable = TranscriptionsTable
 }

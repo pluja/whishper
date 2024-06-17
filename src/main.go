@@ -5,12 +5,14 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"github.com/pluja/anysub/db"
+	_ "github.com/pluja/anysub/ent/runtime" // This import is required by ent to register hooks
 	"github.com/pluja/anysub/server"
 	"github.com/pluja/anysub/tasks"
 	"github.com/pluja/anysub/utils"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -47,9 +49,8 @@ func main() {
 		log.Info().Msg("Started task server mode!")
 		tasks.StartTaskServer(wxapiHost)
 	} else {
-		//go tasks.StartTaskServer(wxapiHost)
+		log.Info().Msg("Starting Anysub server...")
 		s := server.NewServer(":1337")
-		defer s.TaskClient.Close()
 		if err := s.Run(); err != nil {
 			log.Fatal().Err(err)
 		}

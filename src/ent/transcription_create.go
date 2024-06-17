@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/pluja/anysub/ent/transcription"
 	"github.com/pluja/anysub/ent/translation"
+	"github.com/pluja/anysub/ent/user"
 	"github.com/pluja/anysub/models"
 )
 
@@ -219,6 +220,17 @@ func (tc *TranscriptionCreate) AddTranslations(t ...*Translation) *Transcription
 	return tc.AddTranslationIDs(ids...)
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (tc *TranscriptionCreate) SetUserID(id int) *TranscriptionCreate {
+	tc.mutation.SetUserID(id)
+	return tc
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (tc *TranscriptionCreate) SetUser(u *User) *TranscriptionCreate {
+	return tc.SetUserID(u.ID)
+}
+
 // Mutation returns the TranscriptionMutation object of the builder.
 func (tc *TranscriptionCreate) Mutation() *TranscriptionMutation {
 	return tc.mutation
@@ -314,6 +326,9 @@ func (tc *TranscriptionCreate) check() error {
 	if _, ok := tc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "createdAt", err: errors.New(`ent: missing required field "Transcription.createdAt"`)}
 	}
+	if _, ok := tc.mutation.UserID(); !ok {
+		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "Transcription.user"`)}
+	}
 	return nil
 }
 
@@ -406,6 +421,23 @@ func (tc *TranscriptionCreate) createSpec() (*Transcription, *sqlgraph.CreateSpe
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := tc.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   transcription.UserTable,
+			Columns: []string{transcription.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.user_transcriptions = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

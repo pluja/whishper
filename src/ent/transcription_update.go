@@ -14,6 +14,7 @@ import (
 	"github.com/pluja/anysub/ent/predicate"
 	"github.com/pluja/anysub/ent/transcription"
 	"github.com/pluja/anysub/ent/translation"
+	"github.com/pluja/anysub/ent/user"
 	"github.com/pluja/anysub/models"
 )
 
@@ -271,6 +272,17 @@ func (tu *TranscriptionUpdate) AddTranslations(t ...*Translation) *Transcription
 	return tu.AddTranslationIDs(ids...)
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (tu *TranscriptionUpdate) SetUserID(id int) *TranscriptionUpdate {
+	tu.mutation.SetUserID(id)
+	return tu
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (tu *TranscriptionUpdate) SetUser(u *User) *TranscriptionUpdate {
+	return tu.SetUserID(u.ID)
+}
+
 // Mutation returns the TranscriptionMutation object of the builder.
 func (tu *TranscriptionUpdate) Mutation() *TranscriptionMutation {
 	return tu.mutation
@@ -295,6 +307,12 @@ func (tu *TranscriptionUpdate) RemoveTranslations(t ...*Translation) *Transcript
 		ids[i] = t[i].ID
 	}
 	return tu.RemoveTranslationIDs(ids...)
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (tu *TranscriptionUpdate) ClearUser() *TranscriptionUpdate {
+	tu.mutation.ClearUser()
+	return tu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -324,7 +342,18 @@ func (tu *TranscriptionUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (tu *TranscriptionUpdate) check() error {
+	if _, ok := tu.mutation.UserID(); tu.mutation.UserCleared() && !ok {
+		return errors.New(`ent: clearing a required unique edge "Transcription.user"`)
+	}
+	return nil
+}
+
 func (tu *TranscriptionUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := tu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(transcription.Table, transcription.Columns, sqlgraph.NewFieldSpec(transcription.FieldID, field.TypeInt))
 	if ps := tu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -431,6 +460,35 @@ func (tu *TranscriptionUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(translation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if tu.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   transcription.UserTable,
+			Columns: []string{transcription.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := tu.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   transcription.UserTable,
+			Columns: []string{transcription.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -699,6 +757,17 @@ func (tuo *TranscriptionUpdateOne) AddTranslations(t ...*Translation) *Transcrip
 	return tuo.AddTranslationIDs(ids...)
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (tuo *TranscriptionUpdateOne) SetUserID(id int) *TranscriptionUpdateOne {
+	tuo.mutation.SetUserID(id)
+	return tuo
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (tuo *TranscriptionUpdateOne) SetUser(u *User) *TranscriptionUpdateOne {
+	return tuo.SetUserID(u.ID)
+}
+
 // Mutation returns the TranscriptionMutation object of the builder.
 func (tuo *TranscriptionUpdateOne) Mutation() *TranscriptionMutation {
 	return tuo.mutation
@@ -723,6 +792,12 @@ func (tuo *TranscriptionUpdateOne) RemoveTranslations(t ...*Translation) *Transc
 		ids[i] = t[i].ID
 	}
 	return tuo.RemoveTranslationIDs(ids...)
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (tuo *TranscriptionUpdateOne) ClearUser() *TranscriptionUpdateOne {
+	tuo.mutation.ClearUser()
+	return tuo
 }
 
 // Where appends a list predicates to the TranscriptionUpdate builder.
@@ -765,7 +840,18 @@ func (tuo *TranscriptionUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (tuo *TranscriptionUpdateOne) check() error {
+	if _, ok := tuo.mutation.UserID(); tuo.mutation.UserCleared() && !ok {
+		return errors.New(`ent: clearing a required unique edge "Transcription.user"`)
+	}
+	return nil
+}
+
 func (tuo *TranscriptionUpdateOne) sqlSave(ctx context.Context) (_node *Transcription, err error) {
+	if err := tuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(transcription.Table, transcription.Columns, sqlgraph.NewFieldSpec(transcription.FieldID, field.TypeInt))
 	id, ok := tuo.mutation.ID()
 	if !ok {
@@ -889,6 +975,35 @@ func (tuo *TranscriptionUpdateOne) sqlSave(ctx context.Context) (_node *Transcri
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(translation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if tuo.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   transcription.UserTable,
+			Columns: []string{transcription.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := tuo.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   transcription.UserTable,
+			Columns: []string{transcription.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

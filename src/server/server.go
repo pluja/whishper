@@ -13,6 +13,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/hibiken/asynq"
 	"github.com/kataras/iris/v12"
+	"github.com/kataras/iris/v12/sessions"
 
 	"github.com/pluja/anysub/frontend"
 	"github.com/pluja/anysub/frontend/htmx"
@@ -41,6 +42,17 @@ func (s *Server) SetupMiddleware() {
 	s.Router.Use(iris.Compression)
 	s.Router.Logger().SetLevel("warn")
 	s.Router.Use(iris.Cache304(24 * 60 * 60))
+
+	sess := sessions.New(
+		sessions.Config{
+			Cookie:                      "_sess",
+			Expires:                     time.Hour * 72,
+			DisableSubdomainPersistence: false,
+			AllowReclaim:                true,
+		},
+	)
+
+	s.Router.Use(sess.Handler())
 }
 
 func (s *Server) RegisterRoutes() {
@@ -49,14 +61,37 @@ func (s *Server) RegisterRoutes() {
 	s.Router.Favicon(path.Join(rdir, "/frontend/static", "/assets/favicon.webp"))
 	s.Router.HandleDir("/static", iris.Dir(path.Join(rdir, "/frontend/static")))
 
-	// UI Routes
+	// Root Routes
 	{
-		s.Router.Get("/", iris.Component(frontend.Index()))
+		// Redirect root requests to the login page
+		s.Router.Get("/", func(ctx iris.Context) {
+			ctx.Redirect("/login")
+		})
+
+		// Authentication handlers for login and registration actions
+		s.Router.Post("/login", s.LoginHandler)
+		s.Router.Post("/register", s.registerUser)
+
+		// Create a party for routes requiring authentication
+		authr := s.Router.Party("/")
+		authr.Use(s.AuthRedirects)
+
+		// Auth pages (only accessible when not authenticated)
+		authr.Get("/login", iris.Component(frontend.Login()))
+		authr.Get("/register", iris.Component(frontend.Register()))
+
+		// Create a sub-party for routes requiring user authentication
+		{
+			app := authr.Party("/app")
+
+			// Protected route rendering the application index page
+			app.Get("/", iris.Component(frontend.Index()))
+		}
 	}
 
 	// HTMX Elements routes
 	{
-		v1Htmx := s.Router.Party("/html/v1")
+		v1Htmx := s.Router.Party("/htmx/v1")
 		v1Htmx.Get("/modal-new-tx", iris.Component(htmx.ModalNewTranscription()))
 		v1Htmx.Get("/modal-new-tl/{id:int}", s.NewTranslationModalHandler)
 		v1Htmx.Get("/modal-download/{id:int}", s.DownloadModalHandler)
@@ -90,10 +125,33 @@ func (s *Server) RegisterRoutes() {
 	}
 }
 
+func (s *Server) AuthRedirects(c iris.Context) {
+	session := sessions.Get(c)
+	path := c.Path()
+
+	if session.Len() == 0 {
+		// If user is not logged in and they are not at '/login' or '/register', redirect to '/login'.
+		// This includes the root path '/'
+		if path != "/login" && path != "/register" {
+			c.Redirect("/login")
+			return
+		}
+	} else {
+		// If user is logged in and they are trying to access '/login' or '/register', redirect to '/app'.
+		if path == "/login" || path == "/" || path == "/register" {
+			c.Redirect("/app")
+			return
+		}
+	}
+
+	// Continue to the next handler if no redirect is performed.
+	c.Next()
+}
+
 func (s *Server) Run() error {
 	s.SetupMiddleware()
 	s.RegisterRoutes()
-	s.RegisterViews()
+	//s.RegisterViews()
 	return s.Router.Listen(s.ListenAddr)
 }
 

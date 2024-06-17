@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/pluja/anysub/ent/transcription"
+	"github.com/pluja/anysub/ent/user"
 	"github.com/pluja/anysub/models"
 )
 
@@ -47,17 +48,20 @@ type Transcription struct {
 	CreatedAt time.Time `json:"createdAt"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TranscriptionQuery when eager-loading is set.
-	Edges        TranscriptionEdges `json:"edges"`
-	selectValues sql.SelectValues
+	Edges               TranscriptionEdges `json:"edges"`
+	user_transcriptions *int
+	selectValues        sql.SelectValues
 }
 
 // TranscriptionEdges holds the relations/edges for other nodes in the graph.
 type TranscriptionEdges struct {
 	// Translations holds the value of the translations edge.
 	Translations []*Translation `json:"translations,omitempty"`
+	// User holds the value of the user edge.
+	User *User `json:"user,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // TranslationsOrErr returns the Translations value or an error if the edge
@@ -67,6 +71,17 @@ func (e TranscriptionEdges) TranslationsOrErr() ([]*Translation, error) {
 		return e.Translations, nil
 	}
 	return nil, &NotLoadedError{edge: "translations"}
+}
+
+// UserOrErr returns the User value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e TranscriptionEdges) UserOrErr() (*User, error) {
+	if e.User != nil {
+		return e.User, nil
+	} else if e.loadedTypes[1] {
+		return nil, &NotFoundError{label: user.Label}
+	}
+	return nil, &NotLoadedError{edge: "user"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -84,6 +99,8 @@ func (*Transcription) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullString)
 		case transcription.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
+		case transcription.ForeignKeys[0]: // user_transcriptions
+			values[i] = new(sql.NullInt64)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -185,6 +202,13 @@ func (t *Transcription) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				t.CreatedAt = value.Time
 			}
+		case transcription.ForeignKeys[0]:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for edge-field user_transcriptions", value)
+			} else if value.Valid {
+				t.user_transcriptions = new(int)
+				*t.user_transcriptions = int(value.Int64)
+			}
 		default:
 			t.selectValues.Set(columns[i], values[i])
 		}
@@ -201,6 +225,11 @@ func (t *Transcription) Value(name string) (ent.Value, error) {
 // QueryTranslations queries the "translations" edge of the Transcription entity.
 func (t *Transcription) QueryTranslations() *TranslationQuery {
 	return NewTranscriptionClient(t.config).QueryTranslations(t)
+}
+
+// QueryUser queries the "user" edge of the Transcription entity.
+func (t *Transcription) QueryUser() *UserQuery {
+	return NewTranscriptionClient(t.config).QueryUser(t)
 }
 
 // Update returns a builder for updating this Transcription.

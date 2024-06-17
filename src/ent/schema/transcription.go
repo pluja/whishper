@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+
 	"github.com/pluja/anysub/models"
 )
 
@@ -37,5 +38,9 @@ func (Transcription) Fields() []ent.Field {
 func (Transcription) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("translations", Translation.Type),
+		edge.From("user", User.Type).
+			Ref("transcriptions").
+			Unique().
+			Required(),
 	}
 }

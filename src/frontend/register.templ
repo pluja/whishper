@@ -1,0 +1,69 @@
+package frontend
+
+templ Register() {
+	@Base() {
+		<div class="flex items-center justify-center min-h-screen">
+			<div class="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
+				<div class="flex items-center justify-center">
+					<img class="w-32" src="/static/assets/omitsis-logo-dark.svg" alt="Logo"/>
+				</div>
+				<h2 class="mt-6 text-xl font-extrabold text-center text-gray-900">Create a new account</h2>
+				<form class="mt-6 space-y-6" action="/register" method="POST">
+					<div class="-space-y-px rounded-md shadow-sm">
+						<div>
+							<label for="email" class="sr-only">Email address</label>
+							<input
+								id="email"
+								name="email"
+								type="email"
+								autocomplete="email"
+								required
+								class="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-none appearance-none rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+								placeholder="Email address"
+							/>
+						</div>
+						<div>
+							<label for="password" class="sr-only">Password</label>
+							<input
+								id="password"
+								name="password"
+								type="password"
+								autocomplete="current-password"
+								required
+								class="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-none appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+								placeholder="Password"
+							/>
+						</div>
+						<div>
+							<label for="password" class="sr-only">Repeat password</label>
+							<input
+								id="password2"
+								name="password2"
+								type="password2"
+								autocomplete="current-password"
+								required
+								class="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-none appearance-none rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+								placeholder="Repeat password"
+							/>
+						</div>
+					</div>
+					<div class="space-y-2">
+						<button
+							type="submit"
+							class="relative flex justify-center w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md group hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+						>
+							Register
+						</button>
+						<a
+							href="/login"
+							type="submit"
+							class="relative flex justify-center w-full px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md bg-zinc-600/60 group hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500"
+						>
+							Already have an account?
+						</a>
+					</div>
+				</form>
+			</div>
+		</div>
+	}
+}
