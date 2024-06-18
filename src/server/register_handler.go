@@ -4,8 +4,6 @@ import (
 	"regexp"
 
 	"github.com/kataras/iris/v12"
-	"github.com/rs/zerolog/log"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/pluja/anysub/db"
 )
@@ -34,20 +32,8 @@ func (s *Server) registerUser(ctx iris.Context) {
 		return
 	}
 
-	// Hash the password before storing it
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		HandleError(ctx, err)
-		return
-	}
-
-	// Log plaintext password and hash for debugging
-	log.Printf("Plaintext Password: %s", password)
-	log.Printf("Hashed Password: %s", hashedPassword)
-	log.Printf("Hashed Password (Bytes): %v", hashedPassword)
-
 	// Insert the user into the database
-	err = db.Client().User.Create().SetEmail(email).SetPassword(password).Exec(ctx)
+	err := db.Client().User.Create().SetEmail(email).SetPassword(password).Exec(ctx)
 	if err != nil {
 		HandleError(ctx, err)
 		return
