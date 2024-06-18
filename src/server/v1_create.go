@@ -9,6 +9,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kataras/iris/v12"
+	"github.com/kataras/iris/v12/sessions"
+	"github.com/rs/zerolog/log"
+
 	"github.com/pluja/anysub/db"
 	"github.com/pluja/anysub/ent"
 	"github.com/pluja/anysub/ent/transcription"
@@ -16,10 +19,11 @@ import (
 	"github.com/pluja/anysub/tasks"
 	"github.com/pluja/anysub/utils"
 	"github.com/pluja/anysub/utils/translations"
-	"github.com/rs/zerolog/log"
 )
 
 func (s *Server) createTranscription(c iris.Context) {
+	session := sessions.Get(c)
+	uid := session.Get("user").(int)
 	// Request parameters (form)
 	language := strings.ToLower(c.FormValueDefault("language", c.URLParamDefault("language", "auto")))
 	device := strings.ToLower(c.FormValueDefault("device", c.URLParamDefault("device", "cpu")))
@@ -63,7 +67,8 @@ func (s *Server) createTranscription(c iris.Context) {
 		SetModelSize(modelSize).
 		SetDiarize(diarize).
 		SetFileName(safeFileName).
-		SetStatus(models.TsStatusPending)
+		SetStatus(models.TsStatusPending).
+		SetUserID(uid)
 
 	if speakerMax > 0 {
 		txCreate.SetSpeakerMin(speakerMin)

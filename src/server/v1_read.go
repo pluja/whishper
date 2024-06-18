@@ -7,19 +7,29 @@ import (
 	"strings"
 
 	"github.com/kataras/iris/v12"
+	"github.com/kataras/iris/v12/sessions"
+
 	"github.com/pluja/anysub/db"
 	"github.com/pluja/anysub/ent"
 	"github.com/pluja/anysub/ent/transcription"
+	"github.com/pluja/anysub/ent/user"
 	"github.com/pluja/anysub/frontend"
 	"github.com/pluja/anysub/models"
 	subs "github.com/pluja/anysub/utils/subtitles"
 )
 
 func (s *Server) listTranscriptions(c iris.Context) {
+	session := sessions.Get(c)
+	uid := session.Get("user").(int)
 	client := db.Client()
 	var tss []*ent.Transcription
 	var err error
-	tss, err = client.Transcription.Query().Order(ent.Desc(transcription.FieldCreatedAt)).WithTranslations().All(context.Background())
+	tss, err = client.Transcription.Query().
+		Where(transcription.HasUserWith(user.IDEQ(uid))).
+		Order(ent.Desc(transcription.FieldCreatedAt)).
+		WithTranslations().
+		All(context.Background())
+
 	if err != nil {
 		c.StatusCode(iris.StatusInternalServerError)
 		c.JSON(iris.Map{"error": err.Error()})

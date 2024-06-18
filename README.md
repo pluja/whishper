@@ -32,6 +32,7 @@
 - [x] 🔥 **GPU Acceleration**: Leverage NVIDIA GPUs to achieve significantly faster transcription times
 - [x] 🦾 Backend workers
   - Anysub can seamlessly orchestrate multiple whisperx-api workers, balancing the job queue across all available resources. Uses [asynq](https://github.com/hibiken/asynq).
+- [x] 🐧 User authentication. You can now register multiple users with separate workspaces.
 
 ## 🏁 Todos before release
 - [x] Web UI
@@ -74,7 +75,6 @@ You will need [golang](https://go.dev), [templ](https://templ.guide), [docker](h
 
 - [ ] Local folder as media input.
 - [ ] Full-text search all transcriptions.
-- [ ] User authentication.
 - [ ] Audio recording from the browser.
 
 ### 🧱 Tech Stack
