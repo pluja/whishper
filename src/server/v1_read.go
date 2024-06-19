@@ -20,7 +20,9 @@ import (
 
 func (s *Server) listTranscriptions(c iris.Context) {
 	session := sessions.Get(c)
+
 	uid := session.Get("user").(int)
+
 	client := db.Client()
 	var tss []*ent.Transcription
 	var err error
@@ -35,9 +37,9 @@ func (s *Server) listTranscriptions(c iris.Context) {
 		c.JSON(iris.Map{"error": err.Error()})
 		return
 	}
-	htmxFormat := c.URLParamDefault("htmx", "")
+	jsonFormat := c.URLParamDefault("json", "")
 
-	if htmxFormat != "" {
+	if jsonFormat == "" {
 		err = c.RenderComponent(frontend.TranscriptionList(tss))
 		//err = c.View("partials/tx_list", iris.Map{"Transcriptions": tss})
 		if err != nil {
@@ -62,6 +64,7 @@ func (s *Server) getTranscriptionByID(c iris.Context) {
 		Where(transcription.ID(id)).
 		WithTranslations(). // Include the "Comments" edge
 		Only(context.Background())
+
 	if err != nil {
 		c.StopWithError(iris.StatusBadRequest, err)
 		return

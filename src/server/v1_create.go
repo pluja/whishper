@@ -15,6 +15,7 @@ import (
 	"github.com/pluja/anysub/db"
 	"github.com/pluja/anysub/ent"
 	"github.com/pluja/anysub/ent/transcription"
+	"github.com/pluja/anysub/frontend/components"
 	"github.com/pluja/anysub/models"
 	"github.com/pluja/anysub/tasks"
 	"github.com/pluja/anysub/utils"
@@ -31,7 +32,7 @@ func (s *Server) createTranscription(c iris.Context) {
 	diarize_text := strings.ToLower(c.FormValueDefault("diarize", c.URLParamDefault("diarize", "on")))
 	diarize := (diarize_text == "on" || diarize_text == "true")
 	log.Debug().Msgf("Diarize: %v", diarize)
-	htmxFormat := c.URLParamDefault("htmx", "")
+	jsonFormat := c.URLParamDefault("json", "")
 
 	// File handling
 	c.SetMaxRequestBodySize(20 * iris.GB)
@@ -99,25 +100,24 @@ func (s *Server) createTranscription(c iris.Context) {
 	log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
 
 	//worker.NewTranscriptionChannel <- true
-	if htmxFormat != "" {
-		// Return html if htmx url parameter
-		err = c.View("partials/tx_card", *tx)
-		if err != nil {
-			c.StatusCode(iris.StatusInternalServerError)
-			c.JSON(iris.Map{"error": err.Error()})
-			return
-		}
-		return
+	if jsonFormat != "" {
+		c.JSON(tx)
 	}
 
-	// Return the service as JSON
-	c.JSON(tx)
+	// Return html if htmx url parameter
+	//err = c.View("partials/tx_card", *tx)
+	err = c.RenderComponent(components.TranscriptionCard(tx))
+	if err != nil {
+		c.StatusCode(iris.StatusInternalServerError)
+		c.JSON(iris.Map{"error": err.Error()})
+		return
+	}
 }
 
 func (s *Server) createTranslationTask(c iris.Context) {
 	// Validate all required parameters at the beginning
 	langTo := strings.ToLower(c.FormValueDefault("langTo", c.URLParamDefault("langTo", "en")))
-	htmxFormat := c.URLParamDefault("htmx", "")
+	jsonFormat := c.URLParamDefault("json", "")
 
 	id, err := c.Params().GetInt("id")
 	if err != nil {
@@ -178,17 +178,15 @@ func (s *Server) createTranslationTask(c iris.Context) {
 
 	// Issue a translation request to the translation service
 	go translations.MakeTranslation(tk, transcription.ID)
-	if htmxFormat != "" {
-		// return html for use with htmx
-		err = c.View("partials/tx_card", *transcription)
-		if err != nil {
-			c.StatusCode(iris.StatusInternalServerError)
-			c.JSON(iris.Map{"error": err.Error()})
-			return
-		}
-		return
+	if jsonFormat != "" {
+		c.JSON(transcription)
 	}
 
-	// Return json
-	c.JSON(transcription)
+	// return html for use with htmx
+	err = c.View("partials/tx_card", *transcription)
+	if err != nil {
+		c.StatusCode(iris.StatusInternalServerError)
+		c.JSON(iris.Map{"error": err.Error()})
+		return
+	}
 }
