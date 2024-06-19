@@ -101,12 +101,14 @@ templ Base() {
 			<link rel="stylesheet" href="/static/css/style.css"/>
 			<link rel="stylesheet" href="/static/css/tabler-icons.min.css"/>
 			<link rel="shortcut icon" href="/static/assets/favicon.webp" type="image/x-icon"/>
-			<script src="https://unpkg.com/htmx.org@1.9.11" integrity="sha384-0gxUXCCR8yv9FM2b+U3FDbsKthCI66oH5IA9fHppQq9DDMHuMauqq1ZHBpJxQ0J0" crossorigin="anonymous"></script>
-			<script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/ws.js"></script>
-			<script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+			<script src="/static/js/htmx.min.js"></script>
+			<script src="/static/js/htmx-ext/ws.js"></script>
+			<script src="/static/js/_hyperscript.min.js"></script>
 			<meta name="htmx-config" content='{"selfRequestsOnly":false}'/>
 		</head>
 		<body class="font-mono text-gray-300 bg-zinc-900">
+			<div id="#50x"></div>
+			<div id="#40x"></div>
 			{ children... }
 			@BaseStyle()
 		</body>
