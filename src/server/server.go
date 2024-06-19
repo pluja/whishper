@@ -1,16 +1,10 @@
 package server
 
 import (
-	"errors"
-	"fmt"
-	"html/template"
 	"net/http"
-	"os"
 	"path"
-	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
 	"github.com/hibiken/asynq"
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/sessions"
@@ -73,25 +67,25 @@ func (s *Server) RegisterRoutes() {
 		s.Router.Post("/register", s.registerUser)
 
 		// Create a party for routes requiring authentication
-		authr := s.Router.Party("/")
-		authr.Use(s.AuthRedirects)
+		authParty := s.Router.Party("/")
+		authParty.Use(s.AuthRedirects)
 
 		// Auth pages (only accessible when not authenticated)
-		authr.Get("/login", iris.Component(frontend.Login()))
-		authr.Get("/register", iris.Component(frontend.Register()))
+		authParty.Get("/login", iris.Component(frontend.Login()))
+		authParty.Get("/register", iris.Component(frontend.Register()))
 
 		// Create a sub-party for routes requiring user authentication
 		{
-			app := authr.Party("/app")
-
-			// Protected route rendering the application index page
-			app.Get("/", iris.Component(frontend.Index()))
+			// Protected route for the main app
+			appParty := authParty.Party("/app")
+			appParty.Get("/", iris.Component(frontend.Index()))
 		}
 	}
 
 	// HTMX Elements routes
 	{
 		v1Htmx := s.Router.Party("/htmx/v1")
+		v1Htmx.Use(s.ApiMustBeLogged)
 		v1Htmx.Get("/modal-new-tx", iris.Component(htmx.ModalNewTranscription()))
 		v1Htmx.Get("/modal-new-tl/{id:int}", s.NewTranslationModalHandler)
 		v1Htmx.Get("/modal-download/{id:int}", s.DownloadModalHandler)
@@ -100,6 +94,7 @@ func (s *Server) RegisterRoutes() {
 	// API v1 Routes
 	{
 		v1Api := s.Router.Party("/api/v1")
+		v1Api.Use(s.ApiMustBeLogged)
 
 		// Transcribe API
 		v1Api.Post("/transcriptions", s.createTranscription)
@@ -128,100 +123,33 @@ func (s *Server) RegisterRoutes() {
 func (s *Server) AuthRedirects(c iris.Context) {
 	session := sessions.Get(c)
 	path := c.Path()
+	isLoggedIn := session.Len() > 0
+	registrationsDisabled := utils.Getenv("REGISTRATIONS", "true") == "false"
 
-	if session.Len() == 0 {
-		// If user is not logged in and they are not at '/login' or '/register', redirect to '/login'.
-		// This includes the root path '/'
-		if path != "/login" && path != "/register" {
-			c.Redirect("/login")
-			return
-		}
-	} else {
-		// If user is logged in and they are trying to access '/login' or '/register', redirect to '/app'.
-		if path == "/login" || path == "/" || path == "/register" {
-			c.Redirect("/app")
-			return
-		}
+	switch {
+	case registrationsDisabled && path == "/register":
+		c.Redirect("/login")
+	case !isLoggedIn && path != "/login" && path != "/register":
+		c.Redirect("/login")
+	case isLoggedIn && (path == "/login" || path == "/" || path == "/register"):
+		c.Redirect("/app")
+	default:
+		c.Next()
 	}
+}
 
-	// Continue to the next handler if no redirect is performed.
+func (s *Server) ApiMustBeLogged(c iris.Context) {
+	session := sessions.Get(c)
+	if session.Len() == 0 {
+		c.StatusCode(iris.StatusForbidden)
+		c.JSON(iris.Map{"error": "User must be logged in."})
+		return
+	}
 	c.Next()
 }
 
 func (s *Server) Run() error {
 	s.SetupMiddleware()
 	s.RegisterRoutes()
-	//s.RegisterViews()
 	return s.Router.Listen(s.ListenAddr)
-}
-
-func (s *Server) RegisterViews() {
-	// Use blocks as the templating engine
-	blocks := iris.Blocks("./frontend/templates", ".html")
-
-	blocks.Engine.Funcs(template.FuncMap{
-		"safe": func(s string) template.HTML {
-			return template.HTML(s)
-		},
-		"ellipsisString": func(addr string) string {
-			return fmt.Sprintf("%s...%s", addr[:6], addr[len(addr)-6:])
-		},
-		"humanizeTime": func(t time.Time) string {
-			return humanize.Time(t)
-		},
-		"makeTitle": func(t string) string {
-			title := strings.Split(t, "-")[1]
-			if len(title) > 60 {
-				return title[:60] + "..."
-			}
-			return title
-		},
-		"dateString": func(t string) string {
-			if t == "" {
-				return "Unknown"
-			}
-
-			layout := "2006-01-02 15:04:05.000Z"
-
-			tm, err := time.Parse(layout, t)
-			if err != nil {
-				return t
-			}
-			return tm.Format("2006-01-02")
-		},
-		"isNew": func(t string) bool {
-			if t == "" {
-				return false
-			}
-
-			layout := "2006-01-02 15:04:05.000Z"
-
-			tm, err := time.Parse(layout, t)
-			if err != nil {
-				return false
-			}
-			return time.Since(tm) < 7*(24*time.Hour)
-		},
-		"shortString": func(s string) string {
-			return s[:8]
-		},
-		"dict": func(values ...interface{}) (map[string]interface{}, error) {
-			if len(values)%2 != 0 {
-				return nil, errors.New("invalid dict call")
-			}
-			dict := make(map[string]interface{}, len(values)/2)
-			for i := 0; i < len(values); i += 2 {
-				key, ok := values[i].(string)
-				if !ok {
-					return nil, errors.New("dict keys must be strings")
-				}
-				dict[key] = values[i+1]
-			}
-			return dict, nil
-		},
-	})
-	if os.Getenv("DEV") == "true" {
-		blocks.Reload(true)
-	}
-	s.Router.RegisterView(blocks)
 }
