@@ -81,15 +81,16 @@ You will need [golang](https://go.dev), [templ](https://templ.guide), [docker](h
 
 - Backend:
   - Golang
-    - Iris
-    - Ent
-    - Asynq
+    - [Iris](https://www.iris-go.com/)
+    - [Ent](https://entgo.io/)
+    - [Asynq](https://github.com/hibiken/asynq)
   - Python3
-    - FastAPI
-    - WhisperX
-  - Libretranslate
+    - [FastAPI](https://fastapi.tiangolo.com/)
+    - [WhisperX](https://github.com/m-bain/whisperX)
+  - [Libretranslate](https://github.com/LibreTranslate/LibreTranslate)
   - MariaDB
 - Frontend:
-  - Templ
-  - TailwindCSS
-  - Hyperscript
+  - [Templ](https://templ.guide/)
+  - [TailwindCSS](https://tailwindcss.com/)
+  - [Hyperscript](https://hyperscript.org/)
+  - [HTMX](https://htmx.org/)
