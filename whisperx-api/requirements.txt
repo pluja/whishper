@@ -1,5 +1,5 @@
 whisperx @ git+https://github.com/m-bain/whisperx.git
-numpy
+numpy==1.26.4
 pydantic
 python-dotenv
 Requests
