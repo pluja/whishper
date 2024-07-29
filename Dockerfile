@@ -1,5 +1,5 @@
 # YT-DLP Download and setup
-FROM --platform=$BUILDPLATFORM golang:bookworm AS ytdlp_cache
+FROM golang:bookworm AS ytdlp_cache
 ARG TARGETOS
 ARG TARGETARCH
 RUN apt update && apt install -y wget
