@@ -11,7 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        directory: ['backend', 'frontend']
+        directory: ['backend', 'frontend', 'transcription-api']
 
     steps:
       - name: Checkout
