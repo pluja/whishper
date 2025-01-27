@@ -6,3 +6,4 @@ uvicorn==0.23.2
 python-multipart
 ffmpeg-python
 soundfile
+av
