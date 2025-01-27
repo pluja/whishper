@@ -7,7 +7,7 @@
 
 	let errorMessage = '';
 	let disableSubmit = true;
-	let modelSize = 'small';
+	let modelSize = 'distil-large-v3';
 	let language = 'auto';
 	let sourceUrl = '';
 	let fileInput;
@@ -55,9 +55,10 @@
 	];
 	// Sort the languages
 	languages.sort((a, b) => {
-		if (a == 'auto') return -1;
-		if (b == 'auto') return 1;
-		return a.localeCompare(b);
+		'distil-large-v3',
+		'distil-large-v2',
+		'distil-medium.en',
+		'turbo'
 	});
 
 	// Function that sends the data as a form to the backend
