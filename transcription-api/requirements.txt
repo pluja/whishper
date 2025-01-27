@@ -1,8 +1,9 @@
 fastapi==0.100.1
-faster-whisper @ https://github.com/guillaumekln/faster-whisper/archive/e1a218fab1ab02d637b79565995bf1a9c4c83a09.tar.gz
+faster-whisper @ https://github.com/SYSTRAN/faster-whisper/archive/refs/heads/master.tar.gz
 pydantic==2.1.1
 python-dotenv==1.0.0
 uvicorn==0.23.2
 python-multipart
 ffmpeg-python
 soundfile
+av
