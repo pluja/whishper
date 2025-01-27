@@ -5,8 +5,8 @@ RUN apt update && apt install -y wget
 RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp
 RUN chmod a+rx /usr/local/bin/yt-dlp
 
-FROM devopsworks/golang-upx:latest as builder
-ENV DEBIAN_FRONTEND noninteractive
+FROM devopsworks/golang-upx:1.23 as builder
+ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 COPY . .
 RUN go mod tidy
