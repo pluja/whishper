@@ -54,7 +54,8 @@ services:
         aliases:
           - whishper
     ports:
-      - 8082:80
+      - target: 80
+        published: 8082
     depends_on:
       - mongo
       - translate
