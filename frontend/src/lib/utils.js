@@ -127,7 +127,11 @@ export const downloadVTT = function (jsonData, title) {
         let secondsStr = String(seconds).padStart(2, '0');
         let millisecondsStr = String(milliseconds).padStart(3, '0');
 
-        return `${hoursStr}:${minutesStr}:${secondsStr}.${millisecondsStr}`;
+        if (hours > 0) {
+            return `${hoursStr}:${minutesStr}:${secondsStr}.${millisecondsStr}`;
+        } else {
+            return `${minutesStr}:${secondsStr}.${millisecondsStr}`
+        }
     };
   
     jsonData.forEach((segment, index) => {
