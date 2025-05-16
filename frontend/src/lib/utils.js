@@ -55,14 +55,29 @@ export const getRandomSentence = function () {
 // Expects a segments array with start, end and text properties
 export const downloadSRT = function (jsonData, title) {
     let srtContent = '';
+
+    // HH:MM:SS,fff
+    let getTimecode = function(totalSeconds) {
+        let hours = Math.floor(totalSeconds / 60 / 60);
+        if (hours > 99) {
+            throw new Error("SRT format does not support timecodes >= 100 hours");
+        }
+        let minutes = Math.floor(totalSeconds / 60) % 60;
+        let seconds = Math.floor(totalSeconds) % 60;
+        let milliseconds = Math.round(totalSeconds * 1000) % 1000;
+
+        // Zero pad numbers
+        let hoursStr = String(hours).padStart(2, '0');
+        let minutesStr = String(minutes).padStart(2, '0');
+        let secondsStr = String(seconds).padStart(2, '0');
+        let millisecondsStr = String(milliseconds).padStart(3, '0');
+
+        return `${hoursStr}:${minutesStr}:${secondsStr},${millisecondsStr}`;
+    };
     
     jsonData.forEach((segment, index) => {
-        let startSeconds = Math.floor(segment.start);
-        let startMillis = Math.floor((segment.start - startSeconds) * 1000);
-        let start = new Date(startSeconds * 1000 + startMillis).toISOString().substr(11, 12);
-        let endSeconds = Math.floor(segment.end);
-        let endMillis = Math.floor((segment.end - endSeconds) * 1000);
-        let end = new Date(endSeconds * 1000 + endMillis).toISOString().substr(11, 12);
+        let start = getTimecode(segment.start);
+        let end = getTimecode(segment.end);
     
         srtContent += `${index + 1}\n${start} --> ${end}\n${segment.text}\n\n`;
     });
@@ -98,15 +113,26 @@ export const downloadJSON = function (jsonData, title) {
 // Expects a segments array with start, end and text properties
 export const downloadVTT = function (jsonData, title) {
     let vttContent = 'WEBVTT\n\n'; // VTT files start with "WEBVTT" line
+
+    // [[H...]HH:]MM:SS.fff
+    let getTimecode = function(totalSeconds) {
+        let hours = Math.floor(totalSeconds / 60 / 60);
+        let minutes = Math.floor(totalSeconds / 60) % 60;
+        let seconds = Math.floor(totalSeconds) % 60;
+        let milliseconds = Math.round(totalSeconds * 1000) % 1000;
+
+        // Zero pad numbers
+        let hoursStr = String(hours).padStart(2, '0');
+        let minutesStr = String(minutes).padStart(2, '0');
+        let secondsStr = String(seconds).padStart(2, '0');
+        let millisecondsStr = String(milliseconds).padStart(3, '0');
+
+        return `${hoursStr}:${minutesStr}:${secondsStr}.${millisecondsStr}`;
+    };
   
     jsonData.forEach((segment, index) => {
-      let startSeconds = Math.floor(segment.start);
-      let startMillis = Math.floor((segment.start - startSeconds) * 1000);
-      let start = new Date(startSeconds * 1000 + startMillis).toISOString().substr(11, 12);
-  
-      let endSeconds = Math.floor(segment.end);
-      let endMillis = Math.floor((segment.end - endSeconds) * 1000);
-      let end = new Date(endSeconds * 1000 + endMillis).toISOString().substr(11, 12);
+      let start = getTimecode(segment.start);
+      let end = getTimecode(segment.end);
   
       vttContent += `${index + 1}\n${start} --> ${end}\n${segment.text}\n\n`;
     });
