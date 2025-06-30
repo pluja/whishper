@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM nvidia/cuda:12.2.2-cudnn8-runtime-ubuntu22.04
 
 WORKDIR /app
 
@@ -6,7 +6,7 @@ COPY . .
 
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get -qq update && \
-    apt-get -qq install ffmpeg curl git && \
+    apt-get -qq install ffmpeg curl git python3 python3-pip && \
     rm -rf /var/lib/apt/lists/* &&\
     pip install --upgrade pip && \
     pip install -r requirements.txt &&\
