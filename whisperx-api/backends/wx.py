@@ -50,11 +50,10 @@ class WhisperxBackend:
         self.model_path = self._get_model_path()
         self.model = None
         self.diarize = False
+        self.hf_token = None
         if (os.getenv("WHISPER_HF_TOKEN", False) != False) and diarize:
             self.diarize = True
-            self.diarize_model = whisperx.DiarizationPipeline(
-                use_auth_token=os.getenv("WHISPER_HF_TOKEN"), device=device
-            )
+            self.hf_token = os.getenv("WHISPER_HF_TOKEN")
         elif (os.getenv("WHISPER_HF_TOKEN", False) == False):
             print("WHISPER_HF_TOKEN variable not set. Diarization will not work!")
 
@@ -128,7 +127,14 @@ class WhisperxBackend:
         )
 
         if self.diarize:
-            diarize_segments = self.diarize_model(audio, min_speakers=speaker_min, max_speakers=speaker_max)
+            # New whisperX v3.x API for diarization
+            diarize_segments = whisperx.diarize(
+                audio, 
+                result["segments"], 
+                min_speakers=speaker_min, 
+                max_speakers=speaker_max,
+                hf_token=self.hf_token
+            )
             result = whisperx.assign_word_speakers(diarize_segments, result)
 
         # Flatten the list of words from all segments for further processing.
