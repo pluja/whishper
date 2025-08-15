@@ -1,7 +1,7 @@
-[![whishper banner](misc/banner.png)](https://whishper.net)
+[![whishper banner](misc/banner.png)](https://whishper-docs.pages.dev/)
 
-[![](https://img.shields.io/badge/website-066da5?style=for-the-badge&logo=icloud&logoColor=white)](https://whishper.net)
-[![](https://img.shields.io/badge/self%20host%20guide-066da5?style=for-the-badge&logo=googledocs&logoColor=white)](https://whishper.net/guides/install)
+[![](https://img.shields.io/badge/website-066da5?style=for-the-badge&logo=icloud&logoColor=white)](https://whishper-docs.pages.dev)
+[![](https://img.shields.io/badge/self%20host%20guide-066da5?style=for-the-badge&logo=googledocs&logoColor=white)](https://whishper-docs.pages.dev/guides/install)
 [![](https://img.shields.io/badge/screenshots-5c1f87?style=for-the-badge&logo=slickpic&logoColor=white)](#screenshots)
 [![](https://img.shields.io/docker/pulls/pluja/whishper?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/r/pluja/whishper)
 
@@ -56,16 +56,16 @@ Contributions are welcome! Feel free to open a PR with your changes, or take a l
 
 ### Development setup
 
-Check out the development documentation [here](https://whishper.net/guides/develop/).
+Check out the development documentation [here](https://whishper-docs.pages.dev/guides/develop/).
 
 ## Screenshots
 
-These screenshots are available on [the official website](https://whishper.net/usage/transcriptions/), click any of the following links to see:
+These screenshots are available on [the official website](https://whishper-docs.pages.dev/usage/transcriptions/), click any of the following links to see:
 
-- [A transcription creation](https://whishper.net/usage/transcriptions/)
-- [A transcription translation](https://whishper.net/usage/translate/)
-- [A transcription download](https://whishper.net/usage/download/)
-- [The subtitle editor](https://whishper.net/usage/editor/)
+- [A transcription creation](https://whishper-docs.pages.dev/usage/transcriptions/)
+- [A transcription translation](https://whishper-docs.pages.dev/usage/translate/)
+- [A transcription download](https://whishper-docs.pages.dev/usage/download/)
+- [The subtitle editor](https://whishper-docs.pages.dev/usage/editor/)
 
 ## Support
 
