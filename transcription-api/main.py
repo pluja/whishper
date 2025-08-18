@@ -13,7 +13,7 @@ app = FastAPI()
 @app.post("/transcribe/")
 async def transcribe_endpoint(file: UploadFile = File(None),
                               filename: str = None,
-                              model_size: ModelSize = ModelSize.small, 
+                              model_size: ModelSize = ModelSize.turbo, 
                               language: Languages = Languages.auto,
                               device: str = "cpu"):
     
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     load_dotenv()
 
     # Get model list (comma separated) from environment variable
-    model_list = os.environ.get("WHISPER_MODELS", "tiny,base,small")
+    model_list = os.environ.get("WHISPER_MODELS", "large,medium,turbo")
     model_list = model_list.split(",")
     for model in model_list:
         m = FasterWhisperBackend(model_size=model)
