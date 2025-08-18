@@ -7,9 +7,9 @@ RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /us
 RUN chmod a+rx /usr/local/bin/yt-dlp
 
 # Backend setup
-FROM devopsworks/golang-upx:latest as backend-builder
+FROM devopsworks/golang-upx:1.23 AS backend-builder
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 COPY ./backend /app
 RUN go mod tidy
@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o whishper . && \
 RUN chmod a+rx whishper
 
 # Frontend setup
-FROM node:alpine as frontend
+FROM node:alpine AS frontend
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
@@ -34,7 +34,7 @@ ENV BODY_SIZE_LIMIT=0
 RUN pnpm run build
 
 # Base container
-FROM python:3.11-slim as base
+FROM python:3.11-slim AS base
 
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get -qq update \
@@ -47,6 +47,7 @@ COPY ./transcription-api /app/transcription
 WORKDIR /app/transcription
 RUN pip3 install -r requirements.txt
 RUN pip3 install python-multipart
+RUN pip3 install torch torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Node.js service setup
 ENV BODY_SIZE_LIMIT=0
