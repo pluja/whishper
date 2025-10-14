@@ -37,14 +37,14 @@ else
 fi
 
 echo ""
-echo -e "ℹ️  For more info about GPU support check out: https://whishper.net/guides/gpu/"
+echo -e "ℹ️  For more info about GPU support check out: https://whishper-docs.pages.dev/guides/gpu/"
 echo -e "${BLUE}>  Do you want to use the GPU version? (y/n)${NC}"
 read gpu
 if [ "$gpu" != "${gpu#[Yy]}" ] ;then
     gpu=true
     if ! [ -x "$(command -v nvidia-container-toolkit)" ]; then
         echo ""
-        echo -e "${YELLOW}⚠️  WARNING: nvidia-container-toolkit seems to not be installed. You must install it for whishper to work with GPU. Read more at: https://whishper.net/guides/gpu/${NC}"
+        echo -e "${YELLOW}⚠️  WARNING: nvidia-container-toolkit seems to not be installed. You must install it for whishper to work with GPU. Read more at: https://whishper-docs.pages.dev/guides/gpu/${NC}"
         echo -e "${BLUE}>  Do you want to continue anyways? (y/n)"
         read continue
         if [ "$gpu" != "${gpu#[Yy]}" ] ;then
