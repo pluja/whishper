@@ -39,11 +39,7 @@ class FasterWhisperBackend(Backend):
         # Check if directory exists
         if not os.path.exists(local_model_path):
             os.makedirs(local_model_path)
-        try:
-            download_model(self.model_size, output_dir=local_model_path, local_files_only=True, cache_dir=local_model_cache)
-            print("Model already cached...")
-        except:
-            download_model(self.model_size, output_dir=local_model_path, local_files_only=False, cache_dir=local_model_cache)
+        download_model(self.model_size, output_dir=local_model_path, local_files_only=False, cache_dir=local_model_cache)
 
     def transcribe(
         self, input: np.ndarray, silent: bool = False, language: str = None

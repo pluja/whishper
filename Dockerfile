@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o whishper . && \
 RUN chmod a+rx whishper
 
 # Frontend setup
-FROM node:alpine as frontend
+FROM node:22-alpine as frontend
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
@@ -46,7 +46,6 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 COPY ./transcription-api /app/transcription
 WORKDIR /app/transcription
 RUN pip3 install -r requirements.txt
-RUN pip3 install python-multipart
 
 # Node.js service setup
 ENV BODY_SIZE_LIMIT=0

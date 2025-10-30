@@ -48,6 +48,7 @@ services:
       - .env
     volumes:
       - ./whishper_data/uploads:/app/uploads
+      - ./whishper_data/models:/app/models
       - ./whishper_data/logs:/var/log/whishper
     container_name: whishper
     restart: unless-stopped
