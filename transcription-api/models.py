@@ -6,16 +6,9 @@ class DeviceType(str, Enum):
     cuda = "cuda"
 
 class ModelSize(str, Enum):
-    tiny_en = "tiny.en"
-    tiny = "tiny"
     base_en = "base.en"
     base = "base"
-    small_en = "small.en"
-    small = "small"
-    medium_en = "medium.en"
-    medium = "medium"
-    large_v2 = "large-v2"
-    large_v3 = "large-v3"
+    large_v3 = "large-v3-turbo"
 
 class Languages(str, Enum):
     auto = "auto"

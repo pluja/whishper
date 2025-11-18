@@ -42,16 +42,9 @@
 		'zh'
 	];
 	let models = [
-		'tiny',
-		'tiny.en',
 		'base',
 		'base.en',
-		'small',
-		'small.en',
-		'medium',
-		'medium.en',
-		'large-v2',
-		'large-v3'
+		'large-v3-turbo'
 	];
 	// Sort the languages
 	languages.sort((a, b) => {
