@@ -32,7 +32,7 @@ else
     echo -e "${BLUE}> Enter the name of the directory where you want to set up everything:${NC}"
     read directory
     echo -e "ℹ️  Setting up everything in the $directory directory"
-    mkdir $directory
+    mkdir -p $directory
     cd $directory
 fi
 
