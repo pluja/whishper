@@ -39,8 +39,14 @@
             downloadVTT(segments, title);
         } else if (subtitleFormat == "json") {
             downloadJSON(tr.result, title);
-        } else if (subtitleFormat == "txt") {
+        } else if (subtitleFormat == "txt_raw") {
             downloadTXT(text, title);
+        } else if (subtitleFormat == "txt_segmented" || subtitleFormat == "txt") {
+            // One subtitle segment per line for readability.
+            const textBySegments = segments.length > 0
+                ? segments.map((segment) => segment.text?.trim() ?? "").filter(Boolean).join("\n")
+                : text;
+            downloadTXT(textBySegments, title);
         }
     }
 
@@ -92,7 +98,8 @@
                     <option value="srt">SRT</option>
                     <option value="vtt">VTT</option>
                     <option value="json">JSON</option>
-                    <option value="txt">TXT</option>
+                    <option value="txt_raw">TXT (Raw)</option>
+                    <option value="txt_segmented">TXT (Segmented)</option>
                 </select>
             </div>
     
