@@ -19,11 +19,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     name: string;
     created_at: Date;
     workspace_name: string;
+    media_filename: string | null;
+    media_original_key: string | null;
+    upload_status: string | null;
+    size_bytes: number | null;
   }>(
-    `select p.id, p.name, p.created_at, w.name as workspace_name
+    `select p.id, p.name, p.created_at, w.name as workspace_name,
+            p.media_filename, p.media_original_key,
+            upload.status as upload_status, upload.size_bytes
        from projects p
        join workspaces w on w.id = p.workspace_id
        join memberships m on m.workspace_id = p.workspace_id
+       left join media_uploads upload on upload.project_id = p.id
       where p.id = $1 and m.user_id = $2`,
     [params.projectId, locals.user.id],
   );

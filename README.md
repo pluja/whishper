@@ -1,6 +1,6 @@
 # Anysub
 
-Anysub is a private, local-first transcription and subtitle-authoring web application. This repository is at the foundation stage: it contains the Dockerized application, PostgreSQL schema, durable worker lease protocol, model-adapter SDK, authentication, and a deterministic end-to-end adapter demo.
+Anysub is a private, local-first transcription and subtitle-authoring web application. This repository is at the foundation stage: it contains the Dockerized application, PostgreSQL schema, resumable media intake, durable worker lease protocol, model-adapter SDK, authentication, and a deterministic end-to-end adapter demo.
 
 The demo deliberately downloads no speech model. Its purpose is to prove the boundary that future Faster-Whisper, WhisperX, Voxtral, Qwen-family, and administrator-built adapters will use.
 
@@ -20,7 +20,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open `http://localhost:5173`, create the installation owner, and choose **Run adapter demo**. The local worker leases the job and creates a normalized subtitle track.
+Open `http://localhost:5173` and create the installation owner. You can upload a source file into an application-managed project or choose **Run adapter demo**. The demo worker leases its job and creates a normalized subtitle track without downloading a model.
+
+Set `BETTER_AUTH_URL` to the browser-facing origin—including a non-default port—when Anysub is behind a reverse proxy. Resumable upload locations are relative, so uploaded files do not pass through an internal or guessed hostname.
 
 Stop the services without deleting data:
 
@@ -57,8 +59,9 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm worker uv run pytest
 - `workers/inference` — Python worker, public adapter types, discovery, and deterministic adapter.
 - `packages/contracts` — language-neutral application/worker TypeScript contracts.
 - `docs/ADAPTERS.md` — custom adapter contract and image-extension guide.
+- `docs/UPLOADS.md` — resumable upload lifecycle, storage, and reverse-proxy notes.
 - `docs/ARCHITECTURE.md` — accepted system boundaries.
 
 ## Current limits
 
-This is the first tracer slice, not a usable transcription release. Media upload, preview generation, a production speech adapter, the cue editor, export, and the remaining roadmap are not implemented yet.
+This is not a usable transcription release yet. Resumable browser upload and canonical project storage work; the watched inbox, media probing, preview generation, a production speech adapter, the cue editor, export, and the remaining roadmap are not implemented yet.

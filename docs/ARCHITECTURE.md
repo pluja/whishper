@@ -204,6 +204,8 @@ data/
 
 IDs define directories because project titles can change or collide. Users may inspect and back up this layout, but Anysub manages its contents. Users place files in watched inboxes instead of modifying project directories.
 
+Resumable browser uploads use `/data/staging/uploads` and durable PostgreSQL records. On completion, the local storage adapter hard-links the finished staging file into the project directory, commits the canonical key, and removes the staging name. This avoids a second full-file copy while keeping staging recoverable until the database commit succeeds. Staging and canonical project storage therefore remain on the same filesystem in the default deployment.
+
 The storage interface uses relative object keys and streaming operations. A later S3-compatible adapter can map the same keys to object prefixes.
 
 ### Canonical ownership

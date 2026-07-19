@@ -1,0 +1,50 @@
+# Media uploads
+
+Status: resumable browser-upload tracer implemented. Watched inboxes and media preparation follow.
+
+Anysub owns the canonical copy of project media. A browser upload first lands in staging and becomes the one source item for a new project only after every byte has arrived.
+
+## What happens during an upload
+
+1. The browser creates a tus upload with the source filename, media type, byte length, and workspace ID.
+2. The application checks the signed-in user's workspace membership and creates a draft project plus a durable upload record.
+3. The browser sends 32 MiB chunks. tus fingerprints the local file so an interrupted upload can resume after a reload.
+4. The application checks ownership again on every item request and persists coarse progress in PostgreSQL.
+5. On completion, the application hard-links the staging file into the canonical project directory, commits the final storage key, then removes the staging name and tus metadata.
+
+The hard-link step is constant-time and does not duplicate a multi-gigabyte film. Both names remain valid until the database commit succeeds, which gives recovery code a stable staging file if finalization is interrupted. The default Docker volume keeps staging and project storage on one filesystem, as this operation requires.
+
+Canonical files use stable IDs and a normalized source name:
+
+```text
+data/
+  workspaces/<workspace-id>/
+    projects/<project-id>/
+      media/
+        original/
+          source.<extension>
+  staging/
+    uploads/
+```
+
+The original display filename remains in PostgreSQL. Paths never contain a project title or browser-supplied directory component.
+
+## Reverse proxies
+
+Set `BETTER_AUTH_URL` to the exact origin users open in their browsers:
+
+```dotenv
+BETTER_AUTH_URL=https://subtitles.example.org
+```
+
+Compose passes the same value to SvelteKit as `ORIGIN`. tus returns relative upload locations, so it does not need to trust forwarded host headers. Your proxy must allow `POST`, `HEAD`, `PATCH`, `DELETE`, and `OPTIONS`, preserve request bodies without buffering the entire upload, and use timeouts suitable for the chosen chunk size.
+
+Anysub does not ship a reverse proxy. Its upload endpoint rejects missing sessions and rejects browser `Origin` values that do not match `BETTER_AUTH_URL`.
+
+## Limits and cleanup
+
+`ANYSUB_MAX_UPLOAD_BYTES` controls the maximum source size in bytes. The default is 500 GiB. Browser uploads must declare a non-zero length; deferred-length uploads are not accepted by this first implementation.
+
+Incomplete tus files carry a seven-day expiration policy, but the scheduled cleanup and startup reconciliation pass are still required before the public alpha. Until then, cancelling from the active browser removes the draft project and staging upload, while abandoned files remain eligible for the later cleanup pass.
+
+Watched inboxes will feed the same project and storage lifecycle. They will not bypass canonical ownership or create permanently linked external media.

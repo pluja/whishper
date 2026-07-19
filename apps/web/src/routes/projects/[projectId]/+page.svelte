@@ -23,6 +23,18 @@
         .join(":") + `.${String(milliseconds).padStart(3, "0")}`
     );
   }
+
+  function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ["KiB", "MiB", "GiB", "TiB"];
+    let value = bytes;
+    let unit = -1;
+    do {
+      value /= 1024;
+      unit += 1;
+    } while (value >= 1024 && unit < units.length - 1);
+    return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unit]}`;
+  }
 </script>
 
 <svelte:head>
@@ -32,7 +44,15 @@
 <section class="page-heading">
   <a href="/">← Projects</a>
   <h1>{data.project.name}</h1>
-  <p>{data.project.workspace_name} · adapter contract tracer</p>
+  <p>
+    {data.project.workspace_name}{#if data.project.media_filename}
+      · {data.project.media_filename}{#if data.project.size_bytes}
+        · {formatBytes(data.project.size_bytes)}
+      {/if}
+    {:else}
+      · adapter contract tracer
+    {/if}
+  </p>
 </section>
 
 {#if data.run}
@@ -52,6 +72,8 @@
       {String(data.run.error?.message ?? "The adapter run failed.")}
     </p>
   {/if}
+{:else if data.project.media_original_key}
+  <span class="status" data-status="ready">source ready</span>
 {/if}
 
 <div class="workbench">
@@ -89,10 +111,19 @@
       <section class="empty-state">
         <div class="empty-mark" aria-hidden="true"></div>
         <h2>No subtitle track yet.</h2>
-        <p>
-          The queued adapter run will create the first immutable transcription
-          track.
-        </p>
+        {#if data.run}
+          <p>
+            The queued adapter run will create the first immutable transcription
+            track.
+          </p>
+        {:else if data.project.media_original_key}
+          <p>
+            The source is stored. Model selection and media preparation arrive
+            in the next processing slice.
+          </p>
+        {:else}
+          <p>This project does not have source media or a transcription run.</p>
+        {/if}
       </section>
     {/if}
   </section>

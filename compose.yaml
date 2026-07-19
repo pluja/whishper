@@ -27,6 +27,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-anysub}:${POSTGRES_PASSWORD:-anysub-local-only}@postgres:5432/${POSTGRES_DB:-anysub}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-local-development-secret-change-before-exposing}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:5173}
+      ORIGIN: ${BETTER_AUTH_URL:-http://localhost:5173}
       ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:-local-worker-token-change-before-exposing}
       DATA_ROOT: /data
     depends_on:

@@ -1,5 +1,13 @@
 import { env } from "$env/dynamic/private";
 
+const DEFAULT_MAX_UPLOAD_BYTES = 500 * 1024 * 1024 * 1024;
+
+function positiveInteger(value: string | undefined, fallback: number): number {
+  if (!value) return fallback;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export const privateEnv = {
   databaseUrl:
     env.DATABASE_URL ??
@@ -10,4 +18,8 @@ export const privateEnv = {
   workerToken:
     env.ANYSUB_WORKER_TOKEN ?? "local-worker-token-change-before-exposing",
   dataRoot: env.DATA_ROOT ?? "/data",
+  maxUploadBytes: positiveInteger(
+    env.ANYSUB_MAX_UPLOAD_BYTES,
+    DEFAULT_MAX_UPLOAD_BYTES,
+  ),
 };

@@ -11,6 +11,10 @@ interface ProjectRow {
   job_state: string | null;
   progress: number | null;
   progress_message: string | null;
+  upload_status: string | null;
+  original_filename: string | null;
+  size_bytes: number | null;
+  received_bytes: number | null;
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -39,8 +43,13 @@ export const load: PageServerLoad = async ({ locals }) => {
             latest_run.status as run_status,
             latest_job.state as job_state,
             latest_job.progress,
-            latest_job.progress_message
+            latest_job.progress_message,
+            upload.status as upload_status,
+            upload.original_filename,
+            upload.size_bytes,
+            upload.received_bytes
        from projects p
+       left join media_uploads upload on upload.project_id = p.id
        left join lateral (
          select r.id, r.status
            from transcription_runs r

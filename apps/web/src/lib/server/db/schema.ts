@@ -202,6 +202,54 @@ export const transcriptionRuns = pgTable(
   ],
 );
 
+export const mediaUploads = pgTable(
+  "media_uploads",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .unique()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id),
+    originalFilename: text("original_filename").notNull(),
+    mediaType: text("media_type"),
+    sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+    receivedBytes: bigint("received_bytes", { mode: "number" })
+      .notNull()
+      .default(0),
+    status: text("status").notNull().default("uploading"),
+    storageKey: text("storage_key"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("media_uploads_workspace_created_idx").on(
+      table.workspaceId,
+      table.createdAt,
+    ),
+    index("media_uploads_status_idx").on(table.status, table.updatedAt),
+    check(
+      "media_uploads_size_check",
+      sql`${table.sizeBytes} > 0 and ${table.receivedBytes} >= 0 and ${table.receivedBytes} <= ${table.sizeBytes}`,
+    ),
+    check(
+      "media_uploads_status_check",
+      sql`${table.status} in ('uploading', 'finalizing', 'completed', 'cancelled', 'failed')`,
+    ),
+  ],
+);
+
 export const jobs = pgTable(
   "jobs",
   {
@@ -336,6 +384,7 @@ export const schema = {
   workspaces,
   memberships,
   projects,
+  mediaUploads,
   transcriptionRuns,
   jobs,
   workers,
