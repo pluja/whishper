@@ -30,6 +30,7 @@ services:
       ORIGIN: ${BETTER_AUTH_URL:-http://localhost:5173}
       ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:-local-worker-token-change-before-exposing}
       DATA_ROOT: /data
+      BODY_SIZE_LIMIT: ${ANYSUB_BODY_SIZE_LIMIT:-64M}
     depends_on:
       postgres:
         condition: service_healthy

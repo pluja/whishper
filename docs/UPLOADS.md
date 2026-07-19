@@ -43,7 +43,7 @@ Anysub does not ship a reverse proxy. Its upload endpoint rejects missing sessio
 
 ## Limits and cleanup
 
-`ANYSUB_MAX_UPLOAD_BYTES` controls the maximum source size in bytes. The default is 500 GiB. Browser uploads must declare a non-zero length; deferred-length uploads are not accepted by this first implementation.
+`ANYSUB_MAX_UPLOAD_BYTES` controls the maximum complete source size in bytes. The default is 500 GiB. `ANYSUB_BODY_SIZE_LIMIT` controls SvelteKit's per-request streaming limit and defaults to 64 MiB so it can accept one 32 MiB tus chunk. Keep the latter larger than the browser chunk size. Browser uploads must declare a non-zero length; deferred-length uploads are not accepted by this first implementation.
 
 Incomplete tus files carry a seven-day expiration policy, but the scheduled cleanup and startup reconciliation pass are still required before the public alpha. Until then, cancelling from the active browser removes the draft project and staging upload, while abandoned files remain eligible for the later cleanup pass.
 
