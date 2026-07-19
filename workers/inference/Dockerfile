@@ -25,6 +25,8 @@ CMD ["uv", "run", "anysub-worker"]
 
 FROM base AS builder
 
+WORKDIR /app
+
 COPY workers/inference/pyproject.toml workers/inference/README.md workers/inference/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-install-project --no-editable
@@ -48,7 +50,9 @@ RUN apt-get update \
     && chown -R anysub:anysub /app /data /models
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.25 /uv /uvx /bin/
-COPY --from=builder --chown=anysub:anysub /workspace/.venv /app/.venv
+COPY --from=builder --chown=anysub:anysub /app/.venv /app/.venv
+
+RUN ["/app/.venv/bin/anysub-adapters"]
 
 WORKDIR /app
 USER anysub
