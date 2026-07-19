@@ -24,12 +24,11 @@ export const actions: Actions = {
         body: { email, password },
         headers: request.headers,
       });
-      redirect(303, "/");
-    } catch (cause) {
-      if (cause && typeof cause === "object" && "status" in cause) throw cause;
+    } catch {
       return fail(400, {
         message: "The email or password did not match an account.",
       });
     }
+    redirect(303, "/");
   },
 };

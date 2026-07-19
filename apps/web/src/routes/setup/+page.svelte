@@ -6,13 +6,27 @@
   <title>Create owner · Anysub</title>
 </svelte:head>
 
-<div class="auth-wrap">
-  <section class="auth-panel">
-    <h1>Create the owner account.</h1>
+<div class="auth-layout">
+  <section class="auth-context" aria-labelledby="setup-title">
+    <p class="eyebrow">First-run setup</p>
+    <h1 id="setup-title">Your private subtitle workspace.</h1>
     <p>
-      This account controls the local installation. Authentication always stays
-      enabled.
+      Create the installation owner. Your media, transcripts, and account data
+      remain on this Anysub server.
     </p>
+    <ul class="auth-promises">
+      <li><span>01</span> Local processing by default</li>
+      <li><span>02</span> No telemetry or external account</li>
+      <li><span>03</span> One secure owner to begin</li>
+    </ul>
+  </section>
+
+  <section class="auth-card" aria-label="Create owner account">
+    <div class="auth-card-heading">
+      <p class="eyebrow">Installation owner</p>
+      <h2>Create your account</h2>
+      <p>You can invite workspace members in a later release.</p>
+    </div>
 
     <form class="auth-form" method="POST">
       <div class="field">
@@ -24,7 +38,7 @@
           required
           minlength="2"
         />
-        <p class="helper">Used for workspace ownership and audit history.</p>
+        <p class="helper">Shown in workspace ownership and activity history.</p>
       </div>
 
       <div class="field">
@@ -36,7 +50,7 @@
           autocomplete="email"
           required
         />
-        <p class="helper">No mail is sent in this release.</p>
+        <p class="helper">Used to sign in. Anysub does not send email yet.</p>
       </div>
 
       <div class="field">
@@ -62,7 +76,7 @@
         </p>
       </div>
 
-      <button class="button" type="submit">Create owner</button>
+      <button class="button wide" type="submit">Create workspace</button>
     </form>
   </section>
 </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto, invalidateAll } from "$app/navigation";
+  import Icon from "$lib/components/Icon.svelte";
   import { onMount } from "svelte";
   import { Upload } from "tus-js-client";
 
@@ -9,6 +10,8 @@
   let uploadProgress = $state(0);
   let uploadState = $state<"idle" | "uploading" | "error" | "success">("idle");
   let uploadMessage = $state("");
+  // svelte-ignore state_referenced_locally
+  let importOpen = $state(data.projects.length === 0);
 
   onMount(() => {
     const hasActiveJob = data.projects.some(
@@ -27,10 +30,9 @@
     run_status: string | null;
     job_state: string | null;
     upload_status: string | null;
-  }) {
-    if (project.job_state || project.run_status) {
-      return project.job_state ?? project.run_status;
-    }
+  }): string {
+    const processingState = project.job_state ?? project.run_status;
+    if (processingState) return processingState;
     return project.upload_status === "completed"
       ? "ready"
       : (project.upload_status ?? "draft");
@@ -53,9 +55,25 @@
       );
       return `Uploading · ${progress}%`;
     }
-    if (project.upload_status === "finalizing") return "Finalizing source media";
+    if (project.upload_status === "finalizing")
+      return "Finalizing source media";
     if (project.upload_status === "completed") return "Source media stored";
     return "Project ready";
+  }
+
+  function stateLabel(state: string): string {
+    const labels: Record<string, string> = {
+      ready: "Ready",
+      draft: "Draft",
+      queued: "Queued",
+      leased: "Processing",
+      running: "Processing",
+      completed: "Complete",
+      failed: "Needs attention",
+      uploading: "Uploading",
+      finalizing: "Finalizing",
+    };
+    return labels[state] ?? state;
   }
 
   function chooseFile(event: Event) {
@@ -143,66 +161,120 @@
   <title>Projects · Anysub</title>
 </svelte:head>
 
-<section class="page-heading">
-  <h1>{data.workspace?.name ?? "Projects"}</h1>
-  <p>
-    Each project keeps one source media item, its transcription runs, and
-    editable tracks.
-  </p>
-</section>
+<header class="page-bar">
+  <div>
+    <p class="eyebrow">{data.workspace?.name ?? "Workspace"}</p>
+    <h1>Projects</h1>
+    <p class="page-description">
+      Import media, run transcription, and refine every subtitle track.
+    </p>
+  </div>
+  {#if data.workspace}
+    <button
+      class="button"
+      type="button"
+      aria-expanded={importOpen}
+      aria-controls="import-panel"
+      onclick={() => (importOpen = !importOpen)}
+    >
+      <Icon name={importOpen ? "chevron-down" : "plus"} size={17} />
+      {importOpen ? "Close import" : "New project"}
+    </button>
+  {/if}
+</header>
 
-{#if data.workspace}
-  <form class="upload-panel" onsubmit={startUpload}>
-    <div class="upload-copy">
-      <h2>Import source media</h2>
-      <p>
-        Uploads resume after interruptions. Anysub stores the finished source in
-        its application-managed project directory.
-      </p>
-    </div>
-    <label class="file-picker">
-      <span>Audio or video file</span>
-      <input
-        type="file"
-        accept="audio/*,video/*"
-        disabled={uploadState === "uploading"}
-        data-state={uploadState}
-        aria-invalid={uploadState === "error"}
-        onchange={chooseFile}
-      />
-    </label>
-    {#if selectedFile}
-      <p class="selected-file">
-        <span>{selectedFile.name}</span>
-        <span>{formatBytes(selectedFile.size)}</span>
-      </p>
-    {/if}
-    {#if uploadState !== "idle" || uploadMessage}
-      <div class="job-progress" aria-live="polite">
-        <progress value={uploadProgress} max="1">
-          {Math.round(uploadProgress * 100)}%
-        </progress>
-        <p class:error={uploadState === "error"}>{uploadMessage}</p>
+<div class="workspace-summary" aria-label="Workspace summary">
+  <div>
+    <strong>{data.projects.length}</strong>
+    <span>{data.projects.length === 1 ? "project" : "projects"}</span>
+  </div>
+  <div>
+    <strong>
+      {data.projects.filter(
+        (project: { upload_status: string | null }) =>
+          project.upload_status === "completed",
+      ).length}
+    </strong>
+    <span>sources ready</span>
+  </div>
+  <div class="summary-privacy">
+    <Icon name="lock" size={15} />
+    <span>Stored on this installation</span>
+  </div>
+</div>
+
+{#if data.workspace && importOpen}
+  <section class="import-card" id="import-panel">
+    <div class="section-heading">
+      <div class="section-icon"><Icon name="upload" size={20} /></div>
+      <div>
+        <h2>Import source media</h2>
+        <p>Large uploads resume automatically after an interruption.</p>
       </div>
-    {/if}
-    <div class="upload-actions">
-      <button
-        class="button"
-        type="submit"
-        data-state={uploadState === "uploading" ? "loading" : undefined}
-        disabled={!selectedFile || uploadState === "uploading"}
-      >
-        {uploadState === "uploading" ? "Uploading" : "Create project"}
-      </button>
-      {#if uploadState === "uploading"}
-        <button
-          class="button secondary"
-          type="button"
-          onclick={cancelActiveUpload}>Cancel</button
-        >
-      {/if}
     </div>
-  </form>
+
+    <form onsubmit={startUpload}>
+      <label class="media-dropzone" data-state={uploadState}>
+        <input
+          type="file"
+          accept="audio/*,video/*"
+          disabled={uploadState === "uploading"}
+          aria-invalid={uploadState === "error"}
+          onchange={chooseFile}
+        />
+        <span class="dropzone-icon"><Icon name="file" size={24} /></span>
+        <span class="dropzone-copy">
+          <strong
+            >{selectedFile?.name ?? "Choose an audio or video file"}</strong
+          >
+          <span>
+            {selectedFile
+              ? `${formatBytes(selectedFile.size)} · ready to import`
+              : "MP3, WAV, M4A, MP4, MKV, and other browser-supported media"}
+          </span>
+        </span>
+        <span class="button secondary compact" aria-hidden="true">
+          {selectedFile ? "Change" : "Browse"}
+        </span>
+      </label>
+
+      {#if uploadState !== "idle" || uploadMessage}
+        <div class="job-progress" aria-live="polite">
+          <div class="progress-meta">
+            <span class:error={uploadState === "error"}>{uploadMessage}</span>
+            <span>{Math.round(uploadProgress * 100)}%</span>
+          </div>
+          <progress value={uploadProgress} max="1">
+            {Math.round(uploadProgress * 100)}%
+          </progress>
+        </div>
+      {/if}
+
+      <div class="import-actions">
+        <p>
+          The original is stored in Anysub's application-managed project
+          directory.
+        </p>
+        <div>
+          {#if uploadState === "uploading"}
+            <button
+              class="button secondary"
+              type="button"
+              onclick={cancelActiveUpload}>Cancel</button
+            >
+          {/if}
+          <button
+            class="button"
+            type="submit"
+            data-state={uploadState === "uploading" ? "loading" : undefined}
+            disabled={!selectedFile || uploadState === "uploading"}
+          >
+            {uploadState === "uploading" ? "Uploading" : "Create project"}
+          </button>
+        </div>
+      </div>
+    </form>
+  </section>
 {/if}
 
 {#if form?.message}
@@ -210,42 +282,77 @@
 {/if}
 
 {#if data.projects.length === 0}
-  <section class="empty-state">
-    <div class="empty-mark" aria-hidden="true"></div>
-    <h2>No projects yet.</h2>
+  <section class="projects-empty">
+    <div class="empty-illustration" aria-hidden="true">
+      <Icon name="subtitles" size={30} />
+    </div>
+    <h2>Your project library is empty</h2>
     <p>
-      Start with a deterministic adapter run. It uses no media or model download
-      and verifies the application-to-worker contract.
+      Import a recording, interview, lecture, or film to create its private
+      subtitle workspace.
     </p>
-    <form method="POST" action="?/createDemo">
-      <button class="button" type="submit">Run adapter demo</button>
-    </form>
   </section>
 {:else}
-  <div class="projects-list">
-    {#each data.projects as project}
-      <a class="project-row" href={`/projects/${project.id}`}>
-        <div>
-          <h2>{project.name}</h2>
-          <p>{projectMessage(project)}</p>
-        </div>
-        <span class="status" data-status={displayState(project)}>
-          {displayState(project)}
-        </span>
-        <time datetime={project.created_at.toISOString()}>
-          {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
-            new Date(project.created_at),
-          )}
-        </time>
-      </a>
-    {/each}
-  </div>
-
-  <form
-    method="POST"
-    action="?/createDemo"
-    style="margin-block-start: var(--space-xl)"
-  >
-    <button class="button secondary" type="submit">Run another demo</button>
-  </form>
+  <section class="projects-section" aria-labelledby="project-list-title">
+    <div class="section-title-row">
+      <div>
+        <h2 id="project-list-title">Recent projects</h2>
+        <p>Open a project to review its source and subtitle tracks.</p>
+      </div>
+    </div>
+    <div class="project-columns" aria-hidden="true">
+      <span>Project</span>
+      <span>Status</span>
+      <span>Size</span>
+      <span>Created</span>
+    </div>
+    <div class="projects-list">
+      {#each data.projects as project}
+        <a class="project-row" href={`/projects/${project.id}`}>
+          <div class="project-identity">
+            <span class="project-file-icon"><Icon name="file" size={19} /></span
+            >
+            <div>
+              <h3>{project.name}</h3>
+              <p>{project.original_filename ?? projectMessage(project)}</p>
+            </div>
+          </div>
+          <span class="status" data-status={displayState(project)}>
+            {stateLabel(displayState(project))}
+          </span>
+          <span class="project-size">
+            {project.size_bytes ? formatBytes(project.size_bytes) : "—"}
+          </span>
+          <time
+            class="project-date"
+            datetime={project.created_at.toISOString()}
+          >
+            {new Intl.DateTimeFormat(undefined, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            }).format(new Date(project.created_at))}
+          </time>
+        </a>
+      {/each}
+    </div>
+  </section>
 {/if}
+
+<details class="diagnostics">
+  <summary>
+    <span><Icon name="activity" size={17} /> Worker diagnostics</span>
+    <Icon name="chevron-down" size={16} />
+  </summary>
+  <div class="diagnostics-body">
+    <div>
+      <strong>Test the processing pipeline</strong>
+      <p>
+        Creates a deterministic subtitle track without using source media or
+        downloading a speech model.
+      </p>
+    </div>
+    <form method="POST" action="?/createDemo">
+      <button class="button secondary" type="submit">Run worker test</button>
+    </form>
+  </div>
+</details>

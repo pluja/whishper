@@ -6,10 +6,26 @@
   <title>Sign in · Anysub</title>
 </svelte:head>
 
-<div class="auth-wrap">
-  <section class="auth-panel">
-    <h1>Sign in.</h1>
-    <p>Open the local subtitle workspace.</p>
+<div class="auth-layout">
+  <section class="auth-context" aria-labelledby="login-title">
+    <p class="eyebrow">Local workspace</p>
+    <h1 id="login-title">Welcome back.</h1>
+    <p>
+      Continue transcribing, reviewing, and preparing subtitles without sending
+      your media to an external service.
+    </p>
+    <div class="auth-assurance">
+      <span><strong>Private</strong> Your installation</span>
+      <span><strong>Local</strong> Your infrastructure</span>
+    </div>
+  </section>
+
+  <section class="auth-card" aria-label="Sign in">
+    <div class="auth-card-heading">
+      <p class="eyebrow">Anysub account</p>
+      <h2>Sign in</h2>
+      <p>Use the credentials for this installation.</p>
+    </div>
 
     <form class="auth-form" method="POST">
       <div class="field">
@@ -21,7 +37,6 @@
           autocomplete="email"
           required
         />
-        <p class="helper"></p>
       </div>
 
       <div class="field">
@@ -45,7 +60,7 @@
         </p>
       </div>
 
-      <button class="button" type="submit">Sign in</button>
+      <button class="button wide" type="submit">Open workspace</button>
     </form>
   </section>
 </div>
