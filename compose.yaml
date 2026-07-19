@@ -1,0 +1,80 @@
+name: anysub
+
+services:
+  postgres:
+    image: postgres:17.5-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-anysub}
+      POSTGRES_USER: ${POSTGRES_USER:-anysub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anysub-local-only}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: runtime
+    command: ["node", "scripts/migrate.mjs"]
+    environment: &web-environment
+      DATABASE_URL: postgresql://${POSTGRES_USER:-anysub}:${POSTGRES_PASSWORD:-anysub-local-only}@postgres:5432/${POSTGRES_DB:-anysub}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-local-development-secret-change-before-exposing}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:5173}
+      ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:-local-worker-token-change-before-exposing}
+      DATA_ROOT: /data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    environment: *web-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${ANYSUB_PORT:-5173}:3000"
+    volumes:
+      - app-data:/data
+    healthcheck:
+      test: ["CMD", "node", "scripts/healthcheck.mjs"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+  worker:
+    build:
+      context: .
+      dockerfile: workers/inference/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    environment:
+      ANYSUB_APP_URL: http://web:3000
+      ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:-local-worker-token-change-before-exposing}
+      ANYSUB_WORKER_NAME: local-cpu
+      ANYSUB_DATA_ROOT: /data
+      ANYSUB_MODEL_ROOT: /models
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - app-data:/data:ro
+      - model-cache:/models
+
+volumes:
+  postgres-data:
+  app-data:
+  model-cache:

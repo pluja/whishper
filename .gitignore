@@ -1,0 +1,31 @@
+.env
+.env.*
+!.env.example
+
+# JavaScript
+node_modules/
+.pnpm-store/
+.svelte-kit/
+build/
+coverage/
+playwright-report/
+test-results/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Anysub runtime data
+data/
+models/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp

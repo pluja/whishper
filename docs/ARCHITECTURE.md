@@ -47,6 +47,7 @@ The default stack does not include Redis, MongoDB, a search service, a reverse p
 ### Worker
 
 - Python managed with `uv`.
+- A versioned, capability-based adapter SDK using standard Python package entry points.
 - Faster-Whisper and CTranslate2 for ASR.
 - WhisperX for accurate forced alignment.
 - Pyannote for optional speaker diarization.
@@ -95,6 +96,16 @@ Workers perform expensive or failure-prone media and ML work:
 Workers do not connect to the application database. They poll the internal API, lease compatible work, transfer authorized assets, report progress, and upload versioned results.
 
 This rule protects the domain model from worker implementations and allows remote or managed workers later.
+
+## Model adapter boundary
+
+The worker core does not import Faster-Whisper, WhisperX, or another model library directly. It discovers adapter packages through the `anysub.adapters` Python entry-point group. Each adapter publishes a manifest with its protocol version, adapter version, models, languages, capabilities, and a JSON Schema for model-specific options.
+
+The initial capabilities are `transcribe`, `align`, `diarize`, and `translate`. A model may implement only the capabilities it supports. The scheduler matches jobs against worker manifests instead of assuming a particular library or model family.
+
+Adapters receive typed requests and return normalized, versioned Anysub artifacts. Subtitle storage and the editor therefore do not depend on Faster-Whisper, WhisperX, Voxtral, Qwen, or any other upstream result shape.
+
+Custom adapters are trusted worker code. Administrators install them by building a derived worker image, which isolates their Python and system dependencies from the host and makes the resulting installation reproducible. V1 does not download or execute arbitrary packages in a running worker. A language-neutral sidecar protocol may follow if non-Python adapters demonstrate a concrete need.
 
 ## Worker protocol
 
@@ -233,7 +244,7 @@ Accurate timing is the default. Faster-Whisper performs ASR and WhisperX perform
 
 Diarization uses Pyannote as an optional stage. Administrators accept the model terms and provide a Hugging Face token for initial download. Anysub disables Pyannote telemetry. Users may provide automatic, exact, or bounded speaker counts.
 
-The worker normalizes all upstream results into Anysub schemas. Stored projects do not depend on WhisperX, Faster-Whisper, or Pyannote result shapes.
+Each first-party implementation is an adapter package. The worker normalizes all upstream results into Anysub schemas. Stored projects do not depend on WhisperX, Faster-Whisper, Pyannote, or another adapter's result shapes.
 
 ## Model management
 
@@ -375,7 +386,7 @@ A managed deployment can add object storage, autoscaling, tenant quotas, billing
 ## Deferred decisions
 
 - External and OpenAI-compatible translation providers.
-- Runtime plugin protocol.
+- Language-neutral out-of-process adapter protocol.
 - Simultaneous editing and CRDT choice.
 - S3-compatible storage implementation.
 - AMD and other accelerator backends.

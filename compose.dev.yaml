@@ -1,0 +1,37 @@
+services:
+  migrate:
+    build:
+      target: development
+    volumes:
+      - .:/workspace
+      - web-node-modules:/workspace/node_modules
+    working_dir: /workspace/apps/web
+    command: ["pnpm", "migrate"]
+
+  web:
+    build:
+      target: development
+    volumes:
+      - .:/workspace
+      - web-node-modules:/workspace/node_modules
+    working_dir: /workspace
+    command: ["pnpm", "--filter", "@anysub/web", "dev", "--host", "0.0.0.0"]
+    ports:
+      - "${ANYSUB_PORT:-5173}:5173"
+    healthcheck:
+      test: ["CMD", "node", "apps/web/scripts/healthcheck.mjs", "http://localhost:5173/api/health"]
+
+  worker:
+    build:
+      target: development
+    volumes:
+      - ./workers/inference:/workspace
+      - worker-venv:/workspace/.venv
+      - app-data:/data:ro
+      - model-cache:/models
+    working_dir: /workspace
+    command: ["uv", "run", "anysub-worker"]
+
+volumes:
+  web-node-modules:
+  worker-venv:

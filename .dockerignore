@@ -1,0 +1,13 @@
+.git
+.env
+node_modules
+**/node_modules
+**/.svelte-kit
+**/build
+**/.venv
+**/__pycache__
+data
+models
+coverage
+playwright-report
+test-results

@@ -1,0 +1,58 @@
+:root {
+  --color-paper: oklch(97% 0.006 145);
+  --color-paper-raised: oklch(99% 0.004 145);
+  --color-paper-sunken: oklch(93% 0.008 145);
+  --color-ink: oklch(19% 0.012 145);
+  --color-ink-soft: oklch(33% 0.012 145);
+  --color-muted: oklch(43% 0.012 145);
+  --color-rule: oklch(79% 0.01 145);
+  --color-rule-strong: oklch(61% 0.012 145);
+  --color-accent: oklch(48% 0.12 250);
+  --color-accent-ink: oklch(98% 0.006 250);
+  --color-focus: oklch(47% 0.16 250);
+  --color-success: oklch(42% 0.11 150);
+  --color-warning: oklch(46% 0.11 70);
+  --color-error: oklch(45% 0.15 25);
+
+  --font-display: 'Geist Variable', 'IBM Plex Sans', ui-sans-serif, sans-serif;
+  --font-body: 'Geist Variable', 'IBM Plex Sans', ui-sans-serif, sans-serif;
+  --font-wordmark: 'Newsreader Variable', 'Source Serif 4', ui-serif, serif;
+
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6rem;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-md: 1.25rem;
+  --text-lg: 1.5625rem;
+  --text-xl: 1.953rem;
+  --text-2xl: 2.441rem;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-pill: 999rem;
+  --rule-thin: 1px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+}
