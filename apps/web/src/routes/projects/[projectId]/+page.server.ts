@@ -1,5 +1,7 @@
 import { pool } from "$lib/server/db";
 import { availableTranscriptionModels } from "$lib/server/adapters";
+import { deleteProjectForUser } from "$lib/server/media";
+import { deleteTranscriptForUser } from "$lib/server/transcripts";
 import { error, fail, redirect, type Actions } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 
@@ -25,10 +27,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     media_type: string | null;
     upload_status: string | null;
     size_bytes: number | null;
+    can_manage: boolean;
   }>(
     `select p.id, p.name, p.created_at, w.name as workspace_name,
             p.media_filename, p.media_original_key, upload.media_type,
-            upload.status as upload_status, upload.size_bytes
+            upload.status as upload_status, upload.size_bytes,
+            (p.created_by = $2 or m.role in ('owner', 'admin')) as can_manage
        from projects p
        join workspaces w on w.id = p.workspace_id
        join memberships m on m.workspace_id = p.workspace_id
@@ -113,6 +117,9 @@ export const actions: Actions = {
     const languageValue = String(values.get("language") ?? "auto").trim();
     const alignment = values.get("alignment") === "on";
     const batchSizeValue = String(values.get("batchSize") ?? "").trim();
+    const maxLineLengthValue = String(
+      values.get("maxLineLength") ?? "42",
+    ).trim();
 
     if (!modelKey.includes(":")) {
       return fail(400, { message: "Choose an available transcription model." });
@@ -129,6 +136,16 @@ export const actions: Actions = {
       (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 64)
     ) {
       return fail(400, { message: "Batch size must be between 1 and 64." });
+    }
+    const maxLineLength = Number(maxLineLengthValue);
+    if (
+      !Number.isInteger(maxLineLength) ||
+      maxLineLength < 20 ||
+      maxLineLength > 120
+    ) {
+      return fail(400, {
+        message: "Maximum line length must be between 20 and 120 characters.",
+      });
     }
 
     const separator = modelKey.indexOf(":");
@@ -187,6 +204,7 @@ export const actions: Actions = {
 
       const options = {
         alignment,
+        maxLineLength,
         ...(batchSize === undefined ? {} : { batchSize }),
       };
       const run = await client.query<{ id: string }>(
@@ -230,5 +248,43 @@ export const actions: Actions = {
       client.release();
     }
     redirect(303, `/projects/${params.projectId}`);
+  },
+  deleteTranscript: async ({ locals, params, request }) => {
+    if (!locals.user) redirect(303, "/login");
+    const projectId = params.projectId;
+    if (!projectId) error(400, "Project ID is required");
+    const trackId = String((await request.formData()).get("trackId") ?? "");
+    if (!/^[0-9a-f-]{36}$/i.test(trackId)) {
+      return fail(400, { message: "The subtitle track is invalid." });
+    }
+    try {
+      if (
+        !(await deleteTranscriptForUser(projectId, trackId, locals.user.id))
+      ) {
+        return fail(404, {
+          message: "The transcript was not found or cannot be deleted.",
+        });
+      }
+    } catch (cause) {
+      console.error("Could not delete transcript", cause);
+      return fail(500, { message: "The transcript could not be deleted." });
+    }
+    redirect(303, `/projects/${projectId}`);
+  },
+  deleteProject: async ({ locals, params }) => {
+    if (!locals.user) redirect(303, "/login");
+    const projectId = params.projectId;
+    if (!projectId) error(400, "Project ID is required");
+    try {
+      if (!(await deleteProjectForUser(projectId, locals.user.id))) {
+        return fail(404, {
+          message: "The project was not found or cannot be deleted.",
+        });
+      }
+    } catch (cause) {
+      console.error("Could not delete project", cause);
+      return fail(500, { message: "The project could not be deleted." });
+    }
+    redirect(303, "/");
   },
 };

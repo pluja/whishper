@@ -459,6 +459,36 @@ a {
   background: var(--color-surface-soft);
 }
 
+.button.danger.quiet {
+  min-height: 2.25rem;
+  border-color: #e8bcc2;
+  background: var(--color-surface);
+  color: var(--color-error);
+}
+
+.button.danger.quiet:hover:not(:disabled) {
+  border-color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+.text-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-xs);
+}
+
+.text-button:hover {
+  color: var(--color-accent);
+}
+
+.text-button.danger:hover {
+  color: var(--color-error);
+}
+
 .button.compact {
   min-height: 2.25rem;
   padding-inline: var(--space-sm);
@@ -953,6 +983,13 @@ progress {
   margin-block-start: var(--space-lg);
 }
 
+.project-header-actions,
+.track-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .project-source-line {
   display: flex;
   flex-wrap: wrap;
@@ -1033,6 +1070,10 @@ progress {
 .panel-toolbar > div {
   display: grid;
   gap: var(--space-3xs);
+}
+
+.panel-toolbar > .track-actions {
+  display: flex;
 }
 
 .panel-toolbar strong {

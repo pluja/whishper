@@ -107,17 +107,40 @@
     </p>
   </div>
 
-  {#if data.run}
-    <span
-      class="status large"
-      data-status={data.run.job_state ?? data.run.status}
-    >
-      {data.run.status === "completed" ? "Transcript ready" : data.run.status}
-    </span>
-  {:else if data.project.media_original_key}
-    <span class="status large" data-status="ready">Source ready</span>
-  {/if}
+  <div class="project-header-actions">
+    {#if data.run}
+      <span
+        class="status large"
+        data-status={data.run.job_state ?? data.run.status}
+      >
+        {data.run.status === "completed" ? "Transcript ready" : data.run.status}
+      </span>
+    {:else if data.project.media_original_key}
+      <span class="status large" data-status="ready">Source ready</span>
+    {/if}
+    {#if data.project.can_manage}
+      <form
+        method="POST"
+        action="?/deleteProject"
+        onsubmit={(event) => {
+          if (
+            !confirm(
+              "Delete this project, its source media, and every transcript? This cannot be undone.",
+            )
+          )
+            event.preventDefault();
+        }}
+      >
+        <button class="button danger quiet" type="submit">Delete project</button
+        >
+      </form>
+    {/if}
+  </div>
 </header>
+
+{#if form?.message}
+  <div class="alert error" role="alert">{form.message}</div>
+{/if}
 
 {#if data.run}
   {#if data.run.status === "queued" || data.run.status === "running"}
@@ -219,11 +242,33 @@
         <strong>{data.track?.name ?? "Transcript"}</strong>
       </div>
       {#if data.track}
-        <span class="track-meta"
-          >{data.track.language} · {data.cues.length} cue{data.cues.length === 1
-            ? ""
-            : "s"}</span
-        >
+        <div class="track-actions">
+          <span class="track-meta"
+            >{data.track.language} · {data.cues.length} cue{data.cues.length ===
+            1
+              ? ""
+              : "s"}</span
+          >
+          {#if data.project.can_manage}
+            <form
+              method="POST"
+              action="?/deleteTranscript"
+              onsubmit={(event) => {
+                if (
+                  !confirm(
+                    "Delete this transcript, its cues, and processing record? The source media will remain.",
+                  )
+                )
+                  event.preventDefault();
+              }}
+            >
+              <input type="hidden" name="trackId" value={data.track.id} />
+              <button class="text-button danger" type="submit"
+                >Delete transcript</button
+              >
+            </form>
+          {/if}
+        </div>
       {/if}
     </header>
 
@@ -319,7 +364,22 @@
                 </span>
               </label>
               <details class="transcription-advanced">
-                <summary>Resource controls</summary>
+                <summary>Advanced options</summary>
+                <label>
+                  <span>Maximum line length</span>
+                  <input
+                    name="maxLineLength"
+                    type="number"
+                    min="20"
+                    max="120"
+                    value="42"
+                    required
+                  />
+                </label>
+                <small
+                  >42 characters is a readable subtitle default. Splits preserve
+                  whole words.</small
+                >
                 <label>
                   <span>Batch size</span>
                   <input
@@ -332,9 +392,6 @@
                 </label>
                 <small>Lower this only if the worker runs out of memory.</small>
               </details>
-              {#if form?.message}
-                <p class="form-message error" role="alert">{form.message}</p>
-              {/if}
               <button class="button wide" type="submit">
                 <Icon name="activity" size={16} />
                 Start transcription

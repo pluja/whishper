@@ -8,8 +8,9 @@ Anysub’s default worker runs WhisperX locally and returns cue-level text plus 
 2. Upload an audio or video source.
 3. Open the project and choose a model. `Small` is the recommended CPU starting point.
 4. Leave **Accurate word alignment** enabled for editing, highlighting, and later karaoke workflows.
-5. Choose the spoken language when you know it, or let Whisper detect it.
-6. Start transcription and leave the worker running.
+5. Under **Advanced options**, adjust the maximum line length if the 42-character default does not suit the intended platform.
+6. Choose the spoken language when you know it, or let Whisper detect it.
+7. Start transcription and leave the worker running.
 
 The first run for a model downloads its CTranslate2 weights. Accurate alignment then downloads a smaller language-specific alignment model. Both are stored in the Docker-managed `model-cache` volume and survive container rebuilds.
 
@@ -28,9 +29,17 @@ No transcript text is written to worker progress logs. Hugging Face and Pyannote
 
 Model quality and speed vary by language, recording quality, core count, memory, and media duration. A two-hour film can take a long time on CPU. The durable worker renews its lease throughout model loading and inference, so a slow run is not treated as abandoned.
 
-## Resource controls
+## Subtitle segmentation
 
-The worker defaults to CPU `int8` compute and a conservative batch size of 4. The project form exposes batch size under **Resource controls**. Reduce it if the worker is killed or reports an out-of-memory error. Raising it may improve throughput but also raises peak memory use.
+After transcription and optional word alignment, Anysub uses WhisperX's language-aware subtitle processor to split long model segments at nearby natural boundaries. The default maximum line length is 42 characters and can be set from 20 to 120 for each run. Whole words remain intact, so a single token longer than the selected limit is the only case where a cue may exceed it. WhisperX applies shorter limits to scripts that are generally denser on screen, including Chinese, Japanese, Korean, Arabic, and several South Asian scripts.
+
+This setting shapes newly generated cues; it does not modify the media. Quality profiles will later add line count, reading speed, duration, gap, overlap, and platform-specific presets on top of this first control.
+
+Deleting a transcript removes its cues and the source run, including the worker job result and retry history. It leaves the project's source media intact. Deleting the whole project also removes its application-managed media directory.
+
+## Advanced options
+
+The worker defaults to CPU `int8` compute and a conservative batch size of 4. The project form exposes batch size under **Advanced options**. Reduce it if the worker is killed or reports an out-of-memory error. Raising it may improve throughput but also raises peak memory use.
 
 Administrators can set these worker environment variables in a Compose override:
 

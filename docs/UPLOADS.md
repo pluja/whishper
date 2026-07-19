@@ -29,6 +29,14 @@ data/
 
 The original display filename remains in PostgreSQL. Paths never contain a project title or browser-supplied directory component.
 
+## Re-uploading and duplicate content
+
+An interrupted upload of the same local file in the same browser resumes its existing tus upload and draft project. After an upload completes, Anysub removes that browser resume fingerprint. Uploading the file again then creates a separate project with a new project ID and a separate canonical media file. Project display names are derived from the filename stem and do not need to be unique, so two projects can both be named `Interview` without sharing a storage path.
+
+Anysub does not currently hash or deduplicate completed media. This is intentional for the first alpha: reference-safe deletion, backups, permissions, and tenant boundaries need to be designed together before files share physical storage. A future content-addressed storage layer may reuse identical media inside a workspace while keeping projects and their metadata independent. Managed-service cross-workspace deduplication should remain disabled by default to avoid cross-tenant information leaks.
+
+Deleting a project removes its database records, canonical project directory, and any known incomplete tus staging files. Owners and administrators can delete any workspace project; a member can delete a project they created. Transcript deletion is narrower: it removes the selected cues, source processing run, job result, and retry history while retaining the project media.
+
 ## Reverse proxies
 
 Set `BETTER_AUTH_URL` to the exact origin users open in their browsers:

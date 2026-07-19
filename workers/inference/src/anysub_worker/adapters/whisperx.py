@@ -56,6 +56,13 @@ class WhisperXAdapter:
                     "maximum": 64,
                     "description": "Inference batch size. Lower this if memory is limited.",
                 },
+                "maxLineLength": {
+                    "type": "integer",
+                    "minimum": 20,
+                    "maximum": 120,
+                    "default": 42,
+                    "description": "Maximum subtitle cue length in characters.",
+                },
             },
             "additionalProperties": False,
         }
@@ -90,6 +97,13 @@ class WhisperXAdapter:
             minimum=1,
             maximum=64,
         )
+        max_line_length = _integer_option(
+            request.options,
+            "maxLineLength",
+            default=42,
+            minimum=20,
+            maximum=120,
+        )
 
         await report_progress(0.02, "Loading source audio")
         audio = await asyncio.to_thread(whisperx.load_audio, str(media_path))
@@ -115,6 +129,17 @@ class WhisperXAdapter:
                 return_char_alignments=False,
             )
 
+        if result.get("segments"):
+            await report_progress(0.88, "Splitting readable subtitle cues")
+            result = {
+                **result,
+                "segments": _split_subtitle_segments(
+                    result["segments"],
+                    language=language,
+                    max_line_length=max_line_length,
+                ),
+            }
+
         await report_progress(0.94, "Building subtitle cues")
         artifact = _normalize_result(
             result,
@@ -127,6 +152,7 @@ class WhisperXAdapter:
                 "device": self._settings.device,
                 "computeType": self._settings.compute_type,
                 "batchSize": batch_size,
+                "maxLineLength": max_line_length,
             },
         )
         await report_progress(0.99, "Saving aligned transcript")
@@ -270,6 +296,151 @@ def _normalize_result(
         cues=tuple(cues),
         metadata=metadata,
     )
+
+
+def _split_subtitle_segments(
+    segments: list[dict[str, Any]],
+    *,
+    language: str,
+    max_line_length: int,
+) -> list[dict[str, Any]]:
+    try:
+        processor_module = import_module("whisperx.SubtitlesProcessor")
+    except ImportError as cause:
+        raise AdapterExecutionError(
+            "This WhisperX installation does not provide subtitle segmentation.",
+            retryable=False,
+        ) from cause
+
+    processor_segments: list[dict[str, Any]] = []
+    for source in segments:
+        segment = {**source}
+        if not segment.get("words"):
+            segment.pop("words", None)
+        else:
+            segment["words"] = [dict(word) for word in segment["words"]]
+        processor_segments.append(segment)
+
+    processed = processor_module.SubtitlesProcessor(
+        processor_segments,
+        lang=language,
+        max_line_length=max_line_length,
+    ).process_segments(advanced_splitting=True)
+    timed_words = [
+        word
+        for segment in processor_segments
+        for word in segment.get("words", [])
+        if word.get("start") is not None and word.get("end") is not None
+    ]
+
+    output: list[dict[str, Any]] = []
+    for subtitle in processed:
+        start = float(subtitle["start"])
+        end = max(start, float(subtitle["end"]))
+        words = [
+            dict(word)
+            for word in timed_words
+            if float(word["start"]) >= start - 1e-6 and float(word["end"]) <= end + 1e-6
+        ]
+        output.extend(
+            _enforce_max_line_length(
+                {
+                    "start": start,
+                    "end": end,
+                    "text": _clean_subtitle_text(str(subtitle.get("text") or ""), language),
+                    **({"words": words} if words else {}),
+                },
+                language=language,
+                max_line_length=max_line_length,
+            )
+        )
+    return output
+
+
+def _clean_subtitle_text(value: str, language: str) -> str:
+    if language in {"zh", "ja"}:
+        return value.strip()
+    return " ".join(value.split())
+
+
+def _enforce_max_line_length(
+    cue: dict[str, Any],
+    *,
+    language: str,
+    max_line_length: int,
+) -> list[dict[str, Any]]:
+    if len(str(cue["text"])) <= max_line_length:
+        return [cue]
+
+    words = cue.get("words") or []
+    if words:
+        groups = _group_words(words, language, max_line_length)
+        return [
+            {
+                "start": float(group[0]["start"]),
+                "end": float(group[-1]["end"]),
+                "text": _join_words(group, language),
+                "words": group,
+            }
+            for group in groups
+        ]
+
+    tokens = list(str(cue["text"])) if language in {"zh", "ja"} else str(cue["text"]).split()
+    groups = _group_text_tokens(tokens, language, max_line_length)
+    total_weight = sum(max(1, len(_join_text_tokens(group, language))) for group in groups)
+    elapsed = float(cue["start"])
+    duration = max(0.0, float(cue["end"]) - elapsed)
+    output: list[dict[str, Any]] = []
+    for index, group in enumerate(groups):
+        text = _join_text_tokens(group, language)
+        share = max(1, len(text)) / total_weight
+        end = float(cue["end"]) if index == len(groups) - 1 else elapsed + duration * share
+        output.append({"start": elapsed, "end": end, "text": text})
+        duration -= end - elapsed
+        total_weight -= max(1, len(text))
+        elapsed = end
+    return output
+
+
+def _group_words(
+    words: list[dict[str, Any]], language: str, maximum: int
+) -> list[list[dict[str, Any]]]:
+    groups: list[list[dict[str, Any]]] = []
+    current: list[dict[str, Any]] = []
+    for word in words:
+        candidate = [*current, word]
+        if current and len(_join_words(candidate, language)) > maximum:
+            groups.append(current)
+            current = [word]
+        else:
+            current = candidate
+    if current:
+        groups.append(current)
+    return groups
+
+
+def _join_words(words: list[dict[str, Any]], language: str) -> str:
+    return _join_text_tokens([str(word.get("word") or "").strip() for word in words], language)
+
+
+def _group_text_tokens(tokens: list[str], language: str, maximum: int) -> list[list[str]]:
+    groups: list[list[str]] = []
+    current: list[str] = []
+    for token in tokens:
+        candidate = [*current, token]
+        if current and len(_join_text_tokens(candidate, language)) > maximum:
+            groups.append(current)
+            current = [token]
+        else:
+            current = candidate
+    if current:
+        groups.append(current)
+    return groups
+
+
+def _join_text_tokens(tokens: list[str], language: str) -> str:
+    separator = "" if language in {"zh", "ja"} else " "
+    return separator.join(token for token in tokens if token).strip()
 
 
 def _display_model_name(model_id: str) -> str:
