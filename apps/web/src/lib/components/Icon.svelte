@@ -49,6 +49,9 @@
     <path d="m7 9.5 5 5 5-5" />
   {:else if name === "play"}
     <path d="m9 7 8 5-8 5z" />
+  {:else if name === "audio"}
+    <path d="M5 10v4h3l4 3V7L8 10z" />
+    <path d="M15 9.5a4 4 0 0 1 0 5M17.5 7a7 7 0 0 1 0 10" />
   {:else}
     <circle cx="12" cy="12" r="8" />
   {/if}

@@ -1,8 +1,6 @@
 # Anysub
 
-Anysub is a private, local-first transcription and subtitle-authoring web application. This repository is at the foundation stage: it contains the Dockerized application, PostgreSQL schema, resumable media intake, durable worker lease protocol, model-adapter SDK, authentication, and a deterministic end-to-end adapter demo.
-
-The demo deliberately downloads no speech model. Its purpose is to prove the boundary that future Faster-Whisper, WhisperX, Voxtral, Qwen-family, and administrator-built adapters will use.
+Anysub is a private, local-first transcription and subtitle-authoring web application. It contains the Dockerized application, PostgreSQL schema, resumable media intake, durable worker lease protocol, model-adapter SDK, authentication, and a CPU-first WhisperX transcription path with accurate word alignment.
 
 ## Host requirements
 
@@ -20,7 +18,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open `http://localhost:5173` and create the installation owner. You can upload a source file into an application-managed project or choose **Run adapter demo**. The demo worker leases its job and creates a normalized subtitle track without downloading a model.
+Open `http://localhost:5173`, create the installation owner, and upload a source. Open the project, choose a model, and start transcription. `Small` is the sensible CPU default. The first run downloads its ASR and language-alignment models into the persistent `model-cache` volume; later runs reuse them.
+
+Model downloads require internet access. Once the required files are cached, media processing itself is local. Anysub disables Hugging Face and Pyannote telemetry in the worker environment.
 
 Set `BETTER_AUTH_URL` to the browser-facing origin—including a non-default port—when Anysub is behind a reverse proxy. Resumable upload locations are relative, so uploaded files do not pass through an internal or guessed hostname.
 
@@ -60,8 +60,9 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm worker uv run pytest
 - `packages/contracts` — language-neutral application/worker TypeScript contracts.
 - `docs/ADAPTERS.md` — custom adapter contract and image-extension guide.
 - `docs/UPLOADS.md` — resumable upload lifecycle, storage, and reverse-proxy notes.
+- `docs/TRANSCRIPTION.md` — model choices, first-run behavior, and troubleshooting.
 - `docs/ARCHITECTURE.md` — accepted system boundaries.
 
 ## Current limits
 
-This is not a usable transcription release yet. Resumable browser upload and canonical project storage work; the watched inbox, media probing, preview generation, a production speech adapter, the cue editor, export, and the remaining roadmap are not implemented yet.
+The real transcription tracer bullet is implemented: upload, enqueue, WhisperX ASR/alignment, persisted cues and word timestamps, authenticated source playback, and synchronized cue navigation. The watched inbox, generated preview proxies, cue editing, export, diarization, translation, and model-management UI remain on the roadmap.

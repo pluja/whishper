@@ -55,7 +55,7 @@ export function originalStorageKey(
   );
 }
 
-function dataPath(key: string): string {
+export function resolveDataPath(key: string): string {
   const root = resolve(privateEnv.dataRoot);
   const target = resolve(root, ...key.split("/"));
   if (!target.startsWith(`${root}${sep}`)) {
@@ -160,8 +160,10 @@ export async function completeUpload(
     upload.projectId,
     upload.originalFilename,
   );
-  const stagingPath = dataPath(posix.join("staging", "uploads", uploadId));
-  const canonicalPath = dataPath(storageKey);
+  const stagingPath = resolveDataPath(
+    posix.join("staging", "uploads", uploadId),
+  );
+  const canonicalPath = resolveDataPath(storageKey);
   await mkdir(dirname(canonicalPath), { recursive: true });
   await pool.query(
     `update media_uploads set status = 'finalizing', error = null, updated_at = now()

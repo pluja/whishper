@@ -68,6 +68,11 @@ services:
       ANYSUB_WORKER_NAME: local-cpu
       ANYSUB_DATA_ROOT: /data
       ANYSUB_MODEL_ROOT: /models
+      ANYSUB_DEVICE: cpu
+      ANYSUB_COMPUTE_TYPE: int8
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      DO_NOT_TRACK: "1"
+      PYANNOTE_METRICS_ENABLED: "0"
     depends_on:
       web:
         condition: service_healthy

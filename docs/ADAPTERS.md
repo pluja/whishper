@@ -1,6 +1,6 @@
 # Model adapters
 
-Status: protocol `1.0` foundation. The fake adapter is implemented; production model adapters follow.
+Status: protocol `1.0`. The deterministic test adapter and production WhisperX adapter are implemented.
 
 Anysub workers are model-agnostic. An adapter owns the model library and converts its output into versioned Anysub artifacts. The worker owns application authentication, job leases, retries, progress delivery, and result upload.
 
@@ -78,6 +78,8 @@ class MyAdapter:
 ```
 
 The worker validates that entry points implement the adapter protocol, rejects duplicate adapter IDs, and advertises installed manifests to the application. The application leases a job only to a worker that reports the requested adapter.
+
+The built-in `whisperx` adapter is registered through this same entry-point group. It does not receive special scheduling or persistence behavior. Its implementation is therefore also a working reference for third-party ASR adapters.
 
 ## Installation
 

@@ -1,9 +1,29 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { invalidateAll } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
 
-  let { data } = $props();
+  let { data, form } = $props();
+  let selectedModelKey = $state(
+    untrack(
+      () =>
+        (
+          data.transcriptionModels.find((model) => model.modelId === "small") ??
+          data.transcriptionModels[0]
+        )?.key ?? "",
+    ),
+  );
+  let selectedModel = $derived(
+    data.transcriptionModels.find((model) => model.key === selectedModelKey),
+  );
+  let playbackUs = $state(0);
+  let mediaDurationUs = $state(0);
+  let mediaElement = $state<HTMLMediaElement>();
+  let activeCue = $derived(
+    data.cues.find(
+      (cue) => cue.start_us <= playbackUs && cue.end_us >= playbackUs,
+    ),
+  );
 
   onMount(() => {
     if (!data.run || !["queued", "running"].includes(data.run.status)) return;
@@ -35,6 +55,29 @@
       unit += 1;
     } while (value >= 1024 && unit < units.length - 1);
     return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unit]}`;
+  }
+
+  function isAudioSource(): boolean {
+    return (
+      data.project.media_type?.startsWith("audio/") ||
+      /\.(mp3|wav|m4a|aac|flac|ogg|opus)$/i.test(
+        data.project.media_filename ?? "",
+      )
+    );
+  }
+
+  function updatePlayback(event: Event): void {
+    const media = event.currentTarget as HTMLMediaElement;
+    playbackUs = Math.round(media.currentTime * 1_000_000);
+    mediaDurationUs = Number.isFinite(media.duration)
+      ? Math.round(media.duration * 1_000_000)
+      : 0;
+  }
+
+  function seekTo(microseconds: number): void {
+    if (!mediaElement) return;
+    mediaElement.currentTime = microseconds / 1_000_000;
+    void mediaElement.play();
   }
 </script>
 
@@ -114,23 +157,58 @@
     </header>
 
     <div class="media-canvas">
-      <div class="canvas-center" aria-hidden="true">
-        <span
-          ><Icon name={data.cues[0] ? "subtitles" : "play"} size={24} /></span
-        >
-        {#if !data.cues[0]}
-          <p>Media preview will appear after preparation</p>
+      {#if data.project.media_original_key}
+        {#if isAudioSource()}
+          <div class="audio-preview">
+            <span><Icon name="audio" size={28} /></span>
+            <strong>{data.project.media_filename}</strong>
+            <audio
+              bind:this={mediaElement}
+              controls
+              preload="metadata"
+              src={`/api/projects/${data.project.id}/media`}
+              ontimeupdate={updatePlayback}
+              ondurationchange={updatePlayback}
+            ></audio>
+          </div>
+        {:else}
+          <video
+            bind:this={mediaElement}
+            class="media-player"
+            controls
+            preload="metadata"
+            src={`/api/projects/${data.project.id}/media`}
+            ontimeupdate={updatePlayback}
+            ondurationchange={updatePlayback}
+          >
+            <track
+              kind="captions"
+              srclang={data.track?.language ?? "und"}
+              label={`${data.track?.language ?? "Source"} captions`}
+              src={`/api/projects/${data.project.id}/captions.vtt`}
+            />
+          </video>
         {/if}
-      </div>
-      {#if data.cues[0]}
-        <p class="subtitle-overlay">{data.cues[0].text}</p>
+      {:else}
+        <div class="canvas-center" aria-hidden="true">
+          <span><Icon name="play" size={24} /></span>
+          <p>No source media is attached</p>
+        </div>
+      {/if}
+      {#if activeCue}
+        <p class="subtitle-overlay">{activeCue.text}</p>
       {/if}
     </div>
 
     <footer class="preview-footer">
-      <span>00:00:00.000</span>
-      <div class="timeline" aria-hidden="true"><span></span></div>
-      <span>--:--:--.---</span>
+      <span>{timecode(playbackUs)}</span>
+      <div class="timeline" aria-hidden="true">
+        <span
+          style:width={`${mediaDurationUs ? (playbackUs / mediaDurationUs) * 100 : 0}%`}
+        ></span>
+      </div>
+      <span>{mediaDurationUs ? timecode(mediaDurationUs) : "--:--:--.---"}</span
+      >
     </footer>
   </section>
 
@@ -152,7 +230,12 @@
     {#if data.track}
       <div class="cue-list">
         {#each data.cues as cue, index}
-          <article class="cue">
+          <button
+            type="button"
+            class:active={activeCue?.id === cue.id}
+            class="cue"
+            onclick={() => seekTo(cue.start_us)}
+          >
             <span class="cue-index">{String(index + 1).padStart(2, "0")}</span>
             <div>
               <time datetime={`PT${cue.start_us / 1_000_000}S`}>
@@ -164,7 +247,7 @@
               </time>
               <p>{cue.text}</p>
             </div>
-          </article>
+          </button>
         {/each}
       </div>
     {:else}
@@ -172,7 +255,7 @@
         <span class="empty-illustration"
           ><Icon name="subtitles" size={28} /></span
         >
-        {#if data.run}
+        {#if data.run && ["queued", "running"].includes(data.run.status)}
           <h2>Preparing the first track</h2>
           <p>
             The worker will place normalized subtitle cues here when processing
@@ -180,21 +263,97 @@
           </p>
         {:else if data.project.media_original_key}
           <h2>Ready to transcribe</h2>
-          <p>
-            Your source is safely stored. Install a speech adapter to select a
-            model and start transcription.
-          </p>
-          <button
-            class="button wide"
-            type="button"
-            disabled
-            title="No production speech adapter is installed"
-          >
-            Transcription engine unavailable
-          </button>
-          <span class="empty-help"
-            >This build currently includes worker diagnostics only.</span
-          >
+          {#if data.transcriptionModels.length}
+            <p>
+              Choose the accuracy and resource profile for this source. The
+              first run downloads its model into the private cache.
+            </p>
+            <form
+              class="transcription-setup"
+              method="POST"
+              action="?/transcribe"
+            >
+              <label>
+                <span>Model</span>
+                <select name="model" bind:value={selectedModelKey} required>
+                  {#each data.transcriptionModels as model}
+                    <option value={model.key}
+                      >{model.adapterName} · {model.displayName}</option
+                    >
+                  {/each}
+                </select>
+              </label>
+              {#if selectedModel?.description}
+                <span class="model-description"
+                  >{selectedModel.description}</span
+                >
+              {/if}
+              <label>
+                <span>Spoken language</span>
+                <select name="language">
+                  <option value="auto">Detect automatically</option>
+                  <option value="en">English</option>
+                  <option value="es">Spanish</option>
+                  <option value="fr">French</option>
+                  <option value="de">German</option>
+                  <option value="it">Italian</option>
+                  <option value="pt">Portuguese</option>
+                  <option value="nl">Dutch</option>
+                  <option value="pl">Polish</option>
+                  <option value="uk">Ukrainian</option>
+                  <option value="el">Greek</option>
+                  <option value="ar">Arabic</option>
+                  <option value="hi">Hindi</option>
+                  <option value="ja">Japanese</option>
+                  <option value="ko">Korean</option>
+                  <option value="zh">Chinese</option>
+                </select>
+              </label>
+              <label class="check-row">
+                <input name="alignment" type="checkbox" checked />
+                <span>
+                  <strong>Accurate word alignment</strong>
+                  <small
+                    >Recommended for editing, highlights, and karaoke.</small
+                  >
+                </span>
+              </label>
+              <details class="transcription-advanced">
+                <summary>Resource controls</summary>
+                <label>
+                  <span>Batch size</span>
+                  <input
+                    name="batchSize"
+                    type="number"
+                    min="1"
+                    max="64"
+                    placeholder="Automatic"
+                  />
+                </label>
+                <small>Lower this only if the worker runs out of memory.</small>
+              </details>
+              {#if form?.message}
+                <p class="form-message error" role="alert">{form.message}</p>
+              {/if}
+              <button class="button wide" type="submit">
+                <Icon name="activity" size={16} />
+                Start transcription
+              </button>
+              <span class="empty-help"
+                >Processing stays on your connected worker. No media leaves
+                Anysub.</span
+              >
+            </form>
+          {:else}
+            <p>
+              A transcription worker is not connected yet. Start or inspect the
+              worker container, then this page will offer its models.
+            </p>
+            <button class="button wide" type="button" disabled>
+              Waiting for a speech worker
+            </button>
+            <span class="empty-help">Model choices appear automatically.</span>
+          {/if}
         {:else}
           <h2>No subtitle track</h2>
           <p>This project does not have source media or a transcription run.</p>

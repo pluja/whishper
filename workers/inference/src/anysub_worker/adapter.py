@@ -8,6 +8,14 @@ from .models import AdapterManifest, TranscriptArtifact, TranscriptionRequest
 ProgressReporter = Callable[[float, str], Awaitable[None]]
 
 
+class AdapterExecutionError(RuntimeError):
+    """An actionable adapter failure with an explicit queue retry policy."""
+
+    def __init__(self, message: str, *, retryable: bool) -> None:
+        super().__init__(message)
+        self.retryable = retryable
+
+
 @runtime_checkable
 class Adapter(Protocol):
     """Base contract implemented by every model adapter package.

@@ -10,6 +10,7 @@ export interface AdapterModel {
   capabilities: AdapterCapability[];
   languages: string[] | "all";
   description?: string;
+  optionsSchema?: Record<string, unknown>;
 }
 
 export interface AdapterManifest {

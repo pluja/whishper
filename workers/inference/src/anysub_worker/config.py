@@ -13,4 +13,6 @@ class WorkerSettings(BaseSettings):
     worker_id_file: Path = Path("/models/.worker-id")
     data_root: Path = Path("/data")
     model_root: Path = Path("/models")
+    device: str = Field(default="cpu", pattern="^(cpu|cuda)$")
+    compute_type: str = "int8"
     request_timeout_seconds: float = 30.0

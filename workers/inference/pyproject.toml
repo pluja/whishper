@@ -22,6 +22,54 @@ anysub-adapter-schema = "anysub_worker.cli:write_adapter_schema"
 
 [project.entry-points."anysub.adapters"]
 fake = "anysub_worker.adapters.fake:FakeAdapter"
+whisperx = "anysub_worker.adapters.whisperx:WhisperXAdapter"
+
+[project.optional-dependencies]
+speech = [
+  "whisperx==3.8.6",
+]
+cpu = [
+  "torch>=2.8,<2.9",
+  "torchaudio>=2.8,<2.9",
+  "torchvision>=0.23,<0.24",
+]
+cuda = [
+  "torch>=2.8,<2.9",
+  "torchaudio>=2.8,<2.9",
+  "torchvision>=0.23,<0.24",
+]
+
+[tool.uv]
+conflicts = [
+  [
+    { extra = "cpu" },
+    { extra = "cuda" },
+  ],
+]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cuda", extra = "cuda" },
+]
+torchvision = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cuda", extra = "cuda" },
+]
+torchaudio = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cuda", extra = "cuda" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
 
 [dependency-groups]
 dev = [
