@@ -168,13 +168,13 @@ A project can contain multiple subtitle tracks. Tracks may come from a run, an i
 
 Cues are the editing unit. Each cue has a stable identity, integer-microsecond timing, text, semantic type, and optional speaker or style references. Stable IDs and revisioned commands leave room for simultaneous editing later.
 
-Word tokens retain timestamps, confidence, language, and optional speaker assignment. The editor uses them for highlighting, segmentation, karaoke behavior, and social-caption presentation. Manual edits preserve matching word references. A user can request forced re-alignment after substantial corrections.
+Word tokens retain timestamps, confidence, language, and optional speaker assignment. The editor uses them for highlighting, segmentation, karaoke behavior, and social-caption presentation. Unchanged cues retain their word references; text edits invalidate the affected cue's alignment rather than displaying misleading highlights. A future forced re-alignment workflow will rebuild tokens after substantial corrections.
 
 ### Revisions
 
-The editor autosaves revisioned patches with optimistic concurrency. Browser storage journals unsaved changes for crash and connection recovery. A command stack provides session undo and redo.
+The first editor slice autosaves transactional track snapshots guarded by a monotonic revision. Browser storage journals unsaved changes for crash and connection recovery, and a command stack provides session undo and redo. Later scaling work may replace whole-track snapshots with revisioned command patches without changing the optimistic-concurrency contract.
 
-The server creates checkpoints around editing sessions, destructive bulk operations, and long sessions. Users may name and restore checkpoints. Restoration creates a new head rather than rewriting history.
+The server will create checkpoints around editing sessions, destructive bulk operations, and long sessions. Users will be able to name and restore checkpoints. Restoration creates a new head rather than rewriting history.
 
 ## Storage
 

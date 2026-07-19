@@ -61,8 +61,9 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm worker uv run pytest
 - `docs/ADAPTERS.md` — custom adapter contract and image-extension guide.
 - `docs/UPLOADS.md` — resumable upload lifecycle, storage, and reverse-proxy notes.
 - `docs/TRANSCRIPTION.md` — model choices, first-run behavior, and troubleshooting.
+- `docs/EDITOR.md` — cue editing, autosave, recovery, quality warnings, and exports.
 - `docs/ARCHITECTURE.md` — accepted system boundaries.
 
 ## Current limits
 
-The real transcription tracer bullet is implemented: upload, enqueue, WhisperX ASR/alignment, persisted cues and word timestamps, authenticated source playback, and synchronized cue navigation. The watched inbox, generated preview proxies, cue editing, export, diarization, translation, and model-management UI remain on the roadmap.
+The core subtitle journey is implemented: upload, enqueue, WhisperX ASR/alignment, persisted cues and word timestamps, synchronized cue editing, durable autosave, browser crash recovery, and SRT/WebVTT/Anysub JSON export. Waveforms, generated preview proxies, watched inboxes, revision checkpoints, editor leases, diarization, translation, and the model-management UI remain on the roadmap.

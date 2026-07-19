@@ -52,6 +52,23 @@
   {:else if name === "audio"}
     <path d="M5 10v4h3l4 3V7L8 10z" />
     <path d="M15 9.5a4 4 0 0 1 0 5M17.5 7a7 7 0 0 1 0 10" />
+  {:else if name === "undo"}
+    <path d="M9 7 5 11l4 4" />
+    <path d="M6 11h7a5 5 0 0 1 5 5v1" />
+  {:else if name === "redo"}
+    <path d="m15 7 4 4-4 4" />
+    <path d="M18 11h-7a5 5 0 0 0-5 5v1" />
+  {:else if name === "scissors"}
+    <circle cx="6" cy="7" r="2.5" />
+    <circle cx="6" cy="17" r="2.5" />
+    <path d="m8.2 8.2 10.3 7.3M8.2 15.8 18.5 8.5" />
+  {:else if name === "merge"}
+    <path d="M6 5v3c0 2.2 1.8 4 4 4h8" />
+    <path d="M6 19v-3c0-2.2 1.8-4 4-4M15 9l3 3-3 3" />
+  {:else if name === "trash"}
+    <path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />
+  {:else if name === "download"}
+    <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" />
   {:else}
     <circle cx="12" cy="12" r="8" />
   {/if}

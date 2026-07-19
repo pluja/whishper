@@ -11,7 +11,6 @@ interface CueRow {
   start_us: number;
   end_us: number;
   text: string;
-  words: Record<string, unknown>[];
 }
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -74,8 +73,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     name: string;
     language: string;
     metadata: Record<string, unknown>;
+    revision: number;
   }>(
-    `select id, name, language, metadata
+    `select id, name, language, metadata, revision
        from subtitle_tracks
       where project_id = $1
       order by created_at desc
@@ -87,7 +87,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   if (track.rows[0]) {
     cues = (
       await pool.query<CueRow>(
-        `select id, position, start_us, end_us, text, words
+        `select id, position, start_us, end_us, text
            from cues where track_id = $1 order by position asc`,
         [track.rows[0].id],
       )
@@ -101,8 +101,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   return {
     project: project.rows[0],
     run: run.rows[0] ?? null,
-    track: track.rows[0] ?? null,
-    cues,
+    track: track.rows[0]
+      ? { ...track.rows[0], revision: Number(track.rows[0].revision) }
+      : null,
+    cues: cues.map((cue) => ({
+      ...cue,
+      start_us: Number(cue.start_us),
+      end_us: Number(cue.end_us),
+    })),
     transcriptionModels: availableTranscriptionModels(
       activeWorkers.rows.map((worker) => worker.manifest),
     ),

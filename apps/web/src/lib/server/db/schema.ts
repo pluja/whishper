@@ -335,6 +335,7 @@ export const subtitleTracks = pgTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default({}),
+    revision: bigint("revision", { mode: "number" }).notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -342,7 +343,10 @@ export const subtitleTracks = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (table) => [index("subtitle_tracks_project_idx").on(table.projectId)],
+  (table) => [
+    index("subtitle_tracks_project_idx").on(table.projectId),
+    check("subtitle_tracks_revision_check", sql`${table.revision} >= 0`),
+  ],
 );
 
 export const cues = pgTable(
