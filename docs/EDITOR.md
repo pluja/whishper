@@ -4,6 +4,14 @@ Status: first durable editing and export slice implemented.
 
 The project workspace keeps the media preview and subtitle track within the browser viewport on desktop. Long tracks scroll inside the cue pane, so playback controls and editing tools remain visible while moving through a film or lecture.
 
+## Studio workspace
+
+Opening a project switches the web application into a focused, dark studio workspace. The global project navigation is replaced by a compact title bar so the program monitor and cue sheet can use the full browser window. Export and save state remain visible, while destructive project and transcript actions live in the overflow menu.
+
+On desktop, drag the divider between the program monitor and cue sheet to change their relative width. The divider also accepts the left and right arrow keys, and its last position is remembered in that browser. On narrower screens the panels stack, the divider disappears, and the cue sheet remains independently scrollable.
+
+The cue sheet is intentionally dense: timing, text, duration, selection, playback state, and quality warnings share one scan line. Detailed cue metrics remain visible for the selected cue and for cues with warnings.
+
 ## Editing cues
 
 Select a cue by focusing its text or timing fields. Clicking its numbered badge seeks playback to the cue start. During playback, the active cue is selected and scrolled into view unless a text field is being edited.
@@ -49,4 +57,3 @@ The active track can be downloaded as:
 - Anysub JSON containing project and track metadata, stable cue IDs, integer-microsecond timing, and retained word tokens.
 
 Exports are generated from the latest committed PostgreSQL revision. Wait for the **Saved** indicator before downloading when an edit is still in progress.
-

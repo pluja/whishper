@@ -69,6 +69,10 @@
     <path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />
   {:else if name === "download"}
     <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" />
+  {:else if name === "more"}
+    <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" />
   {:else}
     <circle cx="12" cy="12" r="8" />
   {/if}

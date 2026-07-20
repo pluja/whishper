@@ -53,6 +53,8 @@
   let editBaseline: EditorCue[] | null = null;
   let undoStack = $state<EditorCue[][]>([]);
   let redoStack = $state<EditorCue[][]>([]);
+  let editorPaneWidth = $state(500);
+  let paneResizeController: AbortController | undefined;
   const cursorPositions = new Map<string, number>();
   let maxLineLength = $derived(
     Number(data.track?.metadata?.maxLineLength ?? 42),
@@ -90,6 +92,15 @@
   });
 
   onMount(() => {
+    const storedPaneWidth = window.localStorage.getItem(
+      "anysub:editor-pane-width",
+    );
+    if (storedPaneWidth !== null) {
+      const parsedPaneWidth = Number(storedPaneWidth);
+      if (Number.isFinite(parsedPaneWidth)) {
+        editorPaneWidth = clampPaneWidth(parsedPaneWidth);
+      }
+    }
     const interval =
       data.run && ["queued", "running"].includes(data.run.status)
         ? window.setInterval(() => {
@@ -127,6 +138,7 @@
       if (interval) window.clearInterval(interval);
       if (saveTimer) window.clearTimeout(saveTimer);
       if (journalTimer) window.clearTimeout(journalTimer);
+      paneResizeController?.abort();
       window.removeEventListener("keydown", onKeydown);
       window.removeEventListener("beforeunload", beforeUnload);
     };
@@ -182,6 +194,60 @@
     if (!mediaElement) return;
     mediaElement.currentTime = microseconds / 1_000_000;
     void mediaElement.play();
+  }
+
+  function clampPaneWidth(width: number): number {
+    if (typeof window === "undefined") return width;
+    return Math.min(
+      Math.max(width, 360),
+      Math.min(760, window.innerWidth * 0.52),
+    );
+  }
+
+  function beginPaneResize(event: PointerEvent): void {
+    if (window.innerWidth <= 928) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = editorPaneWidth;
+    const separator = event.currentTarget as HTMLElement;
+    separator.setPointerCapture(event.pointerId);
+    paneResizeController?.abort();
+    paneResizeController = new AbortController();
+    document.body.classList.add("resizing-studio-pane");
+
+    window.addEventListener(
+      "pointermove",
+      (moveEvent) => {
+        editorPaneWidth = clampPaneWidth(
+          startWidth + startX - moveEvent.clientX,
+        );
+      },
+      { signal: paneResizeController.signal },
+    );
+    window.addEventListener(
+      "pointerup",
+      () => {
+        window.localStorage.setItem(
+          "anysub:editor-pane-width",
+          String(Math.round(editorPaneWidth)),
+        );
+        document.body.classList.remove("resizing-studio-pane");
+        paneResizeController?.abort();
+      },
+      { once: true, signal: paneResizeController.signal },
+    );
+  }
+
+  function resizePaneWithKeyboard(event: KeyboardEvent): void {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    editorPaneWidth = clampPaneWidth(
+      editorPaneWidth + (event.key === "ArrowLeft" ? 24 : -24),
+    );
+    window.localStorage.setItem(
+      "anysub:editor-pane-width",
+      String(Math.round(editorPaneWidth)),
+    );
   }
 
   function cueSnapshot(): EditorCue[] {
@@ -503,58 +569,91 @@
 </svelte:head>
 
 <div class="project-editor-page">
-  <a class="breadcrumb" href="/">
-    <Icon name="arrow-left" size={16} />
-    Projects
-  </a>
-
-  <header class="project-header">
-    <div>
-      <p class="eyebrow">Subtitle project</p>
-      <h1>{data.project.name}</h1>
-      <p class="project-source-line">
-        <span>{data.project.workspace_name}</span>
-        {#if data.project.media_filename}
-          <span>{data.project.media_filename}</span>
-          {#if data.project.size_bytes}
-            <span>{formatBytes(data.project.size_bytes)}</span>
-          {/if}
-        {:else}
-          <span>Worker diagnostic</span>
-        {/if}
-      </p>
+  <header class="studio-titlebar">
+    <a class="studio-back" href="/" aria-label="Back to projects">
+      <Icon name="arrow-left" size={17} />
+    </a>
+    <div class="studio-identity">
+      <strong>{data.project.name}</strong>
+      <span>{data.project.media_filename ?? "Worker diagnostic"}</span>
     </div>
-
-    <div class="project-header-actions">
-      {#if data.run}
-        <span
-          class="status large"
-          data-status={data.run.job_state ?? data.run.status}
-        >
-          {data.run.status === "completed"
-            ? "Transcript ready"
-            : data.run.status}
+    <div class="studio-context">
+      <span>{data.project.workspace_name}</span>
+      {#if data.project.size_bytes}
+        <span>{formatBytes(data.project.size_bytes)}</span>
+      {/if}
+      {#if data.track}
+        <span>{data.track.language.toUpperCase()} · {cues.length} cues</span>
+      {/if}
+    </div>
+    <div class="studio-actions">
+      {#if data.track}
+        <span class="save-state" data-state={saveState} aria-live="polite">
+          <span></span>{saveLabel()}
         </span>
-      {:else if data.project.media_original_key}
-        <span class="status large" data-status="ready">Source ready</span>
+        <details class="export-menu studio-export">
+          <summary><Icon name="download" size={15} /> Export</summary>
+          <div>
+            <a
+              href={`/api/projects/${data.project.id}/tracks/${data.track.id}/export/srt`}
+              download
+            >
+              <strong>SRT</strong><span>Universal subtitle file</span>
+            </a>
+            <a
+              href={`/api/projects/${data.project.id}/tracks/${data.track.id}/export/vtt`}
+              download
+            >
+              <strong>WebVTT</strong><span>Web video captions</span>
+            </a>
+            <a
+              href={`/api/projects/${data.project.id}/tracks/${data.track.id}/export/json`}
+              download
+            >
+              <strong>Anysub JSON</strong><span>Cues, words, and metadata</span>
+            </a>
+          </div>
+        </details>
       {/if}
       {#if data.project.can_manage}
-        <form
-          method="POST"
-          action="?/deleteProject"
-          onsubmit={(event) => {
-            if (
-              !confirm(
-                "Delete this project, its source media, and every transcript? This cannot be undone.",
-              )
-            )
-              event.preventDefault();
-          }}
-        >
-          <button class="button danger quiet" type="submit"
-            >Delete project</button
-          >
-        </form>
+        <details class="project-menu">
+          <summary aria-label="Project actions" title="Project actions">
+            <Icon name="more" size={18} />
+          </summary>
+          <div>
+            {#if data.track}
+              <form
+                method="POST"
+                action="?/deleteTranscript"
+                onsubmit={(event) => {
+                  if (
+                    !confirm(
+                      "Delete this transcript, its cues, and processing record? The source media will remain.",
+                    )
+                  )
+                    event.preventDefault();
+                }}
+              >
+                <input type="hidden" name="trackId" value={data.track.id} />
+                <button type="submit">Delete transcript</button>
+              </form>
+            {/if}
+            <form
+              method="POST"
+              action="?/deleteProject"
+              onsubmit={(event) => {
+                if (
+                  !confirm(
+                    "Delete this project, its source media, and every transcript? This cannot be undone.",
+                  )
+                )
+                  event.preventDefault();
+              }}
+            >
+              <button type="submit">Delete project</button>
+            </form>
+          </div>
+        </details>
       {/if}
     </div>
   </header>
@@ -588,11 +687,14 @@
     {/if}
   {/if}
 
-  <div class="editor-workspace">
+  <div
+    class="editor-workspace"
+    style:--editor-pane-width={`${editorPaneWidth}px`}
+  >
     <section class="media-panel" aria-label="Subtitle preview">
       <header class="panel-toolbar">
         <div>
-          <span class="panel-kicker">Preview</span>
+          <span class="panel-kicker">Program monitor</span>
           <strong>{data.project.media_filename ?? "Diagnostic source"}</strong>
         </div>
         <span class="preview-state">
@@ -658,17 +760,24 @@
       </footer>
     </section>
 
+    <button
+      class="studio-divider"
+      type="button"
+      aria-label="Resize subtitle panel with the left and right arrow keys"
+      onpointerdown={beginPaneResize}
+      onkeydown={resizePaneWithKeyboard}
+    >
+      <span></span>
+    </button>
+
     <section class="transcript-panel" aria-label="Subtitle cues">
       <header class="panel-toolbar transcript-toolbar">
         <div>
-          <span class="panel-kicker">Subtitle track</span>
+          <span class="panel-kicker">Text</span>
           <strong>{data.track?.name ?? "Transcript"}</strong>
         </div>
         {#if data.track}
           <div class="track-summary">
-            <span class="save-state" data-state={saveState} aria-live="polite">
-              <span></span>{saveLabel()}
-            </span>
             <span class="track-meta">
               {data.track.language} · {cues.length} cue{cues.length === 1
                 ? ""
@@ -687,7 +796,8 @@
               disabled={!undoStack.length}
               title="Undo (Ctrl+Z)"
             >
-              <Icon name="undo" size={15} /> Undo
+              <Icon name="undo" size={15} />
+              <span class="visually-hidden">Undo</span>
             </button>
             <button
               type="button"
@@ -695,7 +805,8 @@
               disabled={!redoStack.length}
               title="Redo (Ctrl+Y)"
             >
-              <Icon name="redo" size={15} /> Redo
+              <Icon name="redo" size={15} />
+              <span class="visually-hidden">Redo</span>
             </button>
           </div>
           <div class="tool-group">
@@ -721,8 +832,10 @@
               type="button"
               onclick={deleteSelected}
               disabled={selectedCueIndex < 0}
+              title="Delete selected cue"
             >
-              <Icon name="trash" size={15} /> Delete
+              <Icon name="trash" size={15} />
+              <span class="visually-hidden">Delete selected cue</span>
             </button>
           </div>
           <div class="tool-group nudge-tools">
@@ -741,52 +854,6 @@
               +100 ms
             </button>
           </div>
-          <details class="export-menu">
-            <summary><Icon name="download" size={15} /> Export</summary>
-            <div>
-              <a
-                href={`/api/projects/${data.project.id}/tracks/${data.track.id}/export/srt`}
-                download
-              >
-                <strong>SRT</strong><span>Universal subtitle file</span>
-              </a>
-              <a
-                href={`/api/projects/${data.project.id}/tracks/${data.track.id}/export/vtt`}
-                download
-              >
-                <strong>WebVTT</strong><span>Web video captions</span>
-              </a>
-              <a
-                href={`/api/projects/${data.project.id}/tracks/${data.track.id}/export/json`}
-                download
-              >
-                <strong>Anysub JSON</strong><span
-                  >Cues, words, and metadata</span
-                >
-              </a>
-            </div>
-          </details>
-          {#if data.project.can_manage}
-            <form
-              class="delete-track-form"
-              method="POST"
-              action="?/deleteTranscript"
-              onsubmit={(event) => {
-                if (
-                  !confirm(
-                    "Delete this transcript, its cues, and processing record? The source media will remain.",
-                  )
-                )
-                  event.preventDefault();
-              }}
-            >
-              <input type="hidden" name="trackId" value={data.track.id} />
-              <button class="danger" type="submit" title="Delete transcript">
-                <Icon name="trash" size={15} />
-                <span class="visually-hidden">Delete transcript</span>
-              </button>
-            </form>
-          {/if}
         </div>
         <div class="editor-statusbar">
           <span class:has-issues={issueCount > 0}>
