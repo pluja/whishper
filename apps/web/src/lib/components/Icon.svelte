@@ -31,6 +31,11 @@
     <path d="M13.5 3.5v4h4M9 12h6M9 15.5h4" />
   {:else if name === "check"}
     <path d="m6.5 12.5 3.5 3.5 7.5-8" />
+  {:else if name === "edit"}
+    <path d="m4 16.5-.8 4.3 4.3-.8L18.8 8.7l-3.5-3.5z" />
+    <path d="m13.8 6.7 3.5 3.5" />
+  {:else if name === "close"}
+    <path d="m6 6 12 12M18 6 6 18" />
   {:else if name === "activity"}
     <path d="M3 12h4l2.5-6 4.5 12 2.5-6H21" />
   {:else if name === "lock"}

@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { enhance } from "$app/forms";
   import { goto, invalidateAll } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
+  import type { SubmitFunction } from "@sveltejs/kit";
   import { onMount } from "svelte";
   import { Upload } from "tus-js-client";
 
@@ -10,16 +12,43 @@
   let uploadProgress = $state(0);
   let uploadState = $state<"idle" | "uploading" | "error" | "success">("idle");
   let uploadMessage = $state("");
+  let hasActiveSearch = $derived(
+    data.search.query.length > 0 || data.search.includeSubtitles,
+  );
+  let firstThumbnailIndex = $derived(
+    data.projects.findIndex(
+      (project: { has_thumbnail: boolean }) => project.has_thumbnail,
+    ),
+  );
   // svelte-ignore state_referenced_locally
-  let importOpen = $state(data.projects.length === 0);
+  let importOpen = $state(
+    data.projects.length === 0 &&
+      data.search.query.length === 0 &&
+      !data.search.includeSubtitles,
+  );
+  // svelte-ignore state_referenced_locally
+  let editingProjectId = $state<string | null>(form?.renameProjectId ?? null);
+  // svelte-ignore state_referenced_locally
+  let renameDraft = $state(
+    data.projects.find(
+      (project: { id: string }) => project.id === form?.renameProjectId,
+    )?.name ?? "",
+  );
+  let renameSavingId = $state<string | null>(null);
 
   onMount(() => {
     const hasActiveJob = data.projects.some(
-      (project: { job_state: string | null; upload_status: string | null }) =>
+      (project: {
+        job_state: string | null;
+        upload_status: string | null;
+        media_preparation_status: string;
+      }) =>
         project.job_state === "queued" ||
         project.job_state === "leased" ||
         project.upload_status === "uploading" ||
-        project.upload_status === "finalizing",
+        project.upload_status === "finalizing" ||
+        project.media_preparation_status === "queued" ||
+        project.media_preparation_status === "running",
     );
     if (!hasActiveJob) return;
     const interval = window.setInterval(() => void invalidateAll(), 2_000);
@@ -30,9 +59,17 @@
     run_status: string | null;
     job_state: string | null;
     upload_status: string | null;
+    media_preparation_status: string;
   }): string {
     const processingState = project.job_state ?? project.run_status;
     if (processingState) return processingState;
+    if (
+      project.media_preparation_status === "queued" ||
+      project.media_preparation_status === "running"
+    ) {
+      return "preparing";
+    }
+    if (project.media_preparation_status === "failed") return "failed";
     return project.upload_status === "completed"
       ? "ready"
       : (project.upload_status ?? "draft");
@@ -68,6 +105,7 @@
       queued: "Queued",
       leased: "Processing",
       running: "Processing",
+      preparing: "Preparing",
       completed: "Complete",
       failed: "Needs attention",
       uploading: "Uploading",
@@ -75,6 +113,75 @@
     };
     return labels[state] ?? state;
   }
+
+  function projectSourceFallback(project: {
+    progress_message: string | null;
+    upload_status: string | null;
+    received_bytes: number | null;
+    size_bytes: number | null;
+    media_type: string | null;
+  }): string {
+    const message = projectMessage(project);
+    if (message !== "Project ready") return message;
+    if (project.media_type?.startsWith("audio/")) return "Audio source";
+    if (project.media_type?.startsWith("video/")) return "Video source";
+    return "Media source";
+  }
+
+  function mediaPlaceholder(project: { media_type: string | null }): {
+    icon: string;
+    label: string;
+  } {
+    if (project.media_type?.startsWith("audio/")) {
+      return { icon: "audio", label: "Audio project" };
+    }
+    if (project.media_type?.startsWith("video/")) {
+      return { icon: "play", label: "Video project" };
+    }
+    return { icon: "file", label: "Media project" };
+  }
+
+  function beginRename(projectId: string, projectName: string) {
+    renameDraft = projectName;
+    editingProjectId = projectId;
+  }
+
+  function focusAndSelect(input: HTMLInputElement) {
+    input.focus();
+    input.select();
+  }
+
+  function cancelRename() {
+    editingProjectId = null;
+  }
+
+  function handleRenameKeydown(event: KeyboardEvent) {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    cancelRename();
+  }
+
+  function renameActionUrl(): string {
+    const search = new URLSearchParams();
+    if (data.search.query) search.set("q", data.search.query);
+    if (data.search.includeSubtitles) search.set("scope", "subtitles");
+    const query = search.toString();
+    return query ? `?${query}&/renameProject` : "?/renameProject";
+  }
+
+  const enhanceRename: SubmitFunction = ({ formData }) => {
+    const projectId = String(formData.get("projectId") ?? "");
+    renameSavingId = projectId;
+    return async ({ result, update }) => {
+      renameSavingId = null;
+      if (result.type === "failure") {
+        editingProjectId = projectId;
+      } else if (result.type === "success" || result.type === "redirect") {
+        editingProjectId = null;
+      }
+      await update({ reset: false });
+    };
+  };
 
   function chooseFile(event: Event) {
     selectedFile = (event.currentTarget as HTMLInputElement).files?.[0] ?? null;
@@ -155,204 +262,460 @@
     } while (value >= 1024 && unit < units.length - 1);
     return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unit]}`;
   }
+
+  function formatDuration(microseconds: number): string {
+    const totalSeconds = Math.round(microseconds / 1_000_000);
+    const seconds = totalSeconds % 60;
+    const minutes = Math.floor(totalSeconds / 60) % 60;
+    const hours = Math.floor(totalSeconds / 3_600);
+    if (hours > 0) {
+      return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  function formatDimensions(
+    width: string | null,
+    height: string | null,
+  ): string | null {
+    const numericWidth = Number(width);
+    const numericHeight = Number(height);
+    if (
+      !Number.isInteger(numericWidth) ||
+      !Number.isInteger(numericHeight) ||
+      numericWidth <= 0 ||
+      numericHeight <= 0
+    ) {
+      return null;
+    }
+    return `${numericWidth}×${numericHeight}`;
+  }
+
+  const languageNames = new Intl.DisplayNames(undefined, { type: "language" });
+
+  function formatLanguages(languages: string[]): string {
+    return languages
+      .map((language) => {
+        try {
+          return languageNames.of(language) ?? language;
+        } catch {
+          return language;
+        }
+      })
+      .join(", ");
+  }
+
+  function formatSubtitleCounts(trackCount: number, cueCount: number): string {
+    const tracks = `${trackCount} ${trackCount === 1 ? "track" : "tracks"}`;
+    const cues = `${cueCount} ${cueCount === 1 ? "cue" : "cues"}`;
+    return `${tracks} · ${cues}`;
+  }
+
+  const activityDateTime = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+  function activityDate(value: Date | string): Date {
+    return value instanceof Date ? value : new Date(value);
+  }
+
+  function formatActivity(value: Date | string): string {
+    return activityDateTime.format(activityDate(value));
+  }
 </script>
 
 <svelte:head>
   <title>Projects · Anysub</title>
 </svelte:head>
 
-<header class="page-bar">
-  <div>
-    <p class="eyebrow">{data.workspace?.name ?? "Workspace"}</p>
-    <h1>Projects</h1>
-    <p class="page-description">
-      Import media, run transcription, and refine every subtitle track.
-    </p>
-  </div>
-  {#if data.workspace}
-    <button
-      class="button"
-      type="button"
-      aria-expanded={importOpen}
-      aria-controls="import-panel"
-      onclick={() => (importOpen = !importOpen)}
-    >
-      <Icon name={importOpen ? "chevron-down" : "plus"} size={17} />
-      {importOpen ? "Close import" : "New project"}
-    </button>
-  {/if}
-</header>
-
-<div class="workspace-summary" aria-label="Workspace summary">
-  <div>
-    <strong>{data.projects.length}</strong>
-    <span>{data.projects.length === 1 ? "project" : "projects"}</span>
-  </div>
-  <div>
-    <strong>
-      {data.projects.filter(
-        (project: { upload_status: string | null }) =>
-          project.upload_status === "completed",
-      ).length}
-    </strong>
-    <span>sources ready</span>
-  </div>
-  <div class="summary-privacy">
-    <Icon name="lock" size={15} />
-    <span>Stored on this installation</span>
-  </div>
-</div>
-
-{#if data.workspace && importOpen}
-  <section class="import-card" id="import-panel">
-    <div class="section-heading">
-      <div class="section-icon"><Icon name="upload" size={20} /></div>
-      <div>
-        <h2>Import source media</h2>
-        <p>Large uploads resume automatically after an interruption.</p>
-      </div>
+<div class="project-library-page">
+  <header class="library-header">
+    <div class="library-heading">
+      <p class="library-context">{data.workspace?.name ?? "Workspace"}</p>
+      <h1>Projects</h1>
+      <p class="library-summary">
+        {data.workspace?.project_count ?? 0}
+        {(data.workspace?.project_count ?? 0) === 1 ? "project" : "projects"} ·
+        {data.workspace?.ready_source_count ?? 0}
+        {(data.workspace?.ready_source_count ?? 0) === 1
+          ? "source ready"
+          : "sources ready"}
+      </p>
     </div>
+    {#if data.workspace}
+      <button
+        class="button"
+        type="button"
+        aria-expanded={importOpen}
+        aria-controls="import-panel"
+        onclick={() => (importOpen = !importOpen)}
+      >
+        <Icon name={importOpen ? "chevron-down" : "plus"} size={17} />
+        {importOpen ? "Close import" : "New project"}
+      </button>
+    {/if}
+  </header>
 
-    <form onsubmit={startUpload}>
-      <label class="media-dropzone" data-state={uploadState}>
-        <input
-          type="file"
-          accept="audio/*,video/*"
-          disabled={uploadState === "uploading"}
-          aria-invalid={uploadState === "error"}
-          onchange={chooseFile}
-        />
-        <span class="dropzone-icon"><Icon name="file" size={24} /></span>
-        <span class="dropzone-copy">
-          <strong
-            >{selectedFile?.name ?? "Choose an audio or video file"}</strong
-          >
-          <span>
-            {selectedFile
-              ? `${formatBytes(selectedFile.size)} · ready to import`
-              : "MP3, WAV, M4A, MP4, MKV, and other browser-supported media"}
-          </span>
-        </span>
-        <span class="button secondary compact" aria-hidden="true">
-          {selectedFile ? "Change" : "Browse"}
-        </span>
-      </label>
-
-      {#if uploadState !== "idle" || uploadMessage}
-        <div class="job-progress" aria-live="polite">
-          <div class="progress-meta">
-            <span class:error={uploadState === "error"}>{uploadMessage}</span>
-            <span>{Math.round(uploadProgress * 100)}%</span>
-          </div>
-          <progress value={uploadProgress} max="1">
-            {Math.round(uploadProgress * 100)}%
-          </progress>
-        </div>
+  <form class="project-search" method="GET" action="/" role="search">
+    <label class="project-search-field">
+      <span>Search project titles</span>
+      <input
+        type="search"
+        name="q"
+        autocomplete="off"
+        value={data.search.query}
+        placeholder="Rough cut"
+        maxlength="200"
+      />
+    </label>
+    <label class="search-scope">
+      <input
+        type="checkbox"
+        name="scope"
+        value="subtitles"
+        checked={data.search.includeSubtitles}
+      />
+      <span>Search subtitle text too</span>
+    </label>
+    <div class="search-actions">
+      <button class="button" type="submit">Search</button>
+      {#if hasActiveSearch}
+        <a class="button secondary" href="/">Clear</a>
       {/if}
+    </div>
+  </form>
 
-      <div class="import-actions">
-        <p>
-          The original is stored in Anysub's application-managed project
-          directory.
-        </p>
+  {#if data.workspace && importOpen}
+    <section class="import-card" id="import-panel">
+      <div class="section-heading">
+        <div class="section-icon"><Icon name="upload" size={20} /></div>
         <div>
-          {#if uploadState === "uploading"}
-            <button
-              class="button secondary"
-              type="button"
-              onclick={cancelActiveUpload}>Cancel</button
-            >
-          {/if}
-          <button
-            class="button"
-            type="submit"
-            data-state={uploadState === "uploading" ? "loading" : undefined}
-            disabled={!selectedFile || uploadState === "uploading"}
-          >
-            {uploadState === "uploading" ? "Uploading" : "Create project"}
-          </button>
+          <h2>Import source media</h2>
+          <p>Large uploads resume automatically after an interruption.</p>
         </div>
       </div>
-    </form>
-  </section>
-{/if}
 
-{#if form?.message}
-  <p class="helper error" role="alert">{form.message}</p>
-{/if}
+      <form onsubmit={startUpload}>
+        <label class="media-dropzone" data-state={uploadState}>
+          <input
+            type="file"
+            accept="audio/*,video/*"
+            disabled={uploadState === "uploading"}
+            aria-invalid={uploadState === "error"}
+            onchange={chooseFile}
+          />
+          <span class="dropzone-icon"><Icon name="file" size={24} /></span>
+          <span class="dropzone-copy">
+            <strong
+              >{selectedFile?.name ?? "Choose an audio or video file"}</strong
+            >
+            <span>
+              {selectedFile
+                ? `${formatBytes(selectedFile.size)} · ready to import`
+                : "MP3, WAV, M4A, MP4, MKV, and other browser-supported media"}
+            </span>
+          </span>
+          <span class="button secondary compact" aria-hidden="true">
+            {selectedFile ? "Change" : "Browse"}
+          </span>
+        </label>
 
-{#if data.projects.length === 0}
-  <section class="projects-empty">
-    <div class="empty-illustration" aria-hidden="true">
-      <Icon name="subtitles" size={30} />
-    </div>
-    <h2>Your project library is empty</h2>
-    <p>
-      Import a recording, interview, lecture, or film to create its private
-      subtitle workspace.
-    </p>
-  </section>
-{:else}
+        {#if uploadState !== "idle" || uploadMessage}
+          <div class="job-progress" aria-live="polite">
+            <div class="progress-meta">
+              <span class:error={uploadState === "error"}>{uploadMessage}</span>
+              <span>{Math.round(uploadProgress * 100)}%</span>
+            </div>
+            <progress value={uploadProgress} max="1">
+              {Math.round(uploadProgress * 100)}%
+            </progress>
+          </div>
+        {/if}
+
+        <div class="import-actions">
+          <p>
+            The original is stored in Anysub's application-managed project
+            directory.
+          </p>
+          <div>
+            {#if uploadState === "uploading"}
+              <button
+                class="button secondary"
+                type="button"
+                onclick={cancelActiveUpload}>Cancel</button
+              >
+            {/if}
+            <button
+              class="button"
+              type="submit"
+              data-state={uploadState === "uploading" ? "loading" : undefined}
+              disabled={!selectedFile || uploadState === "uploading"}
+            >
+              {uploadState === "uploading" ? "Uploading" : "Create project"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </section>
+  {/if}
+
+  {#if form?.message}
+    <p class="helper error" role="alert">{form.message}</p>
+  {/if}
+
   <section class="projects-section" aria-labelledby="project-list-title">
     <div class="section-title-row">
       <div>
-        <h2 id="project-list-title">Recent projects</h2>
-        <p>Open a project to review its source and subtitle tracks.</p>
+        <h2 id="project-list-title">
+          {hasActiveSearch ? "Search results" : "All projects"}
+        </h2>
+        <p class="project-result-count">
+          <strong>
+            {data.projects.length}
+            {data.projects.length === 1 ? "project" : "projects"}
+          </strong>
+          {#if data.search.query && data.search.includeSubtitles}
+            matching project titles or subtitle text for “{data.search.query}”.
+          {:else if data.search.query}
+            matching project titles for “{data.search.query}”.
+          {:else if data.search.includeSubtitles}
+            in this workspace. Subtitle text will be included when you search.
+          {:else}
+            in this workspace, ordered by recent activity.
+          {/if}
+        </p>
       </div>
     </div>
-    <div class="project-columns" aria-hidden="true">
-      <span>Project</span>
-      <span>Status</span>
-      <span>Size</span>
-      <span>Created</span>
-    </div>
-    <div class="projects-list">
-      {#each data.projects as project}
-        <a class="project-row" href={`/projects/${project.id}`}>
-          <div class="project-identity">
-            <span class="project-file-icon"><Icon name="file" size={19} /></span
-            >
-            <div>
-              <h3>{project.name}</h3>
-              <p>{project.original_filename ?? projectMessage(project)}</p>
-            </div>
-          </div>
-          <span class="status" data-status={displayState(project)}>
-            {stateLabel(displayState(project))}
-          </span>
-          <span class="project-size">
-            {project.size_bytes ? formatBytes(project.size_bytes) : "—"}
-          </span>
-          <time
-            class="project-date"
-            datetime={project.created_at.toISOString()}
-          >
-            {new Intl.DateTimeFormat(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-            }).format(new Date(project.created_at))}
-          </time>
-        </a>
-      {/each}
-    </div>
-  </section>
-{/if}
 
-<details class="diagnostics">
-  <summary>
-    <span><Icon name="activity" size={17} /> Worker diagnostics</span>
-    <Icon name="chevron-down" size={16} />
-  </summary>
-  <div class="diagnostics-body">
-    <div>
-      <strong>Test the processing pipeline</strong>
-      <p>
-        Creates a deterministic subtitle track without using source media or
-        downloading a speech model.
-      </p>
+    {#if data.projects.length === 0}
+      <div class="projects-empty">
+        <div class="empty-illustration" aria-hidden="true">
+          <Icon name="subtitles" size={30} />
+        </div>
+        {#if hasActiveSearch}
+          <h3>No projects match this search</h3>
+          <p>
+            {data.search.includeSubtitles
+              ? "Try a shorter project title or subtitle phrase."
+              : "Try another title or include subtitle text in your search."}
+          </p>
+          <a class="button secondary" href="/">Clear search</a>
+        {:else}
+          <h3>Your project library is empty</h3>
+          <p>
+            Import a recording, interview, lecture, or film to create its
+            private subtitle workspace.
+          </p>
+          {#if data.workspace}
+            <button
+              class="button"
+              type="button"
+              onclick={() => (importOpen = true)}
+            >
+              Open import
+            </button>
+          {/if}
+        {/if}
+      </div>
+    {:else}
+      <div class="projects-list">
+        {#each data.projects as project, index (project.id)}
+          {@const projectState = displayState(project)}
+          {@const dimensions = formatDimensions(
+            project.video_width,
+            project.video_height,
+          )}
+          <article class="project-entry">
+            <div class="project-main">
+              <a
+                class="project-thumbnail-link"
+                href={`/projects/${project.id}`}
+                aria-label={`Open ${project.name}`}
+              >
+                <div class="project-thumbnail">
+                  {#if project.has_thumbnail}
+                    <img
+                      src={`/api/projects/${project.id}/derivatives/thumbnail`}
+                      alt=""
+                      width="640"
+                      height="360"
+                      loading={index === firstThumbnailIndex ? "eager" : "lazy"}
+                      fetchpriority={index === firstThumbnailIndex
+                        ? "high"
+                        : "auto"}
+                    />
+                  {:else}
+                    {@const placeholder = mediaPlaceholder(project)}
+                    <div class="project-thumbnail-placeholder">
+                      <Icon name={placeholder.icon} size={28} />
+                      <span class="visually-hidden">{placeholder.label}</span>
+                    </div>
+                  {/if}
+                </div>
+              </a>
+
+              <div class="project-details">
+                <div class="project-title-row">
+                  {#if editingProjectId === project.id}
+                    <form
+                      class="project-title-edit"
+                      method="POST"
+                      action={renameActionUrl()}
+                      use:enhance={enhanceRename}
+                    >
+                      <input
+                        type="hidden"
+                        name="projectId"
+                        value={project.id}
+                      />
+                      <label for={`project-title-${project.id}`}>
+                        <span class="visually-hidden">Title</span>
+                        <input
+                          {@attach focusAndSelect}
+                          id={`project-title-${project.id}`}
+                          name="name"
+                          bind:value={renameDraft}
+                          required
+                          maxlength="160"
+                          onkeydown={handleRenameKeydown}
+                          aria-invalid={form?.renameProjectId === project.id}
+                          aria-describedby={form?.renameProjectId === project.id
+                            ? `rename-error-${project.id}`
+                            : undefined}
+                        />
+                      </label>
+                      <button
+                        class="project-title-action"
+                        type="submit"
+                        disabled={renameSavingId === project.id}
+                        aria-label={renameSavingId === project.id
+                          ? "Saving title"
+                          : "Save title"}
+                        title={renameSavingId === project.id
+                          ? "Saving title"
+                          : "Save title"}
+                      >
+                        <Icon name="check" size={15} />
+                      </button>
+                      <button
+                        class="project-title-action"
+                        type="button"
+                        aria-label="Cancel renaming"
+                        title="Cancel renaming"
+                        onclick={cancelRename}
+                      >
+                        <Icon name="close" size={15} />
+                      </button>
+                      <p
+                        class="rename-error"
+                        id={`rename-error-${project.id}`}
+                        role={form?.renameProjectId === project.id &&
+                        form.renameError
+                          ? "alert"
+                          : undefined}
+                      >
+                        {form?.renameProjectId === project.id
+                          ? (form.renameError ?? "")
+                          : ""}
+                      </p>
+                    </form>
+                  {:else}
+                    <h3>
+                      <a
+                        class="project-title-link"
+                        href={`/projects/${project.id}`}
+                      >
+                        {project.name}
+                      </a>
+                    </h3>
+                    <button
+                      class="project-rename-trigger"
+                      type="button"
+                      aria-label={`Rename ${project.name}`}
+                      title={`Rename ${project.name}`}
+                      onclick={() => beginRename(project.id, project.name)}
+                    >
+                      <Icon name="edit" size={14} />
+                    </button>
+                  {/if}
+                  <span class="status" data-status={projectState}>
+                    {stateLabel(projectState)}
+                  </span>
+                </div>
+                <p class="project-source">
+                  {project.original_filename ?? projectSourceFallback(project)}
+                </p>
+                <dl class="project-metadata">
+                  {#if project.media_duration_us !== null && project.media_duration_us > 0}
+                    <div>
+                      <dt class="visually-hidden">Duration</dt>
+                      <dd>{formatDuration(project.media_duration_us)}</dd>
+                    </div>
+                  {/if}
+                  {#if dimensions}
+                    <div>
+                      <dt class="visually-hidden">Resolution</dt>
+                      <dd>{dimensions}</dd>
+                    </div>
+                  {/if}
+                  {#if project.size_bytes !== null}
+                    <div>
+                      <dt class="visually-hidden">File size</dt>
+                      <dd>{formatBytes(project.size_bytes)}</dd>
+                    </div>
+                  {/if}
+                  {#if project.languages.length > 0}
+                    <div>
+                      <dt class="visually-hidden">Languages</dt>
+                      <dd>{formatLanguages(project.languages)}</dd>
+                    </div>
+                  {/if}
+                  {#if project.track_count > 0 || project.cue_count > 0}
+                    <div>
+                      <dt class="visually-hidden">Subtitles</dt>
+                      <dd>
+                        {formatSubtitleCounts(
+                          project.track_count,
+                          project.cue_count,
+                        )}
+                      </dd>
+                    </div>
+                  {/if}
+                </dl>
+                {#if project.subtitle_match}
+                  <span class="subtitle-match">Subtitle text match</span>
+                {/if}
+              </div>
+            </div>
+
+            <div class="project-actions">
+              <time datetime={activityDate(project.activity_at).toISOString()}>
+                Updated {formatActivity(project.activity_at)}
+              </time>
+            </div>
+          </article>
+        {/each}
+      </div>
+    {/if}
+  </section>
+
+  <details class="diagnostics">
+    <summary>
+      <span><Icon name="activity" size={17} /> Worker diagnostics</span>
+      <Icon name="chevron-down" size={16} />
+    </summary>
+    <div class="diagnostics-body">
+      <div>
+        <strong>Test the processing pipeline</strong>
+        <p>
+          Creates a deterministic subtitle track without using source media or
+          downloading a speech model.
+        </p>
+      </div>
+      <form method="POST" action="?/createDemo">
+        <button class="button secondary" type="submit">Run worker test</button>
+      </form>
     </div>
-    <form method="POST" action="?/createDemo">
-      <button class="button secondary" type="submit">Run worker test</button>
-    </form>
-  </div>
-</details>
+  </details>
+</div>

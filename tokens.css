@@ -11,6 +11,7 @@
   --color-border: #dfe4e9;
   --color-border-strong: #c9d0d8;
   --color-accent: #5b5bd6;
+  --color-accent-ink: #fbfbff;
   --color-accent-hover: #4949bd;
   --color-accent-soft: #eeeeff;
   --color-focus: #5b5bd6;
@@ -20,6 +21,27 @@
   --color-warning-soft: #fff3e2;
   --color-error: #bd3445;
   --color-error-soft: #fcebed;
+
+  --studio-bg: #15171b;
+  --studio-chrome: #1a1d21;
+  --studio-panel: #1c1f24;
+  --studio-panel-raised: #22262c;
+  --studio-panel-hover: #272b32;
+  --studio-border: #343940;
+  --studio-border-soft: #292d33;
+  --studio-text: #e6e8ec;
+  --studio-text-soft: #bec3cb;
+  --studio-muted: #858c97;
+  --studio-accent: #8b83ff;
+  --studio-accent-hover: #a49eff;
+  --studio-accent-soft: rgb(122 111 255 / 0.14);
+  --studio-accent-ink: var(--studio-bg);
+  --studio-success: #69d5a5;
+  --studio-success-soft: #1c332b;
+  --studio-warning: #e2a467;
+  --studio-warning-soft: #382b20;
+  --studio-error: #ffc1c7;
+  --studio-error-soft: #392328;
 
   --font-body: "Geist Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", monospace;

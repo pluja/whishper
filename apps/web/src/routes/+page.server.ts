@@ -40,11 +40,24 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.user) redirect(303, "/login");
   const search = parseProjectLibrarySearch(url.searchParams);
 
-  const workspace = await pool.query<{ id: string; name: string }>(
-    `select w.id, w.name
+  const workspace = await pool.query<{
+    id: string;
+    name: string;
+    project_count: number;
+    ready_source_count: number;
+  }>(
+    `select w.id,
+            w.name,
+            count(distinct p.id)::integer as project_count,
+            count(distinct p.id)
+              filter (where upload.status = 'completed')::integer
+              as ready_source_count
        from workspaces w
        join memberships m on m.workspace_id = w.id
+       left join projects p on p.workspace_id = w.id
+       left join media_uploads upload on upload.project_id = p.id
       where m.user_id = $1
+      group by w.id
       order by w.created_at asc
       limit 1`,
     [locals.user.id],

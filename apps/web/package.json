@@ -15,7 +15,6 @@
   "dependencies": {
     "@anysub/contracts": "workspace:*",
     "@fontsource-variable/geist": "^5.2.6",
-    "@fontsource-variable/newsreader": "^5.2.6",
     "@tus/file-store": "2.1.0",
     "@tus/server": "2.4.1",
     "better-auth": "1.6.23",
