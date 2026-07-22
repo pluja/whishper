@@ -1,5 +1,9 @@
 import { auth } from "$lib/server/auth";
 import { pool } from "$lib/server/db";
+import {
+  normalizeProjectTitle,
+  parseProjectLibrarySearch,
+} from "$lib/server/project-library";
 import { fail, redirect, type Actions } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 
@@ -7,6 +11,7 @@ interface ProjectRow {
   id: string;
   name: string;
   created_at: Date;
+  activity_at: Date;
   run_status: string | null;
   job_state: string | null;
   progress: number | null;
@@ -15,14 +20,25 @@ interface ProjectRow {
   original_filename: string | null;
   size_bytes: number | null;
   received_bytes: number | null;
+  media_duration_us: number | null;
+  media_preparation_status: string;
+  media_type: string | null;
+  has_thumbnail: boolean;
+  track_count: number;
+  cue_count: number;
+  languages: string[];
+  subtitle_match: boolean;
+  video_width: string | null;
+  video_height: string | null;
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
   const initialized = await pool.query(
     "select exists(select 1 from auth_users) as value",
   );
   if (!initialized.rows[0].value) redirect(303, "/setup");
   if (!locals.user) redirect(303, "/login");
+  const search = parseProjectLibrarySearch(url.searchParams);
 
   const workspace = await pool.query<{ id: string; name: string }>(
     `select w.id, w.name
@@ -35,21 +51,71 @@ export const load: PageServerLoad = async ({ locals }) => {
   );
   const currentWorkspace = workspace.rows[0];
   if (!currentWorkspace) {
-    return { workspace: null, projects: [] as ProjectRow[] };
+    return { workspace: null, projects: [] as ProjectRow[], search };
   }
 
   const projects = await pool.query<ProjectRow>(
     `select p.id, p.name, p.created_at,
+            greatest(
+              p.updated_at,
+              coalesce(subtitle_summary.updated_at, p.updated_at)
+            ) as activity_at,
+            p.media_duration_us::double precision as media_duration_us,
+            p.media_preparation_status,
             latest_run.status as run_status,
             latest_job.state as job_state,
             latest_job.progress,
             latest_job.progress_message,
             upload.status as upload_status,
             upload.original_filename,
-            upload.size_bytes,
-            upload.received_bytes
+            upload.media_type,
+            upload.size_bytes::double precision as size_bytes,
+            upload.received_bytes::double precision as received_bytes,
+            exists (
+              select 1
+                from media_derivatives derivative
+               where derivative.project_id = p.id
+                 and derivative.kind = 'thumbnail'
+                 and derivative.status = 'ready'
+            ) as has_thumbnail,
+            coalesce(subtitle_summary.track_count, 0) as track_count,
+            coalesce(subtitle_summary.cue_count, 0) as cue_count,
+            coalesce(subtitle_summary.languages, array[]::text[]) as languages,
+            coalesce(subtitle_summary.subtitle_match, false) as subtitle_match,
+            video_stream.video_width,
+            video_stream.video_height
        from projects p
        left join media_uploads upload on upload.project_id = p.id
+       left join lateral (
+         select count(distinct track.id)::integer as track_count,
+                count(cue.id)::integer as cue_count,
+                coalesce(
+                  array_agg(distinct track.language order by track.language)
+                    filter (where track.language <> ''),
+                  array[]::text[]
+                ) as languages,
+                max(track.updated_at) as updated_at,
+                coalesce(
+                  bool_or(
+                    $2 <> ''
+                    and strpos(lower(cue.text), lower($2)) > 0
+                  ),
+                  false
+                ) as subtitle_match
+           from subtitle_tracks track
+           left join cues cue on cue.track_id = track.id
+          where track.project_id = p.id
+       ) subtitle_summary on true
+       left join lateral (
+         select stream->'video'->>'width' as video_width,
+                stream->'video'->>'height' as video_height
+           from jsonb_array_elements(
+             coalesce(p.media_probe->'streams', '[]'::jsonb)
+           ) stream
+          where stream->>'type' = 'video'
+            and stream->'video'->>'attachedPicture' is distinct from 'true'
+          limit 1
+       ) video_stream on true
        left join lateral (
          select r.id, r.status
            from transcription_runs r
@@ -65,11 +131,16 @@ export const load: PageServerLoad = async ({ locals }) => {
           limit 1
        ) latest_job on true
       where p.workspace_id = $1
-      order by p.created_at desc`,
-    [currentWorkspace.id],
+        and (
+          $2 = ''
+          or strpos(lower(p.name), lower($2)) > 0
+          or ($3 and subtitle_summary.subtitle_match)
+        )
+      order by activity_at desc, p.created_at desc`,
+    [currentWorkspace.id, search.query, search.includeSubtitles],
   );
 
-  return { workspace: currentWorkspace, projects: projects.rows };
+  return { workspace: currentWorkspace, projects: projects.rows, search };
 };
 
 export const actions: Actions = {
@@ -128,6 +199,60 @@ export const actions: Actions = {
     } finally {
       client.release();
     }
+  },
+  renameProject: async ({ locals, request, url }) => {
+    if (!locals.user) redirect(303, "/login");
+    const values = await request.formData();
+    const projectId = String(values.get("projectId") ?? "");
+    const name = normalizeProjectTitle(values.get("name"));
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        projectId,
+      )
+    ) {
+      return fail(400, {
+        renameProjectId: projectId,
+        renameError: "That project could not be found.",
+      });
+    }
+    if (!name) {
+      return fail(400, {
+        renameProjectId: projectId,
+        renameError: "Enter a project title.",
+      });
+    }
+
+    try {
+      const renamed = await pool.query<{ id: string }>(
+        `update projects p
+            set name = $1,
+                updated_at = now()
+          where p.id = $2
+            and exists (
+              select 1
+                from memberships membership
+               where membership.workspace_id = p.workspace_id
+                 and membership.user_id = $3
+            )
+          returning p.id`,
+        [name, projectId, locals.user.id],
+      );
+      if (renamed.rowCount !== 1) {
+        return fail(404, {
+          renameProjectId: projectId,
+          renameError: "That project could not be found.",
+        });
+      }
+    } catch (cause) {
+      console.error("Could not rename project", cause);
+      return fail(500, {
+        renameProjectId: projectId,
+        renameError: "The title could not be saved. Try again.",
+      });
+    }
+
+    url.searchParams.delete("/renameProject");
+    redirect(303, `${url.pathname}${url.search}`);
   },
   signOut: async ({ request }) => {
     await auth.api.signOut({ headers: request.headers });
