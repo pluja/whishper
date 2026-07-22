@@ -2,6 +2,7 @@
   import { onMount, untrack } from "svelte";
   import { invalidateAll } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
+  import Timeline from "$lib/components/studio/Timeline.svelte";
   import { formatEditorTime, parseEditorTime } from "$lib/subtitles";
 
   interface EditorCue {
@@ -11,6 +12,114 @@
     end_us: number;
     text: string;
   }
+
+  interface TimelineTimingCommit {
+    id: string;
+    start_us: number;
+    end_us: number;
+  }
+  interface ShortcutDefinition {
+    id: string;
+    keys: readonly string[];
+    description: string;
+  }
+
+  interface ShortcutGroup {
+    title: string;
+    shortcuts: readonly ShortcutDefinition[];
+  }
+
+  type ShuttleDirection = -1 | 0 | 1;
+
+  const DEFAULT_FRAME_DURATION_US = 40_000;
+  const REVERSE_SHUTTLE_INTERVAL_MS = 40;
+  const TEXT_ENTRY_TARGET_SELECTOR =
+    'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]';
+  const ACTIVATION_TARGET_SELECTOR =
+    'button, a, summary, [role="button"], [role="link"]';
+  const CUE_SCROLL_OPTIONS: ScrollIntoViewOptions = { block: "nearest" };
+  const shortcutGroups: readonly ShortcutGroup[] = [
+    {
+      title: "Playback",
+      shortcuts: [
+        {
+          id: "play-pause",
+          keys: ["Space"],
+          description: "Toggle play or pause",
+        },
+        {
+          id: "reverse",
+          keys: ["J"],
+          description: "Shuttle backward at 1×, 2×, or 4×",
+        },
+        {
+          id: "normal-playback",
+          keys: ["K"],
+          description: "Play forward at 1×",
+        },
+        {
+          id: "forward",
+          keys: ["L"],
+          description: "Shuttle forward at 1×, 2×, or 4×",
+        },
+      ],
+    },
+    {
+      title: "Navigation",
+      shortcuts: [
+        {
+          id: "step-frame",
+          keys: ["← / →"],
+          description: "Step backward or forward one frame",
+        },
+        {
+          id: "step-five-frames",
+          keys: ["Shift", "← / →"],
+          description: "Step backward or forward five frames",
+        },
+        {
+          id: "cue-start",
+          keys: ["↑ / ↓"],
+          description: "Jump to the previous or next cue start",
+        },
+        {
+          id: "source-edge",
+          keys: ["Home / End"],
+          description: "Go to the source start or end",
+        },
+      ],
+    },
+    {
+      title: "Editing",
+      shortcuts: [
+        {
+          id: "split",
+          keys: ["Ctrl/Command", "K"],
+          description: "Split the selected cue",
+        },
+        {
+          id: "delete",
+          keys: ["Shift", "Delete / Backspace"],
+          description: "Deliberately delete the selected cue",
+        },
+        {
+          id: "undo",
+          keys: ["Ctrl/Command", "Z"],
+          description: "Undo the last cue edit",
+        },
+        {
+          id: "redo",
+          keys: ["Ctrl/Command", "Shift", "Z"],
+          description: "Redo the last edit; Ctrl/Command+Y also works",
+        },
+        {
+          id: "save",
+          keys: ["Ctrl/Command", "S"],
+          description: "Save the current track",
+        },
+      ],
+    },
+  ];
 
   type SaveState = "saved" | "unsaved" | "saving" | "error" | "conflict";
 
@@ -56,11 +165,41 @@
   let editorPaneWidth = $state(500);
   let paneResizeController: AbortController | undefined;
   const cursorPositions = new Map<string, number>();
+  let shortcutGuide = $state<HTMLDialogElement>();
+  let reverseShuttleTimer: number | undefined;
+  let reverseShuttleLastTickMs = 0;
+  let shuttleDirection: ShuttleDirection = 0;
+  let shuttleRate = 1;
   let maxLineLength = $derived(
     Number(data.track?.metadata?.maxLineLength ?? 42),
   );
-  let sourceDurationUs = $derived(
-    Number(data.track?.metadata?.durationUs ?? mediaDurationUs ?? 0),
+  let sourceDurationUs = $derived.by(() => {
+    const preparedDurationUs = Number(data.project.media_duration_us ?? 0);
+    if (Number.isSafeInteger(preparedDurationUs) && preparedDurationUs > 0) {
+      return preparedDurationUs;
+    }
+    const trackDurationUs = Number(data.track?.metadata?.durationUs ?? 0);
+    return Math.max(
+      Number.isSafeInteger(trackDurationUs) && trackDurationUs > 0
+        ? trackDurationUs
+        : 0,
+      mediaDurationUs,
+    );
+  });
+  let waveformUrl = $derived(
+    data.derivatives.find((derivative) => derivative.kind === "waveform")
+      ?.url ?? null,
+  );
+  let proxyUrl = $derived(
+    data.derivatives.find((derivative) => derivative.kind === "proxy")?.url ??
+      null,
+  );
+  let thumbnailUrl = $derived(
+    data.derivatives.find((derivative) => derivative.kind === "thumbnail")
+      ?.url ?? null,
+  );
+  let previewUrl = $derived(
+    proxyUrl ?? `/api/projects/${data.project.id}/media`,
   );
   let journalKey = $derived(
     data.track ? `anysub:editor:${data.project.id}:${data.track.id}` : "",
@@ -102,9 +241,15 @@
       }
     }
     const interval =
-      data.run && ["queued", "running"].includes(data.run.status)
+      (data.run && ["queued", "running"].includes(data.run.status)) ||
+      (data.preparation &&
+        ["queued", "leased"].includes(data.preparation.state))
         ? window.setInterval(() => {
-            if (data.run && ["queued", "running"].includes(data.run.status)) {
+            if (
+              (data.run && ["queued", "running"].includes(data.run.status)) ||
+              (data.preparation &&
+                ["queued", "leased"].includes(data.preparation.state))
+            ) {
               void invalidateAll();
             } else if (interval) {
               window.clearInterval(interval);
@@ -112,34 +257,17 @@
           }, 1_500)
         : undefined;
     recoverJournal();
-    const onKeydown = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey)) return;
-      if (event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        void saveNow();
-      } else if (event.key.toLowerCase() === "z" && !event.shiftKey) {
-        event.preventDefault();
-        undo();
-      } else if (
-        event.key.toLowerCase() === "y" ||
-        (event.key.toLowerCase() === "z" && event.shiftKey)
-      ) {
-        event.preventDefault();
-        redo();
-      }
-    };
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (saveState === "saved") return;
       event.preventDefault();
     };
-    window.addEventListener("keydown", onKeydown);
     window.addEventListener("beforeunload", beforeUnload);
     return () => {
       if (interval) window.clearInterval(interval);
       if (saveTimer) window.clearTimeout(saveTimer);
       if (journalTimer) window.clearTimeout(journalTimer);
       paneResizeController?.abort();
-      window.removeEventListener("keydown", onKeydown);
+      resetShuttleRate();
       window.removeEventListener("beforeunload", beforeUnload);
     };
   });
@@ -190,10 +318,317 @@
     }
   }
 
+  function isTextEntryTarget(target: EventTarget | null): boolean {
+    return (
+      target instanceof Element &&
+      target.closest(TEXT_ENTRY_TARGET_SELECTOR) !== null
+    );
+  }
+
+  function isFocusedActivationTarget(target: EventTarget | null): boolean {
+    return (
+      target instanceof Element &&
+      target.closest(ACTIVATION_TARGET_SELECTOR) !== null
+    );
+  }
+
+  function currentPlayheadUs(): number {
+    if (!mediaElement || !Number.isFinite(mediaElement.currentTime)) {
+      return playbackUs;
+    }
+    return Math.round(mediaElement.currentTime * 1_000_000);
+  }
+
+  function playbackEndUs(): number {
+    if (
+      mediaElement &&
+      Number.isFinite(mediaElement.duration) &&
+      mediaElement.duration > 0
+    ) {
+      return Math.round(mediaElement.duration * 1_000_000);
+    }
+    return sourceDurationUs;
+  }
+
+  function clearReverseShuttleTimer(): void {
+    if (reverseShuttleTimer === undefined) return;
+    window.clearInterval(reverseShuttleTimer);
+    reverseShuttleTimer = undefined;
+  }
+
+  function resetShuttleRate(): void {
+    clearReverseShuttleTimer();
+    shuttleDirection = 0;
+    shuttleRate = 1;
+    if (mediaElement) mediaElement.playbackRate = 1;
+  }
+
+  function pauseAndResetPlayback(): boolean {
+    if (!mediaElement) return false;
+    resetShuttleRate();
+    mediaElement.pause();
+    return true;
+  }
+
+  function playForwardAtNormalRate(): boolean {
+    if (!mediaElement) return false;
+    resetShuttleRate();
+    void mediaElement.play();
+    return true;
+  }
+
+  function setPausedPlayhead(microseconds: number): boolean {
+    if (!mediaElement) return false;
+    pauseAndResetPlayback();
+    const endUs = playbackEndUs();
+    const boundedUs = Math.max(
+      0,
+      endUs > 0
+        ? Math.min(Math.round(microseconds), endUs)
+        : Math.round(microseconds),
+    );
+    mediaElement.currentTime = boundedUs / 1_000_000;
+    playbackUs = boundedUs;
+    return true;
+  }
+
+  function nextShuttleRate(rate: number): number {
+    if (rate === 1) return 2;
+    if (rate === 2) return 4;
+    return 1;
+  }
+
+  function stepReverseShuttle(): void {
+    if (!mediaElement || reverseShuttleTimer === undefined) {
+      resetShuttleRate();
+      return;
+    }
+    const now = performance.now();
+    const elapsedMs = Math.max(0, now - reverseShuttleLastTickMs);
+    reverseShuttleLastTickMs = now;
+    const nextUs = Math.max(
+      0,
+      currentPlayheadUs() - Math.round(elapsedMs * 1_000 * shuttleRate),
+    );
+    mediaElement.currentTime = nextUs / 1_000_000;
+    playbackUs = nextUs;
+    if (nextUs === 0) {
+      mediaElement.pause();
+      resetShuttleRate();
+    }
+  }
+
+  function togglePlayback(): boolean {
+    if (!mediaElement) return false;
+    const wasPlaying =
+      reverseShuttleTimer !== undefined || !mediaElement.paused;
+    resetShuttleRate();
+    if (wasPlaying) {
+      mediaElement.pause();
+    } else {
+      void mediaElement.play();
+    }
+    return true;
+  }
+
+  function startReverseShuttle(): boolean {
+    if (!mediaElement) return false;
+    shuttleRate = shuttleDirection === -1 ? nextShuttleRate(shuttleRate) : 1;
+    shuttleDirection = -1;
+    clearReverseShuttleTimer();
+    mediaElement.pause();
+    mediaElement.playbackRate = 1;
+    playbackUs = currentPlayheadUs();
+    if (playbackUs <= 0) {
+      playbackUs = 0;
+      mediaElement.currentTime = 0;
+      resetShuttleRate();
+      return true;
+    }
+    reverseShuttleLastTickMs = performance.now();
+    reverseShuttleTimer = window.setInterval(
+      stepReverseShuttle,
+      REVERSE_SHUTTLE_INTERVAL_MS,
+    );
+    return true;
+  }
+
+  function startForwardShuttle(): boolean {
+    if (!mediaElement) return false;
+    shuttleRate = shuttleDirection === 1 ? nextShuttleRate(shuttleRate) : 1;
+    shuttleDirection = 1;
+    clearReverseShuttleTimer();
+    mediaElement.playbackRate = shuttleRate;
+    void mediaElement.play();
+    return true;
+  }
+
+  function frameDurationUs(): number {
+    const numerator = Number(data.project.media_frame_rate_num);
+    const denominator = Number(data.project.media_frame_rate_den);
+    if (
+      !Number.isFinite(numerator) ||
+      !Number.isFinite(denominator) ||
+      numerator <= 0 ||
+      denominator <= 0
+    ) {
+      return DEFAULT_FRAME_DURATION_US;
+    }
+    return Math.round((1_000_000 * denominator) / numerator);
+  }
+
+  function stepFrames(direction: -1 | 1, frameCount: number): boolean {
+    if (!mediaElement) return false;
+    return setPausedPlayhead(
+      currentPlayheadUs() + direction * frameCount * frameDurationUs(),
+    );
+  }
+
+  function jumpToCueStart(direction: -1 | 1): boolean {
+    if (!mediaElement) return false;
+    const playheadUs = currentPlayheadUs();
+    let destination: EditorCue | undefined;
+    for (const cue of cues) {
+      if (
+        direction === -1 &&
+        cue.start_us < playheadUs &&
+        (!destination || cue.start_us > destination.start_us)
+      ) {
+        destination = cue;
+      } else if (
+        direction === 1 &&
+        cue.start_us > playheadUs &&
+        (!destination || cue.start_us < destination.start_us)
+      ) {
+        destination = cue;
+      }
+    }
+    if (!destination) return false;
+    setPausedPlayhead(destination.start_us);
+    selectedCueId = destination.id;
+    document
+      .getElementById(`cue-${destination.id}`)
+      ?.scrollIntoView(CUE_SCROLL_OPTIONS);
+    return true;
+  }
+
+  function goToSourceEdge(end: boolean): boolean {
+    if (!mediaElement) return false;
+    if (!end) return setPausedPlayhead(0);
+    const endUs = playbackEndUs();
+    return endUs > 0 && setPausedPlayhead(endUs);
+  }
+
+  function openShortcutGuide(): void {
+    if (shortcutGuide && !shortcutGuide.open) shortcutGuide.showModal();
+  }
+
+  function handleStudioKeydown(event: KeyboardEvent): void {
+    if (shortcutGuide?.open || event.defaultPrevented) return;
+
+    const key = event.key.toLowerCase();
+    if (
+      event.repeat &&
+      (event.key === " " || key === "j" || key === "k" || key === "l")
+    ) {
+      return;
+    }
+
+    const commandKey = event.ctrlKey || event.metaKey;
+    if (commandKey && !event.altKey) {
+      if (!event.shiftKey && key === "s" && data.track) {
+        event.preventDefault();
+        void saveNow();
+        return;
+      }
+      if (!event.shiftKey && key === "z" && undoStack.length > 0) {
+        event.preventDefault();
+        undo();
+        return;
+      }
+      if (
+        ((event.shiftKey && key === "z") || (!event.shiftKey && key === "y")) &&
+        redoStack.length > 0
+      ) {
+        event.preventDefault();
+        redo();
+        return;
+      }
+      if (!event.shiftKey && key === "k" && selectedCueIndex >= 0) {
+        event.preventDefault();
+        splitSelected();
+      }
+      return;
+    }
+
+    if (
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      isTextEntryTarget(event.target)
+    ) {
+      return;
+    }
+    if (event.key === " " && isFocusedActivationTarget(event.target)) return;
+
+    let handled = false;
+    if (!event.shiftKey && event.key === " ") {
+      handled = togglePlayback();
+    } else if (!event.shiftKey && key === "j") {
+      handled = startReverseShuttle();
+    } else if (!event.shiftKey && key === "k") {
+      handled = playForwardAtNormalRate();
+    } else if (!event.shiftKey && key === "l") {
+      handled = startForwardShuttle();
+    } else if (event.key === "ArrowLeft") {
+      handled = stepFrames(-1, event.shiftKey ? 5 : 1);
+    } else if (event.key === "ArrowRight") {
+      handled = stepFrames(1, event.shiftKey ? 5 : 1);
+    } else if (!event.shiftKey && event.key === "ArrowUp") {
+      handled = jumpToCueStart(-1);
+    } else if (!event.shiftKey && event.key === "ArrowDown") {
+      handled = jumpToCueStart(1);
+    } else if (!event.shiftKey && event.key === "Home") {
+      handled = goToSourceEdge(false);
+    } else if (!event.shiftKey && event.key === "End") {
+      handled = goToSourceEdge(true);
+    } else if (
+      event.shiftKey &&
+      (event.key === "Delete" || event.key === "Backspace") &&
+      selectedCueIndex >= 0
+    ) {
+      deleteSelected();
+      handled = true;
+    } else if (event.key === "?") {
+      openShortcutGuide();
+      handled = true;
+    }
+
+    if (handled) event.preventDefault();
+  }
+
   function seekTo(microseconds: number): void {
     if (!mediaElement) return;
+    resetShuttleRate();
     mediaElement.currentTime = microseconds / 1_000_000;
+    playbackUs = Math.round(microseconds);
     void mediaElement.play();
+  }
+
+  function selectTimelineCue(cueId: string): void {
+    if (cues.some((cue) => cue.id === cueId)) selectedCueId = cueId;
+  }
+
+  function commitTimelineTiming(change: TimelineTimingCommit): void {
+    const cue = cues.find((item) => item.id === change.id);
+    if (!cue) return;
+    const startUs = Math.round(change.start_us);
+    const endUs = Math.round(change.end_us);
+    if (cue.start_us === startUs && cue.end_us === endUs) return;
+    mutate(() => {
+      cue.start_us = startUs;
+      cue.end_us = endUs;
+    });
   }
 
   function clampPaneWidth(width: number): number {
@@ -568,6 +1003,8 @@
   <title>{data.project.name} · Anysub</title>
 </svelte:head>
 
+<svelte:window onkeydown={handleStudioKeydown} />
+
 <div class="project-editor-page">
   <header class="studio-titlebar">
     <a class="studio-back" href="/" aria-label="Back to projects">
@@ -585,8 +1022,25 @@
       {#if data.track}
         <span>{data.track.language.toUpperCase()} · {cues.length} cues</span>
       {/if}
+      {#if data.project.media_frame_rate_num && data.project.media_frame_rate_den}
+        <span
+          >{(
+            data.project.media_frame_rate_num /
+            data.project.media_frame_rate_den
+          ).toFixed(3)} fps</span
+        >
+      {/if}
     </div>
     <div class="studio-actions">
+      <button
+        class="shortcut-guide-button"
+        type="button"
+        aria-label="Keyboard shortcuts"
+        title="Keyboard shortcuts"
+        onclick={openShortcutGuide}
+      >
+        <span aria-hidden="true">?</span><span>Shortcuts</span>
+      </button>
       {#if data.track}
         <span class="save-state" data-state={saveState} aria-live="polite">
           <span></span>{saveLabel()}
@@ -638,6 +1092,32 @@
                 <button type="submit">Delete transcript</button>
               </form>
             {/if}
+            <form class="media-action" method="POST" action="?/prepareMedia">
+              <button type="submit">
+                {data.project.media_preparation_status === "completed"
+                  ? "Regenerate media derivatives"
+                  : "Prepare media"}
+              </button>
+            </form>
+            {#each data.derivatives as derivative (derivative.kind)}
+              <form
+                method="POST"
+                action="?/deleteDerivative"
+                onsubmit={(event) => {
+                  if (
+                    !confirm(
+                      `Delete the ${derivative.kind} derivative? The source media will remain.`,
+                    )
+                  )
+                    event.preventDefault();
+                }}
+              >
+                <input type="hidden" name="kind" value={derivative.kind} />
+                <button type="submit"
+                  >Delete {derivative.kind} derivative</button
+                >
+              </form>
+            {/each}
             <form
               method="POST"
               action="?/deleteProject"
@@ -687,6 +1167,41 @@
     {/if}
   {/if}
 
+  {#if data.preparation && (data.preparation.state === "queued" || data.preparation.state === "leased")}
+    <div class="processing-banner" aria-live="polite">
+      <span class="processing-icon"><Icon name="activity" size={18} /></span>
+      <div>
+        <strong
+          >{data.preparation.progress_message ??
+            "Waiting for a media worker"}</strong
+        >
+        <progress value={data.preparation.progress ?? 0} max="1">
+          {Math.round((data.preparation.progress ?? 0) * 100)}%
+        </progress>
+      </div>
+      <div class="media-preparation-progress-actions">
+        <span>{Math.round((data.preparation.progress ?? 0) * 100)}%</span>
+        <form method="POST" action="?/cancelMedia">
+          <button type="submit">Cancel</button>
+        </form>
+      </div>
+    </div>
+  {:else if data.project.media_preparation_status === "failed"}
+    <div class="alert error media-preparation-error" role="alert">
+      <div>
+        <strong>Media preparation failed</strong>
+        <span
+          >{String(
+            data.preparation?.error?.message ??
+              "The source could not be prepared for editing.",
+          )}</span
+        >
+      </div>
+      <form method="POST" action="?/prepareMedia">
+        <button type="submit">Retry preparation</button>
+      </form>
+    </div>
+  {/if}
   <div
     class="editor-workspace"
     style:--editor-pane-width={`${editorPaneWidth}px`}
@@ -697,9 +1212,18 @@
           <span class="panel-kicker">Program monitor</span>
           <strong>{data.project.media_filename ?? "Diagnostic source"}</strong>
         </div>
-        <span class="preview-state">
+        <span
+          class="preview-state"
+          data-state={data.project.media_preparation_status}
+        >
           <span></span>
-          {data.cues[0] ? "Track visible" : "Source stored"}
+          {proxyUrl
+            ? "Editing proxy"
+            : data.project.media_preparation_status === "completed"
+              ? "Source prepared"
+              : data.cues[0]
+                ? "Track visible"
+                : "Source stored"}
         </span>
       </header>
 
@@ -713,7 +1237,8 @@
                 bind:this={mediaElement}
                 controls
                 preload="metadata"
-                src={`/api/projects/${data.project.id}/media`}
+                src={previewUrl}
+                onkeydowncapture={handleStudioKeydown}
                 ontimeupdate={updatePlayback}
                 ondurationchange={updatePlayback}
               ></audio>
@@ -724,7 +1249,9 @@
               class="media-player"
               controls
               preload="metadata"
-              src={`/api/projects/${data.project.id}/media`}
+              src={previewUrl}
+              poster={thumbnailUrl ?? undefined}
+              onkeydowncapture={handleStudioKeydown}
               ontimeupdate={updatePlayback}
               ondurationchange={updatePlayback}
             >
@@ -747,17 +1274,17 @@
         {/if}
       </div>
 
-      <footer class="preview-footer">
-        <span>{timecode(playbackUs)}</span>
-        <div class="timeline" aria-hidden="true">
-          <span
-            style:width={`${mediaDurationUs ? (playbackUs / mediaDurationUs) * 100 : 0}%`}
-          ></span>
-        </div>
-        <span
-          >{mediaDurationUs ? timecode(mediaDurationUs) : "--:--:--.---"}</span
-        >
-      </footer>
+      <Timeline
+        durationUs={sourceDurationUs}
+        probeState={data.project.media_preparation_status}
+        {waveformUrl}
+        {cues}
+        {selectedCueId}
+        {playbackUs}
+        onseek={seekTo}
+        onselect={selectTimelineCue}
+        oncommittiming={commitTimelineTiming}
+      />
     </section>
 
     <button
@@ -1111,4 +1638,50 @@
       {/if}
     </section>
   </div>
+  <dialog
+    class="shortcut-guide"
+    bind:this={shortcutGuide}
+    aria-labelledby="shortcut-guide-title"
+  >
+    <div class="shortcut-guide-shell">
+      <div class="shortcut-guide-header">
+        <div>
+          <span>Power user map</span>
+          <h2 id="shortcut-guide-title">Keyboard shortcuts</h2>
+        </div>
+        <form method="dialog">
+          <button
+            class="shortcut-guide-close"
+            type="submit"
+            aria-label="Close keyboard shortcuts">Close</button
+          >
+        </form>
+      </div>
+      <p class="shortcut-guide-intro">
+        Edit and navigate the studio without leaving the keyboard.
+      </p>
+      <div class="shortcut-groups">
+        {#each shortcutGroups as group (group.title)}
+          <section class="shortcut-group">
+            <h3>{group.title}</h3>
+            {#each group.shortcuts as shortcut (shortcut.id)}
+              <div class="shortcut-row">
+                <span class="shortcut-keys">
+                  {#each shortcut.keys as key, index (key)}
+                    {#if index > 0}<span aria-hidden="true">+</span>{/if}
+                    <kbd>{key}</kbd>
+                  {/each}
+                </span>
+                <span class="shortcut-description">{shortcut.description}</span>
+              </div>
+            {/each}
+          </section>
+        {/each}
+      </div>
+      <p class="shortcut-guide-note">
+        Shortcuts pause while typing. Space preserves focused button, link, and
+        summary activation. Press <kbd>?</kbd> to reopen this guide.
+      </p>
+    </div>
+  </dialog>
 </div>

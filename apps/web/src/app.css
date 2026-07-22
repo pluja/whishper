@@ -2146,6 +2146,216 @@ progress {
   gap: 0.4rem;
 }
 
+.shortcut-guide-button {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid var(--studio-border);
+  border-radius: 0.3rem;
+  padding-inline: 0.65rem;
+  background: var(--studio-panel-raised);
+  color: var(--studio-text-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 650;
+}
+
+.shortcut-guide-button > span:first-child {
+  display: grid;
+  width: 1.15rem;
+  height: 1.15rem;
+  place-items: center;
+  border: 1px solid #4a505a;
+  border-radius: 0.22rem;
+  background: #181b1f;
+  color: var(--studio-text);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 0.66rem;
+  line-height: 1;
+}
+
+.shortcut-guide-button:hover,
+.shortcut-guide-button:focus-visible {
+  border-color: #5a616d;
+  background: #2a2e35;
+  color: var(--studio-text);
+}
+
+.shortcut-guide {
+  width: min(48rem, calc(100vw - 2rem));
+  max-width: none;
+  max-height: min(46rem, calc(100dvh - 2rem));
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid #424853;
+  border-radius: 0.5rem;
+  padding: 0;
+  background: #1b1e23;
+  color: var(--studio-text);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.3),
+    0 1.5rem 5rem rgb(0 0 0 / 0.62);
+}
+
+.shortcut-guide::backdrop {
+  background: rgb(5 7 10 / 0.76);
+  backdrop-filter: blur(3px);
+}
+
+.shortcut-guide-shell {
+  display: grid;
+  max-height: min(46rem, calc(100dvh - 2rem));
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.shortcut-guide-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.2rem 0.85rem;
+  border-block-end: 1px solid var(--studio-border-soft);
+  background: #20242a;
+}
+
+.shortcut-guide-header div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.shortcut-guide-header span {
+  color: var(--studio-accent);
+  font-size: 0.625rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.shortcut-guide-header h2 {
+  margin: 0;
+  color: var(--studio-text);
+  font-size: 1rem;
+  font-weight: 680;
+  letter-spacing: -0.01em;
+}
+
+.shortcut-guide-close {
+  display: grid;
+  min-width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--studio-border);
+  border-radius: 0.3rem;
+  padding-inline: 0.55rem;
+  background: #181b1f;
+  color: var(--studio-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 650;
+}
+
+.shortcut-guide-close:hover,
+.shortcut-guide-close:focus-visible {
+  border-color: #5a616d;
+  color: var(--studio-text);
+}
+
+.shortcut-guide-intro {
+  margin: 0;
+  padding: 0.8rem 1.2rem;
+  color: var(--studio-text-soft);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.shortcut-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.8rem;
+  overflow-y: auto;
+  padding: 0 1.2rem 1rem;
+}
+
+.shortcut-group {
+  overflow: hidden;
+  border: 1px solid var(--studio-border-soft);
+  border-radius: 0.35rem;
+  background: #181b20;
+}
+
+.shortcut-group h3 {
+  margin: 0;
+  padding: 0.58rem 0.7rem;
+  border-block-end: 1px solid var(--studio-border-soft);
+  background: #20242a;
+  color: var(--studio-muted);
+  font-size: 0.625rem;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.shortcut-row {
+  display: grid;
+  min-height: 2.65rem;
+  grid-template-columns: minmax(7rem, 0.9fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.48rem 0.7rem;
+}
+
+.shortcut-row + .shortcut-row {
+  border-block-start: 1px solid #24282e;
+}
+
+.shortcut-keys {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.22rem;
+}
+
+.shortcut-keys kbd {
+  min-width: 1.65rem;
+  border: 1px solid #4a505a;
+  border-block-end-color: #5e6673;
+  border-radius: 0.24rem;
+  padding: 0.18rem 0.34rem;
+  background: #24282e;
+  box-shadow: 0 1px 0 #0e1013;
+  color: var(--studio-text);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 0.625rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.shortcut-description {
+  color: var(--studio-text-soft);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+
+.shortcut-guide-note {
+  margin: 0;
+  padding: 0.72rem 1.2rem;
+  border-block-start: 1px solid var(--studio-border-soft);
+  background: #20242a;
+  color: var(--studio-muted);
+  font-size: 0.6875rem;
+  line-height: 1.45;
+}
+
 .project-editor-page .save-state {
   margin-inline-end: 0.35rem;
   color: #74c69d;
@@ -2257,6 +2467,14 @@ progress {
   background: rgb(232 73 89 / 0.12);
 }
 
+.project-menu .media-action button {
+  color: var(--studio-text-soft);
+}
+
+.project-menu .media-action button:hover {
+  background: var(--studio-panel-hover);
+}
+
 .project-editor-page > .processing-banner,
 .project-editor-page > .alert {
   position: relative;
@@ -2272,6 +2490,47 @@ progress {
 .project-editor-page > .alert.error {
   background: #392328;
   color: #ffc1c7;
+}
+
+.project-editor-page .media-preparation-progress-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  font-size: 0.6875rem;
+}
+
+.media-preparation-progress-actions button {
+  min-height: 1.8rem;
+  border: 1px solid var(--studio-border);
+  border-radius: 0.3rem;
+  padding-inline: 0.65rem;
+  background: transparent;
+  color: var(--studio-text-soft);
+  cursor: pointer;
+  font: inherit;
+}
+
+.project-editor-page > .media-preparation-error {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.media-preparation-error > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.media-preparation-error button {
+  min-height: 2rem;
+  border: 1px solid rgb(255 193 199 / 0.3);
+  border-radius: 0.3rem;
+  padding-inline: 0.75rem;
+  background: rgb(255 193 199 / 0.08);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
 }
 
 .project-editor-page .editor-workspace {
@@ -2695,6 +2954,12 @@ body.resizing-studio-pane * {
   }
 }
 
+@media (max-width: 46rem) {
+  .shortcut-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 38rem) {
   .studio-titlebar {
     min-height: 3.5rem;
@@ -2711,6 +2976,33 @@ body.resizing-studio-pane * {
     width: 2.25rem;
     padding: 0;
     font-size: 0;
+  }
+
+  .shortcut-guide-button {
+    width: 2.25rem;
+    padding: 0;
+  }
+
+  .shortcut-guide-button > span:first-child {
+    border: 0;
+    background: transparent;
+  }
+
+  .shortcut-guide-button > span:last-child {
+    display: none;
+  }
+
+  .shortcut-guide {
+    width: calc(100vw - 1rem);
+    max-height: calc(100dvh - 1rem);
+  }
+
+  .shortcut-guide-shell {
+    max-height: calc(100dvh - 1rem);
+  }
+
+  .shortcut-row {
+    grid-template-columns: minmax(6.5rem, 0.8fr) minmax(0, 1.2fr);
   }
 
   .project-editor-page .cue-time-fields {
