@@ -21,33 +21,33 @@ from anysub_worker.models import (
 SAMPLE_RATE = 16_000
 GIB = 1024**3
 MODEL_PROFILES = {
-    "tiny": ("Fastest and lightest; useful for drafts.", 39_000_000, 1 * GIB, 2 * GIB),
+    "tiny": ("Fastest. Best for quick drafts.", 39_000_000, 1 * GIB, 2 * GIB),
     "base": (
-        "A small step up in accuracy while remaining CPU-friendly.",
+        "Fast, with a little more accuracy than Tiny.",
         74_000_000,
         1 * GIB,
         2 * GIB,
     ),
     "small": (
-        "Recommended CPU balance for most creators.",
+        "Recommended. Best balance of speed and accuracy.",
         244_000_000,
         2 * GIB,
         4 * GIB,
     ),
     "medium": (
-        "Higher accuracy with substantially higher memory use.",
+        "More accurate, but much slower on this computer.",
         769_000_000,
         5 * GIB,
         8 * GIB,
     ),
     "large-v3": (
-        "Highest-quality multilingual Whisper model; GPU recommended.",
+        "Highest accuracy. Slowest and most demanding.",
         1_550_000_000,
         10 * GIB,
         16 * GIB,
     ),
     "large-v3-turbo": (
-        "Fast large-model transcription; GPU recommended.",
+        "High accuracy. Faster with a supported graphics card.",
         809_000_000,
         6 * GIB,
         12 * GIB,

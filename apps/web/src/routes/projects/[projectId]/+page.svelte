@@ -289,27 +289,12 @@
     return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unit]}`;
   }
 
-  function formatParameterCount(count: number | null | undefined): string {
-    if (typeof count !== "number" || !Number.isFinite(count) || count <= 0) {
-      return "Parameters unavailable";
-    }
-    if (count >= 1_000_000_000) {
-      return `${Number((count / 1_000_000_000).toFixed(1))}B parameters`;
-    }
-    if (count >= 1_000_000) {
-      return `${Number((count / 1_000_000).toFixed(1))}M parameters`;
-    }
-    if (count >= 1_000) {
-      return `${Number((count / 1_000).toFixed(1))}K parameters`;
-    }
-    return `${Math.round(count)} parameters`;
-  }
-
-  function formatByteEstimate(bytes: number | null | undefined): string {
+  function formatRecommendedMemory(bytes: number | null | undefined): string {
     if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes <= 0) {
-      return "Estimate unavailable";
+      return "Memory use unknown";
     }
-    return `≈ ${formatBytes(bytes)}`;
+    const gigabytes = bytes / 1024 ** 3;
+    return `About ${Number(gigabytes.toFixed(1))} GB memory`;
   }
 
   function handleModelPickerToggle(event: ToggleEvent): void {
@@ -1574,16 +1559,14 @@
                     class="model-picker-trigger"
                     type="button"
                     popovertarget="transcription-model-options"
-                    aria-haspopup="listbox"
+                    aria-haspopup="dialog"
                     aria-expanded={modelPickerOpen}
                     aria-controls="transcription-model-options"
                     aria-labelledby="transcription-model-label transcription-model-selection"
                   >
                     <span class="model-picker-selection">
                       <strong id="transcription-model-selection">
-                        {selectedModel
-                          ? `${selectedModel.adapterName} · ${selectedModel.displayName}`
-                          : "Choose a model"}
+                        {selectedModel?.displayName ?? "Choose a model"}
                       </strong>
                       <span class="model-picker-meta">
                         <span
@@ -1591,12 +1574,7 @@
                           data-fit={selectedModel?.fit ?? "unknown"}
                           aria-hidden="true"
                         ></span>
-                        <span>{selectedModel?.fitLabel ?? "Fit unknown"}</span>
-                        <span
-                          >{formatParameterCount(
-                            selectedModel?.parameterCount,
-                          )}</span
-                        >
+                        <span>{selectedModel?.fitLabel ?? "Not checked"}</span>
                       </span>
                     </span>
                     <Icon name="chevron-down" size={18} />
@@ -1605,84 +1583,69 @@
                     class="model-picker-popover"
                     id="transcription-model-options"
                     popover
-                    role="listbox"
-                    aria-labelledby="transcription-model-label"
+                    role="dialog"
+                    aria-labelledby="transcription-model-dialog-title"
+                    aria-describedby="transcription-model-dialog-subtitle"
                     ontoggle={handleModelPickerToggle}
                   >
-                    {#each data.transcriptionModels as model (model.key)}
-                      <button
-                        class="model-option"
-                        type="button"
-                        role="option"
-                        aria-selected={model.key === selectedModelKey}
-                        data-fit={model.fit}
-                        onclick={() => selectTranscriptionModel(model.key)}
-                      >
-                        <span class="model-option-heading">
-                          <span class="model-option-title">
-                            <strong
-                              >{model.adapterName} · {model.displayName}</strong
-                            >
-                            <span>{model.modelId}</span>
+                    <div class="model-picker-header">
+                      <strong id="transcription-model-dialog-title">
+                        Choose a model
+                      </strong>
+                      <span id="transcription-model-dialog-subtitle">
+                        Small is the best starting point for most videos.
+                      </span>
+                    </div>
+                    <div
+                      class="model-picker-options"
+                      role="listbox"
+                      aria-labelledby="transcription-model-dialog-title"
+                    >
+                      {#each data.transcriptionModels as model (model.key)}
+                        <button
+                          class="model-option"
+                          type="button"
+                          role="option"
+                          aria-selected={model.key === selectedModelKey}
+                          data-fit={model.fit}
+                          onclick={() => selectTranscriptionModel(model.key)}
+                        >
+                          <span class="model-option-heading">
+                            <strong>{model.displayName}</strong>
+                            <span class="model-option-fit">
+                              <span
+                                class="model-fit-dot"
+                                data-fit={model.fit}
+                                aria-hidden="true"
+                              ></span>
+                              <span>{model.fitLabel || "Not checked"}</span>
+                            </span>
                           </span>
-                          <span class="model-option-fit">
-                            <span
-                              class="model-fit-dot"
-                              data-fit={model.fit}
-                              aria-hidden="true"
-                            ></span>
-                            <span>{model.fitLabel || "Fit unknown"}</span>
+                          <span class="model-option-description">
+                            {model.description ?? "Description unavailable."}
                           </span>
-                        </span>
-                        <span class="model-option-resources">
-                          <span
-                            >{formatParameterCount(model.parameterCount)}</span
-                          >
-                          <span
-                            >VRAM · {formatByteEstimate(
-                              model.requiredVramBytes,
-                            )}</span
-                          >
-                          <span
-                            >Recommended RAM · {formatByteEstimate(
-                              model.recommendedRamBytes,
-                            )}</span
-                          >
-                        </span>
-                        <span class="model-option-description">
-                          {model.description ?? "Description unavailable."}
-                        </span>
-                        <span class="model-option-fit-reason">
-                          {model.fitReason ||
-                            "Hardware fit guidance is unavailable."}
-                        </span>
-                        <span class="model-option-worker">
-                          {model.workerSummary ||
-                            "Worker details are unavailable."}
-                        </span>
-                      </button>
-                    {/each}
+                          <span class="model-option-memory">
+                            {formatRecommendedMemory(model.recommendedRamBytes)}
+                          </span>
+                        </button>
+                      {/each}
+                    </div>
                   </div>
                   <div
-                    class="model-fit-summary"
+                    class="model-choice-summary"
                     data-fit={selectedModel?.fit ?? "unknown"}
                   >
-                    <span class="model-fit-summary-status">
+                    <span class="model-choice-summary-status">
                       <span
                         class="model-fit-dot"
                         data-fit={selectedModel?.fit ?? "unknown"}
                         aria-hidden="true"
                       ></span>
-                      <strong>{selectedModel?.fitLabel ?? "Fit unknown"}</strong
+                      <strong>{selectedModel?.fitLabel ?? "Not checked"}</strong
                       >
                     </span>
                     <span>
-                      {selectedModel?.fitReason ||
-                        "Hardware fit guidance is unavailable."}
-                    </span>
-                    <span>
-                      {selectedModel?.workerSummary ||
-                        "Worker details are unavailable."}
+                      {selectedModel?.description ?? "Description unavailable."}
                     </span>
                   </div>
                 </div>

@@ -27,9 +27,9 @@ No transcript text is written to worker progress logs. Hugging Face and Pyannote
 | Large v3 Turbo | Large-model quality with faster inference | GPU recommended          |
 | Large v3       | Maximum Whisper accuracy                  | GPU strongly recommended |
 
-The model picker labels each option **Good fit**, **Use with caution**, **Poor fit**, or **Fit unknown**. It compares the adapter's published RAM and VRAM estimates with the best active worker, and warns separately when a large model fits in memory but is likely to be slow on CPU. These labels are guidance, not hard blocks.
+The model picker labels each option **Runs well**, **May be slow**, **Not recommended**, or **Not checked**. Each row keeps the comparison to three essentials: the model name, what it is best for, and approximate memory use. `Small` remains the recommended starting point for most videos.
 
-Workers report their configured compute device, CPU and logical core count, currently available system RAM, and usable CUDA GPU memory. The picker shows the worker used for each recommendation. A worker configured for CPU remains a CPU worker even if its host also has an integrated GPU; only accelerators usable by the worker are counted.
+Workers still report their configured compute device, CPU and logical core count, currently available system RAM, and usable CUDA GPU memory. Anysub uses those details behind the scenes to make the recommendation instead of repeating technical hardware information throughout the dropdown. A worker configured for CPU remains a CPU worker even if its host also has an integrated GPU; only accelerators usable by the worker are counted.
 
 Model quality and speed vary by language, recording quality, core count, memory, and media duration. A two-hour film can take a long time on CPU. The durable worker renews its lease throughout model loading and inference, so a slow run is not treated as abandoned.
 

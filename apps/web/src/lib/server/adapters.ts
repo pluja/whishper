@@ -103,8 +103,8 @@ function scoreModelFit(
   if (!hardware) {
     return {
       fit: "unknown",
-      fitLabel: "Fit unknown",
-      fitReason: "This worker does not report hardware inventory yet.",
+      fitLabel: "Not checked",
+      fitReason: "Hardware details are unavailable.",
       workerSummary: workerName,
     };
   }
@@ -116,9 +116,8 @@ function scoreModelFit(
     if (!gpu) {
       return {
         fit: "poor",
-        fitLabel: "Poor fit",
-        fitReason:
-          "The worker is configured for CUDA but reports no usable GPU.",
+        fitLabel: "Not recommended",
+        fitReason: "This worker has no usable graphics card.",
         workerSummary,
       };
     }
@@ -126,31 +125,31 @@ function scoreModelFit(
     if (!requiredVram) {
       return {
         fit: "unknown",
-        fitLabel: "Fit unknown",
-        fitReason: "This adapter does not publish a VRAM estimate.",
+        fitLabel: "Not checked",
+        fitReason: "No graphics memory estimate is available for this model.",
         workerSummary,
       };
     }
     if (gpu.totalMemoryBytes >= requiredVram) {
       return {
         fit: "good",
-        fitLabel: "Good fit",
-        fitReason: `Requires about ${formatMemory(requiredVram)} VRAM; ${formatMemory(gpu.totalMemoryBytes)} is available.`,
+        fitLabel: "Runs well",
+        fitReason: "Your graphics card has enough memory for this model.",
         workerSummary,
       };
     }
     if (gpu.totalMemoryBytes >= requiredVram * 0.75) {
       return {
         fit: "caution",
-        fitLabel: "Use with caution",
-        fitReason: `Close to the ${formatMemory(requiredVram)} VRAM estimate. Use int8 and a smaller batch size.`,
+        fitLabel: "May be slow",
+        fitReason: "This model is close to your graphics card's memory limit.",
         workerSummary,
       };
     }
     return {
       fit: "poor",
-      fitLabel: "Poor fit",
-      fitReason: `Requires about ${formatMemory(requiredVram)} VRAM; this GPU reports ${formatMemory(gpu.totalMemoryBytes)}.`,
+      fitLabel: "Not recommended",
+      fitReason: `This model needs about ${formatMemory(requiredVram)} of graphics memory, but only ${formatMemory(gpu.totalMemoryBytes)} is available.`,
       workerSummary,
     };
   }
@@ -159,16 +158,16 @@ function scoreModelFit(
   if (!recommendedRam) {
     return {
       fit: "unknown",
-      fitLabel: "Fit unknown",
-      fitReason: "This adapter does not publish a system RAM estimate.",
+      fitLabel: "Not checked",
+      fitReason: "No memory estimate is available for this model.",
       workerSummary,
     };
   }
   if (availableRam < recommendedRam) {
     return {
       fit: "poor",
-      fitLabel: "Poor fit",
-      fitReason: `Needs about ${formatMemory(recommendedRam)} RAM; this worker reports ${formatMemory(availableRam)} available.`,
+      fitLabel: "Not recommended",
+      fitReason: `This model needs about ${formatMemory(recommendedRam)} of memory, but only ${formatMemory(availableRam)} is available.`,
       workerSummary,
     };
   }
@@ -179,15 +178,16 @@ function scoreModelFit(
   ) {
     return {
       fit: "caution",
-      fitLabel: "Use with caution",
-      fitReason: `Memory fits, but ${model.displayName} can be slow on CPU. A GPU worker is recommended.`,
+      fitLabel: "May be slow",
+      fitReason:
+        "This computer has enough memory, but this model will be much faster with a supported graphics card.",
       workerSummary,
     };
   }
   return {
     fit: "good",
-    fitLabel: "Good fit",
-    fitReason: `Fits the ${formatMemory(availableRam)} RAM currently available to this CPU worker.`,
+    fitLabel: "Runs well",
+    fitReason: "This computer has enough memory for this model.",
     workerSummary,
   };
 }

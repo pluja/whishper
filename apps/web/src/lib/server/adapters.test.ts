@@ -82,14 +82,14 @@ describe("available transcription models", () => {
         modelId: "small",
         parameterCount: 244_000_000,
         fit: "good",
-        fitLabel: "Good fit",
+        fitLabel: "Runs well",
         workerSummary: expect.stringContaining("6 GB RAM available"),
       }),
       expect.objectContaining({
         modelId: "medium",
         fit: "poor",
-        fitLabel: "Poor fit",
-        fitReason: expect.stringContaining("8 GB RAM"),
+        fitLabel: "Not recommended",
+        fitReason: expect.stringContaining("8 GB"),
       }),
     ]);
   });
@@ -127,8 +127,8 @@ describe("available transcription models", () => {
     expect(model).toEqual(
       expect.objectContaining({
         fit: "caution",
-        fitLabel: "Use with caution",
-        fitReason: expect.stringContaining("slow on CPU"),
+        fitLabel: "May be slow",
+        fitReason: expect.stringContaining("supported graphics card"),
       }),
     );
   });
