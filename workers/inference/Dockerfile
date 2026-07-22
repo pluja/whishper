@@ -15,13 +15,15 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 FROM base AS development
+ARG ANYSUB_ACCELERATOR=cpu
 
 COPY workers/inference/pyproject.toml workers/inference/README.md workers/inference/uv.lock ./
 COPY workers/inference/src ./src
 COPY workers/inference/tests ./tests
-RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --extra speech --extra "$ANYSUB_ACCELERATOR"
 
-CMD ["uv", "run", "anysub-worker"]
+CMD ["uv", "run", "--no-sync", "anysub-worker"]
 
 FROM base AS builder
 

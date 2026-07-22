@@ -136,6 +136,7 @@
   let selectedModel = $derived(
     data.transcriptionModels.find((model) => model.key === selectedModelKey),
   );
+  let modelPickerOpen = $state(false);
   let playbackUs = $state(0);
   let mediaDurationUs = $state(0);
   let mediaElement = $state<HTMLMediaElement>();
@@ -286,6 +287,38 @@
       unit += 1;
     } while (value >= 1024 && unit < units.length - 1);
     return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unit]}`;
+  }
+
+  function formatParameterCount(count: number | null | undefined): string {
+    if (typeof count !== "number" || !Number.isFinite(count) || count <= 0) {
+      return "Parameters unavailable";
+    }
+    if (count >= 1_000_000_000) {
+      return `${Number((count / 1_000_000_000).toFixed(1))}B parameters`;
+    }
+    if (count >= 1_000_000) {
+      return `${Number((count / 1_000_000).toFixed(1))}M parameters`;
+    }
+    if (count >= 1_000) {
+      return `${Number((count / 1_000).toFixed(1))}K parameters`;
+    }
+    return `${Math.round(count)} parameters`;
+  }
+
+  function formatByteEstimate(bytes: number | null | undefined): string {
+    if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes <= 0) {
+      return "Estimate unavailable";
+    }
+    return `≈ ${formatBytes(bytes)}`;
+  }
+
+  function handleModelPickerToggle(event: ToggleEvent): void {
+    modelPickerOpen = event.newState === "open";
+  }
+
+  function selectTranscriptionModel(modelKey: string): void {
+    selectedModelKey = modelKey;
+    document.getElementById("transcription-model-options")?.hidePopover();
   }
 
   function isAudioSource(): boolean {
@@ -1147,6 +1180,7 @@
       <div class="processing-banner" aria-live="polite">
         <span class="processing-icon"><Icon name="activity" size={18} /></span>
         <div>
+          <span class="processing-stage">Transcription</span>
           <strong
             >{data.run.progress_message ??
               "Waiting for a compatible worker"}</strong
@@ -1171,6 +1205,7 @@
     <div class="processing-banner" aria-live="polite">
       <span class="processing-icon"><Icon name="activity" size={18} /></span>
       <div>
+        <span class="processing-stage">Media preparation</span>
         <strong
           >{data.preparation.progress_message ??
             "Waiting for a media worker"}</strong
@@ -1490,7 +1525,7 @@
                       ).toFixed(1)} CPS</span
                     >
                   {/if}
-                  {#each cueIssues(cue, index) as issue}
+                  {#each cueIssues(cue, index) as issue (issue)}
                     <span class="quality-tag">{issue}</span>
                   {/each}
                 </div>
@@ -1532,21 +1567,125 @@
                 method="POST"
                 action="?/transcribe"
               >
-                <label>
-                  <span>Model</span>
-                  <select name="model" bind:value={selectedModelKey} required>
-                    {#each data.transcriptionModels as model}
-                      <option value={model.key}
-                        >{model.adapterName} · {model.displayName}</option
-                      >
-                    {/each}
-                  </select>
-                </label>
-                {#if selectedModel?.description}
-                  <span class="model-description"
-                    >{selectedModel.description}</span
+                <div class="model-picker-field">
+                  <span id="transcription-model-label">Model</span>
+                  <input type="hidden" name="model" value={selectedModelKey} />
+                  <button
+                    class="model-picker-trigger"
+                    type="button"
+                    popovertarget="transcription-model-options"
+                    aria-haspopup="listbox"
+                    aria-expanded={modelPickerOpen}
+                    aria-controls="transcription-model-options"
+                    aria-labelledby="transcription-model-label transcription-model-selection"
                   >
-                {/if}
+                    <span class="model-picker-selection">
+                      <strong id="transcription-model-selection">
+                        {selectedModel
+                          ? `${selectedModel.adapterName} · ${selectedModel.displayName}`
+                          : "Choose a model"}
+                      </strong>
+                      <span class="model-picker-meta">
+                        <span
+                          class="model-fit-dot"
+                          data-fit={selectedModel?.fit ?? "unknown"}
+                          aria-hidden="true"
+                        ></span>
+                        <span>{selectedModel?.fitLabel ?? "Fit unknown"}</span>
+                        <span
+                          >{formatParameterCount(
+                            selectedModel?.parameterCount,
+                          )}</span
+                        >
+                      </span>
+                    </span>
+                    <Icon name="chevron-down" size={18} />
+                  </button>
+                  <div
+                    class="model-picker-popover"
+                    id="transcription-model-options"
+                    popover
+                    role="listbox"
+                    aria-labelledby="transcription-model-label"
+                    ontoggle={handleModelPickerToggle}
+                  >
+                    {#each data.transcriptionModels as model (model.key)}
+                      <button
+                        class="model-option"
+                        type="button"
+                        role="option"
+                        aria-selected={model.key === selectedModelKey}
+                        data-fit={model.fit}
+                        onclick={() => selectTranscriptionModel(model.key)}
+                      >
+                        <span class="model-option-heading">
+                          <span class="model-option-title">
+                            <strong
+                              >{model.adapterName} · {model.displayName}</strong
+                            >
+                            <span>{model.modelId}</span>
+                          </span>
+                          <span class="model-option-fit">
+                            <span
+                              class="model-fit-dot"
+                              data-fit={model.fit}
+                              aria-hidden="true"
+                            ></span>
+                            <span>{model.fitLabel || "Fit unknown"}</span>
+                          </span>
+                        </span>
+                        <span class="model-option-resources">
+                          <span
+                            >{formatParameterCount(model.parameterCount)}</span
+                          >
+                          <span
+                            >VRAM · {formatByteEstimate(
+                              model.requiredVramBytes,
+                            )}</span
+                          >
+                          <span
+                            >Recommended RAM · {formatByteEstimate(
+                              model.recommendedRamBytes,
+                            )}</span
+                          >
+                        </span>
+                        <span class="model-option-description">
+                          {model.description ?? "Description unavailable."}
+                        </span>
+                        <span class="model-option-fit-reason">
+                          {model.fitReason ||
+                            "Hardware fit guidance is unavailable."}
+                        </span>
+                        <span class="model-option-worker">
+                          {model.workerSummary ||
+                            "Worker details are unavailable."}
+                        </span>
+                      </button>
+                    {/each}
+                  </div>
+                  <div
+                    class="model-fit-summary"
+                    data-fit={selectedModel?.fit ?? "unknown"}
+                  >
+                    <span class="model-fit-summary-status">
+                      <span
+                        class="model-fit-dot"
+                        data-fit={selectedModel?.fit ?? "unknown"}
+                        aria-hidden="true"
+                      ></span>
+                      <strong>{selectedModel?.fitLabel ?? "Fit unknown"}</strong
+                      >
+                    </span>
+                    <span>
+                      {selectedModel?.fitReason ||
+                        "Hardware fit guidance is unavailable."}
+                    </span>
+                    <span>
+                      {selectedModel?.workerSummary ||
+                        "Worker details are unavailable."}
+                    </span>
+                  </div>
+                </div>
                 <label>
                   <span>Spoken language</span>
                   <select name="language">

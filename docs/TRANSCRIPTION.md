@@ -6,7 +6,7 @@ Anysub’s default worker runs WhisperX locally and returns cue-level text plus 
 
 1. Start Anysub with `docker compose up --build`.
 2. Upload an audio or video source.
-3. Open the project and choose a model. `Small` is the recommended CPU starting point.
+3. Open the project and choose a model. The picker compares model size, memory estimates, and fit against connected workers. `Small` is the recommended CPU starting point.
 4. Leave **Accurate word alignment** enabled for editing, highlighting, and later karaoke workflows.
 5. Under **Advanced options**, adjust the maximum line length if the 42-character default does not suit the intended platform.
 6. Choose the spoken language when you know it, or let Whisper detect it.
@@ -18,14 +18,18 @@ No transcript text is written to worker progress logs. Hugging Face and Pyannote
 
 ## Model guide
 
-| Model | Use it for | CPU guidance |
-| --- | --- | --- |
-| Tiny | Quick drafts and pipeline checks | Fastest, least accurate |
-| Base | Short, clear recordings | Light |
-| Small | General creator and archive work | Recommended default |
-| Medium | Harder audio where accuracy matters | Slow and memory-heavy |
-| Large v3 Turbo | Large-model quality with faster inference | GPU recommended |
-| Large v3 | Maximum Whisper accuracy | GPU strongly recommended |
+| Model          | Use it for                                | CPU guidance             |
+| -------------- | ----------------------------------------- | ------------------------ |
+| Tiny           | Quick drafts and pipeline checks          | Fastest, least accurate  |
+| Base           | Short, clear recordings                   | Light                    |
+| Small          | General creator and archive work          | Recommended default      |
+| Medium         | Harder audio where accuracy matters       | Slow and memory-heavy    |
+| Large v3 Turbo | Large-model quality with faster inference | GPU recommended          |
+| Large v3       | Maximum Whisper accuracy                  | GPU strongly recommended |
+
+The model picker labels each option **Good fit**, **Use with caution**, **Poor fit**, or **Fit unknown**. It compares the adapter's published RAM and VRAM estimates with the best active worker, and warns separately when a large model fits in memory but is likely to be slow on CPU. These labels are guidance, not hard blocks.
+
+Workers report their configured compute device, CPU and logical core count, currently available system RAM, and usable CUDA GPU memory. The picker shows the worker used for each recommendation. A worker configured for CPU remains a CPU worker even if its host also has an integrated GPU; only accelerators usable by the worker are counted.
 
 Model quality and speed vary by language, recording quality, core count, memory, and media duration. A two-hour film can take a long time on CPU. The durable worker renews its lease throughout model loading and inference, so a slow run is not treated as abandoned.
 
@@ -52,6 +56,12 @@ services:
 ```
 
 The worker dependency lock also contains the CUDA 12.8 PyTorch variant. A CUDA image can be built with `ANYSUB_ACCELERATOR=cuda`, but the supported NVIDIA Compose overlay and hardware validation are still roadmap work; the default Compose file intentionally remains CPU-only.
+
+The development Compose override also synchronizes the `speech` and `cpu` extras before starting the worker. This repairs existing `worker-venv` volumes created before those dependencies were included. After changing worker dependencies, rebuild and recreate the development worker with:
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml up -d --build worker
+```
 
 ## Inspecting a run
 

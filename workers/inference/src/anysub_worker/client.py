@@ -8,6 +8,7 @@ from pathlib import Path
 import httpx
 
 from .config import WorkerSettings
+from .hardware import detect_hardware
 from .models import (
     JobFailure,
     LeaseResponse,
@@ -50,6 +51,7 @@ class ApplicationClient:
                     adapter.manifest.model_dump(by_alias=True, mode="json")
                     for adapter in self._registry.adapters
                 ],
+                "hardware": detect_hardware(self._settings).model_dump(by_alias=True, mode="json"),
             },
         )
         response.raise_for_status()

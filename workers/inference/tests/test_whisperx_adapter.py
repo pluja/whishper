@@ -16,6 +16,10 @@ def test_manifest_exposes_accurate_models_without_importing_ml_dependencies() ->
     assert {model.id for model in manifest.models} >= {"small", "large-v3-turbo"}
     assert all("align" in model.capabilities for model in manifest.models)
     assert manifest.models[0].options_schema["properties"]["maxLineLength"]["default"] == 42
+    small = next(model for model in manifest.models if model.id == "small")
+    assert small.parameter_count == 244_000_000
+    assert small.required_vram_bytes == 2 * 1024**3
+    assert small.recommended_ram_bytes == 4 * 1024**3
 
 
 def test_normalizes_aligned_segments_to_contract_microseconds() -> None:

@@ -38,7 +38,8 @@ services:
     working_dir: /workspace
     environment:
       ANYSUB_APP_URL: http://web:5173
-    command: ["uv", "run", "anysub-worker"]
+    command:
+      ["uv", "run", "--extra", "speech", "--extra", "cpu", "anysub-worker"]
 
 volumes:
   web-node-modules:

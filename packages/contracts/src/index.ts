@@ -11,6 +11,9 @@ export interface AdapterModel {
   capabilities: AdapterCapability[];
   languages: string[] | "all";
   description?: string;
+  parameterCount?: number;
+  requiredVramBytes?: number;
+  recommendedRamBytes?: number;
   optionsSchema?: Record<string, unknown>;
 }
 
@@ -23,6 +26,24 @@ export interface AdapterManifest {
   models: AdapterModel[];
 }
 
+export interface WorkerHardware {
+  device: "cpu" | "cuda";
+  computeType: string;
+  cpu: {
+    model?: string;
+    logicalCores: number;
+  };
+  memory: {
+    totalBytes: number;
+    availableBytes: number;
+  };
+  gpus: Array<{
+    name: string;
+    backend: "cuda" | "rocm";
+    totalMemoryBytes: number;
+  }>;
+}
+
 export interface WorkerManifest {
   protocolVersion: typeof WORKER_PROTOCOL_VERSION;
   workerId: string;
@@ -33,6 +54,7 @@ export interface WorkerManifest {
     mediaPreparation?: typeof MEDIA_PREPARATION_VERSION;
   };
   adapters: AdapterManifest[];
+  hardware?: WorkerHardware;
 }
 
 export interface WordToken {

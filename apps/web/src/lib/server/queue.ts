@@ -8,6 +8,7 @@ import type {
   WorkerJobPayload,
   WorkerLease,
   WorkerManifest,
+  WorkerHardware,
 } from "@anysub/contracts";
 import type { PoolClient } from "pg";
 import type { MediaFinalizationPlan } from "$lib/server/media-preparation";
@@ -128,15 +129,23 @@ export async function reportProgress(
   message: string,
 ): Promise<boolean> {
   const result = await pool.query(
-    `update jobs
-        set progress = $3,
-            progress_message = $4,
-            lease_expires_at = now() + make_interval(secs => $5),
-            updated_at = now()
-      where id = $1
-        and state = 'leased'
-        and lease_token_hash = $2
-        and lease_expires_at > now()`,
+    `with heartbeat as (
+       update jobs
+          set progress = $3,
+              progress_message = $4,
+              lease_expires_at = now() + make_interval(secs => $5),
+              updated_at = now()
+        where id = $1
+          and state = 'leased'
+          and lease_token_hash = $2
+          and lease_expires_at > now()
+      returning leased_by
+     )
+     update workers
+        set last_seen_at = now()
+       from heartbeat
+      where workers.id = heartbeat.leased_by
+     returning workers.id`,
     [jobId, hashToken(leaseToken), progress, message, LEASE_SECONDS],
   );
   return result.rowCount === 1;
@@ -457,13 +466,18 @@ export function parseWorkerManifest(value: unknown): WorkerManifest {
     throw new Error("Unsupported media preparation capability");
   }
   for (const adapter of value.adapters) validateManifestAdapter(adapter);
+  const hardware =
+    value.hardware === undefined
+      ? undefined
+      : parseWorkerHardware(value.hardware);
   return {
-    ...(value as unknown as Omit<WorkerManifest, "capabilities">),
+    ...(value as unknown as Omit<WorkerManifest, "capabilities" | "hardware">),
     capabilities: {
       ...(capabilities.mediaPreparation === "1.0"
         ? { mediaPreparation: "1.0" as const }
         : {}),
     },
+    ...(hardware ? { hardware } : {}),
   };
 }
 
@@ -476,6 +490,40 @@ function validateManifestAdapter(
   if (typeof value.id !== "string" || !Array.isArray(value.models)) {
     throw new Error("Adapter manifest is incomplete");
   }
+}
+
+function parseWorkerHardware(value: unknown): WorkerHardware {
+  if (
+    !isRecord(value) ||
+    (value.device !== "cpu" && value.device !== "cuda") ||
+    typeof value.computeType !== "string" ||
+    !isRecord(value.cpu) ||
+    (value.cpu.model !== undefined && typeof value.cpu.model !== "string") ||
+    !isPositiveInteger(value.cpu.logicalCores) ||
+    !isRecord(value.memory) ||
+    !isPositiveInteger(value.memory.totalBytes) ||
+    !isNonNegativeInteger(value.memory.availableBytes) ||
+    value.memory.availableBytes > value.memory.totalBytes ||
+    !Array.isArray(value.gpus) ||
+    !value.gpus.every(
+      (gpu) =>
+        isRecord(gpu) &&
+        typeof gpu.name === "string" &&
+        (gpu.backend === "cuda" || gpu.backend === "rocm") &&
+        isPositiveInteger(gpu.totalMemoryBytes),
+    )
+  ) {
+    throw new Error("Worker hardware inventory is invalid");
+  }
+  return value as unknown as WorkerHardware;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) > 0;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

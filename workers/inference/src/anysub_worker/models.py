@@ -27,6 +27,9 @@ class AdapterModel(StrictModel):
     capabilities: tuple[AdapterCapability, ...]
     languages: tuple[str, ...] | Literal["all"] = "all"
     description: str | None = None
+    parameter_count: int | None = Field(default=None, alias="parameterCount", gt=0)
+    required_vram_bytes: int | None = Field(default=None, alias="requiredVramBytes", gt=0)
+    recommended_ram_bytes: int | None = Field(default=None, alias="recommendedRamBytes", gt=0)
     options_schema: dict[str, Any] = Field(default_factory=dict, alias="optionsSchema")
 
 
@@ -51,6 +54,36 @@ class AdapterManifest(StrictModel):
         return any(
             model.id == model_id and capability in model.capabilities for model in self.models
         )
+
+
+class WorkerCpu(StrictModel):
+    model: str | None = None
+    logical_cores: int = Field(alias="logicalCores", gt=0)
+
+
+class WorkerMemory(StrictModel):
+    total_bytes: int = Field(alias="totalBytes", gt=0)
+    available_bytes: int = Field(alias="availableBytes", ge=0)
+
+    @model_validator(mode="after")
+    def available_does_not_exceed_total(self) -> WorkerMemory:
+        if self.available_bytes > self.total_bytes:
+            raise ValueError("available worker memory cannot exceed total memory")
+        return self
+
+
+class WorkerGpu(StrictModel):
+    name: str = Field(min_length=1)
+    backend: Literal["cuda", "rocm"]
+    total_memory_bytes: int = Field(alias="totalMemoryBytes", gt=0)
+
+
+class WorkerHardware(StrictModel):
+    device: Literal["cpu", "cuda"]
+    compute_type: str = Field(alias="computeType", min_length=1)
+    cpu: WorkerCpu
+    memory: WorkerMemory
+    gpus: tuple[WorkerGpu, ...] = ()
 
 
 class TranscriptionRequest(StrictModel):

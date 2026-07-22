@@ -19,13 +19,39 @@ from anysub_worker.models import (
 )
 
 SAMPLE_RATE = 16_000
-MODEL_SIZES = {
-    "tiny": "Fastest and lightest; useful for drafts.",
-    "base": "A small step up in accuracy while remaining CPU-friendly.",
-    "small": "Recommended CPU balance for most creators.",
-    "medium": "Higher accuracy with substantially higher memory use.",
-    "large-v3": "Highest-quality multilingual Whisper model; GPU recommended.",
-    "large-v3-turbo": "Fast large-model transcription; GPU recommended.",
+GIB = 1024**3
+MODEL_PROFILES = {
+    "tiny": ("Fastest and lightest; useful for drafts.", 39_000_000, 1 * GIB, 2 * GIB),
+    "base": (
+        "A small step up in accuracy while remaining CPU-friendly.",
+        74_000_000,
+        1 * GIB,
+        2 * GIB,
+    ),
+    "small": (
+        "Recommended CPU balance for most creators.",
+        244_000_000,
+        2 * GIB,
+        4 * GIB,
+    ),
+    "medium": (
+        "Higher accuracy with substantially higher memory use.",
+        769_000_000,
+        5 * GIB,
+        8 * GIB,
+    ),
+    "large-v3": (
+        "Highest-quality multilingual Whisper model; GPU recommended.",
+        1_550_000_000,
+        10 * GIB,
+        16 * GIB,
+    ),
+    "large-v3-turbo": (
+        "Fast large-model transcription; GPU recommended.",
+        809_000_000,
+        6 * GIB,
+        12 * GIB,
+    ),
 }
 
 
@@ -78,9 +104,17 @@ class WhisperXAdapter:
                     capabilities=(AdapterCapability.TRANSCRIBE, AdapterCapability.ALIGN),
                     languages="all",
                     description=description,
+                    parameterCount=parameter_count,
+                    requiredVramBytes=required_vram_bytes,
+                    recommendedRamBytes=recommended_ram_bytes,
                     optionsSchema=option_schema,
                 )
-                for model_id, description in MODEL_SIZES.items()
+                for model_id, (
+                    description,
+                    parameter_count,
+                    required_vram_bytes,
+                    recommended_ram_bytes,
+                ) in MODEL_PROFILES.items()
             ),
         )
 
