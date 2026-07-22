@@ -1906,13 +1906,13 @@ progress {
 .model-picker-trigger {
   display: flex;
   width: 100%;
-  min-height: 3rem;
+  min-height: 3.75rem;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-xs);
-  padding: 0.45rem 0.7rem;
+  padding: 0.55rem 0.7rem;
   background: var(--color-surface);
   color: var(--color-text);
   cursor: pointer;
@@ -1958,16 +1958,65 @@ progress {
 }
 
 .model-picker-meta,
-.model-option-fit,
-.model-choice-summary-status {
-  display: inline-flex;
+.model-picker-fit,
+.model-option-fit {
+  display: flex;
   align-items: center;
   gap: 0.4rem;
 }
 
 .model-picker-meta {
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.4rem;
   color: var(--color-muted);
   font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.model-picker-fit {
+  flex: none;
+  font-weight: 650;
+}
+
+.model-picker-description {
+  min-width: 0;
+  flex: 1 1 12rem;
+  color: var(--color-text-soft);
+  overflow-wrap: anywhere;
+}
+
+.model-picker-meta-separator {
+  margin-inline-end: 0.25rem;
+  color: var(--color-border-strong);
+}
+
+.model-picker-hardware {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.5rem;
+  margin: 0;
+  padding-inline: 0.1rem;
+  color: var(--color-text-soft);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.model-picker-hardware strong {
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.model-picker-hardware > span {
+  min-width: 0;
+  flex: 1 1 12rem;
+  overflow-wrap: anywhere;
 }
 
 .model-fit-dot {
@@ -2047,6 +2096,7 @@ progress {
   cursor: pointer;
   font: inherit;
   text-align: start;
+  overflow-wrap: anywhere;
 }
 
 .model-option + .model-option {
@@ -2074,17 +2124,24 @@ progress {
 
 .model-option-heading {
   display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-sm);
+  gap: 0.25rem var(--space-sm);
 }
 
 .model-option-heading > strong {
+  min-width: 0;
+  flex: 1 1 10rem;
   font-size: 0.875rem;
+  overflow-wrap: anywhere;
 }
 
 .model-option-fit {
   flex: none;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   border-radius: var(--radius-pill);
   padding: 0.15rem 0.4rem;
   background: color-mix(in srgb, var(--model-fit-unknown) 12%, transparent);
@@ -2094,31 +2151,19 @@ progress {
   line-height: 1.25;
 }
 
-.model-option[data-fit="good"] .model-option-fit,
-.model-choice-summary[data-fit="good"] .model-choice-summary-status {
-  color: var(--model-fit-good);
-}
-
 .model-option[data-fit="good"] .model-option-fit {
   background: color-mix(in srgb, var(--model-fit-good) 12%, transparent);
-}
-
-.model-option[data-fit="caution"] .model-option-fit,
-.model-choice-summary[data-fit="caution"] .model-choice-summary-status {
-  color: var(--model-fit-caution);
+  color: var(--model-fit-good);
 }
 
 .model-option[data-fit="caution"] .model-option-fit {
   background: color-mix(in srgb, var(--model-fit-caution) 12%, transparent);
-}
-
-.model-option[data-fit="poor"] .model-option-fit,
-.model-choice-summary[data-fit="poor"] .model-choice-summary-status {
-  color: var(--model-fit-poor);
+  color: var(--model-fit-caution);
 }
 
 .model-option[data-fit="poor"] .model-option-fit {
   background: color-mix(in srgb, var(--model-fit-poor) 12%, transparent);
+  color: var(--model-fit-poor);
 }
 
 .model-option-description {
@@ -2127,32 +2172,44 @@ progress {
   line-height: 1.35;
 }
 
-.model-option-memory {
-  color: var(--color-muted);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.model-choice-summary {
+.model-option-footer {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.2rem 0.4rem;
-  padding-inline: 0.1rem;
-  color: var(--color-text-soft);
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+.model-option-memory {
+  min-width: 0;
+  color: var(--color-muted);
   font-size: 0.75rem;
-  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
-.model-choice-summary-status {
+.model-download-status {
   flex: none;
+  max-width: 100%;
+  border-radius: var(--radius-pill);
+  padding: 0.12rem 0.4rem;
+  background: var(--color-surface-soft);
+  color: var(--color-text-soft);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  text-align: end;
 }
 
-.model-choice-summary-status + span::before {
-  margin-inline-end: 0.4rem;
-  color: var(--color-border-strong);
-  content: "·";
+.model-download-status[data-download-state="downloaded"] {
+  background: color-mix(in srgb, var(--model-fit-good) 12%, transparent);
+  color: var(--model-fit-good);
+}
+
+.model-download-status[data-download-state="unknown"] {
+  color: var(--color-muted);
 }
 
 @supports not (position-area: block-start) {
@@ -3567,7 +3624,9 @@ body.resizing-studio-pane * {
 
 .project-editor-page .model-picker-meta,
 .project-editor-page .model-picker-header span,
-.project-editor-page .model-option-memory {
+.project-editor-page .model-option-memory,
+.project-editor-page .model-picker-hardware > span,
+.project-editor-page .model-download-status[data-download-state="unknown"] {
   color: var(--studio-muted);
 }
 
@@ -3586,9 +3645,28 @@ body.resizing-studio-pane * {
   box-shadow: inset 3px 0 var(--studio-accent);
 }
 
+.project-editor-page .model-picker-description,
 .project-editor-page .model-option-description,
-.project-editor-page .model-choice-summary {
+.project-editor-page .model-picker-hardware {
   color: var(--studio-text-soft);
+}
+
+.project-editor-page .model-picker-hardware strong {
+  color: var(--studio-text);
+}
+
+.project-editor-page .model-picker-meta-separator {
+  color: var(--studio-border);
+}
+
+.project-editor-page .model-download-status {
+  background: var(--studio-panel-hover);
+  color: var(--studio-text-soft);
+}
+
+.project-editor-page .model-download-status[data-download-state="downloaded"] {
+  background: color-mix(in srgb, var(--model-fit-good) 14%, transparent);
+  color: var(--model-fit-good);
 }
 
 .project-editor-page .processing-stage {

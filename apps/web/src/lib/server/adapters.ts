@@ -16,6 +16,7 @@ export interface AvailableTranscriptionModel {
   parameterCount: number | null;
   requiredVramBytes: number | null;
   recommendedRamBytes: number | null;
+  downloaded: boolean | null;
   optionsSchema: Record<string, unknown>;
   fit: ModelFit;
   fitLabel: string;
@@ -60,12 +61,24 @@ export function availableTranscriptionModels(
           parameterCount: positiveNumber(model.parameterCount),
           requiredVramBytes: positiveNumber(model.requiredVramBytes),
           recommendedRamBytes: positiveNumber(model.recommendedRamBytes),
+          downloaded:
+            typeof model.downloaded === "boolean" ? model.downloaded : null,
           optionsSchema: model.optionsSchema ?? {},
           ...fit,
         };
         const current = models.get(key);
-        if (!current || FIT_RANK[available.fit] > FIT_RANK[current.fit]) {
+        if (!current) {
           models.set(key, available);
+          continue;
+        }
+        const downloaded = mergeDownloadedState(
+          current.downloaded,
+          available.downloaded,
+        );
+        if (FIT_RANK[available.fit] > FIT_RANK[current.fit]) {
+          models.set(key, { ...available, downloaded });
+        } else if (downloaded !== current.downloaded) {
+          models.set(key, { ...current, downloaded });
         }
       }
     }
@@ -90,6 +103,26 @@ export function availableTranscriptionModels(
       `${right.adapterName} ${right.displayName}`,
     );
   });
+}
+
+export function detectedWorkerHardwareSummaries(
+  manifests: unknown[],
+): string[] {
+  const summaries = new Set<string>();
+  for (const manifest of manifests) {
+    if (!isRecord(manifest) || !isWorkerHardware(manifest.hardware)) continue;
+    summaries.add(formatHardwareSummary(manifest.hardware));
+  }
+  return [...summaries];
+}
+
+function mergeDownloadedState(
+  left: boolean | null,
+  right: boolean | null,
+): boolean | null {
+  if (left === true || right === true) return true;
+  if (left === false || right === false) return false;
+  return null;
 }
 
 function scoreModelFit(
@@ -196,13 +229,17 @@ function formatWorkerSummary(
   workerName: string,
   hardware: WorkerHardware,
 ): string {
+  return `${workerName} · ${formatHardwareSummary(hardware)}`;
+}
+
+function formatHardwareSummary(hardware: WorkerHardware): string {
   const ram = `${formatMemory(hardware.memory.availableBytes)} RAM available`;
   if (hardware.device === "cuda" && hardware.gpus[0]) {
     const gpu = hardware.gpus[0];
-    return `${workerName} · ${gpu.name} · ${formatMemory(gpu.totalMemoryBytes)} VRAM · ${ram}`;
+    return `${gpu.name} · ${formatMemory(gpu.totalMemoryBytes)} VRAM · ${ram}`;
   }
   const cpu = hardware.cpu.model ?? "CPU";
-  return `${workerName} · ${cpu} · ${hardware.cpu.logicalCores} cores · ${ram}`;
+  return `${cpu} · ${hardware.cpu.logicalCores} cores · ${ram}`;
 }
 
 function formatMemory(bytes: number): string {

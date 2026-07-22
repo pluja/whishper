@@ -1561,22 +1561,42 @@
                     aria-expanded={modelPickerOpen}
                     aria-controls="transcription-model-options"
                     aria-labelledby="transcription-model-label transcription-model-selection"
+                    aria-describedby="transcription-model-selection-details"
                   >
                     <span class="model-picker-selection">
                       <strong id="transcription-model-selection">
                         {selectedModel?.displayName ?? "Choose a model"}
                       </strong>
-                      <span class="model-picker-meta">
-                        <span
-                          class="model-fit-dot"
-                          data-fit={selectedModel?.fit ?? "unknown"}
-                          aria-hidden="true"
-                        ></span>
-                        <span>{selectedModel?.fitLabel ?? "Not checked"}</span>
+                      <span
+                        class="model-picker-meta"
+                        id="transcription-model-selection-details"
+                      >
+                        <span class="model-picker-fit">
+                          <span
+                            class="model-fit-dot"
+                            data-fit={selectedModel?.fit ?? "unknown"}
+                            aria-hidden="true"
+                          ></span>
+                          <span>{selectedModel?.fitLabel ?? "Not checked"}</span
+                          >
+                        </span>
+                        <span class="model-picker-description">
+                          <span class="model-picker-meta-separator">—</span>
+                          {selectedModel?.description ??
+                            "Description unavailable."}
+                        </span>
                       </span>
                     </span>
                     <Icon name="chevron-down" size={18} />
                   </button>
+                  <p class="model-picker-hardware">
+                    <strong>Detected hardware</strong>
+                    <span>
+                      {data.detectedHardware.length
+                        ? data.detectedHardware.join(" · ")
+                        : "Details unavailable"}
+                    </span>
+                  </p>
                   <div
                     class="model-picker-popover"
                     id="transcription-model-options"
@@ -1622,29 +1642,32 @@
                           <span class="model-option-description">
                             {model.description ?? "Description unavailable."}
                           </span>
-                          <span class="model-option-memory">
-                            {formatRecommendedMemory(model.recommendedRamBytes)}
+                          <span class="model-option-footer">
+                            <span class="model-option-memory">
+                              {formatRecommendedMemory(
+                                model.recommendedRamBytes,
+                              )}
+                            </span>
+                            <span
+                              class="model-download-status"
+                              data-download-state={model.downloaded === null
+                                ? "unknown"
+                                : model.downloaded
+                                  ? "downloaded"
+                                  : "required"}
+                            >
+                              {#if model.downloaded === true}
+                                Downloaded
+                              {:else if model.downloaded === false}
+                                Needs download
+                              {:else}
+                                Download status unavailable
+                              {/if}
+                            </span>
                           </span>
                         </button>
                       {/each}
                     </div>
-                  </div>
-                  <div
-                    class="model-choice-summary"
-                    data-fit={selectedModel?.fit ?? "unknown"}
-                  >
-                    <span class="model-choice-summary-status">
-                      <span
-                        class="model-fit-dot"
-                        data-fit={selectedModel?.fit ?? "unknown"}
-                        aria-hidden="true"
-                      ></span>
-                      <strong>{selectedModel?.fitLabel ?? "Not checked"}</strong
-                      >
-                    </span>
-                    <span>
-                      {selectedModel?.description ?? "Description unavailable."}
-                    </span>
                   </div>
                 </div>
                 <label>

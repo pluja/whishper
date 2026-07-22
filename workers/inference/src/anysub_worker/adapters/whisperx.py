@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import gc
+import os
 from importlib import import_module
 from pathlib import Path
 from typing import Any
@@ -53,6 +54,42 @@ MODEL_PROFILES = {
         12 * GIB,
     ),
 }
+
+MODEL_REPOSITORIES = {
+    "tiny": "Systran/faster-whisper-tiny",
+    "base": "Systran/faster-whisper-base",
+    "small": "Systran/faster-whisper-small",
+    "medium": "Systran/faster-whisper-medium",
+    "large-v3": "Systran/faster-whisper-large-v3",
+    "large-v3-turbo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+}
+
+
+def _model_is_downloaded(model_root: Path, model_id: str) -> bool:
+    repository = MODEL_REPOSITORIES.get(model_id)
+    if repository is None:
+        return False
+    snapshots = model_root / f"models--{repository.replace('/', '--')}" / "snapshots"
+    try:
+        revisions = tuple(snapshots.iterdir())
+    except OSError:
+        return False
+    for revision in revisions:
+        if not revision.is_dir():
+            continue
+        if not (revision / "config.json").is_file():
+            continue
+        if not (revision / "model.bin").is_file():
+            continue
+        if (revision / "tokenizer.json").is_file() or any(revision.glob("vocabulary.*")):
+            return True
+    return False
+
+
+def _configured_model_root(settings: WorkerSettings | None) -> Path:
+    if settings is not None:
+        return settings.model_root
+    return Path(os.environ.get("ANYSUB_MODEL_ROOT", "/models"))
 
 
 class WhisperXAdapter:
@@ -107,6 +144,10 @@ class WhisperXAdapter:
                     parameterCount=parameter_count,
                     requiredVramBytes=required_vram_bytes,
                     recommendedRamBytes=recommended_ram_bytes,
+                    downloaded=_model_is_downloaded(
+                        _configured_model_root(self._settings_override) / "whisperx",
+                        model_id,
+                    ),
                     optionsSchema=option_schema,
                 )
                 for model_id, (

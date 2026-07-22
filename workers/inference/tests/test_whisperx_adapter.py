@@ -9,8 +9,16 @@ from anysub_worker.adapters.whisperx import (
 from anysub_worker.config import WorkerSettings
 
 
-def test_manifest_exposes_accurate_models_without_importing_ml_dependencies() -> None:
-    manifest = WhisperXAdapter().manifest
+def test_manifest_exposes_accurate_models_without_importing_ml_dependencies(
+    tmp_path,
+) -> None:  # type: ignore[no-untyped-def]
+    manifest = WhisperXAdapter(
+        WorkerSettings(
+            worker_token="test-worker-token",
+            data_root=tmp_path,
+            model_root=tmp_path,
+        )
+    ).manifest
 
     assert manifest.id == "whisperx"
     assert {model.id for model in manifest.models} >= {"small", "large-v3-turbo"}
@@ -20,6 +28,33 @@ def test_manifest_exposes_accurate_models_without_importing_ml_dependencies() ->
     assert small.parameter_count == 244_000_000
     assert small.required_vram_bytes == 2 * 1024**3
     assert small.recommended_ram_bytes == 4 * 1024**3
+    assert small.downloaded is False
+
+
+def test_manifest_detects_complete_cached_models(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    snapshot = (
+        tmp_path / "whisperx" / "models--Systran--faster-whisper-small" / "snapshots" / "revision"
+    )
+    snapshot.mkdir(parents=True)
+    for filename in ("config.json", "model.bin", "tokenizer.json"):
+        (snapshot / filename).touch()
+    incomplete = (
+        tmp_path / "whisperx" / "models--Systran--faster-whisper-tiny" / "snapshots" / "revision"
+    )
+    incomplete.mkdir(parents=True)
+    (incomplete / "config.json").touch()
+
+    manifest = WhisperXAdapter(
+        WorkerSettings(
+            worker_token="test-worker-token",
+            data_root=tmp_path,
+            model_root=tmp_path,
+        )
+    ).manifest
+
+    downloaded = {model.id: model.downloaded for model in manifest.models}
+    assert downloaded["small"] is True
+    assert downloaded["tiny"] is False
 
 
 def test_normalizes_aligned_segments_to_contract_microseconds() -> None:

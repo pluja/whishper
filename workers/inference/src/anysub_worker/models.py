@@ -30,6 +30,7 @@ class AdapterModel(StrictModel):
     parameter_count: int | None = Field(default=None, alias="parameterCount", gt=0)
     required_vram_bytes: int | None = Field(default=None, alias="requiredVramBytes", gt=0)
     recommended_ram_bytes: int | None = Field(default=None, alias="recommendedRamBytes", gt=0)
+    downloaded: bool | None = None
     options_schema: dict[str, Any] = Field(default_factory=dict, alias="optionsSchema")
 
 

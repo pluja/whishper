@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { availableTranscriptionModels } from "$lib/server/adapters";
+import {
+  availableTranscriptionModels,
+  detectedWorkerHardwareSummaries,
+} from "$lib/server/adapters";
 
 describe("available transcription models", () => {
   it("combines active worker manifests, hides diagnostics, and deduplicates models", () => {
@@ -15,13 +18,24 @@ describe("available transcription models", () => {
           displayName: "Small",
           capabilities: ["transcribe", "align"],
           languages: "all",
+          downloaded: true,
           optionsSchema: { type: "object" },
         },
       ],
     };
     const models = availableTranscriptionModels([
       { adapters: [whisperx, { ...whisperx, id: "builtin.fake" }] },
-      { adapters: [whisperx] },
+      {
+        adapters: [
+          {
+            ...whisperx,
+            models: whisperx.models.map((model) => ({
+              ...model,
+              downloaded: false,
+            })),
+          },
+        ],
+      },
       { adapters: "invalid" },
     ]);
 
@@ -30,6 +44,7 @@ describe("available transcription models", () => {
         key: "whisperx:small",
         adapterId: "whisperx",
         modelId: "small",
+        downloaded: true,
       }),
     ]);
   });
@@ -61,6 +76,7 @@ describe("available transcription models", () => {
                 parameterCount: 244_000_000,
                 requiredVramBytes: 2 * gib,
                 recommendedRamBytes: 4 * gib,
+                downloaded: false,
               },
               {
                 id: "medium",
@@ -70,6 +86,7 @@ describe("available transcription models", () => {
                 parameterCount: 769_000_000,
                 requiredVramBytes: 5 * gib,
                 recommendedRamBytes: 8 * gib,
+                downloaded: false,
               },
             ],
           },
@@ -84,6 +101,7 @@ describe("available transcription models", () => {
         fit: "good",
         fitLabel: "Runs well",
         workerSummary: expect.stringContaining("6 GB RAM available"),
+        downloaded: false,
       }),
       expect.objectContaining({
         modelId: "medium",
@@ -131,5 +149,23 @@ describe("available transcription models", () => {
         fitReason: expect.stringContaining("supported graphics card"),
       }),
     );
+  });
+
+  it("reports detected worker hardware without duplicate summaries", () => {
+    const gib = 1024 ** 3;
+    const worker = {
+      name: "local-cpu",
+      hardware: {
+        device: "cpu",
+        computeType: "int8",
+        cpu: { model: "Test CPU", logicalCores: 8 },
+        memory: { totalBytes: 16 * gib, availableBytes: 12 * gib },
+        gpus: [],
+      },
+    };
+
+    expect(
+      detectedWorkerHardwareSummaries([worker, worker, { name: "legacy" }]),
+    ).toEqual(["Test CPU · 8 cores · 12 GB RAM available"]);
   });
 });

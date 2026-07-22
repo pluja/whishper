@@ -14,6 +14,7 @@ export interface AdapterModel {
   parameterCount?: number;
   requiredVramBytes?: number;
   recommendedRamBytes?: number;
+  downloaded?: boolean;
   optionsSchema?: Record<string, unknown>;
 }
 

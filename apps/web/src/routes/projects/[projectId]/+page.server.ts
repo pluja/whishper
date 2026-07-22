@@ -1,6 +1,9 @@
 import type { MediaDerivativeKind } from "@anysub/contracts";
 import { pool } from "$lib/server/db";
-import { availableTranscriptionModels } from "$lib/server/adapters";
+import {
+  availableTranscriptionModels,
+  detectedWorkerHardwareSummaries,
+} from "$lib/server/adapters";
 import { deleteProjectForUser } from "$lib/server/media";
 import {
   cancelMediaPreparationForUser,
@@ -170,6 +173,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       end_us: Number(cue.end_us),
     })),
     transcriptionModels: availableTranscriptionModels(
+      activeWorkers.rows.map((worker) => worker.manifest),
+    ),
+    detectedHardware: detectedWorkerHardwareSummaries(
       activeWorkers.rows.map((worker) => worker.manifest),
     ),
   };
