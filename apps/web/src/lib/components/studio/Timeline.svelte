@@ -67,6 +67,7 @@
   const WAVEFORM_BOTTOM = 83;
   const MAX_ZOOM = 64;
   const NUDGE_US = 1_000;
+  const PLAYHEAD_VIEWPORT_ANCHOR = 0.35;
   const WHEEL_LINE_PX = 16;
 
   let {
@@ -89,7 +90,6 @@
   let viewportWidth = $state(0);
   let scrollLeft = $state(0);
   let zoom = $state(1);
-  let followPlayback = $state(true);
   let waveform = $state.raw<DecodedWaveform | null>(null);
   let loadState = $state<LoadState>("idle");
   let loadError = $state("");
@@ -213,28 +213,56 @@
     );
   });
 
+  function anchoredPlayheadScrollLeft(
+    currentPlaybackUs: number,
+    duration: number,
+    totalWidth: number,
+    visibleWidth: number,
+  ) {
+    const playheadX =
+      (clampInteger(currentPlaybackUs, 0, duration) / duration) * totalWidth;
+    return clampNumber(
+      playheadX - visibleWidth * PLAYHEAD_VIEWPORT_ANCHOR,
+      0,
+      Math.max(0, totalWidth - visibleWidth),
+    );
+  }
+
+  function scrollPlayheadToAnchor(
+    node: HTMLDivElement,
+    currentPlaybackUs: number,
+    duration: number,
+    totalWidth: number,
+    visibleWidth: number,
+  ) {
+    const targetScrollLeft = anchoredPlayheadScrollLeft(
+      currentPlaybackUs,
+      duration,
+      totalWidth,
+      visibleWidth,
+    );
+    if (node.scrollLeft === targetScrollLeft) return;
+
+    node.scrollLeft = targetScrollLeft;
+    scrollLeft = node.scrollLeft;
+  }
+
   $effect(() => {
     const node = viewport;
-    const shouldFollow = followPlayback;
     const currentPlaybackUs = playbackUs;
     const duration = timelineDurationUs;
     const totalWidth = contentWidthPx;
     const visibleWidth = viewportWidth;
 
-    if (!node || !shouldFollow || duration <= 0 || visibleWidth <= 0) return;
+    if (!node || duration <= 0 || visibleWidth <= 0) return;
 
-    const playheadX =
-      (clampInteger(currentPlaybackUs, 0, duration) / duration) * totalWidth;
-    const left = node.scrollLeft;
-    const margin = Math.min(72, visibleWidth * 0.16);
-    if (playheadX < left + margin || playheadX > left + visibleWidth - margin) {
-      node.scrollLeft = clampNumber(
-        playheadX - visibleWidth * 0.35,
-        0,
-        Math.max(0, totalWidth - visibleWidth),
-      );
-      scrollLeft = node.scrollLeft;
-    }
+    scrollPlayheadToAnchor(
+      node,
+      currentPlaybackUs,
+      duration,
+      totalWidth,
+      visibleWidth,
+    );
   });
 
   function isRecord(value: unknown): value is Record<string, unknown> {
@@ -731,7 +759,6 @@
     const moved = active.moved || Math.abs(distance) >= 3;
     viewport.scrollLeft = active.originScrollLeft - distance;
     scrollLeft = viewport.scrollLeft;
-    if (moved) followPlayback = false;
     if (moved !== active.moved) panDrag = { ...active, moved };
   }
 
@@ -759,18 +786,21 @@
 
   async function setZoom(nextZoom: number) {
     if (!viewport || viewportWidth <= 0 || timelineDurationUs <= 0) return;
-    const oldWidth = contentWidthPx;
-    const centerUs =
-      ((viewport.scrollLeft + viewportWidth / 2) / oldWidth) *
-      timelineDurationUs;
-    zoom = clampNumber(nextZoom, 1, MAX_ZOOM);
+    const targetZoom = clampNumber(nextZoom, 1, MAX_ZOOM);
+    if (targetZoom === zoom) return;
+
+    zoom = targetZoom;
     await tick();
-    viewport.scrollLeft = clampNumber(
-      (centerUs / timelineDurationUs) * contentWidthPx - viewportWidth / 2,
-      0,
-      Math.max(0, contentWidthPx - viewportWidth),
+
+    const node = viewport;
+    if (!node || viewportWidth <= 0 || timelineDurationUs <= 0) return;
+    scrollPlayheadToAnchor(
+      node,
+      playbackUs,
+      timelineDurationUs,
+      contentWidthPx,
+      viewportWidth,
     );
-    scrollLeft = viewport.scrollLeft;
   }
 
   function stopTimelineClick(event: MouseEvent) {
@@ -807,7 +837,6 @@
     event.preventDefault();
     node.scrollLeft = targetScrollLeft;
     scrollLeft = node.scrollLeft;
-    followPlayback = false;
   }
 </script>
 
@@ -844,14 +873,6 @@
         onclick={() => setZoom(zoom * 2)}
         disabled={zoom >= MAX_ZOOM}
         aria-label="Zoom in">+</button
-      >
-      <button
-        class="follow-control"
-        class:active={followPlayback}
-        type="button"
-        aria-pressed={followPlayback}
-        aria-label="Follow playhead"
-        onclick={() => (followPlayback = !followPlayback)}>Follow</button
       >
     </div>
   </header>
@@ -1062,8 +1083,7 @@
     font-weight: 620;
   }
 
-  .timeline-controls button:hover:not(:disabled),
-  .timeline-controls button.active {
+  .timeline-controls button:hover:not(:disabled) {
     border-color: var(--waveform-border);
     background: var(--waveform-hover);
     color: var(--waveform-text);
@@ -1080,10 +1100,6 @@
   .timeline-controls button:disabled {
     color: color-mix(in srgb, var(--waveform-muted) 48%, transparent);
     cursor: not-allowed;
-  }
-
-  .timeline-controls .follow-control {
-    margin-inline-start: 0.15rem;
   }
 
   .zoom-value {
