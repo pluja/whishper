@@ -1,9 +1,19 @@
+import type { MediaDerivativeKind } from "@anysub/contracts";
 import { pool } from "$lib/server/db";
 import { availableTranscriptionModels } from "$lib/server/adapters";
 import { deleteProjectForUser } from "$lib/server/media";
+import {
+  cancelMediaPreparationForUser,
+  deleteDerivativeForUser,
+  isMediaDerivativeKind,
+  requestMediaPreparationForUser,
+} from "$lib/server/media-preparation";
 import { deleteTranscriptForUser } from "$lib/server/transcripts";
 import { error, fail, redirect, type Actions } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
+
+type MediaPreparationStatus =
+  "not_started" | "queued" | "running" | "completed" | "failed";
 
 interface CueRow {
   id: string;
@@ -26,11 +36,21 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     media_type: string | null;
     upload_status: string | null;
     size_bytes: number | null;
+    media_duration_us: number | null;
+    media_preparation_status: MediaPreparationStatus;
+    media_probe: Record<string, unknown> | null;
+    media_frame_rate_num: number | null;
+    media_frame_rate_den: number | null;
+    media_seekable: boolean | null;
+    media_proxy_recommended: boolean | null;
     can_manage: boolean;
   }>(
     `select p.id, p.name, p.created_at, w.name as workspace_name,
             p.media_filename, p.media_original_key, upload.media_type,
             upload.status as upload_status, upload.size_bytes,
+            p.media_duration_us, p.media_preparation_status, p.media_probe,
+            p.media_frame_rate_num, p.media_frame_rate_den, p.media_seekable,
+            p.media_proxy_recommended,
             (p.created_by = $2 or m.role in ('owner', 'admin')) as can_manage
        from projects p
        join workspaces w on w.id = p.workspace_id
@@ -94,13 +114,53 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     ).rows;
   }
 
+  const preparation = await pool.query<{
+    state: string;
+    progress: number;
+    progress_message: string | null;
+    error: Record<string, unknown> | null;
+  }>(
+    `select state, progress, progress_message, error
+       from jobs
+      where payload->>'kind' = 'media_prepare'
+        and payload->>'projectId' = $1
+      order by created_at desc
+      limit 1`,
+    [params.projectId],
+  );
+
+  const derivatives = await pool.query<{
+    kind: MediaDerivativeKind;
+    media_type: string;
+    size_bytes: number;
+    metadata: Record<string, unknown>;
+  }>(
+    `select kind, media_type, size_bytes, metadata
+       from media_derivatives
+      where project_id = $1 and status = 'ready'
+      order by kind`,
+    [params.projectId],
+  );
+
   const activeWorkers = await pool.query<{ manifest: unknown }>(
     `select manifest from workers where last_seen_at > now() - interval '15 seconds'`,
   );
 
   return {
-    project: project.rows[0],
+    project: {
+      ...project.rows[0],
+      media_duration_us:
+        project.rows[0].media_duration_us === null
+          ? null
+          : Number(project.rows[0].media_duration_us),
+    },
     run: run.rows[0] ?? null,
+    preparation: preparation.rows[0] ?? null,
+    derivatives: derivatives.rows.map((derivative) => ({
+      ...derivative,
+      size_bytes: Number(derivative.size_bytes),
+      url: `/api/projects/${params.projectId}/derivatives/${derivative.kind}`,
+    })),
     track: track.rows[0]
       ? { ...track.rows[0], revision: Number(track.rows[0].revision) }
       : null,
@@ -254,6 +314,54 @@ export const actions: Actions = {
       client.release();
     }
     redirect(303, `/projects/${params.projectId}`);
+  },
+  prepareMedia: async ({ locals, params }) => {
+    if (!locals.user) redirect(303, "/login");
+    const projectId = params.projectId;
+    if (!projectId) error(400, "Project ID is required");
+    try {
+      if (!(await requestMediaPreparationForUser(projectId, locals.user.id))) {
+        return fail(404, { message: "Project media was not found." });
+      }
+    } catch (cause) {
+      console.error("Could not queue media preparation", cause);
+      return fail(500, { message: "Media preparation could not be queued." });
+    }
+    redirect(303, `/projects/${projectId}`);
+  },
+  cancelMedia: async ({ locals, params }) => {
+    if (!locals.user) redirect(303, "/login");
+    const projectId = params.projectId;
+    if (!projectId) error(400, "Project ID is required");
+    try {
+      if (!(await cancelMediaPreparationForUser(projectId, locals.user.id))) {
+        return fail(409, { message: "Media preparation is no longer active." });
+      }
+    } catch (cause) {
+      console.error("Could not cancel media preparation", cause);
+      return fail(500, {
+        message: "Media preparation could not be cancelled.",
+      });
+    }
+    redirect(303, `/projects/${projectId}`);
+  },
+  deleteDerivative: async ({ locals, params, request }) => {
+    if (!locals.user) redirect(303, "/login");
+    const projectId = params.projectId;
+    if (!projectId) error(400, "Project ID is required");
+    const kind = String((await request.formData()).get("kind") ?? "");
+    if (!isMediaDerivativeKind(kind)) {
+      return fail(400, { message: "The derivative type is invalid." });
+    }
+    try {
+      if (!(await deleteDerivativeForUser(projectId, kind, locals.user.id))) {
+        return fail(404, { message: "The derivative was not found." });
+      }
+    } catch (cause) {
+      console.error("Could not delete derivative", cause);
+      return fail(500, { message: "The derivative could not be deleted." });
+    }
+    redirect(303, `/projects/${projectId}`);
   },
   deleteTranscript: async ({ locals, params, request }) => {
     if (!locals.user) redirect(303, "/login");

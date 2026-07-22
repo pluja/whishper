@@ -4,12 +4,15 @@ import asyncio
 import logging
 from collections.abc import Callable
 from contextlib import suppress
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import httpx
 
 from .adapter import AdapterExecutionError, TranscriptionAdapter
 from .client import ApplicationClient
 from .config import WorkerSettings
+from .media import MediaPreparationError, prepare_media
 from .models import AdapterCapability, JobFailure, TranscriptionRequest
 from .registry import AdapterLoadError, AdapterRegistry
 
@@ -40,7 +43,7 @@ async def run_forever(settings: WorkerSettings, registry: AdapterRegistry) -> No
 
 
 async def _execute(client: ApplicationClient, registry: AdapterRegistry, lease: object) -> None:
-    from .models import WorkerLease
+    from .models import TranscriptionJobPayload, WorkerLease
 
     if not isinstance(lease, WorkerLease):
         raise TypeError("expected a validated worker lease")
@@ -48,8 +51,49 @@ async def _execute(client: ApplicationClient, registry: AdapterRegistry, lease: 
     payload = lease.payload
     heartbeat: asyncio.Task[None] | None = None
     current_progress = 0.0
-    current_message = "Starting transcription"
+    current_message = (
+        "Starting transcription"
+        if isinstance(payload, TranscriptionJobPayload)
+        else "Starting media preparation"
+    )
+
+    async def report(progress: float, message: str) -> None:
+        nonlocal current_progress, current_message
+        current_progress = progress
+        current_message = message
+        await client.progress(lease, progress, message)
+
     try:
+        await report(current_progress, current_message)
+        heartbeat = asyncio.create_task(
+            _keep_lease_alive(
+                client,
+                lease,
+                lambda: (current_progress, current_message),
+            )
+        )
+
+        if payload.kind == "media_prepare":
+            with TemporaryDirectory(prefix="anysub-media-") as temporary:
+                root = Path(temporary)
+                source_path = root / f"source{Path(payload.source_filename).suffix.lower()}"
+                await report(0.02, "Downloading source media")
+                await client.download_source(lease, source_path)
+                prepared = await prepare_media(
+                    source_path,
+                    payload.source_filename,
+                    root / "artifacts",
+                    report,
+                )
+                artifact_count = len(prepared.artifacts)
+                for index, (kind, artifact_path) in enumerate(prepared.artifacts.items()):
+                    progress = 0.88 + (0.09 * index / max(1, artifact_count))
+                    await report(progress, f"Uploading {kind} derivative")
+                    await client.upload_artifact(lease, kind, artifact_path)
+                await report(0.98, "Finalizing media metadata")
+                await client.complete_media_preparation(lease, prepared.completion)
+            return
+
         adapter = registry.require(
             payload.adapter_id, payload.model_id, AdapterCapability.TRANSCRIBE
         )
@@ -59,20 +103,6 @@ async def _execute(client: ApplicationClient, registry: AdapterRegistry, lease: 
                 "but does not implement it"
             )
 
-        async def report(progress: float, message: str) -> None:
-            nonlocal current_progress, current_message
-            current_progress = progress
-            current_message = message
-            await client.progress(lease, progress, message)
-
-        await report(current_progress, current_message)
-        heartbeat = asyncio.create_task(
-            _keep_lease_alive(
-                client,
-                lease,
-                lambda: (current_progress, current_message),
-            )
-        )
         artifact = await adapter.transcribe(
             TranscriptionRequest(
                 jobId=lease.job_id,
@@ -85,12 +115,21 @@ async def _execute(client: ApplicationClient, registry: AdapterRegistry, lease: 
             ),
             report,
         )
-        await client.complete(
+        await client.complete_transcription(
             lease,
             artifact,
             adapter.manifest.id,
             adapter.manifest.version,
             payload.model_id,
+        )
+    except MediaPreparationError as exc:
+        await client.fail(
+            lease,
+            JobFailure(
+                code="media_preparation_error",
+                message=str(exc),
+                retryable=exc.retryable,
+            ),
         )
     except AdapterExecutionError as exc:
         await client.fail(
@@ -107,9 +146,10 @@ async def _execute(client: ApplicationClient, registry: AdapterRegistry, lease: 
         )
     except Exception as exc:
         LOGGER.exception("job failed job_id=%s", lease.job_id)
+        code = "adapter_error" if payload.kind == "transcribe" else "media_preparation_error"
         await client.fail(
             lease,
-            JobFailure(code="adapter_error", message=str(exc), retryable=True),
+            JobFailure(code=code, message=str(exc), retryable=True),
         )
     finally:
         if heartbeat is not None:

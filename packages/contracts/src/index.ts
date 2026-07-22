@@ -1,5 +1,6 @@
 export const WORKER_PROTOCOL_VERSION = "1.0";
 export const ADAPTER_PROTOCOL_VERSION = "1.0";
+export const MEDIA_PREPARATION_VERSION = "1.0";
 
 export type AdapterCapability =
   "transcribe" | "align" | "diarize" | "translate";
@@ -28,6 +29,9 @@ export interface WorkerManifest {
   name: string;
   version: string;
   architecture: string;
+  capabilities: {
+    mediaPreparation?: typeof MEDIA_PREPARATION_VERSION;
+  };
   adapters: AdapterManifest[];
 }
 
@@ -56,6 +60,57 @@ export interface TranscriptArtifact {
   metadata: Record<string, unknown>;
 }
 
+export interface MediaRational {
+  numerator: number;
+  denominator: number;
+}
+
+export interface MediaProbeStream {
+  index: number;
+  type: "audio" | "video" | "subtitle" | "data" | "attachment" | "unknown";
+  codec: string;
+  durationUs?: number;
+  bitRate?: number;
+  audio?: {
+    sampleRate?: number;
+    channels?: number;
+    channelLayout?: string;
+  };
+  video?: {
+    width: number;
+    height: number;
+    pixelFormat?: string;
+    frameRate?: MediaRational;
+    averageFrameRate?: MediaRational;
+    attachedPicture: boolean;
+  };
+}
+
+export interface MediaProbeArtifact {
+  schemaVersion: typeof MEDIA_PREPARATION_VERSION;
+  durationUs: number;
+  startUs?: number;
+  formatNames: string[];
+  formatLongName?: string;
+  bitRate?: number;
+  seekable: boolean;
+  frameRateMode: "constant" | "variable" | "unknown";
+  proxyRecommended: boolean;
+  proxyReasons: string[];
+  streams: MediaProbeStream[];
+}
+
+export type MediaDerivativeKind = "waveform" | "thumbnail" | "proxy";
+
+export interface MediaDerivativeUpload {
+  kind: MediaDerivativeKind;
+  mediaType: string;
+  sizeBytes: number;
+  schemaVersion: typeof MEDIA_PREPARATION_VERSION;
+  generatorVersion: typeof MEDIA_PREPARATION_VERSION;
+  metadata: Record<string, unknown>;
+}
+
 export interface TranscriptionJobPayload {
   kind: "transcribe";
   adapterId: string;
@@ -67,7 +122,16 @@ export interface TranscriptionJobPayload {
   options: Record<string, unknown>;
 }
 
-export type WorkerJobPayload = TranscriptionJobPayload;
+export interface MediaPreparationJobPayload {
+  kind: "media_prepare";
+  projectId: string;
+  sourceStorageKey: string;
+  sourceFilename: string;
+  sourceMediaType?: string;
+}
+
+export type WorkerJobPayload =
+  TranscriptionJobPayload | MediaPreparationJobPayload;
 
 export interface WorkerLease {
   jobId: string;
@@ -87,7 +151,8 @@ export interface JobProgress {
   message: string;
 }
 
-export interface JobCompletion {
+export interface TranscriptionJobCompletion {
+  kind: "transcribe";
   artifact: TranscriptArtifact;
   adapter: {
     id: string;
@@ -95,3 +160,16 @@ export interface JobCompletion {
     modelId: string;
   };
 }
+
+export interface MediaPreparationJobCompletion {
+  kind: "media_prepare";
+  probe: MediaProbeArtifact;
+  artifacts: MediaDerivativeUpload[];
+  generator: {
+    id: "ffmpeg";
+    version: string;
+  };
+}
+
+export type JobCompletion =
+  TranscriptionJobCompletion | MediaPreparationJobCompletion;

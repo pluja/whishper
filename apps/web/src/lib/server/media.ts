@@ -3,6 +3,10 @@ import { basename, dirname, extname, posix, resolve, sep } from "node:path";
 
 import { pool } from "$lib/server/db";
 import { privateEnv } from "$lib/server/env";
+import {
+  enqueueMediaPreparation,
+  lockMediaPreparationProject,
+} from "$lib/server/media-preparation";
 
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 const SAFE_EXTENSION = /^\.[a-zA-Z0-9]{1,12}$/;
@@ -11,6 +15,7 @@ export interface UploadProject {
   projectId: string;
   workspaceId: string;
   originalFilename: string;
+  mediaType: string | null;
   storageKey: string | null;
   status: string;
 }
@@ -122,9 +127,9 @@ export async function requireOwnedUpload(
 ): Promise<UploadProject> {
   const result = await pool.query<UploadProject>(
     `select project_id as "projectId", workspace_id as "workspaceId",
-            original_filename as "originalFilename", storage_key as "storageKey", status
-       from media_uploads
-      where id = $1 and created_by = $2`,
+            original_filename as "originalFilename", media_type as "mediaType",
+            storage_key as "storageKey", status
+       from media_uploads where id = $1 and created_by = $2`,
     [uploadId, userId],
   );
   const upload = result.rows[0];
@@ -194,6 +199,7 @@ export async function completeUpload(
     const client = await pool.connect();
     try {
       await client.query("begin");
+      await lockMediaPreparationProject(client, upload.projectId);
       await client.query(
         `update projects
             set media_original_key = $2, media_filename = $3, updated_at = now()
@@ -207,6 +213,13 @@ export async function completeUpload(
           where id = $1`,
         [uploadId, storageKey],
       );
+      await enqueueMediaPreparation(client, {
+        workspaceId: upload.workspaceId,
+        projectId: upload.projectId,
+        sourceStorageKey: storageKey,
+        sourceFilename: upload.originalFilename,
+        sourceMediaType: upload.mediaType,
+      });
       await client.query("commit");
     } catch (cause) {
       await client.query("rollback");
@@ -253,8 +266,31 @@ export async function deleteProjectForUser(
   const client = await pool.connect();
   let workspaceId: string | null = null;
   let uploadId: string | null = null;
+  let jobIds: string[] = [];
   try {
     await client.query("begin");
+    const authorized = await client.query(
+      `select 1
+         from projects p
+         join memberships m on m.workspace_id = p.workspace_id
+        where p.id = $1 and m.user_id = $2
+          and (p.created_by = $2 or m.role in ('owner', 'admin'))`,
+      [projectId, userId],
+    );
+    if (!authorized.rows[0]) {
+      await client.query("rollback");
+      return false;
+    }
+    await lockMediaPreparationProject(client, projectId);
+    jobIds = (
+      await client.query<{ id: string }>(
+        `select id
+           from jobs
+          where payload->>'projectId' = $1
+          for update`,
+        [projectId],
+      )
+    ).rows.map((job) => job.id);
     const project = await client.query<{
       workspace_id: string;
       upload_id: string | null;
@@ -274,6 +310,19 @@ export async function deleteProjectForUser(
     }
     workspaceId = project.rows[0].workspace_id;
     uploadId = project.rows[0].upload_id;
+    await client.query(
+      `update jobs
+          set state = 'cancelled',
+              leased_by = null,
+              lease_token_hash = null,
+              lease_expires_at = null,
+              progress_message = 'Project deleted',
+              updated_at = now()
+        where payload->>'kind' = 'media_prepare'
+          and payload->>'projectId' = $1
+          and state in ('queued', 'leased')`,
+      [projectId],
+    );
     await client.query("delete from projects where id = $1", [projectId]);
     await client.query("commit");
   } catch (cause) {
@@ -293,6 +342,9 @@ export async function deleteProjectForUser(
           resolveDataPath(posix.join("staging", "uploads", `${uploadId}.json`)),
         ]
       : []),
+    ...jobIds.map((jobId) =>
+      resolveDataPath(posix.join("staging", "worker-artifacts", jobId)),
+    ),
   ];
   await Promise.all(
     paths.map((path) =>

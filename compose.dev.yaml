@@ -16,10 +16,16 @@ services:
       - web-node-modules:/workspace/node_modules
     working_dir: /workspace
     command: ["pnpm", "--filter", "@anysub/web", "dev", "--host", "0.0.0.0"]
-    ports:
+    ports: !override
       - "${ANYSUB_PORT:-5173}:5173"
     healthcheck:
-      test: ["CMD", "node", "apps/web/scripts/healthcheck.mjs", "http://localhost:5173/api/health"]
+      test:
+        [
+          "CMD",
+          "node",
+          "apps/web/scripts/healthcheck.mjs",
+          "http://localhost:5173/api/health",
+        ]
 
   worker:
     build:
@@ -30,6 +36,8 @@ services:
       - app-data:/data:ro
       - model-cache:/models
     working_dir: /workspace
+    environment:
+      ANYSUB_APP_URL: http://web:5173
     command: ["uv", "run", "anysub-worker"]
 
 volumes:

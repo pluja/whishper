@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import platform
 import uuid
 from pathlib import Path
@@ -8,15 +9,17 @@ import httpx
 
 from .config import WorkerSettings
 from .models import (
-    JobCompletion,
     JobFailure,
     LeaseResponse,
+    MediaPreparationJobCompletion,
     TranscriptArtifact,
+    TranscriptionJobCompletion,
     WorkerLease,
 )
 from .registry import AdapterRegistry
 
 WORKER_VERSION = "0.1.0"
+ARTIFACT_CHUNK_BYTES = 16 * 1024 * 1024
 
 
 class ApplicationClient:
@@ -42,6 +45,7 @@ class ApplicationClient:
                 "name": self._settings.worker_name,
                 "version": WORKER_VERSION,
                 "architecture": platform.machine(),
+                "capabilities": {"mediaPreparation": "1.0"},
                 "adapters": [
                     adapter.manifest.model_dump(by_alias=True, mode="json")
                     for adapter in self._registry.adapters
@@ -62,7 +66,77 @@ class ApplicationClient:
         )
         response.raise_for_status()
 
-    async def complete(
+    async def download_source(self, lease: WorkerLease, destination: Path) -> None:
+        async with self._client.stream(
+            "GET",
+            f"/api/internal/jobs/{lease.job_id}/source",
+            headers={"X-Anysub-Lease-Token": lease.lease_token},
+        ) as response:
+            response.raise_for_status()
+            with destination.open("wb") as output:
+                async for chunk in response.aiter_bytes(1024 * 1024):
+                    output.write(chunk)
+
+    async def upload_artifact(self, lease: WorkerLease, kind: str, artifact_path: Path) -> None:
+        size_bytes = artifact_path.stat().st_size
+        headers = {"X-Anysub-Lease-Token": lease.lease_token}
+        response = await self._client.head(
+            f"/api/internal/jobs/{lease.job_id}/artifacts/{kind}",
+            headers=headers,
+        )
+        response.raise_for_status()
+        offset = int(response.headers.get("upload-offset", "0"))
+        if offset < 0 or offset > size_bytes:
+            raise RuntimeError("application returned an invalid artifact offset")
+
+        failures = 0
+        with artifact_path.open("rb") as artifact:
+            while offset < size_bytes:
+                artifact.seek(offset)
+                chunk = artifact.read(min(ARTIFACT_CHUNK_BYTES, size_bytes - offset))
+                try:
+                    response = await self._client.patch(
+                        f"/api/internal/jobs/{lease.job_id}/artifacts/{kind}",
+                        headers={
+                            **headers,
+                            "Upload-Offset": str(offset),
+                            "Upload-Length": str(size_bytes),
+                            "Content-Length": str(len(chunk)),
+                            "Content-Type": "application/offset+octet-stream",
+                        },
+                        content=chunk,
+                    )
+                    response.raise_for_status()
+                    next_offset = int(response.headers["upload-offset"])
+                    if next_offset <= offset or next_offset > offset + len(chunk):
+                        raise RuntimeError("application returned an invalid artifact offset")
+                    offset = next_offset
+                    failures = 0
+                except httpx.HTTPError as cause:
+                    failures += 1
+                    if failures >= 3:
+                        detail = (
+                            cause.response.text.strip()
+                            if isinstance(cause, httpx.HTTPStatusError)
+                            else ""
+                        )
+                        message = "application rejected the artifact upload"
+                        if detail:
+                            message = f"{message}: {detail}"
+                        raise RuntimeError(message) from cause
+                    await asyncio.sleep(failures)
+                    response = await self._client.head(
+                        f"/api/internal/jobs/{lease.job_id}/artifacts/{kind}",
+                        headers=headers,
+                    )
+                    response.raise_for_status()
+                    offset = int(response.headers.get("upload-offset", "0"))
+                    if offset < 0 or offset > size_bytes:
+                        raise RuntimeError(
+                            "application returned an invalid artifact offset"
+                        ) from None
+
+    async def complete_transcription(
         self,
         lease: WorkerLease,
         artifact: TranscriptArtifact,
@@ -70,10 +144,22 @@ class ApplicationClient:
         adapter_version: str,
         model_id: str,
     ) -> None:
-        completion = JobCompletion(
+        completion = TranscriptionJobCompletion(
             artifact=artifact,
             adapter={"id": adapter_id, "version": adapter_version, "modelId": model_id},
         )
+        await self._complete(lease, completion)
+
+    async def complete_media_preparation(
+        self, lease: WorkerLease, completion: MediaPreparationJobCompletion
+    ) -> None:
+        await self._complete(lease, completion)
+
+    async def _complete(
+        self,
+        lease: WorkerLease,
+        completion: TranscriptionJobCompletion | MediaPreparationJobCompletion,
+    ) -> None:
         response = await self._client.post(
             f"/api/internal/jobs/{lease.job_id}/complete",
             json={

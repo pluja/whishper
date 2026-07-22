@@ -4,13 +4,22 @@ import type {
   AdapterManifest,
   JobCompletion,
   TranscriptArtifact,
+  TranscriptionJobCompletion,
   WorkerJobPayload,
   WorkerLease,
   WorkerManifest,
 } from "@anysub/contracts";
 import type { PoolClient } from "pg";
+import type { MediaFinalizationPlan } from "$lib/server/media-preparation";
 
 import { pool } from "$lib/server/db";
+import {
+  commitMediaFinalization,
+  cleanupStagedMediaArtifacts,
+  cleanupStagedMediaAttempt,
+  finalizeMediaPreparation,
+  rollbackMediaFinalization,
+} from "$lib/server/media-preparation";
 
 const LEASE_SECONDS = 60;
 
@@ -20,18 +29,26 @@ interface LeasableJob {
   payload: WorkerJobPayload;
 }
 
+interface ReclaimedMediaAttempt {
+  jobId: string;
+  attempt: number;
+}
+
 export async function leaseJob(
   manifest: WorkerManifest,
 ): Promise<WorkerLease | null> {
   const adapterIds = manifest.adapters.map((adapter) => adapter.id);
+  const supportsMediaPreparation =
+    manifest.capabilities.mediaPreparation === "1.0";
   const client = await pool.connect();
   try {
     await client.query("begin");
     await upsertWorker(client, manifest);
-    await reclaimExpiredLeases(client);
+    const reclaimedArtifactJobs = await reclaimExpiredLeases(client);
 
-    if (adapterIds.length === 0) {
+    if (adapterIds.length === 0 && !supportsMediaPreparation) {
       await client.query("commit");
+      await cleanupReclaimedArtifacts(reclaimedArtifactJobs);
       return null;
     }
 
@@ -40,16 +57,20 @@ export async function leaseJob(
          from jobs
         where state = 'queued'
           and available_at <= now()
-          and payload->>'adapterId' = any($1::text[])
+          and (
+            (payload->>'kind' = 'transcribe' and payload->>'adapterId' = any($1::text[]))
+            or (payload->>'kind' = 'media_prepare' and $2)
+          )
         order by priority desc, created_at asc
         for update skip locked
         limit 1`,
-      [adapterIds],
+      [adapterIds, supportsMediaPreparation],
     );
 
     const job = selected.rows[0];
     if (!job) {
       await client.query("commit");
+      await cleanupReclaimedArtifacts(reclaimedArtifactJobs);
       return null;
     }
 
@@ -74,9 +95,17 @@ export async function leaseJob(
           where id = $1 and status = 'queued'`,
         [job.payload.runId],
       );
+    } else {
+      await client.query(
+        `update projects
+            set media_preparation_status = 'running', updated_at = now()
+          where id = $1`,
+        [job.payload.projectId],
+      );
     }
 
     await client.query("commit");
+    await cleanupReclaimedArtifacts(reclaimedArtifactJobs);
     return {
       jobId: job.id,
       attempt: job.attempts + 1,
@@ -119,15 +148,20 @@ export async function completeJob(
   completion: JobCompletion,
 ): Promise<"completed" | "already-completed" | "lease-rejected"> {
   const client = await pool.connect();
+  let mediaFinalization: MediaFinalizationPlan | undefined;
   try {
     await client.query("begin");
     const locked = await client.query<{
       state: string;
       run_id: string | null;
+      workspace_id: string;
+      attempts: number;
       payload: WorkerJobPayload;
-    }>("select state, run_id, payload from jobs where id = $1 for update", [
-      jobId,
-    ]);
+    }>(
+      `select state, run_id, workspace_id, attempts, payload
+         from jobs where id = $1 for update`,
+      [jobId],
+    );
     const job = locked.rows[0];
     if (!job) return await rollback(client, "lease-rejected");
     if (job.state === "completed")
@@ -142,39 +176,26 @@ export async function completeJob(
     if (accepted.rowCount !== 1)
       return await rollback(client, "lease-rejected");
 
-    const artifact = validateArtifact(completion.artifact);
-    const track = await client.query<{ id: string }>(
-      `insert into subtitle_tracks
-        (project_id, source_run_id, name, language, kind, metadata)
-       values ($1, $2, $3, $4, 'transcription', $5)
-       returning id`,
-      [
-        job.payload.projectId,
-        job.run_id,
-        `${completion.adapter.id} · ${completion.adapter.modelId}`,
-        artifact.language,
-        JSON.stringify({
-          adapter: completion.adapter,
-          schemaVersion: artifact.schemaVersion,
-          durationUs: artifact.durationUs,
-          ...artifact.metadata,
-        }),
-      ],
-    );
-
-    for (const [position, cue] of artifact.cues.entries()) {
-      await client.query(
-        `insert into cues (track_id, position, start_us, end_us, text, words)
-         values ($1, $2, $3, $4, $5, $6)`,
-        [
-          track.rows[0].id,
-          position,
-          cue.startUs,
-          cue.endUs,
-          cue.text,
-          JSON.stringify(cue.words),
-        ],
+    if (job.payload.kind === "transcribe") {
+      if (completion.kind !== "transcribe") {
+        throw new Error("Worker completion does not match the leased job.");
+      }
+      await storeTranscriptCompletion(
+        client,
+        { run_id: job.run_id, payload: job.payload },
+        completion,
       );
+    } else {
+      if (completion.kind !== "media_prepare") {
+        throw new Error("Worker completion does not match the leased job.");
+      }
+      mediaFinalization = await finalizeMediaPreparation(client, {
+        jobId,
+        attempt: job.attempts,
+        workspaceId: job.workspace_id,
+        payload: job.payload,
+        completion,
+      });
     }
 
     await client.query(
@@ -192,12 +213,60 @@ export async function completeJob(
       );
     }
     await client.query("commit");
+    if (mediaFinalization) {
+      await commitMediaFinalization(mediaFinalization).catch(() => undefined);
+    }
     return "completed";
   } catch (cause) {
     await client.query("rollback");
+    if (mediaFinalization) await rollbackMediaFinalization(mediaFinalization);
     throw cause;
   } finally {
     client.release();
+  }
+}
+
+async function storeTranscriptCompletion(
+  client: PoolClient,
+  job: {
+    run_id: string | null;
+    payload: Extract<WorkerJobPayload, { kind: "transcribe" }>;
+  },
+  completion: TranscriptionJobCompletion,
+): Promise<void> {
+  const artifact = validateArtifact(completion.artifact);
+  const track = await client.query<{ id: string }>(
+    `insert into subtitle_tracks
+      (project_id, source_run_id, name, language, kind, metadata)
+     values ($1, $2, $3, $4, 'transcription', $5)
+     returning id`,
+    [
+      job.payload.projectId,
+      job.run_id,
+      `${completion.adapter.id} · ${completion.adapter.modelId}`,
+      artifact.language,
+      JSON.stringify({
+        adapter: completion.adapter,
+        schemaVersion: artifact.schemaVersion,
+        durationUs: artifact.durationUs,
+        ...artifact.metadata,
+      }),
+    ],
+  );
+
+  for (const [position, cue] of artifact.cues.entries()) {
+    await client.query(
+      `insert into cues (track_id, position, start_us, end_us, text, words)
+       values ($1, $2, $3, $4, $5, $6)`,
+      [
+        track.rows[0].id,
+        position,
+        cue.startUs,
+        cue.endUs,
+        cue.text,
+        JSON.stringify(cue.words),
+      ],
+    );
   }
 }
 
@@ -212,6 +281,8 @@ export async function failJob(
     const updated = await client.query<{
       run_id: string | null;
       state: string;
+      attempts: number;
+      payload: WorkerJobPayload;
     }>(
       `update jobs
           set state = case when $3 and attempts < max_attempts then 'queued' else 'failed' end,
@@ -222,7 +293,7 @@ export async function failJob(
               lease_expires_at = null,
               updated_at = now()
         where id = $1 and state = 'leased' and lease_token_hash = $2
-        returning run_id, state`,
+        returning run_id, state, attempts, payload`,
       [
         jobId,
         hashToken(leaseToken),
@@ -239,7 +310,18 @@ export async function failJob(
         [job.run_id],
       );
     }
+    if (job.payload.kind === "media_prepare") {
+      await client.query(
+        `update projects
+            set media_preparation_status = $2, updated_at = now()
+          where id = $1`,
+        [job.payload.projectId, job.state === "failed" ? "failed" : "queued"],
+      );
+    }
     await client.query("commit");
+    if (job.payload.kind === "media_prepare") {
+      await cleanupStagedMediaAttempt(jobId, job.attempts);
+    }
     return true;
   } catch (cause) {
     await client.query("rollback");
@@ -274,8 +356,15 @@ async function upsertWorker(
   );
 }
 
-async function reclaimExpiredLeases(client: PoolClient): Promise<void> {
-  await client.query(
+async function reclaimExpiredLeases(
+  client: PoolClient,
+): Promise<ReclaimedMediaAttempt[]> {
+  const reclaimed = await client.query<{
+    id: string;
+    state: string;
+    attempts: number;
+    payload: WorkerJobPayload;
+  }>(
     `update jobs
         set state = case when attempts < max_attempts then 'queued' else 'failed' end,
             available_at = now(),
@@ -284,7 +373,33 @@ async function reclaimExpiredLeases(client: PoolClient): Promise<void> {
             lease_expires_at = null,
             progress_message = 'Worker lease expired',
             updated_at = now()
-      where state = 'leased' and lease_expires_at <= now()`,
+      where state = 'leased' and lease_expires_at <= now()
+      returning id, state, attempts, payload`,
+  );
+  const mediaJobs = reclaimed.rows.filter(
+    (job) => job.payload.kind === "media_prepare",
+  );
+  for (const job of mediaJobs) {
+    await client.query(
+      `update projects
+          set media_preparation_status = $2, updated_at = now()
+        where id = $1`,
+      [job.payload.projectId, job.state === "failed" ? "failed" : "queued"],
+    );
+  }
+  return mediaJobs.map((job) => ({
+    jobId: job.id,
+    attempt: job.attempts,
+  }));
+}
+
+async function cleanupReclaimedArtifacts(
+  attempts: ReclaimedMediaAttempt[],
+): Promise<void> {
+  await Promise.all(
+    attempts.map(({ jobId, attempt }) =>
+      cleanupStagedMediaAttempt(jobId, attempt),
+    ),
   );
 }
 
@@ -334,8 +449,22 @@ export function parseWorkerManifest(value: unknown): WorkerManifest {
   ) {
     throw new Error("Worker manifest is incomplete");
   }
+  const capabilities = isRecord(value.capabilities) ? value.capabilities : {};
+  if (
+    capabilities.mediaPreparation !== undefined &&
+    capabilities.mediaPreparation !== "1.0"
+  ) {
+    throw new Error("Unsupported media preparation capability");
+  }
   for (const adapter of value.adapters) validateManifestAdapter(adapter);
-  return value as unknown as WorkerManifest;
+  return {
+    ...(value as unknown as Omit<WorkerManifest, "capabilities">),
+    capabilities: {
+      ...(capabilities.mediaPreparation === "1.0"
+        ? { mediaPreparation: "1.0" as const }
+        : {}),
+    },
+  };
 }
 
 function validateManifestAdapter(

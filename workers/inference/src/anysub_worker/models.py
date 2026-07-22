@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ADAPTER_PROTOCOL_VERSION = "1.0"
 WORKER_PROTOCOL_VERSION = "1.0"
+MEDIA_PREPARATION_VERSION = "1.0"
 
 
 class StrictModel(BaseModel):
@@ -107,6 +108,61 @@ class TranscriptArtifact(StrictModel):
         return self
 
 
+class MediaRational(StrictModel):
+    numerator: Annotated[int, Field(gt=0)]
+    denominator: Annotated[int, Field(gt=0)]
+
+
+class MediaAudioDetails(StrictModel):
+    sample_rate: Annotated[int, Field(gt=0)] | None = Field(default=None, alias="sampleRate")
+    channels: Annotated[int, Field(gt=0)] | None = None
+    channel_layout: str | None = Field(default=None, alias="channelLayout")
+
+
+class MediaVideoDetails(StrictModel):
+    width: Annotated[int, Field(gt=0)]
+    height: Annotated[int, Field(gt=0)]
+    pixel_format: str | None = Field(default=None, alias="pixelFormat")
+    frame_rate: MediaRational | None = Field(default=None, alias="frameRate")
+    average_frame_rate: MediaRational | None = Field(default=None, alias="averageFrameRate")
+    attached_picture: bool = Field(default=False, alias="attachedPicture")
+
+
+class MediaProbeStream(StrictModel):
+    index: Annotated[int, Field(ge=0)]
+    type: Literal["audio", "video", "subtitle", "data", "attachment", "unknown"]
+    codec: str
+    duration_us: Annotated[int, Field(ge=0)] | None = Field(default=None, alias="durationUs")
+    bit_rate: Annotated[int, Field(ge=0)] | None = Field(default=None, alias="bitRate")
+    audio: MediaAudioDetails | None = None
+    video: MediaVideoDetails | None = None
+
+
+class MediaProbeArtifact(StrictModel):
+    schema_version: Literal["1.0"] = Field(default=MEDIA_PREPARATION_VERSION, alias="schemaVersion")
+    duration_us: Annotated[int, Field(ge=0)] = Field(alias="durationUs")
+    start_us: int | None = Field(default=None, alias="startUs")
+    format_names: tuple[str, ...] = Field(alias="formatNames")
+    format_long_name: str | None = Field(default=None, alias="formatLongName")
+    bit_rate: Annotated[int, Field(ge=0)] | None = Field(default=None, alias="bitRate")
+    seekable: bool
+    frame_rate_mode: Literal["constant", "variable", "unknown"] = Field(alias="frameRateMode")
+    proxy_recommended: bool = Field(alias="proxyRecommended")
+    proxy_reasons: tuple[str, ...] = Field(alias="proxyReasons")
+    streams: tuple[MediaProbeStream, ...]
+
+
+class MediaDerivativeUpload(StrictModel):
+    kind: Literal["waveform", "thumbnail", "proxy"]
+    media_type: str = Field(alias="mediaType")
+    size_bytes: Annotated[int, Field(gt=0)] = Field(alias="sizeBytes")
+    schema_version: Literal["1.0"] = Field(default=MEDIA_PREPARATION_VERSION, alias="schemaVersion")
+    generator_version: Literal["1.0"] = Field(
+        default=MEDIA_PREPARATION_VERSION, alias="generatorVersion"
+    )
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class TranscriptionJobPayload(StrictModel):
     kind: Literal["transcribe"]
     adapter_id: str = Field(alias="adapterId")
@@ -118,12 +174,20 @@ class TranscriptionJobPayload(StrictModel):
     options: dict[str, Any] = Field(default_factory=dict)
 
 
+class MediaPreparationJobPayload(StrictModel):
+    kind: Literal["media_prepare"]
+    project_id: str = Field(alias="projectId")
+    source_storage_key: str = Field(alias="sourceStorageKey")
+    source_filename: str = Field(alias="sourceFilename")
+    source_media_type: str | None = Field(default=None, alias="sourceMediaType")
+
+
 class WorkerLease(StrictModel):
     job_id: str = Field(alias="jobId")
     attempt: int = Field(ge=1)
     lease_token: str = Field(alias="leaseToken")
     lease_expires_at: str = Field(alias="leaseExpiresAt")
-    payload: TranscriptionJobPayload
+    payload: TranscriptionJobPayload | MediaPreparationJobPayload
 
 
 class LeaseResponse(StrictModel):
@@ -131,9 +195,22 @@ class LeaseResponse(StrictModel):
     poll_after_ms: int = Field(default=2_000, alias="pollAfterMs", ge=100)
 
 
-class JobCompletion(StrictModel):
+class TranscriptionJobCompletion(StrictModel):
+    kind: Literal["transcribe"] = "transcribe"
     artifact: TranscriptArtifact
     adapter: dict[str, str]
+
+
+class MediaGenerator(StrictModel):
+    id: Literal["ffmpeg"] = "ffmpeg"
+    version: str
+
+
+class MediaPreparationJobCompletion(StrictModel):
+    kind: Literal["media_prepare"] = "media_prepare"
+    probe: MediaProbeArtifact
+    artifacts: tuple[MediaDerivativeUpload, ...]
+    generator: MediaGenerator
 
 
 class JobFailure(StrictModel):

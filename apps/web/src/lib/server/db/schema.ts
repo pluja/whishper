@@ -146,6 +146,14 @@ export const projects = pgTable(
     mediaOriginalKey: text("media_original_key"),
     mediaFilename: text("media_filename"),
     mediaDurationUs: bigint("media_duration_us", { mode: "number" }),
+    mediaPreparationStatus: text("media_preparation_status")
+      .notNull()
+      .default("not_started"),
+    mediaProbe: jsonb("media_probe").$type<Record<string, unknown>>(),
+    mediaFrameRateNum: integer("media_frame_rate_num"),
+    mediaFrameRateDen: integer("media_frame_rate_den"),
+    mediaSeekable: boolean("media_seekable"),
+    mediaProxyRecommended: boolean("media_proxy_recommended"),
     createdBy: text("created_by")
       .notNull()
       .references(() => user.id),
@@ -164,6 +172,15 @@ export const projects = pgTable(
     check(
       "projects_media_duration_check",
       sql`${table.mediaDurationUs} is null or ${table.mediaDurationUs} >= 0`,
+    ),
+    check(
+      "projects_media_preparation_status_check",
+      sql`${table.mediaPreparationStatus} in ('not_started', 'queued', 'running', 'completed', 'failed')`,
+    ),
+    check(
+      "projects_media_frame_rate_check",
+      sql`(${table.mediaFrameRateNum} is null and ${table.mediaFrameRateDen} is null)
+        or (${table.mediaFrameRateNum} > 0 and ${table.mediaFrameRateDen} > 0)`,
     ),
   ],
 );
@@ -303,6 +320,54 @@ export const jobs = pgTable(
   ],
 );
 
+export const mediaDerivatives = pgTable(
+  "media_derivatives",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    jobId: uuid("job_id").references(() => jobs.id, { onDelete: "set null" }),
+    kind: text("kind").notNull(),
+    status: text("status").notNull().default("ready"),
+    storageKey: text("storage_key").notNull(),
+    sourceStorageKey: text("source_storage_key").notNull(),
+    mediaType: text("media_type").notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+    schemaVersion: text("schema_version").notNull(),
+    generatorVersion: text("generator_version").notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("media_derivatives_project_kind_unique").on(
+      table.projectId,
+      table.kind,
+    ),
+    index("media_derivatives_project_created_idx").on(
+      table.projectId,
+      table.createdAt,
+    ),
+    check(
+      "media_derivatives_kind_check",
+      sql`${table.kind} in ('waveform', 'thumbnail', 'proxy')`,
+    ),
+    check(
+      "media_derivatives_status_check",
+      sql`${table.status} in ('ready', 'failed', 'deleting')`,
+    ),
+    check("media_derivatives_size_check", sql`${table.sizeBytes} > 0`),
+  ],
+);
+
 export const workers = pgTable("workers", {
   id: uuid("id").primaryKey(),
   name: text("name").notNull(),
@@ -391,6 +456,7 @@ export const schema = {
   mediaUploads,
   transcriptionRuns,
   jobs,
+  mediaDerivatives,
   workers,
   subtitleTracks,
   cues,

@@ -100,6 +100,7 @@ async function createServer(): Promise<Server> {
         upload.id,
         requireUserId(request),
       ).catch((cause) => {
+        console.error(`Could not finalize upload ${upload.id}`, cause);
         throw tusError(cause);
       });
       await store.configstore.delete(upload.id).catch((cause) => {

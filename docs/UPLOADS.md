@@ -1,6 +1,6 @@
 # Media uploads
 
-Status: resumable browser-upload tracer implemented. Watched inboxes and media preparation follow.
+Status: resumable browser uploads and worker-backed media preparation implemented. Watched inboxes and abandoned-upload reconciliation follow.
 
 Anysub owns the canonical copy of project media. A browser upload first lands in staging and becomes the one source item for a new project only after every byte has arrived.
 
@@ -28,6 +28,20 @@ data/
 ```
 
 The original display filename remains in PostgreSQL. Paths never contain a project title or browser-supplied directory component.
+
+## Media preparation
+
+Completing an upload queues a durable `media_prepare` job. A compatible worker downloads the canonical source through its active lease, probes it with FFprobe, and returns versioned derivatives through resumable, offset-checked artifact uploads.
+
+The worker produces:
+
+- A compact, multilevel waveform JSON artifact for every source with audio.
+- A JPEG thumbnail for every source with a video stream.
+- An H.264/AAC MP4 editing proxy only when the browser cannot play the source directly or FFmpeg detects variable frame timing.
+
+PostgreSQL stores normalized stream metadata, integer-microsecond duration, rational frame rate, seekability, preparation status, and one record per derivative. Files live under the project directory; incomplete worker artifacts remain under `staging/worker-artifacts/<job-id>` until completion, failure, cancellation, or lease recovery removes them.
+
+The project workspace reports preparation progress and lets a member cancel or retry the active job. Regeneration keeps existing ready derivatives available until the replacement transaction commits. Members can delete an individual derivative without deleting the canonical source.
 
 ## Re-uploading and duplicate content
 
