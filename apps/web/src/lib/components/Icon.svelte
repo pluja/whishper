@@ -38,6 +38,11 @@
     <path d="m6 6 12 12M18 6 6 18" />
   {:else if name === "activity"}
     <path d="M3 12h4l2.5-6 4.5 12 2.5-6H21" />
+  {:else if name === "cpu"}
+    <rect x="6" y="6" width="12" height="12" rx="2" />
+    <path
+      d="M9 9h6v6H9zM9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"
+    />
   {:else if name === "lock"}
     <rect x="5" y="10" width="14" height="10" rx="2" />
     <path d="M8 10V7a4 4 0 0 1 8 0v3" />

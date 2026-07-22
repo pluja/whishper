@@ -30,7 +30,7 @@ MODEL_PROFILES = {
         2 * GIB,
     ),
     "small": (
-        "Recommended. Best balance of speed and accuracy.",
+        "Best balance of speed and accuracy.",
         244_000_000,
         2 * GIB,
         4 * GIB,

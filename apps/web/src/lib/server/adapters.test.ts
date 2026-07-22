@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   availableTranscriptionModels,
-  detectedWorkerHardwareSummaries,
+  detectedWorkerHardware,
 } from "$lib/server/adapters";
 
 describe("available transcription models", () => {
@@ -151,7 +151,7 @@ describe("available transcription models", () => {
     );
   });
 
-  it("reports detected worker hardware without duplicate summaries", () => {
+  it("reports structured detected hardware without duplicates", () => {
     const gib = 1024 ** 3;
     const worker = {
       name: "local-cpu",
@@ -165,7 +165,13 @@ describe("available transcription models", () => {
     };
 
     expect(
-      detectedWorkerHardwareSummaries([worker, worker, { name: "legacy" }]),
-    ).toEqual(["Test CPU · 8 cores · 12 GB RAM available"]);
+      detectedWorkerHardware([worker, worker, { name: "legacy" }]),
+    ).toEqual([
+      {
+        kind: "cpu",
+        name: "Test CPU",
+        details: ["8 logical cores", "12 GB RAM available"],
+      },
+    ]);
   });
 });

@@ -2,7 +2,7 @@ import type { MediaDerivativeKind } from "@anysub/contracts";
 import { pool } from "$lib/server/db";
 import {
   availableTranscriptionModels,
-  detectedWorkerHardwareSummaries,
+  detectedWorkerHardware,
 } from "$lib/server/adapters";
 import { deleteProjectForUser } from "$lib/server/media";
 import {
@@ -175,7 +175,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     transcriptionModels: availableTranscriptionModels(
       activeWorkers.rows.map((worker) => worker.manifest),
     ),
-    detectedHardware: detectedWorkerHardwareSummaries(
+    detectedHardware: detectedWorkerHardware(
       activeWorkers.rows.map((worker) => worker.manifest),
     ),
   };

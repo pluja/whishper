@@ -1561,17 +1561,18 @@
                     aria-expanded={modelPickerOpen}
                     aria-controls="transcription-model-options"
                     aria-labelledby="transcription-model-label transcription-model-selection"
-                    aria-describedby="transcription-model-selection-details"
+                    aria-describedby="transcription-model-selection-fit transcription-model-selection-description"
                   >
                     <span class="model-picker-selection">
-                      <strong id="transcription-model-selection">
-                        {selectedModel?.displayName ?? "Choose a model"}
-                      </strong>
-                      <span
-                        class="model-picker-meta"
-                        id="transcription-model-selection-details"
-                      >
-                        <span class="model-picker-fit">
+                      <span class="model-picker-primary">
+                        <strong id="transcription-model-selection">
+                          {selectedModel?.displayName ?? "Choose a model"}
+                        </strong>
+                        <span
+                          class="model-picker-fit"
+                          id="transcription-model-selection-fit"
+                          data-fit={selectedModel?.fit ?? "unknown"}
+                        >
                           <span
                             class="model-fit-dot"
                             data-fit={selectedModel?.fit ?? "unknown"}
@@ -1580,23 +1581,60 @@
                           <span>{selectedModel?.fitLabel ?? "Not checked"}</span
                           >
                         </span>
-                        <span class="model-picker-description">
-                          <span class="model-picker-meta-separator">—</span>
-                          {selectedModel?.description ??
-                            "Description unavailable."}
-                        </span>
+                      </span>
+                      <span
+                        class="model-picker-description"
+                        id="transcription-model-selection-description"
+                      >
+                        {selectedModel?.description ??
+                          "Description unavailable."}
                       </span>
                     </span>
                     <Icon name="chevron-down" size={18} />
                   </button>
-                  <p class="model-picker-hardware">
-                    <strong>Detected hardware</strong>
-                    <span>
-                      {data.detectedHardware.length
-                        ? data.detectedHardware.join(" · ")
-                        : "Details unavailable"}
-                    </span>
-                  </p>
+                  <ul
+                    class="model-picker-hardware-list"
+                    aria-label="Detected hardware"
+                  >
+                    {#each data.detectedHardware as hardware (hardware)}
+                      <li class="model-picker-hardware-card">
+                        <span class="model-picker-hardware-icon">
+                          <Icon name="cpu" size={16} />
+                        </span>
+                        <span class="model-picker-hardware-copy">
+                          <span class="model-picker-hardware-eyebrow">
+                            Detected hardware
+                            <span>{hardware.kind}</span>
+                          </span>
+                          <strong class="model-picker-hardware-name">
+                            {hardware.name}
+                          </strong>
+                          <span class="model-picker-hardware-specs">
+                            {hardware.details.length
+                              ? hardware.details.join(" · ")
+                              : "Details unavailable"}
+                          </span>
+                        </span>
+                      </li>
+                    {:else}
+                      <li class="model-picker-hardware-card">
+                        <span class="model-picker-hardware-icon">
+                          <Icon name="cpu" size={16} />
+                        </span>
+                        <span class="model-picker-hardware-copy">
+                          <span class="model-picker-hardware-eyebrow">
+                            Detected hardware
+                          </span>
+                          <strong class="model-picker-hardware-name">
+                            Details unavailable
+                          </strong>
+                          <span class="model-picker-hardware-specs">
+                            CPU and GPU details were not reported.
+                          </span>
+                        </span>
+                      </li>
+                    {/each}
+                  </ul>
                   <div
                     class="model-picker-popover"
                     id="transcription-model-options"

@@ -24,6 +24,12 @@ export interface AvailableTranscriptionModel {
   workerSummary: string;
 }
 
+export interface DetectedWorkerHardware {
+  kind: "cpu" | "gpu";
+  name: string;
+  details: string[];
+}
+
 const GIB = 1024 ** 3;
 const FIT_RANK: Record<ModelFit, number> = {
   poor: 0,
@@ -105,15 +111,16 @@ export function availableTranscriptionModels(
   });
 }
 
-export function detectedWorkerHardwareSummaries(
+export function detectedWorkerHardware(
   manifests: unknown[],
-): string[] {
-  const summaries = new Set<string>();
+): DetectedWorkerHardware[] {
+  const devices = new Map<string, DetectedWorkerHardware>();
   for (const manifest of manifests) {
     if (!isRecord(manifest) || !isWorkerHardware(manifest.hardware)) continue;
-    summaries.add(formatHardwareSummary(manifest.hardware));
+    const detected = describeHardware(manifest.hardware);
+    devices.set(JSON.stringify(detected), detected);
   }
-  return [...summaries];
+  return [...devices.values()];
 }
 
 function mergeDownloadedState(
@@ -229,17 +236,25 @@ function formatWorkerSummary(
   workerName: string,
   hardware: WorkerHardware,
 ): string {
-  return `${workerName} · ${formatHardwareSummary(hardware)}`;
+  const detected = describeHardware(hardware);
+  return `${workerName} · ${detected.name} · ${detected.details.join(" · ")}`;
 }
 
-function formatHardwareSummary(hardware: WorkerHardware): string {
+function describeHardware(hardware: WorkerHardware): DetectedWorkerHardware {
   const ram = `${formatMemory(hardware.memory.availableBytes)} RAM available`;
   if (hardware.device === "cuda" && hardware.gpus[0]) {
     const gpu = hardware.gpus[0];
-    return `${gpu.name} · ${formatMemory(gpu.totalMemoryBytes)} VRAM · ${ram}`;
+    return {
+      kind: "gpu",
+      name: gpu.name,
+      details: [`${formatMemory(gpu.totalMemoryBytes)} VRAM`, ram],
+    };
   }
-  const cpu = hardware.cpu.model ?? "CPU";
-  return `${cpu} · ${hardware.cpu.logicalCores} cores · ${ram}`;
+  return {
+    kind: "cpu",
+    name: hardware.cpu.model ?? "CPU",
+    details: [`${hardware.cpu.logicalCores} logical cores`, ram],
+  };
 }
 
 function formatMemory(bytes: number): string {
