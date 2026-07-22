@@ -627,10 +627,8 @@
 
   function seekTo(microseconds: number): void {
     if (!mediaElement) return;
-    resetShuttleRate();
     mediaElement.currentTime = microseconds / 1_000_000;
     playbackUs = Math.round(microseconds);
-    void mediaElement.play();
   }
 
   function selectTimelineCue(cueId: string): void {

@@ -67,7 +67,7 @@
   const WAVEFORM_BOTTOM = 83;
   const MAX_ZOOM = 64;
   const NUDGE_US = 1_000;
-  const PLAYHEAD_VIEWPORT_ANCHOR = 0.35;
+  const PLAYHEAD_GUTTER_PX = 5;
   const WHEEL_LINE_PX = 16;
 
   let {
@@ -213,38 +213,30 @@
     );
   });
 
-  function anchoredPlayheadScrollLeft(
-    currentPlaybackUs: number,
-    duration: number,
-    totalWidth: number,
-    visibleWidth: number,
-  ) {
-    const playheadX =
-      (clampInteger(currentPlaybackUs, 0, duration) / duration) * totalWidth;
-    return clampNumber(
-      playheadX - visibleWidth * PLAYHEAD_VIEWPORT_ANCHOR,
-      0,
-      Math.max(0, totalWidth - visibleWidth),
-    );
-  }
-
-  function scrollPlayheadToAnchor(
+  function scrollPlayheadIntoView(
     node: HTMLDivElement,
     currentPlaybackUs: number,
     duration: number,
     totalWidth: number,
     visibleWidth: number,
   ) {
-    const targetScrollLeft = anchoredPlayheadScrollLeft(
-      currentPlaybackUs,
-      duration,
-      totalWidth,
-      visibleWidth,
-    );
+    const maxScrollLeft = Math.max(0, totalWidth - visibleWidth);
+    const currentScrollLeft = clampNumber(node.scrollLeft, 0, maxScrollLeft);
+    const gutter = Math.min(PLAYHEAD_GUTTER_PX, visibleWidth / 2);
+    const playheadX =
+      (clampInteger(currentPlaybackUs, 0, duration) / duration) * totalWidth;
+    let targetScrollLeft = currentScrollLeft;
+
+    if (playheadX <= currentScrollLeft + gutter) {
+      targetScrollLeft = playheadX - gutter;
+    } else if (playheadX >= currentScrollLeft + visibleWidth - gutter) {
+      targetScrollLeft = playheadX - visibleWidth + gutter;
+    }
+
+    targetScrollLeft = clampNumber(targetScrollLeft, 0, maxScrollLeft);
     if (node.scrollLeft === targetScrollLeft) return;
 
     node.scrollLeft = targetScrollLeft;
-    scrollLeft = node.scrollLeft;
   }
 
   $effect(() => {
@@ -256,7 +248,7 @@
 
     if (!node || duration <= 0 || visibleWidth <= 0) return;
 
-    scrollPlayheadToAnchor(
+    scrollPlayheadIntoView(
       node,
       currentPlaybackUs,
       duration,
@@ -785,22 +777,30 @@
   }
 
   async function setZoom(nextZoom: number) {
-    if (!viewport || viewportWidth <= 0 || timelineDurationUs <= 0) return;
+    const node = viewport;
+    if (!node || viewportWidth <= 0 || timelineDurationUs <= 0) return;
     const targetZoom = clampNumber(nextZoom, 1, MAX_ZOOM);
     if (targetZoom === zoom) return;
 
+    const centerTimeUs = clampNumber(
+      ((node.scrollLeft + node.clientWidth / 2) / contentWidthPx) *
+        timelineDurationUs,
+      0,
+      timelineDurationUs,
+    );
     zoom = targetZoom;
     await tick();
 
-    const node = viewport;
-    if (!node || viewportWidth <= 0 || timelineDurationUs <= 0) return;
-    scrollPlayheadToAnchor(
-      node,
-      playbackUs,
-      timelineDurationUs,
-      contentWidthPx,
-      viewportWidth,
+    if (viewport !== node || node.clientWidth <= 0) return;
+    const targetScrollLeft = clampNumber(
+      (centerTimeUs / timelineDurationUs) * contentWidthPx -
+        node.clientWidth / 2,
+      0,
+      Math.max(0, node.scrollWidth - node.clientWidth),
     );
+    if (node.scrollLeft === targetScrollLeft) return;
+
+    node.scrollLeft = targetScrollLeft;
   }
 
   function stopTimelineClick(event: MouseEvent) {
