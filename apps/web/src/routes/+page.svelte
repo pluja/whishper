@@ -12,6 +12,17 @@
   let uploadProgress = $state(0);
   let uploadState = $state<"idle" | "uploading" | "error" | "success">("idle");
   let uploadMessage = $state("");
+  let projectName = $state("");
+  let projectNameEdited = $state(false);
+  let createDialog: HTMLDialogElement | undefined;
+  let fileInput: HTMLInputElement | undefined;
+  let normalizedProjectName = $derived(projectName.trim());
+  let canCreateProject = $derived(
+    normalizedProjectName.length > 0 &&
+      normalizedProjectName.length <= 160 &&
+      selectedFile !== null &&
+      uploadState !== "uploading",
+  );
   let hasActiveSearch = $derived(
     data.search.query.length > 0 || data.search.includeSubtitles,
   );
@@ -19,12 +30,6 @@
     data.projects.findIndex(
       (project: { has_thumbnail: boolean }) => project.has_thumbnail,
     ),
-  );
-  // svelte-ignore state_referenced_locally
-  let importOpen = $state(
-    data.projects.length === 0 &&
-      data.search.query.length === 0 &&
-      !data.search.includeSubtitles,
   );
   // svelte-ignore state_referenced_locally
   let editingProjectId = $state<string | null>(form?.renameProjectId ?? null);
@@ -183,8 +188,62 @@
     };
   };
 
+  function captureCreateDialog(element: HTMLDialogElement) {
+    createDialog = element;
+  }
+
+  function captureFileInput(element: HTMLInputElement) {
+    fileInput = element;
+  }
+
+  function resetCreateProject() {
+    selectedFile = null;
+    activeUpload = null;
+    uploadProgress = 0;
+    uploadState = "idle";
+    uploadMessage = "";
+    projectName = "";
+    projectNameEdited = false;
+    if (fileInput) fileInput.value = "";
+  }
+
+  function openCreateProject() {
+    if (createDialog && !createDialog.open) createDialog.showModal();
+  }
+
+  function closeCreateProject() {
+    if (uploadState !== "uploading") createDialog?.close();
+  }
+
+  function handleDialogCancel(event: Event) {
+    if (uploadState === "uploading") event.preventDefault();
+  }
+
+  function handleDialogClick(event: MouseEvent) {
+    if (event.target === createDialog && uploadState !== "uploading") {
+      createDialog?.close();
+    }
+  }
+
+  function handleDialogClose() {
+    if (uploadState !== "uploading") resetCreateProject();
+  }
+
+  function editProjectName() {
+    projectNameEdited = true;
+  }
+
+  function suggestedProjectName(filename: string): string {
+    const finalDot = filename.lastIndexOf(".");
+    const extensionless = finalDot > 0 ? filename.slice(0, finalDot) : filename;
+    return extensionless.trim().slice(0, 160);
+  }
+
   function chooseFile(event: Event) {
     selectedFile = (event.currentTarget as HTMLInputElement).files?.[0] ?? null;
+    if (selectedFile && !projectNameEdited) {
+      projectName = suggestedProjectName(selectedFile.name);
+    }
     uploadState = "idle";
     uploadProgress = 0;
     uploadMessage = "";
@@ -192,7 +251,14 @@
 
   async function startUpload(event: SubmitEvent) {
     event.preventDefault();
-    if (!selectedFile || !data.workspace || uploadState === "uploading") return;
+    if (
+      !selectedFile ||
+      !data.workspace ||
+      !normalizedProjectName ||
+      uploadState === "uploading"
+    ) {
+      return;
+    }
 
     uploadState = "uploading";
     uploadMessage = "Preparing resumable upload";
@@ -205,16 +271,19 @@
         filename: selectedFile.name,
         filetype: selectedFile.type,
         workspaceId: data.workspace.id,
+        projectName: normalizedProjectName,
       },
       onProgress(bytesUploaded, bytesTotal) {
         uploadProgress = bytesTotal > 0 ? bytesUploaded / bytesTotal : 0;
         uploadMessage = `${formatBytes(bytesUploaded)} of ${formatBytes(bytesTotal)}`;
       },
       onError(error) {
+        activeUpload = null;
         uploadState = "error";
         uploadMessage = error.message || "The upload could not be completed.";
       },
       onSuccess({ lastResponse }) {
+        activeUpload = null;
         uploadState = "success";
         uploadProgress = 1;
         uploadMessage = "Upload complete";
@@ -229,6 +298,7 @@
       if (previous[0]) upload.resumeFromPreviousUpload(previous[0]);
       upload.start();
     } catch (error) {
+      activeUpload = null;
       uploadState = "error";
       uploadMessage =
         error instanceof Error ? error.message : "Could not start the upload.";
@@ -343,121 +413,174 @@
           : "sources ready"}
       </p>
     </div>
-    {#if data.workspace}
-      <button
-        class="button"
-        type="button"
-        aria-expanded={importOpen}
-        aria-controls="import-panel"
-        onclick={() => (importOpen = !importOpen)}
-      >
-        <Icon name={importOpen ? "chevron-down" : "plus"} size={17} />
-        {importOpen ? "Close import" : "New project"}
-      </button>
-    {/if}
   </header>
 
-  <form class="project-search" method="GET" action="/" role="search">
-    <label class="project-search-field">
-      <span>Search project titles</span>
-      <input
-        type="search"
-        name="q"
-        autocomplete="off"
-        value={data.search.query}
-        placeholder="Rough cut"
-        maxlength="200"
-      />
-    </label>
-    <label class="search-scope">
-      <input
-        type="checkbox"
-        name="scope"
-        value="subtitles"
-        checked={data.search.includeSubtitles}
-      />
-      <span>Search subtitle text too</span>
-    </label>
-    <div class="search-actions">
-      <button class="button" type="submit">Search</button>
-      {#if hasActiveSearch}
-        <a class="button secondary" href="/">Clear</a>
-      {/if}
-    </div>
-  </form>
+  <div class="library-toolbar">
+    {#if data.workspace}
+      <button
+        class="button library-new-project"
+        type="button"
+        onclick={openCreateProject}
+      >
+        <Icon name="plus" size={17} />
+        New project
+      </button>
+    {/if}
 
-  {#if data.workspace && importOpen}
-    <section class="import-card" id="import-panel">
-      <div class="section-heading">
-        <div class="section-icon"><Icon name="upload" size={20} /></div>
-        <div>
-          <h2>Import source media</h2>
-          <p>Large uploads resume automatically after an interruption.</p>
-        </div>
-      </div>
-
-      <form onsubmit={startUpload}>
-        <label class="media-dropzone" data-state={uploadState}>
+    <form class="project-search" method="GET" action="/" role="search">
+      <label class="project-search-field">
+        <span class="visually-hidden">Search projects</span>
+        <span class="project-search-control">
+          <Icon name="search" size={18} />
           <input
-            type="file"
-            accept="audio/*,video/*"
-            disabled={uploadState === "uploading"}
-            aria-invalid={uploadState === "error"}
-            onchange={chooseFile}
+            type="search"
+            name="q"
+            autocomplete="off"
+            value={data.search.query}
+            placeholder="Search projects"
+            maxlength="200"
           />
-          <span class="dropzone-icon"><Icon name="file" size={24} /></span>
-          <span class="dropzone-copy">
-            <strong
-              >{selectedFile?.name ?? "Choose an audio or video file"}</strong
-            >
-            <span>
-              {selectedFile
-                ? `${formatBytes(selectedFile.size)} · ready to import`
-                : "MP3, WAV, M4A, MP4, MKV, and other browser-supported media"}
-            </span>
-          </span>
-          <span class="button secondary compact" aria-hidden="true">
-            {selectedFile ? "Change" : "Browse"}
-          </span>
-        </label>
+          {#if hasActiveSearch}
+            <a class="search-clear" href="/" aria-label="Clear search">
+              <Icon name="close" size={15} />
+            </a>
+          {/if}
+        </span>
+      </label>
+      <label
+        class="search-scope"
+        data-selected={data.search.includeSubtitles ? "true" : undefined}
+      >
+        <input
+          type="checkbox"
+          name="scope"
+          value="subtitles"
+          checked={data.search.includeSubtitles}
+        />
+        <span>Subtitle text</span>
+      </label>
+      <button class="button secondary search-submit" type="submit">
+        Search
+      </button>
+    </form>
+  </div>
 
-        {#if uploadState !== "idle" || uploadMessage}
-          <div class="job-progress" aria-live="polite">
-            <div class="progress-meta">
-              <span class:error={uploadState === "error"}>{uploadMessage}</span>
-              <span>{Math.round(uploadProgress * 100)}%</span>
-            </div>
-            <progress value={uploadProgress} max="1">
-              {Math.round(uploadProgress * 100)}%
-            </progress>
-          </div>
-        {/if}
-
-        <div class="import-actions">
-          <p>
-            The original is stored in Anysub's application-managed project
-            directory.
-          </p>
+  {#if data.workspace}
+    <dialog
+      class="create-project-dialog"
+      {@attach captureCreateDialog}
+      aria-labelledby="create-project-title"
+      aria-describedby="create-project-description"
+      oncancel={handleDialogCancel}
+      onclose={handleDialogClose}
+      onclick={handleDialogClick}
+    >
+      <div class="create-project-shell">
+        <header class="create-project-header">
           <div>
-            {#if uploadState === "uploading"}
-              <button
-                class="button secondary"
-                type="button"
-                onclick={cancelActiveUpload}>Cancel</button
-              >
-            {/if}
+            <p class="dialog-context">New project</p>
+            <h2 id="create-project-title">Create a media workspace</h2>
+            <p id="create-project-description">
+              Name the project and choose its source recording.
+            </p>
+          </div>
+          <button
+            class="dialog-close"
+            type="button"
+            aria-label="Close create project"
+            title="Close"
+            disabled={uploadState === "uploading"}
+            onclick={closeCreateProject}
+          >
+            <Icon name="close" size={18} />
+          </button>
+        </header>
+
+        <form class="create-project-form" onsubmit={startUpload}>
+          <label class="project-name-field">
+            <span>Project name</span>
+            <input
+              type="text"
+              name="projectName"
+              bind:value={projectName}
+              oninput={editProjectName}
+              required
+              maxlength="160"
+              autocomplete="off"
+              disabled={uploadState === "uploading"}
+              placeholder="Untitled project"
+            />
+          </label>
+
+          <div class="source-media-field">
+            <span class="source-media-label">Source media</span>
+            <label class="media-dropzone" data-state={uploadState}>
+              <input
+                {@attach captureFileInput}
+                type="file"
+                accept="audio/*,video/*"
+                disabled={uploadState === "uploading"}
+                aria-invalid={uploadState === "error"}
+                onchange={chooseFile}
+              />
+              <span class="dropzone-icon"><Icon name="file" size={24} /></span>
+              <span class="dropzone-copy">
+                <strong>
+                  {selectedFile?.name ?? "Choose an audio or video file"}
+                </strong>
+                <span>
+                  {selectedFile
+                    ? `${formatBytes(selectedFile.size)} · ready to upload`
+                    : "Drop a file here or browse your device"}
+                </span>
+              </span>
+              <span class="button secondary compact" aria-hidden="true">
+                {selectedFile ? "Change" : "Browse"}
+              </span>
+            </label>
+          </div>
+
+          <p class="upload-assurance">
+            Large uploads resume after interruptions. Your original stays in
+            Anysub's application-managed project directory.
+          </p>
+
+          {#if uploadState !== "idle" || uploadMessage}
+            <div class="job-progress" aria-live="polite">
+              <div class="progress-meta">
+                <span class:error={uploadState === "error"}>
+                  {uploadMessage}
+                </span>
+                <span>{Math.round(uploadProgress * 100)}%</span>
+              </div>
+              <progress value={uploadProgress} max="1">
+                {Math.round(uploadProgress * 100)}%
+              </progress>
+            </div>
+          {/if}
+
+          <footer class="create-project-actions">
+            <button
+              class="button secondary"
+              type="button"
+              onclick={uploadState === "uploading"
+                ? cancelActiveUpload
+                : closeCreateProject}
+            >
+              {uploadState === "uploading" ? "Cancel upload" : "Cancel"}
+            </button>
             <button
               class="button"
               type="submit"
               data-state={uploadState === "uploading" ? "loading" : undefined}
-              disabled={!selectedFile || uploadState === "uploading"}
+              disabled={!canCreateProject}
             >
               {uploadState === "uploading" ? "Uploading" : "Create project"}
             </button>
-          </div>
-        </div>
-      </form>
-    </section>
+          </footer>
+        </form>
+      </div>
+    </dialog>
   {/if}
 
   {#if form?.message}
@@ -508,12 +631,8 @@
             private subtitle workspace.
           </p>
           {#if data.workspace}
-            <button
-              class="button"
-              type="button"
-              onclick={() => (importOpen = true)}
-            >
-              Open import
+            <button class="button" type="button" onclick={openCreateProject}>
+              New project
             </button>
           {/if}
         {/if}

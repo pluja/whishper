@@ -7,6 +7,7 @@ import {
   enqueueMediaPreparation,
   lockMediaPreparationProject,
 } from "$lib/server/media-preparation";
+import { normalizeProjectTitle } from "$lib/server/project-library";
 
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 const SAFE_EXTENSION = /^\.[a-zA-Z0-9]{1,12}$/;
@@ -31,7 +32,12 @@ export function normalizeFilename(value: string): string {
   return leaf.slice(0, 255);
 }
 
-export function projectNameFor(filename: string): string {
+export function projectNameFor(
+  filename: string,
+  requestedName?: string | null,
+): string {
+  const normalizedName = normalizeProjectTitle(requestedName ?? null);
+  if (normalizedName) return normalizedName;
   const extension = extname(filename);
   const stem = filename.slice(
     0,
@@ -75,6 +81,7 @@ export async function createUploadProject(input: {
   userId: string;
   filename: string;
   mediaType: string | null;
+  projectName?: string | null;
   sizeBytes: number;
 }): Promise<string> {
   if (!SAFE_ID.test(input.uploadId)) throw new Error("Invalid upload ID.");
@@ -95,7 +102,12 @@ export async function createUploadProject(input: {
       `insert into projects (workspace_id, name, media_filename, created_by)
        values ($1, $2, $3, $4)
        returning id`,
-      [input.workspaceId, projectNameFor(filename), filename, input.userId],
+      [
+        input.workspaceId,
+        projectNameFor(filename, input.projectName),
+        filename,
+        input.userId,
+      ],
     );
     await client.query(
       `insert into media_uploads

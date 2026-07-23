@@ -36,6 +36,9 @@
     <path d="m13.8 6.7 3.5 3.5" />
   {:else if name === "close"}
     <path d="m6 6 12 12M18 6 6 18" />
+  {:else if name === "search"}
+    <circle cx="10.75" cy="10.75" r="6.25" />
+    <path d="m15.5 15.5 4 4" />
   {:else if name === "activity"}
     <path d="M3 12h4l2.5-6 4.5 12 2.5-6H21" />
   {:else if name === "cpu"}

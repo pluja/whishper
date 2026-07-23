@@ -10,6 +10,13 @@ describe("media storage naming", () => {
     expect(projectNameFor(filename)).toBe("interview final");
   });
 
+  it("uses an explicit normalized project title when one is provided", () => {
+    expect(projectNameFor("source.mp4", "  Launch\n  cut  ")).toBe(
+      "Launch cut",
+    );
+    expect(projectNameFor("fallback.mp4", "   ")).toBe("fallback");
+  });
+
   it("uses IDs and a stable source name for canonical storage", () => {
     expect(
       originalStorageKey(

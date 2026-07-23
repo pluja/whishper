@@ -6,8 +6,8 @@ Anysub owns the canonical copy of project media. A browser upload first lands in
 
 ## What happens during an upload
 
-1. The browser creates a tus upload with the source filename, media type, byte length, and workspace ID.
-2. The application checks the signed-in user's workspace membership and creates a draft project plus a durable upload record.
+1. The browser opens a focused project dialog, then creates a tus upload with the project name, source filename, media type, byte length, and workspace ID.
+2. The application checks the signed-in user's workspace membership, normalizes the requested project name, and creates a draft project plus a durable upload record.
 3. The browser sends 32 MiB chunks. tus fingerprints the local file so an interrupted upload can resume after a reload.
 4. The application checks ownership again on every item request and persists coarse progress in PostgreSQL.
 5. On completion, the application hard-links the staging file into the canonical project directory, commits the final storage key, then removes the staging name and tus metadata.

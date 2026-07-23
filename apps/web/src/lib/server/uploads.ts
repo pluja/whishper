@@ -86,6 +86,7 @@ async function createServer(): Promise<Server> {
         workspaceId,
         userId: requireUserId(request),
         filename,
+        projectName: upload.metadata?.projectName ?? null,
         mediaType: upload.metadata?.filetype ?? null,
         sizeBytes: upload.size,
       }).catch((cause) => {
