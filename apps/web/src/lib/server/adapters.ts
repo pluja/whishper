@@ -18,6 +18,8 @@ export interface AvailableTranscriptionModel {
   recommendedRamBytes: number | null;
   downloaded: boolean | null;
   recommended: boolean;
+  memoryRequirementBytes: number | null;
+  memoryRequirementKind: "ram" | "vram" | null;
   optionsSchema: Record<string, unknown>;
   fit: ModelFit;
   fitLabel: string;
@@ -140,7 +142,12 @@ function scoreModelFit(
   hardware: WorkerHardware | null,
 ): Pick<
   AvailableTranscriptionModel,
-  "fit" | "fitLabel" | "fitReason" | "workerSummary"
+  | "fit"
+  | "fitLabel"
+  | "fitReason"
+  | "workerSummary"
+  | "memoryRequirementBytes"
+  | "memoryRequirementKind"
 > {
   if (!hardware) {
     return {
@@ -148,69 +155,82 @@ function scoreModelFit(
       fitLabel: "Not checked",
       fitReason: "Hardware details are unavailable.",
       workerSummary: workerName,
+      memoryRequirementBytes: null,
+      memoryRequirementKind: null,
     };
   }
 
   const availableRam = hardware.memory.availableBytes;
   const workerSummary = formatWorkerSummary(workerName, hardware);
+  const memoryRequirementKind: "ram" | "vram" =
+    hardware.device === "cuda" ? "vram" : "ram";
+  const memoryRequirementBytes = positiveNumber(
+    hardware.device === "cuda"
+      ? model.requiredVramBytes
+      : model.recommendedRamBytes,
+  );
+  const resource = {
+    workerSummary,
+    memoryRequirementBytes,
+    memoryRequirementKind,
+  };
+
   if (hardware.device === "cuda") {
     const gpu = hardware.gpus[0];
     if (!gpu) {
       return {
+        ...resource,
         fit: "poor",
         fitLabel: "Not recommended",
         fitReason: "This worker has no usable graphics card.",
-        workerSummary,
       };
     }
-    const requiredVram = positiveNumber(model.requiredVramBytes);
-    if (!requiredVram) {
+    if (!memoryRequirementBytes) {
       return {
+        ...resource,
         fit: "unknown",
         fitLabel: "Not checked",
         fitReason: "No graphics memory estimate is available for this model.",
-        workerSummary,
       };
     }
-    if (gpu.totalMemoryBytes >= requiredVram) {
+    if (gpu.totalMemoryBytes >= memoryRequirementBytes) {
       return {
+        ...resource,
         fit: "good",
         fitLabel: "Runs well",
         fitReason: "Your graphics card has enough memory for this model.",
-        workerSummary,
       };
     }
-    if (gpu.totalMemoryBytes >= requiredVram * 0.75) {
+    if (gpu.totalMemoryBytes >= memoryRequirementBytes * 0.75) {
       return {
+        ...resource,
         fit: "caution",
         fitLabel: "May be slow",
         fitReason: "This model is close to your graphics card's memory limit.",
-        workerSummary,
       };
     }
     return {
+      ...resource,
       fit: "poor",
       fitLabel: "Not recommended",
-      fitReason: `This model needs about ${formatMemory(requiredVram)} of graphics memory, but only ${formatMemory(gpu.totalMemoryBytes)} is available.`,
-      workerSummary,
+      fitReason: `This model needs about ${formatMemory(memoryRequirementBytes)} of graphics memory, but only ${formatMemory(gpu.totalMemoryBytes)} is available.`,
     };
   }
 
-  const recommendedRam = positiveNumber(model.recommendedRamBytes);
-  if (!recommendedRam) {
+  if (!memoryRequirementBytes) {
     return {
+      ...resource,
       fit: "unknown",
       fitLabel: "Not checked",
       fitReason: "No memory estimate is available for this model.",
-      workerSummary,
     };
   }
-  if (availableRam < recommendedRam) {
+  if (availableRam < memoryRequirementBytes) {
     return {
+      ...resource,
       fit: "poor",
       fitLabel: "Not recommended",
-      fitReason: `This model needs about ${formatMemory(recommendedRam)} of memory, but only ${formatMemory(availableRam)} is available.`,
-      workerSummary,
+      fitReason: `This model needs about ${formatMemory(memoryRequirementBytes)} of memory, but only ${formatMemory(availableRam)} is available.`,
     };
   }
   if (
@@ -219,18 +239,18 @@ function scoreModelFit(
     model.id === "turbo"
   ) {
     return {
+      ...resource,
       fit: "caution",
       fitLabel: "May be slow",
       fitReason:
         "This computer has enough memory, but this model will be much faster with a supported graphics card.",
-      workerSummary,
     };
   }
   return {
+    ...resource,
     fit: "good",
     fitLabel: "Runs well",
     fitReason: "This computer has enough memory for this model.",
-    workerSummary,
   };
 }
 

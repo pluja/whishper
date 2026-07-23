@@ -293,19 +293,21 @@
     return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unit]}`;
   }
 
-  function formatModelMemory(model: {
-    modelId: string;
-    requiredVramBytes: number | null;
-    recommendedRamBytes: number | null;
-  }): string {
-    const isTurbo = model.modelId === "large-v3-turbo";
-    const bytes = isTurbo ? model.requiredVramBytes : model.recommendedRamBytes;
-    if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes <= 0) {
+  function formatModelMemory(
+    bytes: number | null,
+    kind: "ram" | "vram" | null,
+  ): string {
+    if (
+      typeof bytes !== "number" ||
+      !Number.isFinite(bytes) ||
+      bytes <= 0 ||
+      (kind !== "ram" && kind !== "vram")
+    ) {
       return "Memory use unknown";
     }
     const useMegabytes = bytes < 1024 ** 3;
     const value = bytes / 1024 ** (useMegabytes ? 2 : 3);
-    return `~${Number(value.toFixed(1))} ${useMegabytes ? "MB" : "GB"} ${isTurbo ? "VRAM" : "memory"}`;
+    return `~${Number(value.toFixed(1))} ${useMegabytes ? "MB" : "GB"} ${kind.toUpperCase()}`;
   }
 
   function handleModelPickerToggle(event: ToggleEvent): void {
@@ -1705,7 +1707,10 @@
                                   <Icon name="download" size={14} />
                                 </span>
                                 <span class="model-option-memory">
-                                  {formatModelMemory(model)}
+                                  {formatModelMemory(
+                                    model.memoryRequirementBytes,
+                                    model.memoryRequirementKind,
+                                  )}
                                 </span>
                               </span>
                             </span>

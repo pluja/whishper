@@ -103,12 +103,16 @@ describe("available transcription models", () => {
         fitLabel: "Runs well",
         workerSummary: expect.stringContaining("6 GB RAM available"),
         downloaded: false,
+        memoryRequirementBytes: 4 * gib,
+        memoryRequirementKind: "ram",
       }),
       expect.objectContaining({
         modelId: "medium",
         fit: "poor",
         fitLabel: "Not recommended",
         fitReason: expect.stringContaining("8 GB"),
+        memoryRequirementBytes: 8 * gib,
+        memoryRequirementKind: "ram",
       }),
     ]);
   });
@@ -148,6 +152,8 @@ describe("available transcription models", () => {
         fit: "caution",
         fitLabel: "May be slow",
         fitReason: expect.stringContaining("supported graphics card"),
+        memoryRequirementBytes: 8 * gib,
+        memoryRequirementKind: "ram",
       }),
     );
   });
@@ -196,6 +202,8 @@ describe("available transcription models", () => {
         fit: "good",
         fitLabel: "Runs well",
         recommended: true,
+        memoryRequirementBytes: 3 * gib,
+        memoryRequirementKind: "vram",
       }),
     );
   });
