@@ -128,10 +128,14 @@
     untrack(
       () =>
         (
+          data.transcriptionModels.find((model) => model.recommended) ??
           data.transcriptionModels.find((model) => model.modelId === "small") ??
           data.transcriptionModels[0]
         )?.key ?? "",
     ),
+  );
+  let recommendedModel = $derived(
+    data.transcriptionModels.find((model) => model.recommended),
   );
   let selectedModel = $derived(
     data.transcriptionModels.find((model) => model.key === selectedModelKey),
@@ -289,12 +293,19 @@
     return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unit]}`;
   }
 
-  function formatRecommendedMemory(bytes: number | null | undefined): string {
+  function formatModelMemory(model: {
+    modelId: string;
+    requiredVramBytes: number | null;
+    recommendedRamBytes: number | null;
+  }): string {
+    const isTurbo = model.modelId === "large-v3-turbo";
+    const bytes = isTurbo ? model.requiredVramBytes : model.recommendedRamBytes;
     if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes <= 0) {
       return "Memory use unknown";
     }
-    const gigabytes = bytes / 1024 ** 3;
-    return `About ${Number(gigabytes.toFixed(1))} GB memory`;
+    const useMegabytes = bytes < 1024 ** 3;
+    const value = bytes / 1024 ** (useMegabytes ? 2 : 3);
+    return `~${Number(value.toFixed(1))} ${useMegabytes ? "MB" : "GB"} ${isTurbo ? "VRAM" : "memory"}`;
   }
 
   function handleModelPickerToggle(event: ToggleEvent): void {
@@ -1573,13 +1584,14 @@
                           id="transcription-model-selection-fit"
                           data-fit={selectedModel?.fit ?? "unknown"}
                         >
-                          <span
-                            class="model-fit-dot"
-                            data-fit={selectedModel?.fit ?? "unknown"}
-                            aria-hidden="true"
-                          ></span>
-                          <span>{selectedModel?.fitLabel ?? "Not checked"}</span
-                          >
+                          <span class="model-fit-icon" aria-hidden="true">
+                            <Icon name="cpu" size={14} />
+                          </span>
+                          <span>
+                            {selectedModel?.recommended
+                              ? "Recommended"
+                              : (selectedModel?.fitLabel ?? "Not checked")}
+                          </span>
                         </span>
                       </span>
                       <span
@@ -1649,7 +1661,12 @@
                         Choose a model
                       </strong>
                       <span id="transcription-model-dialog-subtitle">
-                        Small is the best starting point for most videos.
+                        {#if recommendedModel}
+                          {recommendedModel.displayName} is the best fit for your
+                          connected hardware.
+                        {:else}
+                          Small is the best starting point for most videos.
+                        {/if}
                       </span>
                     </div>
                     <div
@@ -1658,6 +1675,12 @@
                       aria-labelledby="transcription-model-dialog-title"
                     >
                       {#each data.transcriptionModels as model (model.key)}
+                        {@const downloadLabel =
+                          model.downloaded === true
+                            ? "Downloaded"
+                            : model.downloaded === false
+                              ? "Needs download"
+                              : "Download status unavailable"}
                         <button
                           class="model-option"
                           type="button"
@@ -1667,41 +1690,38 @@
                           onclick={() => selectTranscriptionModel(model.key)}
                         >
                           <span class="model-option-heading">
-                            <strong>{model.displayName}</strong>
+                            <span class="model-option-identity">
+                              <strong>{model.displayName}</strong>
+                              <span class="model-option-meta">
+                                <span
+                                  class="model-option-download"
+                                  data-download-state={model.downloaded === true
+                                    ? "downloaded"
+                                    : "not-downloaded"}
+                                  role="img"
+                                  aria-label={downloadLabel}
+                                  title={downloadLabel}
+                                >
+                                  <Icon name="download" size={14} />
+                                </span>
+                                <span class="model-option-memory">
+                                  {formatModelMemory(model)}
+                                </span>
+                              </span>
+                            </span>
                             <span class="model-option-fit">
-                              <span
-                                class="model-fit-dot"
-                                data-fit={model.fit}
-                                aria-hidden="true"
-                              ></span>
-                              <span>{model.fitLabel || "Not checked"}</span>
+                              <span class="model-fit-icon" aria-hidden="true">
+                                <Icon name="cpu" size={14} />
+                              </span>
+                              <span>
+                                {model.recommended
+                                  ? "Recommended"
+                                  : model.fitLabel || "Not checked"}
+                              </span>
                             </span>
                           </span>
                           <span class="model-option-description">
                             {model.description ?? "Description unavailable."}
-                          </span>
-                          <span class="model-option-footer">
-                            <span class="model-option-memory">
-                              {formatRecommendedMemory(
-                                model.recommendedRamBytes,
-                              )}
-                            </span>
-                            <span
-                              class="model-download-status"
-                              data-download-state={model.downloaded === null
-                                ? "unknown"
-                                : model.downloaded
-                                  ? "downloaded"
-                                  : "required"}
-                            >
-                              {#if model.downloaded === true}
-                                Downloaded
-                              {:else if model.downloaded === false}
-                                Needs download
-                              {:else}
-                                Download status unavailable
-                              {/if}
-                            </span>
                           </span>
                         </button>
                       {/each}

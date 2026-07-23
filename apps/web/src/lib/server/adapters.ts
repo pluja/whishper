@@ -17,6 +17,7 @@ export interface AvailableTranscriptionModel {
   requiredVramBytes: number | null;
   recommendedRamBytes: number | null;
   downloaded: boolean | null;
+  recommended: boolean;
   optionsSchema: Record<string, unknown>;
   fit: ModelFit;
   fitLabel: string;
@@ -69,6 +70,7 @@ export function availableTranscriptionModels(
           recommendedRamBytes: positiveNumber(model.recommendedRamBytes),
           downloaded:
             typeof model.downloaded === "boolean" ? model.downloaded : null,
+          recommended: model.id === "large-v3-turbo" && fit.fit === "good",
           optionsSchema: model.optionsSchema ?? {},
           ...fit,
         };

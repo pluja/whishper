@@ -45,6 +45,7 @@ describe("available transcription models", () => {
         adapterId: "whisperx",
         modelId: "small",
         downloaded: true,
+        recommended: false,
       }),
     ]);
   });
@@ -147,6 +148,54 @@ describe("available transcription models", () => {
         fit: "caution",
         fitLabel: "May be slow",
         fitReason: expect.stringContaining("supported graphics card"),
+      }),
+    );
+  });
+
+  it("recommends Large v3 Turbo when it fits a CUDA worker", () => {
+    const gib = 1024 ** 3;
+    const [model] = availableTranscriptionModels([
+      {
+        name: "cuda-worker",
+        hardware: {
+          device: "cuda",
+          computeType: "float16",
+          cpu: { logicalCores: 16 },
+          memory: { totalBytes: 32 * gib, availableBytes: 24 * gib },
+          gpus: [
+            {
+              name: "Test GPU",
+              backend: "cuda",
+              totalMemoryBytes: 4 * gib,
+            },
+          ],
+        },
+        adapters: [
+          {
+            id: "whisperx",
+            displayName: "WhisperX",
+            models: [
+              {
+                id: "large-v3-turbo",
+                displayName: "Large v3 Turbo",
+                capabilities: ["transcribe"],
+                languages: "all",
+                requiredVramBytes: 3 * gib,
+                recommendedRamBytes: 12 * gib,
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    expect(model).toEqual(
+      expect.objectContaining({
+        modelId: "large-v3-turbo",
+        requiredVramBytes: 3 * gib,
+        fit: "good",
+        fitLabel: "Runs well",
+        recommended: true,
       }),
     );
   });

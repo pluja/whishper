@@ -29,6 +29,8 @@ def test_manifest_exposes_accurate_models_without_importing_ml_dependencies(
     assert small.required_vram_bytes == 2 * 1024**3
     assert small.recommended_ram_bytes == 4 * 1024**3
     assert small.downloaded is False
+    turbo = next(model for model in manifest.models if model.id == "large-v3-turbo")
+    assert turbo.required_vram_bytes == 3 * 1024**3
 
 
 def test_manifest_detects_complete_cached_models(tmp_path) -> None:  # type: ignore[no-untyped-def]

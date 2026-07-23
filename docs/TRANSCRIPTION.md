@@ -18,16 +18,16 @@ No transcript text is written to worker progress logs. Hugging Face and Pyannote
 
 ## Model guide
 
-| Model          | Use it for                                | CPU guidance             |
-| -------------- | ----------------------------------------- | ------------------------ |
-| Tiny           | Quick drafts and pipeline checks          | Fastest, least accurate  |
-| Base           | Short, clear recordings                   | Light                    |
-| Small          | General creator and archive work          | Recommended default      |
-| Medium         | Harder audio where accuracy matters       | Slow and memory-heavy    |
-| Large v3 Turbo | Large-model quality with faster inference | GPU recommended          |
-| Large v3       | Maximum Whisper accuracy                  | GPU strongly recommended |
+| Model          | Use it for                                | Hardware guidance                   |
+| -------------- | ----------------------------------------- | ----------------------------------- |
+| Tiny           | Quick drafts and pipeline checks          | Fastest, least accurate             |
+| Base           | Short, clear recordings                   | Light                               |
+| Small          | General creator and archive work          | Recommended CPU default             |
+| Medium         | Harder audio where accuracy matters       | Slow and memory-heavy               |
+| Large v3 Turbo | Large-model quality with faster inference | Default when it fits the usable GPU |
+| Large v3       | Maximum Whisper accuracy                  | GPU strongly recommended            |
 
-The model picker labels each option **Runs well**, **May be slow**, **Not recommended**, or **Not checked**. Each row shows the model's purpose, approximate memory use, and whether its files are already **Downloaded** or **Need download**. The closed picker combines the selected model's recommendation and description once. `Small` remains the recommended starting point for most videos.
+The model picker labels each option **Recommended**, **Runs well**, **May be slow**, **Not recommended**, or **Not checked**. Each compact row shows the model's purpose, approximate memory requirement, and a download icon beside its name: green when the files are cached and gray when they still need downloading. Large v3 Turbo reports its approximately 3 GB FP16 VRAM requirement rather than its separate CPU RAM recommendation. When Large v3 Turbo fits a connected CUDA worker, Anysub marks and selects it as **Recommended** by default; otherwise `Small` remains the CPU starting point.
 
 The setup form shows the worker's detected CPU or usable CUDA GPU, logical core count, and currently available memory below the picker. Anysub uses the same reported hardware to make model recommendations. A worker configured for CPU remains a CPU worker even if its host also has an integrated GPU; only accelerators usable by the worker are counted.
 

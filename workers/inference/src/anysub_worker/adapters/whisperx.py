@@ -50,7 +50,7 @@ MODEL_PROFILES = {
     "large-v3-turbo": (
         "High accuracy. Faster with a supported graphics card.",
         809_000_000,
-        6 * GIB,
+        3 * GIB,
         12 * GIB,
     ),
 }
