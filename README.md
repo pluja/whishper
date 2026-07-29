@@ -72,6 +72,10 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm worker uv run pytest
 
 The core subtitle journey is implemented: upload, enqueue, WhisperX ASR/alignment, persisted cues and word timestamps, FFprobe media preparation, the waveform timeline, synchronized cue editing, durable autosave, browser crash recovery, and SRT/WebVTT/Anysub JSON export. Generated preview proxies, watched inboxes, revision checkpoints, editor leases, diarization, translation, and the model-management UI remain on the roadmap.
 
+## Development disclosure
+
+Large language models assisted in writing this project, covering application code, worker code, and documentation. A human always reviews, tests and accepts the LLM changes before shipping.
+
 ## License
 
 Anysub is licensed under the GNU Affero General Public License, version 3 only. See [LICENSE](LICENSE).

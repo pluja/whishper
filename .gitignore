@@ -30,8 +30,8 @@ models/
 .vscode/
 *.swp
 
-# Markdown is ignored by default so agent scratch files never reach a commit.
-# Every document that ships with the project needs an entry below.
+# Markdown is ignored by default. Documentation that ships with the project
+# needs an explicit entry below.
 *.md
 !README.md
 !CHANGELOG.md
