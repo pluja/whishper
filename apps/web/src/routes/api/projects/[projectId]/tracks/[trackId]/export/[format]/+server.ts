@@ -6,7 +6,7 @@ import {
 } from "$lib/subtitles";
 import { error, type RequestHandler } from "@sveltejs/kit";
 
-interface ExportTrack {
+type ExportTrack = {
   project_id: string;
   project_name: string;
   track_id: string;
@@ -14,7 +14,7 @@ interface ExportTrack {
   language: string;
   revision: number;
   metadata: Record<string, unknown>;
-}
+};
 
 export const GET: RequestHandler = async ({ locals, params }) => {
   if (!locals.user) error(401, "Authentication required");

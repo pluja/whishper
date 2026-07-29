@@ -15,10 +15,10 @@ export class TrackRevisionConflict extends Error {
 
 export class TrackValidationError extends Error {}
 
-export interface TrackUpdate {
+export type TrackUpdate = {
   revision: number;
   cues: SubtitleCueSnapshot[];
-}
+};
 
 export function parseTrackUpdate(value: unknown): TrackUpdate {
   if (

@@ -18,13 +18,13 @@ import type { PageServerLoad } from "./$types";
 type MediaPreparationStatus =
   "not_started" | "queued" | "running" | "completed" | "failed";
 
-interface CueRow {
+type CueRow = {
   id: string;
   position: number;
   start_us: number;
   end_us: number;
   text: string;
-}
+};
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.user) redirect(303, "/login");

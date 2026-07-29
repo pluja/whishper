@@ -7,7 +7,7 @@ import {
 import { fail, redirect, type Actions } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 
-interface ProjectRow {
+type ProjectRow = {
   id: string;
   name: string;
   created_at: Date;
@@ -30,7 +30,7 @@ interface ProjectRow {
   subtitle_match: boolean;
   video_width: string | null;
   video_height: string | null;
-}
+};
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   const initialized = await pool.query(

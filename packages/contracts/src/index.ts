@@ -5,7 +5,7 @@ export const MEDIA_PREPARATION_VERSION = "1.0";
 export type AdapterCapability =
   "transcribe" | "align" | "diarize" | "translate";
 
-export interface AdapterModel {
+export type AdapterModel = {
   id: string;
   displayName: string;
   capabilities: AdapterCapability[];
@@ -16,18 +16,18 @@ export interface AdapterModel {
   recommendedRamBytes?: number;
   downloaded?: boolean;
   optionsSchema?: Record<string, unknown>;
-}
+};
 
-export interface AdapterManifest {
+export type AdapterManifest = {
   protocolVersion: typeof ADAPTER_PROTOCOL_VERSION;
   id: string;
   displayName: string;
   version: string;
   description?: string;
   models: AdapterModel[];
-}
+};
 
-export interface WorkerHardware {
+export type WorkerHardware = {
   device: "cpu" | "cuda";
   computeType: string;
   cpu: {
@@ -38,14 +38,14 @@ export interface WorkerHardware {
     totalBytes: number;
     availableBytes: number;
   };
-  gpus: Array<{
+  gpus: {
     name: string;
     backend: "cuda" | "rocm";
     totalMemoryBytes: number;
-  }>;
-}
+  }[];
+};
 
-export interface WorkerManifest {
+export type WorkerManifest = {
   protocolVersion: typeof WORKER_PROTOCOL_VERSION;
   workerId: string;
   name: string;
@@ -56,39 +56,39 @@ export interface WorkerManifest {
   };
   adapters: AdapterManifest[];
   hardware?: WorkerHardware;
-}
+};
 
-export interface WordToken {
+export type WordToken = {
   id: string;
   text: string;
   startUs: number;
   endUs: number;
   confidence?: number;
   speaker?: string;
-}
+};
 
-export interface TranscriptCue {
+export type TranscriptCue = {
   id: string;
   startUs: number;
   endUs: number;
   text: string;
   words: WordToken[];
-}
+};
 
-export interface TranscriptArtifact {
+export type TranscriptArtifact = {
   schemaVersion: "1.0";
   language: string;
   durationUs: number;
   cues: TranscriptCue[];
   metadata: Record<string, unknown>;
-}
+};
 
-export interface MediaRational {
+export type MediaRational = {
   numerator: number;
   denominator: number;
-}
+};
 
-export interface MediaProbeStream {
+export type MediaProbeStream = {
   index: number;
   type: "audio" | "video" | "subtitle" | "data" | "attachment" | "unknown";
   codec: string;
@@ -107,9 +107,9 @@ export interface MediaProbeStream {
     averageFrameRate?: MediaRational;
     attachedPicture: boolean;
   };
-}
+};
 
-export interface MediaProbeArtifact {
+export type MediaProbeArtifact = {
   schemaVersion: typeof MEDIA_PREPARATION_VERSION;
   durationUs: number;
   startUs?: number;
@@ -121,20 +121,20 @@ export interface MediaProbeArtifact {
   proxyRecommended: boolean;
   proxyReasons: string[];
   streams: MediaProbeStream[];
-}
+};
 
 export type MediaDerivativeKind = "waveform" | "thumbnail" | "proxy";
 
-export interface MediaDerivativeUpload {
+export type MediaDerivativeUpload = {
   kind: MediaDerivativeKind;
   mediaType: string;
   sizeBytes: number;
   schemaVersion: typeof MEDIA_PREPARATION_VERSION;
   generatorVersion: typeof MEDIA_PREPARATION_VERSION;
   metadata: Record<string, unknown>;
-}
+};
 
-export interface TranscriptionJobPayload {
+export type TranscriptionJobPayload = {
   kind: "transcribe";
   adapterId: string;
   modelId: string;
@@ -143,38 +143,38 @@ export interface TranscriptionJobPayload {
   mediaPath?: string;
   language?: string;
   options: Record<string, unknown>;
-}
+};
 
-export interface MediaPreparationJobPayload {
+export type MediaPreparationJobPayload = {
   kind: "media_prepare";
   projectId: string;
   sourceStorageKey: string;
   sourceFilename: string;
   sourceMediaType?: string;
-}
+};
 
 export type WorkerJobPayload =
   TranscriptionJobPayload | MediaPreparationJobPayload;
 
-export interface WorkerLease {
+export type WorkerLease = {
   jobId: string;
   attempt: number;
   leaseToken: string;
   leaseExpiresAt: string;
   payload: WorkerJobPayload;
-}
+};
 
-export interface LeaseResponse {
+export type LeaseResponse = {
   lease: WorkerLease | null;
   pollAfterMs: number;
-}
+};
 
-export interface JobProgress {
+export type JobProgress = {
   progress: number;
   message: string;
-}
+};
 
-export interface TranscriptionJobCompletion {
+export type TranscriptionJobCompletion = {
   kind: "transcribe";
   artifact: TranscriptArtifact;
   adapter: {
@@ -182,9 +182,9 @@ export interface TranscriptionJobCompletion {
     version: string;
     modelId: string;
   };
-}
+};
 
-export interface MediaPreparationJobCompletion {
+export type MediaPreparationJobCompletion = {
   kind: "media_prepare";
   probe: MediaProbeArtifact;
   artifacts: MediaDerivativeUpload[];
@@ -192,7 +192,7 @@ export interface MediaPreparationJobCompletion {
     id: "ffmpeg";
     version: string;
   };
-}
+};
 
 export type JobCompletion =
   TranscriptionJobCompletion | MediaPreparationJobCompletion;

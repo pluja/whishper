@@ -6,7 +6,7 @@ import type {
 
 export type ModelFit = "good" | "caution" | "poor" | "unknown";
 
-export interface AvailableTranscriptionModel {
+export type AvailableTranscriptionModel = {
   key: string;
   adapterId: string;
   adapterName: string;
@@ -25,13 +25,13 @@ export interface AvailableTranscriptionModel {
   fitLabel: string;
   fitReason: string;
   workerSummary: string;
-}
+};
 
-export interface DetectedWorkerHardware {
+export type DetectedWorkerHardware = {
   kind: "cpu" | "gpu";
   name: string;
   details: string[];
-}
+};
 
 const GIB = 1024 ** 3;
 const FIT_RANK: Record<ModelFit, number> = {

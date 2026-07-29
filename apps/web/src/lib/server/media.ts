@@ -12,14 +12,14 @@ import { normalizeProjectTitle } from "$lib/server/project-library";
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 const SAFE_EXTENSION = /^\.[a-zA-Z0-9]{1,12}$/;
 
-export interface UploadProject {
+export type UploadProject = {
   projectId: string;
   workspaceId: string;
   originalFilename: string;
   mediaType: string | null;
   storageKey: string | null;
   status: string;
-}
+};
 
 export function normalizeFilename(value: string): string {
   const leaf = basename(value.replaceAll("\\", "/"))

@@ -40,19 +40,19 @@ const ARTIFACT_LIMITS: Record<MediaDerivativeKind, number> = {
   proxy: privateEnv.maxUploadBytes,
 };
 
-export interface MediaPreparationLease {
+export type MediaPreparationLease = {
   jobId: string;
   attempt: number;
   workspaceId: string;
   payload: MediaPreparationJobPayload;
   mediaType: string | null;
-}
+};
 
-export interface MediaFinalizationPlan {
+export type MediaFinalizationPlan = {
   createdPaths: string[];
   obsoletePaths: string[];
   stagingRoot: string;
-}
+};
 
 export class ArtifactOffsetError extends Error {
   constructor(public readonly currentOffset: number) {

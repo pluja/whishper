@@ -1,11 +1,11 @@
-export interface SubtitleCueSnapshot {
+export type SubtitleCueSnapshot = {
   id: string;
   position: number;
   startUs: number;
   endUs: number;
   text: string;
   words?: Record<string, unknown>[];
-}
+};
 
 export function formatEditorTime(microseconds: number): string {
   return formatSubtitleTime(microseconds, ".");

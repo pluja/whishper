@@ -1,10 +1,10 @@
 export const PROJECT_TITLE_MAX_LENGTH = 160;
 export const PROJECT_SEARCH_MAX_LENGTH = 200;
 
-export interface ProjectLibrarySearch {
+export type ProjectLibrarySearch = {
   query: string;
   includeSubtitles: boolean;
-}
+};
 
 export function parseProjectLibrarySearch(
   searchParams: URLSearchParams,

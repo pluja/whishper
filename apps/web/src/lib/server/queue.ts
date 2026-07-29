@@ -24,16 +24,16 @@ import {
 
 const LEASE_SECONDS = 60;
 
-interface LeasableJob {
+type LeasableJob = {
   id: string;
   attempts: number;
   payload: WorkerJobPayload;
-}
+};
 
-interface ReclaimedMediaAttempt {
+type ReclaimedMediaAttempt = {
   jobId: string;
   attempt: number;
-}
+};
 
 export async function leaseJob(
   manifest: WorkerManifest,
