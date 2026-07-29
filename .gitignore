@@ -29,3 +29,14 @@ models/
 .idea/
 .vscode/
 *.swp
+
+# Markdown is ignored by default so agent scratch files never reach a commit.
+# Every document that ships with the project needs an entry below.
+*.md
+!README.md
+!CHANGELOG.md
+!CONTRIBUTING.md
+!SECURITY.md
+!CODE_OF_CONDUCT.md
+!docs/**/*.md
+!.github/**/*.md
