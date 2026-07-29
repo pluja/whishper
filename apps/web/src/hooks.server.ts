@@ -1,9 +1,13 @@
-import { building } from "$app/environment";
+import { building, dev } from "$app/environment";
 import { auth } from "$lib/server/auth";
-import { privateEnv } from "$lib/server/env";
+import { assertSecureRuntimeConfiguration, privateEnv } from "$lib/server/env";
 import { handleUploadRequest, isUploadPath } from "$lib/server/uploads";
 import { svelteKitHandler } from "better-auth/svelte-kit";
-import type { Handle } from "@sveltejs/kit";
+import type { Handle, ServerInit } from "@sveltejs/kit";
+
+export const init: ServerInit = () => {
+  assertSecureRuntimeConfiguration({ dev });
+};
 
 export const handle: Handle = async ({ event, resolve }) => {
   const current = await auth.api.getSession({ headers: event.request.headers });

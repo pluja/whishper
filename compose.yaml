@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-anysub}
       POSTGRES_USER: ${POSTGRES_USER:-anysub}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anysub-local-only}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?not set. Run scripts/init-env.sh to generate .env}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -24,11 +24,11 @@ services:
       target: runtime
     command: ["node", "scripts/migrate.mjs"]
     environment: &web-environment
-      DATABASE_URL: postgresql://${POSTGRES_USER:-anysub}:${POSTGRES_PASSWORD:-anysub-local-only}@postgres:5432/${POSTGRES_DB:-anysub}
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-local-development-secret-change-before-exposing}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-anysub}:${POSTGRES_PASSWORD:?not set. Run scripts/init-env.sh to generate .env}@postgres:5432/${POSTGRES_DB:-anysub}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?not set. Run scripts/init-env.sh to generate .env}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:5173}
       ORIGIN: ${BETTER_AUTH_URL:-http://localhost:5173}
-      ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:-local-worker-token-change-before-exposing}
+      ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:?not set. Run scripts/init-env.sh to generate .env}
       DATA_ROOT: /data
       BODY_SIZE_LIMIT: ${ANYSUB_BODY_SIZE_LIMIT:-64M}
     depends_on:
@@ -65,7 +65,7 @@ services:
     restart: unless-stopped
     environment:
       ANYSUB_APP_URL: http://web:3000
-      ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:-local-worker-token-change-before-exposing}
+      ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:?not set. Run scripts/init-env.sh to generate .env}
       ANYSUB_WORKER_NAME: local-cpu
       ANYSUB_DATA_ROOT: /data
       ANYSUB_MODEL_ROOT: /models
