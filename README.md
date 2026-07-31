@@ -22,7 +22,9 @@ Anysub is a ground-up rewrite of [Whishper](https://github.com/pluja/whishper). 
 - Disk space for your media, plus a few gigabytes for the speech models.
 - Patience on the first run. Anysub downloads the model you choose, then keeps it.
 
-A normal desktop or home server CPU is enough. Smaller models transcribe faster and cost you some accuracy. NVIDIA support is planned but not ready, so treat this release as CPU only.
+A normal desktop or home server CPU is enough. Smaller models transcribe faster and cost you some accuracy.
+
+An NVIDIA GPU makes transcription several times faster. That path is written but nobody has confirmed it on real hardware yet, so [docs/CONFIGURATION.md](docs/CONFIGURATION.md) walks you through it and tells you what to check when it breaks. Reports from anyone with a card are welcome.
 
 ## Getting started
 
@@ -93,6 +95,7 @@ The worker mounts your media read only. It writes waveforms and other derived fi
 - `apps/web`: SvelteKit application, authentication, queue API, PostgreSQL schema, and migrations.
 - `workers/inference`: Python worker, adapter types, discovery, and the deterministic test adapter.
 - `packages/contracts`: TypeScript contracts shared by the application and its workers.
+- `docs/CONFIGURATION.md`: every setting, GPU setup, precision tuning, and storage.
 - `docs/ADAPTERS.md`: adapter contract and how to build an image with your own.
 - `docs/UPLOADS.md`: upload lifecycle, storage layout, and reverse-proxy notes.
 - `docs/TRANSCRIPTION.md`: model choices, first-run behaviour, and troubleshooting.
@@ -102,6 +105,8 @@ The worker mounts your media read only. It writes waveforms and other derived fi
 ### Configuration
 
 `scripts/init-env.sh` generates every secret Anysub needs. `.env.example` documents what each variable does, and Anysub rejects its placeholder values on startup, so read it but do not copy it into place. Rotating `BETTER_AUTH_SECRET` signs every account out.
+
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md) covers the rest: upload limits, reverse-proxy settings, model precision, GPU setup, and what lives in each volume.
 
 ### Development
 

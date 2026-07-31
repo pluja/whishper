@@ -46,6 +46,22 @@ ANYSUB_MAX_UPLOAD_BYTES=536870912000
 
 # Per-request SvelteKit limit. Must remain larger than the 32 MiB tus chunk.
 ANYSUB_BODY_SIZE_LIMIT=64M
+
+# Worker tuning. Each mode already picks a sensible default, so uncomment
+# these only to override one. See docs/CONFIGURATION.md.
+
+# Acceleration: cpu or cuda. Changing it rebuilds the worker image with
+# matching PyTorch wheels. The NVIDIA overlay sets cuda on its own:
+#   docker compose -f compose.yaml -f compose.cuda.yaml up --build
+#ANYSUB_ACCELERATOR=cpu
+
+# Model precision. Defaults to int8 on cpu and float16 on cuda.
+#   cpu:  int8, int8_float32, float32
+#   cuda: float16, int8_float16, float32
+#ANYSUB_COMPUTE_TYPE=int8
+
+# Identifies this worker in the model picker when several are connected.
+#ANYSUB_WORKER_NAME=local-worker
 EOF
 
 echo "Wrote $env_file with generated secrets."

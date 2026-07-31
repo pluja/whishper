@@ -1,0 +1,30 @@
+# NVIDIA overlay. Use together with the base file:
+#
+#   docker compose -f compose.yaml -f compose.cuda.yaml up --build
+#
+# This switches the worker to CUDA on its own, so no .env change is required.
+# GPU reservations are structural and cannot be toggled by an environment
+# variable, which is why they live in an overlay rather than in compose.yaml.
+#
+# Requires the NVIDIA Container Toolkit on the host.
+
+services:
+  worker:
+    build:
+      args:
+        ANYSUB_ACCELERATOR: cuda
+    environment:
+      ANYSUB_DEVICE: cuda
+      ANYSUB_COMPUTE_TYPE: ${ANYSUB_COMPUTE_TYPE:-float16}
+      ANYSUB_WORKER_NAME: ${ANYSUB_WORKER_NAME:-local-cuda}
+      # CTranslate2 loads cuBLAS and cuDNN at runtime. Both arrive as PyTorch
+      # dependencies inside the virtual environment rather than on the system
+      # loader path, so the loader needs to be pointed at them.
+      LD_LIBRARY_PATH: /app/.venv/lib/python3.12/site-packages/nvidia/cudnn/lib:/app/.venv/lib/python3.12/site-packages/nvidia/cublas/lib
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

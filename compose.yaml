@@ -62,15 +62,20 @@ services:
       context: .
       dockerfile: workers/inference/Dockerfile
       target: runtime
+      args:
+        # Selects the PyTorch wheels compiled into the image. The same value
+        # becomes ANYSUB_DEVICE below, so the image and the runtime device can
+        # never disagree.
+        ANYSUB_ACCELERATOR: ${ANYSUB_ACCELERATOR:-cpu}
     restart: unless-stopped
     environment:
       ANYSUB_APP_URL: http://web:3000
       ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:?not set. Run scripts/init-env.sh to generate .env}
-      ANYSUB_WORKER_NAME: local-cpu
+      ANYSUB_WORKER_NAME: ${ANYSUB_WORKER_NAME:-local-worker}
       ANYSUB_DATA_ROOT: /data
       ANYSUB_MODEL_ROOT: /models
-      ANYSUB_DEVICE: cpu
-      ANYSUB_COMPUTE_TYPE: int8
+      ANYSUB_DEVICE: ${ANYSUB_ACCELERATOR:-cpu}
+      ANYSUB_COMPUTE_TYPE: ${ANYSUB_COMPUTE_TYPE:-int8}
       HF_HUB_DISABLE_TELEMETRY: "1"
       DO_NOT_TRACK: "1"
       PYANNOTE_METRICS_ENABLED: "0"
