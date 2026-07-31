@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Reads the pnpm version from the packageManager field in package.json.
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.6.0 # Matches apps/web/Dockerfile.
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm check
+
+      - run: pnpm test
+
+      - run: pnpm format:check
+
+  worker:
+    name: Worker checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/inference
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: 0.11.25 # Matches workers/inference/Dockerfile.
+          python-version: 3.12.11
+          enable-cache: true
+          cache-dependency-glob: workers/inference/uv.lock
+
+      # The speech and accelerator extras stay out of CI. Adapters import their
+      # model libraries lazily, so the suite runs without PyTorch or WhisperX.
+      - run: uv sync --locked
+
+      - run: uv run ruff check .
+
+      - run: uv run pytest
+
+  # Proves both Dockerfiles still build, so a broken image is caught here rather
+  # than during a release. No layer cache: the worker image is over 4 GB, and
+  # exporting it would consume most of the 10 GB repository cache budget.
+  images:
+    name: Container images
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            dockerfile: apps/web/Dockerfile
+          - name: worker
+            dockerfile: workers/inference/Dockerfile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          target: runtime
+          push: false
