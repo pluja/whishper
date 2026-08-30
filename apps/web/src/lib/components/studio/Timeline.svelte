@@ -948,8 +948,8 @@
               onkeydown={(event) => handleTimingKeydown(event, cue, "whole")}
               onclick={stopTimelineClick}
             >
-              <span class="cue-index">{cueIndex + 1}</span>
-              <span class="cue-text">{singleLine(cue.text)}</span>
+              <span class="timeline-cue-number">{cueIndex + 1}</span>
+              <span class="timeline-cue-text">{singleLine(cue.text)}</span>
             </button>
             <button
               class="cue-handle start"
@@ -1159,8 +1159,8 @@
   .cue-shell {
     position: absolute;
     z-index: 2;
-    top: 88px;
-    height: 28px;
+    top: 86px;
+    height: 36px;
     min-width: 2px;
     pointer-events: none;
   }
@@ -1186,25 +1186,25 @@
     text-align: start;
   }
 
-  .cue-index {
+  .timeline-cue-number {
     position: absolute;
-    top: 1px;
-    left: 0.3rem;
-    font-size: 0.5rem;
+    top: 3px;
+    left: 0.4rem;
+    font-size: 0.6875rem;
     font-weight: 640;
     font-variant-numeric: tabular-nums;
     line-height: 1;
-    color: color-mix(in srgb, #d8d7ff 52%, transparent);
+    color: color-mix(in srgb, #d8d7ff 55%, transparent);
   }
 
-  .cue-text {
+  .timeline-cue-text {
     display: block;
     overflow: hidden;
-    padding: 10px 0.3rem 0;
-    font-size: 0.5625rem;
+    padding: 17px 0.4rem 0;
+    font-size: 0.6875rem;
     font-weight: 500;
-    line-height: 1.35;
-    color: color-mix(in srgb, #d8d7ff 62%, transparent);
+    line-height: 1.3;
+    color: color-mix(in srgb, #d8d7ff 72%, transparent);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1226,13 +1226,13 @@
     color: white;
   }
 
-  .cue-shell.selected .cue-index,
-  .cue-shell.dragging .cue-index {
+  .cue-shell.selected .timeline-cue-number,
+  .cue-shell.dragging .timeline-cue-number {
     color: color-mix(in srgb, white 78%, transparent);
   }
 
-  .cue-shell.selected .cue-text,
-  .cue-shell.dragging .cue-text {
+  .cue-shell.selected .timeline-cue-text,
+  .cue-shell.dragging .timeline-cue-text {
     color: white;
   }
 
