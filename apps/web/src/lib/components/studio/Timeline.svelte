@@ -10,11 +10,13 @@
     end_us: number;
   };
 
+  type TimelineCue = CueTiming & { text: string };
+
   type Props = {
     durationUs: number;
     probeState: ProbeState;
     waveformUrl: string | null;
-    cues: readonly CueTiming[];
+    cues: readonly TimelineCue[];
     selectedCueId: string | null;
     playbackUs: number;
     onseek: (us: number) => void;
@@ -518,6 +520,11 @@
     return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`;
   }
 
+  // Cue text is multiline; the timeline block has room for one line.
+  function singleLine(text: string): string {
+    return text.replace(/\s+/g, " ").trim();
+  }
+
   function clampNumber(value: number, minimum: number, maximum: number) {
     return Math.min(maximum, Math.max(minimum, value));
   }
@@ -941,7 +948,8 @@
               onkeydown={(event) => handleTimingKeydown(event, cue, "whole")}
               onclick={stopTimelineClick}
             >
-              <span>C{cueIndex + 1}</span>
+              <span class="cue-index">{cueIndex + 1}</span>
+              <span class="cue-text">{singleLine(cue.text)}</span>
             </button>
             <button
               class="cue-handle start"
@@ -1178,13 +1186,25 @@
     text-align: start;
   }
 
-  .cue-body span {
+  .cue-index {
+    position: absolute;
+    top: 1px;
+    left: 0.3rem;
+    font-size: 0.5rem;
+    font-weight: 640;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: color-mix(in srgb, #d8d7ff 52%, transparent);
+  }
+
+  .cue-text {
     display: block;
     overflow: hidden;
-    padding-inline: 0.5rem;
+    padding: 10px 0.3rem 0;
     font-size: 0.5625rem;
-    font-weight: 620;
-    line-height: 26px;
+    font-weight: 500;
+    line-height: 1.35;
+    color: color-mix(in srgb, #d8d7ff 62%, transparent);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1203,6 +1223,16 @@
     background: color-mix(in srgb, var(--waveform-accent) 38%, #20242b);
     box-shadow: 0 0 0 1px
       color-mix(in srgb, var(--waveform-accent) 32%, transparent);
+    color: white;
+  }
+
+  .cue-shell.selected .cue-index,
+  .cue-shell.dragging .cue-index {
+    color: color-mix(in srgb, white 78%, transparent);
+  }
+
+  .cue-shell.selected .cue-text,
+  .cue-shell.dragging .cue-text {
     color: white;
   }
 
