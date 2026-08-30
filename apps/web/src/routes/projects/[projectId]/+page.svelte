@@ -5,29 +5,29 @@
   import Timeline from "$lib/components/studio/Timeline.svelte";
   import { formatEditorTime, parseEditorTime } from "$lib/subtitles";
 
-  interface EditorCue {
+  type EditorCue = {
     id: string;
     position: number;
     start_us: number;
     end_us: number;
     text: string;
-  }
+  };
 
-  interface TimelineTimingCommit {
+  type TimelineTimingCommit = {
     id: string;
     start_us: number;
     end_us: number;
-  }
-  interface ShortcutDefinition {
+  };
+  type ShortcutDefinition = {
     id: string;
     keys: readonly string[];
     description: string;
-  }
+  };
 
-  interface ShortcutGroup {
+  type ShortcutGroup = {
     title: string;
     shortcuts: readonly ShortcutDefinition[];
-  }
+  };
 
   type ShuttleDirection = -1 | 0 | 1;
 

@@ -4,13 +4,13 @@
   type ProbeState =
     "not_started" | "queued" | "running" | "completed" | "failed";
 
-  interface CueTiming {
+  type CueTiming = {
     id: string;
     start_us: number;
     end_us: number;
-  }
+  };
 
-  interface Props {
+  type Props = {
     durationUs: number;
     probeState: ProbeState;
     waveformUrl: string | null;
@@ -20,27 +20,27 @@
     onseek: (us: number) => void;
     onselect: (cueId: string) => void;
     oncommittiming: (timing: CueTiming) => void;
-  }
+  };
 
-  interface DecodedWaveformLevel {
+  type DecodedWaveformLevel = {
     samplesPerPeak: number;
     peaksPerSecond: number;
     length: number;
     peaks: Int8Array;
-  }
+  };
 
-  interface DecodedWaveform {
+  type DecodedWaveform = {
     schemaVersion: "1.0";
     durationUs: number;
     sampleRate: number;
     channelMix: string;
     encoding: "signed-int8-min-max-base64";
     levels: readonly DecodedWaveformLevel[];
-  }
+  };
 
   type TimingPart = "whole" | "start" | "end";
 
-  interface TimingDrag {
+  type TimingDrag = {
     pointerId: number;
     owner: HTMLElement;
     part: TimingPart;
@@ -49,15 +49,15 @@
     contentWidthPx: number;
     original: CueTiming;
     preview: CueTiming;
-  }
+  };
 
-  interface PanDrag {
+  type PanDrag = {
     pointerId: number;
     owner: HTMLElement;
     originClientX: number;
     originScrollLeft: number;
     moved: boolean;
-  }
+  };
 
   type LoadState = "idle" | "loading" | "ready" | "failed";
 
