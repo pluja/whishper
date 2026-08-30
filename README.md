@@ -112,21 +112,15 @@ The worker mounts your media read only. It writes waveforms and other derived fi
 
 Node, pnpm, Python, uv, PostgreSQL, and FFmpeg all run in containers. None of them need to be on your host.
 
-The development overlay mounts the source and keeps dependencies in named volumes:
+The Makefile wraps the development commands:
 
 ```sh
-docker compose -f compose.yaml -f compose.dev.yaml up --build
+make          # list the targets
+make dev      # start the development stack, source mounted
+make verify   # run every check CI runs, before you push
 ```
 
-Run the checks the same way CI does:
-
-```sh
-docker compose -f compose.yaml -f compose.dev.yaml run --rm web pnpm check
-docker compose -f compose.yaml -f compose.dev.yaml run --rm web pnpm test
-docker compose -f compose.yaml -f compose.dev.yaml run --rm web pnpm format:check
-docker compose -f compose.yaml -f compose.dev.yaml run --rm worker uv run ruff check .
-docker compose -f compose.yaml -f compose.dev.yaml run --rm worker uv run pytest
-```
+Each target is one `docker compose` command against the development overlay, which mounts the source and keeps dependencies in named volumes. Nothing is hidden: `make -n verify` prints the commands it would run without running them.
 
 ## Development disclosure
 
