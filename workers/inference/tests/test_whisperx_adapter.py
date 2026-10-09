@@ -16,7 +16,7 @@ def test_manifest_exposes_accurate_models_without_importing_ml_dependencies(
 ) -> None:  # type: ignore[no-untyped-def]
     manifest = WhisperXAdapter(
         WorkerSettings(
-            worker_token="test-worker-token",
+            worker_token="test-worker-token-0123456789",
             data_root=tmp_path,
             model_root=tmp_path,
         )
@@ -50,7 +50,7 @@ def test_manifest_detects_complete_cached_models(tmp_path) -> None:  # type: ign
 
     manifest = WhisperXAdapter(
         WorkerSettings(
-            worker_token="test-worker-token",
+            worker_token="test-worker-token-0123456789",
             data_root=tmp_path,
             model_root=tmp_path,
         )
@@ -102,7 +102,7 @@ async def test_explicit_language_is_part_of_the_cached_model_key(tmp_path) -> No
     whisperx = RecordingWhisperX()
     adapter = WhisperXAdapter(
         WorkerSettings(
-            worker_token="test-worker-token",
+            worker_token="test-worker-token-0123456789",
             data_root=tmp_path,
             model_root=tmp_path,
         )
@@ -282,7 +282,9 @@ def transcribe_setup(tmp_path, monkeypatch):  # type: ignore[no-untyped-def]
         ),
     )
     adapter = WhisperXAdapter(
-        WorkerSettings(worker_token="test-worker-token", data_root=tmp_path, model_root=tmp_path)
+        WorkerSettings(
+            worker_token="test-worker-token-0123456789", data_root=tmp_path, model_root=tmp_path
+        )
     )
     request = TranscriptionRequest(
         jobId="job",

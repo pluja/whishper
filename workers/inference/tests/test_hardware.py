@@ -22,7 +22,7 @@ def write_host_files(root: Path, *, total_gib: int = 32, available_gib: int = 20
 
 def worker_settings(*, device: str = "cpu") -> WorkerSettings:
     return WorkerSettings(
-        worker_token="test-worker-token",
+        worker_token="test-worker-token-0123456789",
         device=device,
         compute_type="int8" if device == "cpu" else "float16",
     )

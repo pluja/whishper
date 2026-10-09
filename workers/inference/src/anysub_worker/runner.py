@@ -27,6 +27,7 @@ from .models import (
     WorkerLease,
 )
 from .registry import AdapterLoadError, AdapterRegistry
+from .threads import wait_for_abandoned_threads
 
 LOGGER = logging.getLogger(__name__)
 LEASE_HEARTBEAT_SECONDS = 20
@@ -85,6 +86,7 @@ async def poll_forever(
 ) -> None:
     consecutive_failures = 0
     while True:
+        await wait_for_abandoned_threads()
         try:
             response = await client.lease()
         except LEASE_POLL_ERRORS as error:

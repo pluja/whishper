@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import gc
 import logging
 from collections.abc import Callable
@@ -17,6 +16,7 @@ from anysub_worker.models import (
     TranscriptArtifact,
     TranscriptionRequest,
 )
+from anysub_worker.threads import run_in_thread
 
 from .normalize import normalize_result
 from .profiles import (
@@ -343,20 +343,6 @@ def is_cuda_out_of_memory(error: BaseException) -> bool:
 async def _run_in_thread[Result](
     function: Callable[..., Result], *args: Any, **kwargs: Any
 ) -> Result:
-    """Run blocking inference off the loop and flush GPU memory once an abandoned call ends.
-
-    A cancelled await cannot stop the thread. Its model references only drop when the call
-    returns, so the cache flush is deferred to that moment.
-    """
-    inference = asyncio.ensure_future(asyncio.to_thread(function, *args, **kwargs))
-    try:
-        return await asyncio.shield(inference)
-    except asyncio.CancelledError:
-        inference.add_done_callback(_flush_after_abandoned_call)
-        raise
-
-
-def _flush_after_abandoned_call(inference: asyncio.Future[Any]) -> None:
-    if not inference.cancelled():
-        inference.exception()
-    _release_memory()
+    # An abandoned call only drops its model references when it returns, so the cache
+    # flush waits for that moment.
+    return await run_in_thread(function, *args, on_abandoned_exit=_release_memory, **kwargs)

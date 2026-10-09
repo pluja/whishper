@@ -1,19 +1,27 @@
 import asyncio
-import os
-import signal
+import json
 from pathlib import Path
 
 import httpx
 import pytest
+from support import (
+    FailingAdapter,
+    GatedAdapter,
+    RecordingClient,
+    ScriptedProgressClient,
+    SlowFakeAdapter,
+    network_error,
+    status_error,
+    transcription_lease,
+    worker_settings,
+)
 
 from anysub_worker import runner
 from anysub_worker.adapters.fake import FakeAdapter
 from anysub_worker.client import ApplicationClient, LeaseLostError
-from anysub_worker.config import WorkerSettings
 from anysub_worker.media import PreparedMedia
 from anysub_worker.models import (
     JobFailure,
-    LeaseResponse,
     MediaDerivativeUpload,
     MediaGenerator,
     MediaPreparationJobCompletion,
@@ -23,51 +31,6 @@ from anysub_worker.models import (
     WorkerLease,
 )
 from anysub_worker.registry import AdapterRegistry
-
-
-def worker_settings(tmp_path: Path) -> WorkerSettings:
-    return WorkerSettings(
-        app_url="http://app.test",
-        worker_token="test-token",
-        data_root=tmp_path,
-        model_root=tmp_path / "models",
-        worker_id_file=tmp_path / "worker-id",
-    )
-
-
-class SlowFakeAdapter(FakeAdapter):
-    async def transcribe(self, request, report_progress):  # type: ignore[no-untyped-def]
-        await asyncio.sleep(0.04)
-        return await super().transcribe(request, report_progress)
-
-
-class RecordingClient:
-    def __init__(self) -> None:
-        self.progress_updates: list[tuple[float, str]] = []
-        self.transcription_completions = 0
-        self.media_completions = 0
-        self.failures: list[JobFailure] = []
-        self.downloads = 0
-        self.uploads: list[tuple[str, bytes]] = []
-
-    async def progress(self, lease, progress: float, message: str) -> None:  # type: ignore[no-untyped-def]
-        self.progress_updates.append((progress, message))
-
-    async def complete_transcription(self, *args) -> None:  # type: ignore[no-untyped-def]
-        self.transcription_completions += 1
-
-    async def download_source(self, _lease, destination: Path) -> None:  # type: ignore[no-untyped-def]
-        self.downloads += 1
-        destination.write_bytes(b"source")
-
-    async def upload_artifact(self, _lease, kind: str, path: Path) -> None:  # type: ignore[no-untyped-def]
-        self.uploads.append((kind, path.read_bytes()))
-
-    async def complete_media_preparation(self, *_args) -> None:  # type: ignore[no-untyped-def]
-        self.media_completions += 1
-
-    async def fail(self, _lease, failure: JobFailure) -> None:  # type: ignore[no-untyped-def]
-        self.failures.append(failure)
 
 
 async def test_long_adapter_work_renews_its_lease(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -157,103 +120,6 @@ async def test_media_job_uploads_derivatives_before_completion(monkeypatch) -> N
     assert client.media_completions == 1
     assert client.transcription_completions == 0
     assert client.failures == []
-
-
-async def test_artifact_upload_declares_binary_content_type(tmp_path: Path, respx_mock) -> None:  # type: ignore[no-untyped-def]
-    client = ApplicationClient(worker_settings(tmp_path), AdapterRegistry(()))
-    lease = WorkerLease(
-        jobId="job-media",
-        attempt=1,
-        leaseToken="lease-token",
-        leaseExpiresAt="2026-07-21T00:00:00Z",
-        payload=MediaPreparationJobPayload(
-            kind="media_prepare",
-            projectId="project-1",
-            sourceStorageKey="source.wav",
-            sourceFilename="source.wav",
-        ),
-    )
-    artifact = tmp_path / "waveform.json"
-    artifact.write_bytes(b"waveform")
-    url = "http://app.test/api/internal/jobs/job-media/artifacts/waveform"
-    respx_mock.head(url).mock(return_value=httpx.Response(200, headers={"Upload-Offset": "0"}))
-    patch = respx_mock.patch(url).mock(
-        return_value=httpx.Response(204, headers={"Upload-Offset": "8"})
-    )
-
-    try:
-        await client.upload_artifact(lease, "waveform", artifact)
-    finally:
-        await client.close()
-
-    request = patch.calls.last.request
-    assert request.headers["content-type"] == "application/offset+octet-stream"
-    assert request.content == b"waveform"
-
-
-class GatedAdapter(FakeAdapter):
-    def __init__(self) -> None:
-        self.release = asyncio.Event()
-
-    async def transcribe(self, request, report_progress):  # type: ignore[no-untyped-def]
-        await self.release.wait()
-        return await super().transcribe(request, report_progress)
-
-
-class FailingAdapter(FakeAdapter):
-    def __init__(self, error: Exception) -> None:
-        self.error = error
-
-    async def transcribe(self, request, report_progress):  # type: ignore[no-untyped-def]
-        raise self.error
-
-
-class ScriptedProgressClient(RecordingClient):
-    """Raises the scripted progress outcomes in order, then accepts every report."""
-
-    def __init__(self, outcomes: list[Exception | None]) -> None:
-        super().__init__()
-        self.outcomes = outcomes
-        self.recovered = asyncio.Event()
-        self.saw_error = False
-
-    async def progress(self, lease, progress: float, message: str) -> None:  # type: ignore[no-untyped-def]
-        outcome = self.outcomes.pop(0) if self.outcomes else None
-        if outcome is not None:
-            self.saw_error = True
-            raise outcome
-        if self.saw_error:
-            self.recovered.set()
-        await super().progress(lease, progress, message)
-
-
-def transcription_lease() -> WorkerLease:
-    return WorkerLease(
-        jobId="job-1",
-        attempt=1,
-        leaseToken="lease-token",
-        leaseExpiresAt="2026-07-19T00:00:00Z",
-        payload=TranscriptionJobPayload(
-            kind="transcribe",
-            adapterId="builtin.fake",
-            modelId="fake-v1",
-            projectId="project-1",
-            runId="run-1",
-            options={"delayMs": 0},
-        ),
-    )
-
-
-def network_error() -> httpx.ConnectError:
-    return httpx.ConnectError("connection refused")
-
-
-def status_error(status_code: int, body: str) -> httpx.HTTPStatusError:
-    request = httpx.Request("POST", "http://app.test/api/internal/jobs/job-1/complete")
-    response = httpx.Response(status_code, text=body, request=request)
-    with pytest.raises(httpx.HTTPStatusError) as raised:
-        response.raise_for_status()
-    return raised.value
 
 
 async def test_heartbeat_recovers_after_network_error(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -349,169 +215,29 @@ async def test_rejected_request_fails_the_job_permanently_with_response_detail()
     ]
 
 
-@pytest.mark.parametrize(
-    ("error", "message", "retryable"),
-    [
-        (RuntimeError("disk full"), "RuntimeError: disk full", True),
-        (TimeoutError(), "TimeoutError", True),
-        (status_error(503, "busy"), "HTTPStatusError: 503 Service Unavailable: busy", True),
-        (
-            status_error(422, ""),
-            f"HTTPStatusError: 422 {httpx.codes.UNPROCESSABLE_ENTITY.phrase}",
-            False,
-        ),
-        (status_error(409, "stale"), "HTTPStatusError: 409 Conflict: stale", True),
-    ],
-)
-def test_unexpected_failures_are_described_with_their_type(
-    error: Exception, message: str, retryable: bool
-) -> None:
-    failure = runner._failure_for(error, "media_prepare")
-
-    assert failure == JobFailure(
-        code="media_preparation_error", message=message, retryable=retryable
-    )
-
-
-@pytest.mark.parametrize(
-    ("body", "expected_detail"),
-    [
-        ('{"message": "artifact too large", "code": 1}', "artifact too large"),
-        ("<html><body><h1>Bad Gateway</h1>\n<p>nginx</p></body></html>", "Bad Gateway"),
-        ("\n\n  first line  \nsecond", "first line"),
-        ("x" * 1000, "x" * runner.MAX_RESPONSE_DETAIL_CHARS),
-    ],
-)
-def test_http_status_errors_never_expose_urls(body: str, expected_detail: str) -> None:
-    message = runner.describe_error(status_error(502, body))
-
-    assert message == f"HTTPStatusError: 502 Bad Gateway: {expected_detail}"
-    assert "app.test" not in message
-    assert "mozilla" not in message
-
-
-@pytest.mark.parametrize("body", ["9" * 5000, "[" * 100_000])
-def test_pathological_json_bodies_do_not_break_error_description(body: str) -> None:
-    assert runner.describe_error(status_error(500, body)).startswith("HTTPStatusError: 500 ")
-
-
-class StopPolling(Exception):
-    pass
-
-
-async def test_invalid_lease_response_backs_off_instead_of_crashing(
+async def test_unprocessable_completion_fails_the_job_permanently_with_its_reason(
     tmp_path: Path, respx_mock
 ) -> None:  # type: ignore[no-untyped-def]
     client = ApplicationClient(worker_settings(tmp_path), AdapterRegistry(()))
-    respx_mock.post("http://app.test/api/internal/workers/lease").mock(
-        side_effect=[
-            httpx.Response(200, json={"lease": {"jobId": "job-1"}}),
-            httpx.Response(200, text="not json"),
-            httpx.Response(200, json={"lease": None, "pollAfterMs": 500}),
-        ]
+    respx_mock.post("http://app.test/api/internal/jobs/job-1/progress").mock(
+        return_value=httpx.Response(200, json={"accepted": True})
     )
-    delays: list[float] = []
-
-    async def record_sleep(seconds: float) -> None:
-        delays.append(seconds)
-        if len(delays) == 3:
-            raise StopPolling
+    complete = respx_mock.post("http://app.test/api/internal/jobs/job-1/complete").mock(
+        return_value=httpx.Response(422, json={"message": "Adapter cues are not ordered."})
+    )
+    fail = respx_mock.post("http://app.test/api/internal/jobs/job-1/fail").mock(
+        return_value=httpx.Response(200, json={"accepted": True})
+    )
 
     try:
-        with pytest.raises(StopPolling):
-            await runner.poll_forever(
-                client, AdapterRegistry(()), sleep=record_sleep, jitter=lambda: 1.0
-            )
+        await runner._execute(client, AdapterRegistry((FakeAdapter(),)), transcription_lease())
     finally:
         await client.close()
 
-    assert delays == [1, 2, 0.5]
-
-
-@pytest.mark.parametrize(
-    ("consecutive_failures", "jitter", "expected"),
-    [(1, 0.0, 0.5), (1, 1.0, 1), (3, 1.0, 4), (6, 1.0, 30), (500, 1.0, 30), (500, 0.0, 15)],
-)
-def test_poll_backoff_grows_exponentially_up_to_the_cap(
-    consecutive_failures: int, jitter: float, expected: float
-) -> None:
-    assert runner.poll_backoff_seconds(consecutive_failures, jitter) == expected
-
-
-async def test_sigterm_stops_the_worker_and_closes_the_client(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    class IdleClient:
-        worker_id = "worker-1"
-        closed = False
-
-        def __init__(self, *_args) -> None:  # type: ignore[no-untyped-def]
-            pass
-
-        async def lease(self):  # type: ignore[no-untyped-def]
-            await asyncio.Event().wait()
-
-        async def close(self) -> None:
-            IdleClient.closed = True
-
-    monkeypatch.setattr(runner, "ApplicationClient", IdleClient)
-    asyncio.get_running_loop().call_later(0.05, os.kill, os.getpid(), signal.SIGTERM)
-
-    await asyncio.wait_for(
-        runner.run_forever(worker_settings(tmp_path), AdapterRegistry(())), timeout=2
-    )
-
-    assert IdleClient.closed
-
-
-async def test_unexpected_execute_errors_do_not_kill_the_poll_loop(monkeypatch, caplog) -> None:  # type: ignore[no-untyped-def]
-    polls = 0
-    delays: list[float] = []
-
-    class ScriptedClient:
-        async def lease(self) -> LeaseResponse:
-            nonlocal polls
-            polls += 1
-            if polls > 1:
-                raise StopPolling
-            return LeaseResponse(lease=transcription_lease(), pollAfterMs=100)
-
-    async def crash(*_args) -> None:  # type: ignore[no-untyped-def]
-        raise httpx.InvalidURL("bad url")
-
-    monkeypatch.setattr(runner, "_execute", crash)
-
-    async def record_sleep(seconds: float) -> None:
-        delays.append(seconds)
-
-    with pytest.raises(StopPolling):
-        await runner.poll_forever(  # type: ignore[arg-type]
-            ScriptedClient(), AdapterRegistry(()), sleep=record_sleep, jitter=lambda: 1.0
-        )
-
-    assert polls == 2
-    assert delays == [1]
-    assert "job execution crashed" in caplog.text
-
-
-async def test_repeated_execute_crashes_back_off_exponentially(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    class ScriptedClient:
-        async def lease(self) -> LeaseResponse:
-            return LeaseResponse(lease=transcription_lease(), pollAfterMs=100)
-
-    async def crash(*_args) -> None:  # type: ignore[no-untyped-def]
-        raise httpx.InvalidURL("bad url")
-
-    delays: list[float] = []
-
-    async def record_sleep(seconds: float) -> None:
-        delays.append(seconds)
-        if len(delays) == 3:
-            raise StopPolling
-
-    monkeypatch.setattr(runner, "_execute", crash)
-
-    with pytest.raises(StopPolling):
-        await runner.poll_forever(  # type: ignore[arg-type]
-            ScriptedClient(), AdapterRegistry(()), sleep=record_sleep, jitter=lambda: 1.0
-        )
-
-    assert delays == [1, 2, 4]
+    assert complete.call_count == 1
+    report = json.loads(fail.calls.last.request.content)
+    assert report["error"] == {
+        "code": "adapter_error",
+        "message": "HTTPStatusError: 422 Unprocessable Entity: Adapter cues are not ordered.",
+        "retryable": False,
+    }
