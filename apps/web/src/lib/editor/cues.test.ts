@@ -7,6 +7,7 @@ import {
   mergeCueWithNext,
   nearestWordBoundary,
   nudgeCue,
+  orderCuesByStart,
   retimeCue,
   splitCue,
   type EditorCue,
@@ -257,5 +258,32 @@ describe("retimeCue", () => {
     const cues = track(cue("a", 0, 1), cue("b", 2, 3));
     const result = retimeCue(cues, 1, { start_us: 0, end_us: 500_000 });
     expect(result.cues.map((item) => item.id)).toEqual(["b", "a"]);
+  });
+});
+
+describe("orderCuesByStart", () => {
+  it("sorts by start and reassigns positions", () => {
+    const cues = track(cue("b", 2, 3), cue("a", 0, 1), cue("c", 4, 5));
+    const result = orderCuesByStart(cues);
+    expect(result.changed).toBe(true);
+    expect(result.cues.map((item) => [item.id, item.position])).toEqual([
+      ["a", 0],
+      ["b", 1],
+      ["c", 2],
+    ]);
+    expect(cues[0].id).toBe("b");
+  });
+
+  it("reports no change for cues already in order", () => {
+    const cues = track(cue("a", 0, 1), cue("b", 2, 3));
+    expect(orderCuesByStart(cues).changed).toBe(false);
+  });
+
+  it("reports gaps in positions as a change", () => {
+    const cues = [
+      { ...cue("a", 0, 1), position: 0 },
+      { ...cue("b", 2, 3), position: 5 },
+    ];
+    expect(orderCuesByStart(cues).changed).toBe(true);
   });
 });

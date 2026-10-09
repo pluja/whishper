@@ -78,6 +78,20 @@ function sortByStart(cues: EditorCue[]): EditorCue[] {
   return renumber(cues);
 }
 
+// Older tracks and recovered journals may store cues in an order that no
+// longer matches their timings.
+export function orderCuesByStart(cues: readonly EditorCue[]): {
+  cues: EditorCue[];
+  changed: boolean;
+} {
+  const ordered = sortByStart(copyCues(cues));
+  const changed = ordered.some(
+    (cue, index) =>
+      cue.id !== cues[index].id || cue.position !== cues[index].position,
+  );
+  return { cues: ordered, changed };
+}
+
 export function splitCue(
   cues: readonly EditorCue[],
   index: number,

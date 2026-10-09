@@ -6,6 +6,7 @@ import {
   insertCueAfter,
   mergeCueWithNext,
   nudgeCue,
+  orderCuesByStart,
   retimeCue,
   splitCue,
   type CueEdit,
@@ -41,7 +42,7 @@ export class CueEditor {
 
   constructor(options: CueEditorOptions) {
     this.#options = options;
-    this.cues = options.cues;
+    this.cues = orderCuesByStart(options.cues).cues;
     this.selectedCueId = this.cues[0]?.id ?? null;
     this.transport = new Transport(this, options.transport);
   }
@@ -54,10 +55,12 @@ export class CueEditor {
     if (this.autosave.track?.trackId === track?.trackId) return;
     this.autosave.dispose();
     this.autosave = new Autosave(track, revision, () => this.cues);
-    this.cues = this.autosave.recoverJournal() ?? cues;
+    const ordered = orderCuesByStart(this.autosave.recoverJournal() ?? cues);
+    this.cues = ordered.cues;
     this.selectedCueId = this.cues[0]?.id ?? null;
     this.#cursorPositions.clear();
     this.history.reset();
+    if (ordered.changed) this.autosave.markChanged();
   }
 
   select(cueId: string): void {

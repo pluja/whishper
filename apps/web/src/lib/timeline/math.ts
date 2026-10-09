@@ -48,6 +48,14 @@ export function neighbourBounds(
   };
 }
 
+export function dragBounds(
+  neighbours: TimingBounds,
+  durationUs: number,
+  passNeighbours: boolean,
+): TimingBounds {
+  return passNeighbours ? { minUs: 0, maxUs: durationUs } : neighbours;
+}
+
 export function timingAfterDelta(
   original: CueTiming,
   part: TimingPart,

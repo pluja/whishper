@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   cueIsValid,
+  dragBounds,
   neighbourBounds,
   pxToTime,
   scrollLeftCentredOn,
@@ -88,6 +89,30 @@ describe("timingAfterDelta", () => {
     );
     expect(timingAfterDelta(cue, "end", -9_000_000, bounds).end_us).toBe(
       3_000_000,
+    );
+  });
+});
+
+describe("dragBounds", () => {
+  const bounds = neighbourBounds(cues, 1, DURATION_US);
+
+  it("keeps the neighbour limits by default", () => {
+    const limited = dragBounds(bounds, DURATION_US, false);
+    expect(timingAfterDelta(cues[1], "whole", 2_500_000, limited).end_us).toBe(
+      6_000_000,
+    );
+  });
+
+  it("lets the override pass neighbours within the timeline", () => {
+    const open = dragBounds(bounds, DURATION_US, true);
+    expect(open).toEqual(OPEN);
+    expect(timingAfterDelta(cues[1], "whole", 2_500_000, open)).toEqual({
+      id: "b",
+      start_us: 5_500_000,
+      end_us: 6_500_000,
+    });
+    expect(timingAfterDelta(cues[1], "start", -9_000_000, open).start_us).toBe(
+      0,
     );
   });
 });

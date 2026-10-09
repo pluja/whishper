@@ -72,6 +72,46 @@ describe("CueEditor.loadTrack", () => {
     });
   });
 
+  it("sorts out-of-order cues on load and saves the corrected order", () => {
+    const editor = newEditor();
+    const late = {
+      ...cue("late", "second"),
+      start_us: 2_000_000,
+      end_us: 3_000_000,
+    };
+    const early = { ...cue("early", "first"), position: 1 };
+    editor.loadTrack(trackA, [late, early], 1);
+
+    expect(editor.cues.map((item) => [item.id, item.position])).toEqual([
+      ["early", 0],
+      ["late", 1],
+    ]);
+    expect(editor.selectedCueId).toBe("early");
+    expect(editor.autosave.hasUnsavedChanges).toBe(true);
+  });
+
+  it("does not mark a track changed when its cues are already sorted", () => {
+    const editor = newEditor();
+    editor.loadTrack(trackA, [cue("a", "server")], 1);
+    expect(editor.autosave.hasUnsavedChanges).toBe(false);
+  });
+
+  it("sorts cues recovered from the browser journal", () => {
+    const editor = newEditor();
+    const late = {
+      ...cue("late", "second"),
+      start_us: 2_000_000,
+      end_us: 3_000_000,
+    };
+    const early = { ...cue("early", "first"), position: 1 };
+    localStorage.setItem(
+      "anysub:editor:project-a:track-a",
+      JSON.stringify({ revision: 1, cues: [late, early] }),
+    );
+    editor.loadTrack(trackA, [cue("early", "server")], 1);
+    expect(editor.cues.map((item) => item.id)).toEqual(["early", "late"]);
+  });
+
   it("clears the editor when the new page has no track", () => {
     const editor = newEditor();
     editor.loadTrack(trackA, [cue("a", "server")], 1);

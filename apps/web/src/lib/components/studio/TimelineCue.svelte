@@ -2,6 +2,7 @@
   import { formatEditorTime } from "$lib/subtitles";
   import {
     cueIsValid,
+    dragBounds,
     pxToTime,
     timeToPx,
     timingAfterDelta,
@@ -18,6 +19,7 @@
     contentWidthPx: number;
     neighbourBounds: TimingBounds;
     onselect: (cueId: string) => void;
+    ondragstart: () => void;
     oncommittiming: (timing: CueTiming) => void;
   };
 
@@ -44,6 +46,7 @@
     contentWidthPx,
     neighbourBounds,
     onselect,
+    ondragstart,
     oncommittiming,
   }: Props = $props();
 
@@ -69,10 +72,12 @@
       active.durationUs,
       active.contentWidthPx,
     );
-    const bounds = event.altKey
-      ? { minUs: 0, maxUs: active.durationUs }
-      : active.neighbourBounds;
-    return timingAfterDelta(active.original, active.part, deltaUs, bounds);
+    return timingAfterDelta(
+      active.original,
+      active.part,
+      deltaUs,
+      dragBounds(active.neighbourBounds, active.durationUs, event.altKey),
+    );
   }
 
   function dragIsCurrent(active: TimingDrag): boolean {
@@ -101,6 +106,7 @@
       return;
     event.preventDefault();
     event.stopPropagation();
+    ondragstart();
     onselect(cue.id);
 
     const owner = event.currentTarget as HTMLElement;

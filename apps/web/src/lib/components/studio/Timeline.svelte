@@ -1,12 +1,14 @@
 <script lang="ts">
   import { tick, untrack } from "svelte";
   import TimelineCue from "./TimelineCue.svelte";
-  import TimelineStatus, {
-    type LoadState,
-    type ProbeState,
-  } from "./TimelineStatus.svelte";
+  import TimelineStatus, { type ProbeState } from "./TimelineStatus.svelte";
   import TimelineToolbar from "./TimelineToolbar.svelte";
   import { drawTimeline, TRACK_HEIGHT } from "$lib/timeline/draw";
+  import {
+    decideFollow,
+    zoomAnchorUs,
+    type FollowTrigger,
+  } from "$lib/timeline/follow";
   import {
     clampInteger,
     clampNumber,
@@ -19,10 +21,9 @@
   } from "$lib/timeline/math";
   import {
     chooseWaveformLevel,
-    loadWaveform,
     waveformMatchesDuration,
-    type DecodedWaveform,
   } from "$lib/timeline/waveform";
+  import { WaveformLoader } from "$lib/timeline/waveform-loader.svelte";
 
   type Props = {
     durationUs: number;
@@ -32,6 +33,7 @@
     selectedCueId: string | null;
     playbackUs: number;
     playing: boolean;
+    seekRevision: number;
     onseek: (us: number) => void;
     onselect: (cueId: string) => void;
     oncommittiming: (timing: CueTiming) => void;
@@ -60,6 +62,7 @@
     selectedCueId,
     playbackUs,
     playing,
+    seekRevision,
     onseek,
     onselect,
     oncommittiming,
@@ -73,12 +76,11 @@
   let viewportWidth = $state(0);
   let scrollLeft = $state(0);
   let zoom = $state(1);
-  let waveform = $state.raw<DecodedWaveform | null>(null);
-  let loadState = $state<LoadState>("idle");
-  let loadError = $state("");
+  const loader = new WaveformLoader();
   let panDrag = $state.raw<PanDrag | null>(null);
   let followPlayhead = true;
   let lastAutoScrollLeft = 0;
+  let handledSeekRevision = 0;
 
   let timelineDurationUs = $derived(
     Number.isSafeInteger(durationUs) && durationUs > 0 ? durationUs : 0,
@@ -87,45 +89,19 @@
     Math.max(1, viewportWidth, Math.round(viewportWidth * zoom)),
   );
   let waveformMismatch = $derived(
-    waveform !== null && !waveformMatchesDuration(waveform, timelineDurationUs),
+    loader.waveform !== null &&
+      timelineDurationUs > 0 &&
+      !waveformMatchesDuration(loader.waveform, timelineDurationUs),
   );
   let selectedLevel = $derived(
     waveformMismatch || timelineDurationUs <= 0
       ? null
       : chooseWaveformLevel(
-          waveform,
+          loader.waveform,
           (contentWidthPx * 1_000_000) / timelineDurationUs,
         ),
   );
-  $effect(() => {
-    const url = waveformUrl;
-    const controller = new AbortController();
-
-    waveform = null;
-    loadError = "";
-    if (!url) {
-      loadState = "idle";
-      return () => controller.abort();
-    }
-
-    loadState = "loading";
-    loadWaveform(url, controller.signal)
-      .then((value) => {
-        if (controller.signal.aborted) return;
-        waveform = value;
-        loadState = "ready";
-      })
-      .catch((cause: unknown) => {
-        if (controller.signal.aborted) return;
-        loadState = "failed";
-        loadError =
-          cause instanceof Error && cause.message.startsWith("Waveform")
-            ? cause.message
-            : "Waveform data is invalid or unavailable.";
-      });
-
-    return () => controller.abort();
-  });
+  $effect(() => loader.load(waveformUrl));
 
   $effect(() => {
     if (!canvas || !root || viewportWidth <= 0) return;
@@ -141,15 +117,31 @@
   });
 
   $effect(() => {
-    if (playing) followPlayhead = true;
+    if (playing) untrack(() => follow("play"));
   });
 
-  // Only playback progress may scroll the view; zoom, resize and panning must
-  // not pull it back to the playhead.
+  // Zoom and resize are deliberately not triggers: only playback progress and
+  // explicit seeks may move the view to the playhead.
   $effect(() => {
-    const timeUs = playbackUs;
-    untrack(() => revealPlayhead(timeUs));
+    void playbackUs;
+    untrack(() => follow("progress"));
   });
+
+  $effect(() => {
+    if (seekRevision === handledSeekRevision) return;
+    handledSeekRevision = seekRevision;
+    untrack(() => follow("seek"));
+  });
+
+  function followContext() {
+    return { following: followPlayhead, playing, panning: panDrag !== null };
+  }
+
+  function follow(trigger: FollowTrigger) {
+    const decision = decideFollow(trigger, followContext());
+    followPlayhead = decision.following;
+    if (decision.reveal) revealPlayhead();
+  }
 
   function scrollGeometry() {
     return {
@@ -159,28 +151,33 @@
     };
   }
 
-  function revealPlayhead(timeUs: number) {
-    const node = viewport;
-    if (!node || !playing || !followPlayhead || panDrag) return;
-    if (timelineDurationUs <= 0 || viewportWidth <= 0) return;
-    const target = scrollLeftRevealing(
-      timeUs,
-      node.scrollLeft,
-      PLAYHEAD_GUTTER_PX,
-      scrollGeometry(),
-    );
+  function scrollViewTo(node: HTMLDivElement, target: number) {
     if (node.scrollLeft === target) return;
     node.scrollLeft = target;
     lastAutoScrollLeft = node.scrollLeft;
   }
 
+  function revealPlayhead() {
+    const node = viewport;
+    if (!node || timelineDurationUs <= 0 || viewportWidth <= 0) return;
+    scrollViewTo(
+      node,
+      scrollLeftRevealing(
+        playbackUs,
+        node.scrollLeft,
+        PLAYHEAD_GUTTER_PX,
+        scrollGeometry(),
+      ),
+    );
+  }
+
   function handleScroll() {
     if (!viewport) return;
     scrollLeft = viewport.scrollLeft;
-    if (Math.abs(scrollLeft - lastAutoScrollLeft) > SCROLL_ECHO_TOLERANCE_PX) {
-      followPlayhead = false;
-    }
+    const manual =
+      Math.abs(scrollLeft - lastAutoScrollLeft) > SCROLL_ECHO_TOLERANCE_PX;
     lastAutoScrollLeft = scrollLeft;
+    if (manual) follow("manual-scroll");
   }
 
   function positionFromClientX(clientX: number) {
@@ -248,8 +245,7 @@
     const targetZoom = clampNumber(nextZoom, 1, MAX_ZOOM);
     if (targetZoom === zoom) return;
 
-    followPlayhead = false;
-    const centreTimeUs = clampNumber(
+    const viewCentreUs = clampNumber(
       pxToTime(
         node.scrollLeft + node.clientWidth / 2,
         timelineDurationUs,
@@ -258,11 +254,12 @@
       0,
       timelineDurationUs,
     );
+    const anchorUs = zoomAnchorUs(viewCentreUs, playbackUs, followContext());
     zoom = targetZoom;
     await tick();
 
     if (viewport !== node || node.clientWidth <= 0) return;
-    node.scrollLeft = scrollLeftCentredOn(centreTimeUs, scrollGeometry());
+    scrollViewTo(node, scrollLeftCentredOn(anchorUs, scrollGeometry()));
   }
 
   function handleWheelPan(event: WheelEvent) {
@@ -350,6 +347,7 @@
               timelineDurationUs,
             )}
             {onselect}
+            ondragstart={cancelPan}
             {oncommittiming}
           />
         {/each}
@@ -367,10 +365,10 @@
     </div>
 
     <TimelineStatus
-      {loadState}
-      {loadError}
+      loadState={loader.state}
+      loadError={loader.error}
       {probeState}
-      hasWaveform={waveform !== null}
+      hasWaveform={loader.waveform !== null}
       durationMismatch={waveformMismatch}
     />
   </div>

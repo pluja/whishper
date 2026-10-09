@@ -228,6 +228,9 @@
                 ondurationchange={transport.updatePlayback}
                 onplay={transport.updatePlayingState}
                 onpause={transport.updatePlayingState}
+                onended={transport.markPlaybackStopped}
+                onemptied={transport.markPlaybackStopped}
+                onerror={transport.markPlaybackStopped}
               ></audio>
             </div>
           {:else}
@@ -243,6 +246,9 @@
               ondurationchange={transport.updatePlayback}
               onplay={transport.updatePlayingState}
               onpause={transport.updatePlayingState}
+              onended={transport.markPlaybackStopped}
+              onemptied={transport.markPlaybackStopped}
+              onerror={transport.markPlaybackStopped}
             >
               <track
                 kind="captions"
@@ -271,6 +277,7 @@
         selectedCueId={editor.selectedCueId}
         playbackUs={transport.playbackUs}
         playing={transport.playing}
+        seekRevision={transport.seekRevision}
         onseek={transport.seekTo}
         onselect={(cueId) => editor.select(cueId)}
         oncommittiming={(timing) => editor.retime(timing)}

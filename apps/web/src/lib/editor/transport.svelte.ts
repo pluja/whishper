@@ -49,6 +49,9 @@ export class Transport {
   playbackUs = $state(0);
   mediaDurationUs = $state(0);
   mediaElement = $state<HTMLMediaElement>();
+  // Bumped on every deliberate jump of the playhead, as opposed to playback
+  // progress, so views can reveal the new position.
+  seekRevision = $state(0);
   readonly #selection: CueSelection;
   readonly #options: TransportOptions;
   #reverseShuttleTimer = $state<number>();
@@ -99,10 +102,17 @@ export class Transport {
     this.#mediaPlaying = !(event.currentTarget as HTMLMediaElement).paused;
   };
 
+  // The media load algorithm and playback errors can stop playback without a
+  // pause event.
+  markPlaybackStopped = (): void => {
+    this.#mediaPlaying = false;
+  };
+
   seekTo = (microseconds: number): void => {
     if (!this.mediaElement) return;
     this.mediaElement.currentTime = microseconds / 1_000_000;
     this.playbackUs = Math.round(microseconds);
+    this.seekRevision += 1;
   };
 
   #currentPlayheadUs(): number {
@@ -152,6 +162,7 @@ export class Transport {
     );
     this.mediaElement.currentTime = boundedUs / 1_000_000;
     this.playbackUs = boundedUs;
+    this.seekRevision += 1;
     return true;
   }
 
