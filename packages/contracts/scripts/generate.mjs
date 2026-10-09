@@ -41,6 +41,16 @@ function messageNames(schema) {
   return schema.anyOf.map(({ $ref }) => $ref.replace("#/$defs/", ""));
 }
 
+const UNICODE_DEPRECATION = /^DEPRECATED: option unicode\./;
+
+const ajvLogger = {
+  log: (...message) => console.log(...message),
+  warn: (...message) => {
+    if (!UNICODE_DEPRECATION.test(String(message[0]))) console.warn(...message);
+  },
+  error: (...message) => console.error(...message),
+};
+
 function generateValidators(schema) {
   const ajv = new Ajv2020({
     code: { source: true, esm: true },
@@ -49,9 +59,9 @@ function generateValidators(schema) {
     strict: true,
     // String lengths count UTF-16 units, so the generated code needs no runtime
     // import from ajv. The option is deprecated but honoured throughout ajv 8,
-    // and the logger only reports that deprecation; strict mode still throws.
+    // so the logger drops only that deprecation notice.
     unicode: false,
-    logger: false,
+    logger: ajvLogger,
   });
   ajv.addSchema(schema, "protocol");
   const exports = Object.fromEntries(

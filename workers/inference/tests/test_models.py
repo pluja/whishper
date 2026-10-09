@@ -73,3 +73,16 @@ def test_outbound_reports_reject_unknown_fields() -> None:
         JobProgressReport.model_validate(
             {"leaseToken": "token", "progress": 0.5, "message": "Working", "eta": 3}
         )
+
+
+def test_wire_integers_reject_values_javascript_cannot_represent() -> None:
+    with pytest.raises(ValidationError):
+        MediaProbeArtifact(
+            durationUs=2**53,
+            formatNames=(),
+            seekable=True,
+            frameRateMode="constant",
+            proxyRecommended=False,
+            proxyReasons=(),
+            streams=(),
+        )

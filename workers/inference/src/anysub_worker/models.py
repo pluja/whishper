@@ -31,6 +31,14 @@ class InboundModel(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
 
+MAX_WIRE_INTEGER: Final = 2**53 - 1
+
+# Integers cross into JavaScript, which loses precision beyond 2**53 - 1.
+WireInt = Annotated[int, Field(ge=-MAX_WIRE_INTEGER, le=MAX_WIRE_INTEGER)]
+NonNegativeWireInt = Annotated[int, Field(ge=0, le=MAX_WIRE_INTEGER)]
+PositiveWireInt = Annotated[int, Field(gt=0, le=MAX_WIRE_INTEGER)]
+
+
 class AdapterCapability(StrEnum):
     TRANSCRIBE = "transcribe"
     ALIGN = "align"
@@ -42,9 +50,9 @@ class AdapterModel(StrictModel):
     capabilities: tuple[AdapterCapability, ...]
     languages: tuple[str, ...] | Literal["all"] = "all"
     description: str | None = None
-    parameter_count: int | None = Field(default=None, alias="parameterCount", gt=0)
-    required_vram_bytes: int | None = Field(default=None, alias="requiredVramBytes", gt=0)
-    recommended_ram_bytes: int | None = Field(default=None, alias="recommendedRamBytes", gt=0)
+    parameter_count: PositiveWireInt | None = Field(default=None, alias="parameterCount")
+    required_vram_bytes: PositiveWireInt | None = Field(default=None, alias="requiredVramBytes")
+    recommended_ram_bytes: PositiveWireInt | None = Field(default=None, alias="recommendedRamBytes")
     downloaded: bool | None = None
     options_schema: dict[str, Any] = Field(default_factory=dict, alias="optionsSchema")
 
@@ -74,12 +82,12 @@ class AdapterManifest(StrictModel):
 
 class WorkerCpu(StrictModel):
     model: str | None = None
-    logical_cores: int = Field(alias="logicalCores", gt=0)
+    logical_cores: PositiveWireInt = Field(alias="logicalCores")
 
 
 class WorkerMemory(StrictModel):
-    total_bytes: int = Field(alias="totalBytes", gt=0)
-    available_bytes: int = Field(alias="availableBytes", ge=0)
+    total_bytes: PositiveWireInt = Field(alias="totalBytes")
+    available_bytes: NonNegativeWireInt = Field(alias="availableBytes")
 
     @model_validator(mode="after")
     def available_does_not_exceed_total(self) -> WorkerMemory:
@@ -91,7 +99,7 @@ class WorkerMemory(StrictModel):
 class WorkerGpu(StrictModel):
     name: str = Field(min_length=1)
     backend: Literal["cuda", "rocm"]
-    total_memory_bytes: int = Field(alias="totalMemoryBytes", gt=0)
+    total_memory_bytes: PositiveWireInt = Field(alias="totalMemoryBytes")
 
 
 class WorkerHardware(StrictModel):
@@ -134,8 +142,8 @@ class TranscriptionRequest(StrictModel):
 class WordToken(StrictModel):
     id: str
     text: str
-    start_us: Annotated[int, Field(ge=0)] = Field(alias="startUs")
-    end_us: Annotated[int, Field(ge=0)] = Field(alias="endUs")
+    start_us: NonNegativeWireInt = Field(alias="startUs")
+    end_us: NonNegativeWireInt = Field(alias="endUs")
     confidence: Annotated[float, Field(ge=0, le=1)] | None = None
     speaker: str | None = None
 
@@ -148,8 +156,8 @@ class WordToken(StrictModel):
 
 class TranscriptCue(StrictModel):
     id: str
-    start_us: Annotated[int, Field(ge=0)] = Field(alias="startUs")
-    end_us: Annotated[int, Field(ge=0)] = Field(alias="endUs")
+    start_us: NonNegativeWireInt = Field(alias="startUs")
+    end_us: NonNegativeWireInt = Field(alias="endUs")
     text: str
     words: tuple[WordToken, ...] = ()
 
@@ -167,7 +175,7 @@ class TranscriptArtifact(StrictModel):
         default=TRANSCRIPT_SCHEMA_VERSION, alias="schemaVersion"
     )
     language: str = Field(min_length=1)
-    duration_us: Annotated[int, Field(ge=0)] = Field(alias="durationUs")
+    duration_us: NonNegativeWireInt = Field(alias="durationUs")
     cues: tuple[TranscriptCue, ...]
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -179,19 +187,19 @@ class TranscriptArtifact(StrictModel):
 
 
 class MediaRational(StrictModel):
-    numerator: Annotated[int, Field(gt=0)]
-    denominator: Annotated[int, Field(gt=0)]
+    numerator: PositiveWireInt
+    denominator: PositiveWireInt
 
 
 class MediaAudioDetails(StrictModel):
-    sample_rate: Annotated[int, Field(gt=0)] | None = Field(default=None, alias="sampleRate")
-    channels: Annotated[int, Field(gt=0)] | None = None
+    sample_rate: PositiveWireInt | None = Field(default=None, alias="sampleRate")
+    channels: PositiveWireInt | None = None
     channel_layout: str | None = Field(default=None, alias="channelLayout")
 
 
 class MediaVideoDetails(StrictModel):
-    width: Annotated[int, Field(gt=0)]
-    height: Annotated[int, Field(gt=0)]
+    width: PositiveWireInt
+    height: PositiveWireInt
     pixel_format: str | None = Field(default=None, alias="pixelFormat")
     frame_rate: MediaRational | None = Field(default=None, alias="frameRate")
     average_frame_rate: MediaRational | None = Field(default=None, alias="averageFrameRate")
@@ -199,11 +207,11 @@ class MediaVideoDetails(StrictModel):
 
 
 class MediaProbeStream(StrictModel):
-    index: Annotated[int, Field(ge=0)]
+    index: NonNegativeWireInt
     type: Literal["audio", "video", "subtitle", "data", "attachment", "unknown"]
     codec: str
-    duration_us: Annotated[int, Field(ge=0)] | None = Field(default=None, alias="durationUs")
-    bit_rate: Annotated[int, Field(ge=0)] | None = Field(default=None, alias="bitRate")
+    duration_us: NonNegativeWireInt | None = Field(default=None, alias="durationUs")
+    bit_rate: NonNegativeWireInt | None = Field(default=None, alias="bitRate")
     audio: MediaAudioDetails | None = None
     video: MediaVideoDetails | None = None
 
@@ -212,11 +220,11 @@ class MediaProbeArtifact(StrictModel):
     schema_version: MediaPreparationVersion = Field(
         default=MEDIA_PREPARATION_VERSION, alias="schemaVersion"
     )
-    duration_us: Annotated[int, Field(ge=0)] = Field(alias="durationUs")
-    start_us: int | None = Field(default=None, alias="startUs")
+    duration_us: NonNegativeWireInt = Field(alias="durationUs")
+    start_us: WireInt | None = Field(default=None, alias="startUs")
     format_names: tuple[str, ...] = Field(alias="formatNames")
     format_long_name: str | None = Field(default=None, alias="formatLongName")
-    bit_rate: Annotated[int, Field(ge=0)] | None = Field(default=None, alias="bitRate")
+    bit_rate: NonNegativeWireInt | None = Field(default=None, alias="bitRate")
     seekable: bool
     frame_rate_mode: Literal["constant", "variable", "unknown"] = Field(alias="frameRateMode")
     proxy_recommended: bool = Field(alias="proxyRecommended")
@@ -227,7 +235,7 @@ class MediaProbeArtifact(StrictModel):
 class MediaDerivativeUpload(StrictModel):
     kind: Literal["waveform", "thumbnail", "proxy"]
     media_type: str = Field(alias="mediaType")
-    size_bytes: Annotated[int, Field(gt=0)] = Field(alias="sizeBytes")
+    size_bytes: PositiveWireInt = Field(alias="sizeBytes")
     schema_version: MediaPreparationVersion = Field(
         default=MEDIA_PREPARATION_VERSION, alias="schemaVersion"
     )

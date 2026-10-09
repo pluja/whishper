@@ -62,7 +62,7 @@ describe("parseProtocolMessage", () => {
     expect(result.ok).toBe(false);
     expect(!result.ok && result.errors).toEqual(
       expect.arrayContaining([
-        "/protocolVersion must be equal to constant",
+        "/protocolVersion must be equal to constant: 1.0",
         "/adapters/0/id must NOT have fewer than 1 characters",
       ]),
     );
@@ -77,8 +77,27 @@ describe("parseProtocolMessage", () => {
 
     expect(result).toEqual({
       ok: false,
-      errors: ["/ must NOT have additional properties"],
+      errors: ["/ must NOT have additional properties: extra"],
     });
+  });
+
+  it("rejects integers beyond the safe range", () => {
+    const result = parseProtocolMessage(validateWorkerManifest, {
+      ...manifest,
+      hardware: {
+        device: "cpu",
+        computeType: "int8",
+        cpu: { model: null, logicalCores: 4 },
+        memory: { totalBytes: 2 ** 53, availableBytes: 0 },
+        gpus: [],
+      },
+    });
+
+    expect(!result.ok && result.errors).toEqual(
+      expect.arrayContaining([
+        "/hardware/memory/totalBytes must be <= 9007199254740991",
+      ]),
+    );
   });
 
   it("rejects a completion that matches neither job kind", () => {

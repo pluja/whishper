@@ -106,6 +106,7 @@
           "anyOf": [
             {
               "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
               "type": "integer"
             },
             {
@@ -118,6 +119,7 @@
           "anyOf": [
             {
               "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
               "type": "integer"
             },
             {
@@ -130,6 +132,7 @@
           "anyOf": [
             {
               "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
               "type": "integer"
             },
             {
@@ -319,6 +322,7 @@
           "anyOf": [
             {
               "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
               "type": "integer"
             },
             {
@@ -331,6 +335,7 @@
           "anyOf": [
             {
               "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
               "type": "integer"
             },
             {
@@ -375,6 +380,7 @@
         },
         "sizeBytes": {
           "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
           "type": "integer"
         },
         "schemaVersion": {
@@ -498,12 +504,15 @@
           "default": "1.0"
         },
         "durationUs": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
         "startUs": {
           "anyOf": [
             {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
               "type": "integer"
             },
             {
@@ -532,6 +541,7 @@
         "bitRate": {
           "anyOf": [
             {
+              "maximum": 9007199254740991,
               "minimum": 0,
               "type": "integer"
             },
@@ -588,6 +598,7 @@
       "additionalProperties": false,
       "properties": {
         "index": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -608,6 +619,7 @@
         "durationUs": {
           "anyOf": [
             {
+              "maximum": 9007199254740991,
               "minimum": 0,
               "type": "integer"
             },
@@ -620,6 +632,7 @@
         "bitRate": {
           "anyOf": [
             {
+              "maximum": 9007199254740991,
               "minimum": 0,
               "type": "integer"
             },
@@ -669,10 +682,12 @@
       "properties": {
         "numerator": {
           "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
           "type": "integer"
         },
         "denominator": {
           "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
           "type": "integer"
         }
       },
@@ -688,10 +703,12 @@
       "properties": {
         "width": {
           "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
           "type": "integer"
         },
         "height": {
           "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
           "type": "integer"
         },
         "pixelFormat": {
@@ -755,6 +772,7 @@
           "type": "string"
         },
         "durationUs": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -786,10 +804,12 @@
           "type": "string"
         },
         "startUs": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
         "endUs": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -906,10 +926,12 @@
           "type": "string"
         },
         "startUs": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
         "endUs": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -986,6 +1008,7 @@
         },
         "logicalCores": {
           "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
           "type": "integer"
         }
       },
@@ -1012,6 +1035,7 @@
         },
         "totalMemoryBytes": {
           "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
           "type": "integer"
         }
       },
@@ -1162,9 +1186,11 @@
       "properties": {
         "totalBytes": {
           "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
           "type": "integer"
         },
         "availableBytes": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         }
