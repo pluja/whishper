@@ -175,7 +175,6 @@ export async function completeUpload(
     posix.join("staging", "uploads", uploadId),
   );
   const canonicalPath = resolveDataPath(storageKey);
-  await mkdir(dirname(canonicalPath), { recursive: true });
   await pool.query(
     `update media_uploads
         set status = 'finalizing', error = null, updated_at = now(),
@@ -186,6 +185,7 @@ export async function completeUpload(
 
   let linked = false;
   try {
+    await mkdir(dirname(canonicalPath), { recursive: true });
     linked = await linkIdempotent(stagingPath, canonicalPath);
 
     await withTransaction(async (client) => {

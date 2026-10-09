@@ -1,7 +1,7 @@
 import { FileStore } from "@tus/file-store";
 import { ERRORS, EVENTS, MemoryLocker, Server, type Upload } from "@tus/server";
-import { mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, unlink } from "node:fs/promises";
+import { join, resolve } from "node:path";
 
 import { privateEnv } from "$lib/server/env";
 import {
@@ -60,17 +60,22 @@ function isAlreadyGone(cause: unknown): boolean {
   return cause === ERRORS.FILE_NOT_FOUND || isNodeError(cause, "ENOENT");
 }
 
-async function removeTusUpload(uploadId: string): Promise<void> {
-  const store = await getStore();
+export async function removeStoredUpload(
+  store: Pick<FileStore, "directory" | "configstore">,
+  uploadId: string,
+): Promise<void> {
   try {
-    await store.remove(uploadId);
-    return;
+    await unlink(join(store.directory, uploadId));
   } catch (cause) {
-    if (!isAlreadyGone(cause)) throw cause;
+    if (!isNodeError(cause, "ENOENT")) throw cause;
   }
   await store.configstore.delete(uploadId).catch((cause) => {
     if (!isAlreadyGone(cause)) throw cause;
   });
+}
+
+async function removeTusUpload(uploadId: string): Promise<void> {
+  await removeStoredUpload(await getStore(), uploadId);
 }
 
 async function finalizeTusUpload(

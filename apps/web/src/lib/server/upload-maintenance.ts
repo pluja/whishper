@@ -152,20 +152,30 @@ export async function runUploadSweep(
 ): Promise<void> {
   const ports = databasePorts(options);
   const client = await pool.connect();
+  // A connection that may still hold the session lock must not return to the pool.
+  let lockMayBeHeld = true;
   try {
     const lock = await client.query<{ locked: boolean }>(
       `select pg_try_advisory_lock($1) as locked`,
       [SWEEP_LOCK_KEY],
     );
-    if (!lock.rows[0]?.locked) return;
+    if (!lock.rows[0]?.locked) {
+      lockMayBeHeld = false;
+      return;
+    }
     try {
       const summary = await sweepUploads(ports, now);
       console.info("Upload sweep finished", summary);
     } finally {
-      await client.query(`select pg_advisory_unlock($1)`, [SWEEP_LOCK_KEY]);
+      try {
+        await client.query(`select pg_advisory_unlock($1)`, [SWEEP_LOCK_KEY]);
+        lockMayBeHeld = false;
+      } catch (cause) {
+        console.error("Could not release the upload sweep lock", cause);
+      }
     }
   } finally {
-    client.release();
+    client.release(lockMayBeHeld);
   }
 }
 
