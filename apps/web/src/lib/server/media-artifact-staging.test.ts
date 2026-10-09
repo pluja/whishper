@@ -74,6 +74,15 @@ describe("appendArtifactChunk", () => {
     expect(await stagedArtifactOffset(lease, "thumbnail")).toBe(5);
   });
 
+  it("stops a multi-chunk body once it passes the declared length", async () => {
+    const path = stagingArtifactPath(lease, "proxy");
+    await expect(
+      appendArtifactChunk(lease, "proxy", 0, 100, 6, bodyOf("abcd", "efgh")),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(await stagedArtifactOffset(lease, "proxy")).toBe(0);
+    expect((await stat(path)).size).toBe(0);
+  });
+
   it("serializes concurrent appends for the same lease", async () => {
     const path = stagingArtifactPath(lease, "waveform");
     const results = await Promise.allSettled([

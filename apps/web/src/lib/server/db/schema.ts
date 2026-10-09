@@ -242,6 +242,9 @@ export const mediaUploads = pgTable(
     status: text("status").notNull().default("uploading"),
     storageKey: text("storage_key"),
     error: text("error"),
+    firstFinalizeAttemptAt: timestamp("first_finalize_attempt_at", {
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

@@ -2,8 +2,7 @@ import { stat } from "node:fs/promises";
 import { posix } from "node:path";
 
 import { pool } from "$lib/server/db";
-import { withTransaction } from "$lib/server/db/transaction";
-import { completeUpload, resolveDataPath } from "$lib/server/media";
+import { resolveDataPath } from "$lib/server/media";
 
 export const UPLOAD_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1_000;
 const SWEEP_INTERVAL_MS = 15 * 60 * 1_000;
@@ -17,6 +16,7 @@ export type SweepCandidate = {
   createdBy: string;
   status: "uploading" | "finalizing" | "failed";
   sizeBytes: number;
+  firstFinalizeAttemptAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -24,6 +24,7 @@ export type SweepCandidate = {
 export type UploadAction = "keep" | "finalize" | "fail" | "expire";
 
 export type UploadMaintenanceOptions = {
+  finalizeUpload: (uploadId: string, userId: string) => Promise<void>;
   removeTusUpload: (uploadId: string) => Promise<void>;
   deleteExpiredTusFiles: () => Promise<void>;
 };
@@ -93,7 +94,9 @@ async function finalizeOrFail(
     summary.finalized += 1;
   } catch (cause) {
     const retryWindowOver =
-      now.getTime() - candidate.createdAt.getTime() > FINALIZE_RETRY_WINDOW_MS;
+      candidate.firstFinalizeAttemptAt !== null &&
+      now.getTime() - candidate.firstFinalizeAttemptAt.getTime() >
+        FINALIZE_RETRY_WINDOW_MS;
     if (!retryWindowOver) throw cause;
     const reason =
       cause instanceof Error ? cause.message : "Finalization failed.";
@@ -108,6 +111,7 @@ function databasePorts(options: UploadMaintenanceOptions): SweepPorts {
       const result = await pool.query<SweepCandidate>(
         `select u.id, u.project_id as "projectId", u.created_by as "createdBy",
                 u.status, u.size_bytes::float8 as "sizeBytes",
+                u.first_finalize_attempt_at as "firstFinalizeAttemptAt",
                 u.created_at as "createdAt", u.updated_at as "updatedAt"
            from media_uploads u
           where u.status in ('uploading', 'finalizing', 'failed')`,
@@ -121,7 +125,7 @@ function databasePorts(options: UploadMaintenanceOptions): SweepPorts {
       return file?.isFile() ? file.size : null;
     },
     async finalize(candidate) {
-      await completeUpload(candidate.id, candidate.createdBy);
+      await options.finalizeUpload(candidate.id, candidate.createdBy);
     },
     async markFailed(uploadId, reason) {
       await pool.query(
@@ -147,15 +151,22 @@ export async function runUploadSweep(
   now: Date = new Date(),
 ): Promise<void> {
   const ports = databasePorts(options);
-  await withTransaction(async (client) => {
+  const client = await pool.connect();
+  try {
     const lock = await client.query<{ locked: boolean }>(
-      `select pg_try_advisory_xact_lock($1) as locked`,
+      `select pg_try_advisory_lock($1) as locked`,
       [SWEEP_LOCK_KEY],
     );
     if (!lock.rows[0]?.locked) return;
-    const summary = await sweepUploads(ports, now);
-    console.info("Upload sweep finished", summary);
-  });
+    try {
+      const summary = await sweepUploads(ports, now);
+      console.info("Upload sweep finished", summary);
+    } finally {
+      await client.query(`select pg_advisory_unlock($1)`, [SWEEP_LOCK_KEY]);
+    }
+  } finally {
+    client.release();
+  }
 }
 
 let started = false;

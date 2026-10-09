@@ -177,8 +177,10 @@ export async function completeUpload(
   const canonicalPath = resolveDataPath(storageKey);
   await mkdir(dirname(canonicalPath), { recursive: true });
   await pool.query(
-    `update media_uploads set status = 'finalizing', error = null, updated_at = now()
-      where id = $1`,
+    `update media_uploads
+        set status = 'finalizing', error = null, updated_at = now(),
+            first_finalize_attempt_at = coalesce(first_finalize_attempt_at, now())
+      where id = $1 and status <> 'completed'`,
     [uploadId],
   );
 
@@ -215,7 +217,7 @@ export async function completeUpload(
       .query(
         `update media_uploads
             set status = 'uploading', error = $2, updated_at = now()
-          where id = $1`,
+          where id = $1 and status <> 'completed'`,
         [
           uploadId,
           cause instanceof Error ? cause.message : "Finalization failed.",

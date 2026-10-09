@@ -25,6 +25,7 @@ function candidate(overrides: Partial<SweepCandidate> = {}): SweepCandidate {
     createdBy: "user",
     status: "uploading",
     sizeBytes: 100,
+    firstFinalizeAttemptAt: null,
     createdAt: new Date(now.getTime() - 2 * HOUR),
     updatedAt: new Date(now.getTime() - HOUR),
     ...overrides,
@@ -107,11 +108,15 @@ describe("sweepUploads", () => {
     const young = candidate();
     const stale = candidate({
       id: "stale",
-      createdAt: new Date(now.getTime() - 25 * HOUR),
+      firstFinalizeAttemptAt: new Date(now.getTime() - 25 * HOUR),
+    });
+    const slowTransfer = candidate({
+      id: "slow",
+      createdAt: new Date(now.getTime() - 48 * HOUR),
     });
     const summary = await sweepUploads(
       ports({
-        listCandidates: async () => [young, stale],
+        listCandidates: async () => [young, slowTransfer, stale],
         finalize,
         markFailed,
       }),

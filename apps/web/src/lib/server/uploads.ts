@@ -1,5 +1,5 @@
 import { FileStore } from "@tus/file-store";
-import { EVENTS, MemoryLocker, Server, type Upload } from "@tus/server";
+import { ERRORS, EVENTS, MemoryLocker, Server, type Upload } from "@tus/server";
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
@@ -16,6 +16,7 @@ import {
   startUploadMaintenance,
   UPLOAD_EXPIRATION_MS,
 } from "$lib/server/upload-maintenance";
+import { isNodeError } from "$lib/server/util";
 import { isUuid } from "$lib/uuid";
 
 const TUS_PATH = "/api/uploads";
@@ -55,16 +56,57 @@ function getStore(): Promise<FileStore> {
   return storePromise;
 }
 
+function isAlreadyGone(cause: unknown): boolean {
+  return cause === ERRORS.FILE_NOT_FOUND || isNodeError(cause, "ENOENT");
+}
+
+async function removeTusUpload(uploadId: string): Promise<void> {
+  const store = await getStore();
+  try {
+    await store.remove(uploadId);
+    return;
+  } catch (cause) {
+    if (!isAlreadyGone(cause)) throw cause;
+  }
+  await store.configstore.delete(uploadId).catch((cause) => {
+    if (!isAlreadyGone(cause)) throw cause;
+  });
+}
+
+async function finalizeTusUpload(
+  uploadId: string,
+  userId: string,
+): Promise<{ projectId: string }> {
+  const completed = await completeUpload(uploadId, userId);
+  const store = await getStore();
+  await store.configstore.delete(uploadId).catch((cause) => {
+    console.warn("Could not remove completed tus metadata", cause);
+  });
+  return completed;
+}
+
+async function removeExpiredTusUploads(): Promise<void> {
+  const { configstore } = await getStore();
+  const cutoff = Date.now() - UPLOAD_EXPIRATION_MS;
+  for (const uploadId of (await configstore.list?.()) ?? []) {
+    try {
+      const info = await configstore.get(uploadId);
+      if (info?.creation_date && Date.parse(info.creation_date) < cutoff) {
+        await removeTusUpload(uploadId);
+      }
+    } catch (cause) {
+      console.warn(`Could not clean up expired tus upload ${uploadId}`, cause);
+    }
+  }
+}
+
 export function startUploadCleanup(): void {
   startUploadMaintenance({
-    removeTusUpload: async (uploadId) => {
-      const store = await getStore();
-      await store.remove(uploadId).catch(() => undefined);
-      await store.configstore.delete(uploadId).catch(() => undefined);
+    finalizeUpload: async (uploadId, userId) => {
+      await finalizeTusUpload(uploadId, userId);
     },
-    deleteExpiredTusFiles: async () => {
-      await (await getStore()).deleteExpired();
-    },
+    removeTusUpload,
+    deleteExpiredTusFiles: removeExpiredTusUploads,
   });
 }
 
@@ -123,15 +165,12 @@ async function createServer(): Promise<Server> {
       };
     },
     onUploadFinish: async (request, upload) => {
-      const completed = await completeUpload(
+      const completed = await finalizeTusUpload(
         upload.id,
         requireUserId(request),
       ).catch((cause) => {
         console.error(`Could not finalize upload ${upload.id}`, cause);
         throw tusError(cause);
-      });
-      await store.configstore.delete(upload.id).catch((cause) => {
-        console.warn("Could not remove completed tus metadata", cause);
       });
       return {
         headers: { "Upload-Project": completed.projectId },

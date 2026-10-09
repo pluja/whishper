@@ -14,7 +14,6 @@ export function isNodeError(
 
 const keyedLockTails = new Map<string, Promise<unknown>>();
 
-/** Runs work after every earlier call with the same key has settled. */
 export async function withKeyedLock<T>(
   key: string,
   work: () => Promise<T>,
