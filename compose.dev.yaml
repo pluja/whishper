@@ -1,19 +1,23 @@
 services:
   migrate:
+    image: anysub-web-dev
     build:
       target: development
-    volumes:
+    # The source bind mount hides every node_modules directory baked into the
+    # image, so each workspace package keeps its own in a named volume.
+    volumes: &web-volumes
       - .:/workspace:z
       - web-node-modules:/workspace/node_modules
+      - web-app-node-modules:/workspace/apps/web/node_modules
+      - web-contracts-node-modules:/workspace/packages/contracts/node_modules
     working_dir: /workspace/apps/web
     command: ["pnpm", "migrate"]
 
   web:
+    image: anysub-web-dev
     build:
       target: development
-    volumes:
-      - .:/workspace:z
-      - web-node-modules:/workspace/node_modules
+    volumes: *web-volumes
     working_dir: /workspace
     command: ["pnpm", "--filter", "@anysub/web", "dev", "--host", "0.0.0.0"]
     ports: !override
@@ -28,6 +32,7 @@ services:
         ]
 
   worker:
+    image: anysub-worker-dev
     build:
       target: development
     volumes:
@@ -43,4 +48,6 @@ services:
 
 volumes:
   web-node-modules:
+  web-app-node-modules:
+  web-contracts-node-modules:
   worker-venv:
