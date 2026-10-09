@@ -1,13 +1,10 @@
 import { auth } from "$lib/server/auth";
-import { pool } from "$lib/server/db";
+import { isInstanceInitialized } from "$lib/server/instance";
 import { fail, redirect, type Actions } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
-  const initialized = await pool.query(
-    "select exists(select 1 from auth_users) as value",
-  );
-  if (!initialized.rows[0].value) redirect(303, "/setup");
+  if (!(await isInstanceInitialized())) redirect(303, "/setup");
   if (locals.user) redirect(303, "/");
   return {};
 };

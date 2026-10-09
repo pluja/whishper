@@ -1,13 +1,13 @@
 import { auth } from "$lib/server/auth";
-import { pool } from "$lib/server/db";
+import {
+  createInstanceOwner,
+  isInstanceInitialized,
+} from "$lib/server/instance";
 import { fail, redirect, type Actions } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async () => {
-  const initialized = await pool.query(
-    "select exists(select 1 from auth_users) as value",
-  );
-  if (initialized.rows[0].value) redirect(303, "/login");
+  if (await isInstanceInitialized()) redirect(303, "/login");
   return {};
 };
 
@@ -19,6 +19,9 @@ export const actions: Actions = {
       .trim()
       .toLowerCase();
     const password = String(form.get("password") ?? "");
+    const authContext = await auth.$context;
+    const { minPasswordLength, maxPasswordLength } =
+      authContext.password.config;
 
     if (name.length < 2)
       return fail(400, {
@@ -26,53 +29,40 @@ export const actions: Actions = {
       });
     if (!email.includes("@"))
       return fail(400, { message: "Enter a valid email address." });
-    if (password.length < 10) {
+    if (
+      password.length < minPasswordLength ||
+      password.length > maxPasswordLength
+    ) {
       return fail(400, {
-        message: "Use at least ten characters for your password.",
+        message: `Use between ${minPasswordLength} and ${maxPasswordLength} characters for your password.`,
       });
     }
 
-    const initialized = await pool.query(
-      "select exists(select 1 from auth_users) as value",
-    );
-    if (initialized.rows[0].value) redirect(303, "/login");
-
+    let outcome;
     try {
-      const created = await auth.api.signUpEmail({
-        body: { name, email, password },
-        headers: request.headers,
+      outcome = await createInstanceOwner({
+        name,
+        email,
+        passwordHash: await authContext.password.hash(password),
       });
-      const workspaceName = `${name}'s workspace`;
-      const slug = `workspace-${created.user.id
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .slice(0, 24)}`;
-      const client = await pool.connect();
-      try {
-        await client.query("begin");
-        const workspace = await client.query<{ id: string }>(
-          "insert into workspaces (name, slug) values ($1, $2) returning id",
-          [workspaceName, slug],
-        );
-        await client.query(
-          `insert into memberships (workspace_id, user_id, role) values ($1, $2, 'owner')`,
-          [workspace.rows[0].id, created.user.id],
-        );
-        await client.query("commit");
-      } catch (cause) {
-        await client.query("rollback");
-        throw cause;
-      } finally {
-        client.release();
-      }
-      redirect(303, "/");
     } catch (cause) {
-      if (cause && typeof cause === "object" && "status" in cause) throw cause;
       console.error("Owner setup failed", cause);
       return fail(400, {
         message:
           "The owner account could not be created. Check the details and try again.",
       });
     }
+    if (outcome === "already-initialized") redirect(303, "/login");
+
+    try {
+      await auth.api.signInEmail({
+        body: { email, password },
+        headers: request.headers,
+      });
+    } catch (cause) {
+      console.error("Signing in the new owner failed", cause);
+      redirect(303, "/login");
+    }
+    redirect(303, "/");
   },
 };

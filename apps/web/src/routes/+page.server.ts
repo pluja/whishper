@@ -1,5 +1,6 @@
 import { auth } from "$lib/server/auth";
 import { pool } from "$lib/server/db";
+import { isInstanceInitialized } from "$lib/server/instance";
 import {
   normalizeProjectTitle,
   parseProjectLibrarySearch,
@@ -33,10 +34,7 @@ type ProjectRow = {
 };
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-  const initialized = await pool.query(
-    "select exists(select 1 from auth_users) as value",
-  );
-  if (!initialized.rows[0].value) redirect(303, "/setup");
+  if (!(await isInstanceInitialized())) redirect(303, "/setup");
   if (!locals.user) redirect(303, "/login");
   const search = parseProjectLibrarySearch(url.searchParams);
 
