@@ -2,8 +2,7 @@ export const WORKER_PROTOCOL_VERSION = "1.0";
 export const ADAPTER_PROTOCOL_VERSION = "1.0";
 export const MEDIA_PREPARATION_VERSION = "1.0";
 
-export type AdapterCapability =
-  "transcribe" | "align" | "diarize" | "translate";
+export type AdapterCapability = "transcribe" | "align";
 
 export type AdapterModel = {
   id: string;

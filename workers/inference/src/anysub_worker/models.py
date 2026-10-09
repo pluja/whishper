@@ -17,8 +17,6 @@ class StrictModel(BaseModel):
 class AdapterCapability(StrEnum):
     TRANSCRIBE = "transcribe"
     ALIGN = "align"
-    DIARIZE = "diarize"
-    TRANSLATE = "translate"
 
 
 class AdapterModel(StrictModel):

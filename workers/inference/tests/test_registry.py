@@ -46,14 +46,14 @@ def test_base_protocol_does_not_require_unrelated_capabilities() -> None:
         @property
         def manifest(self) -> AdapterManifest:
             return AdapterManifest(
-                id="test.translation-only",
-                displayName="Translation only",
+                id="test.align-only",
+                displayName="Alignment only",
                 version="1.0.0",
                 models=(
                     AdapterModel(
                         id="test-model",
                         displayName="Test model",
-                        capabilities=(AdapterCapability.TRANSLATE,),
+                        capabilities=(AdapterCapability.ALIGN,),
                     ),
                 ),
             )

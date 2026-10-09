@@ -26,7 +26,7 @@ Worker API
 Python worker  <---->  project storage and model cache
 ```
 
-An optional LibreTranslate container provides local translation. Administrators may add workers on the same host or remote machines.
+A future optional LibreTranslate container may provide local translation. Administrators may add workers on the same host or remote machines.
 
 The default stack does not include Redis, MongoDB, a search service, a reverse proxy, or object storage.
 
@@ -89,8 +89,8 @@ Workers perform expensive or failure-prone media and ML work:
 - Generate preview proxies, audio derivatives, waveform peaks, and thumbnails.
 - Download URL media through yt-dlp.
 - Download and cache models.
-- Transcribe, align, diarize, and segment.
-- Translate through LibreTranslate.
+- Transcribe, align, and segment.
+- Later, diarize speakers and translate through LibreTranslate.
 - Generate large export artifacts when application-side generation would block requests.
 
 Workers do not connect to the application database. They poll the internal API, lease compatible work, transfer authorized assets, report progress, and upload versioned results.
@@ -101,7 +101,7 @@ This rule protects the domain model from worker implementations and allows remot
 
 The worker core does not import Faster-Whisper, WhisperX, or another model library directly. It discovers adapter packages through the `anysub.adapters` Python entry-point group. Each adapter publishes a manifest with its protocol version, adapter version, models, languages, capabilities, and a JSON Schema for model-specific options.
 
-The initial capabilities are `transcribe`, `align`, `diarize`, and `translate`. A model may implement only the capabilities it supports. The scheduler matches jobs against worker manifests instead of assuming a particular library or model family.
+The capabilities are `transcribe` and `align`. Diarization and translation will add their own capabilities once they are built. A model may implement only the capabilities it supports. The scheduler matches jobs against worker manifests instead of assuming a particular library or model family.
 
 Adapters receive typed requests and return normalized, versioned Anysub artifacts. Subtitle storage and the editor therefore do not depend on Faster-Whisper, WhisperX, Voxtral, Qwen, or any other upstream result shape.
 
@@ -239,12 +239,12 @@ The UI exposes product choices rather than implementation libraries:
 
 - Model selection.
 - Accurate timing or fast timing.
-- Independent speaker-diarization toggle.
+- Independent speaker-diarization toggle, once diarization is built.
 - Language and advanced subtitle settings.
 
 Accurate timing is the default. Faster-Whisper performs ASR and WhisperX performs forced alignment. Fast timing uses Faster-Whisper word timestamps without alignment.
 
-Diarization uses Pyannote as an optional stage. Administrators accept the model terms and provide a Hugging Face token for initial download. Anysub disables Pyannote telemetry. Users may provide automatic, exact, or bounded speaker counts.
+Diarization is planned as an optional Pyannote stage. Administrators accept the model terms and provide a Hugging Face token for initial download. Anysub disables Pyannote telemetry. Users may provide automatic, exact, or bounded speaker counts.
 
 Each first-party implementation is an adapter package. The worker normalizes all upstream results into Anysub schemas. Stored projects do not depend on WhisperX, Faster-Whisper, Pyannote, or another adapter's result shapes.
 
@@ -265,7 +265,7 @@ Docker images do not bundle large model weights.
 
 ## Translation
 
-V1 supports LibreTranslate through an internal translation-provider interface. Administrators may enable an optional Compose profile or configure an existing LibreTranslate endpoint.
+Translation is not built yet. The plan is LibreTranslate behind an internal translation-provider interface. Administrators would enable an optional Compose profile or configure an existing LibreTranslate endpoint.
 
 Translation creates a new track. The translation workflow may merge, split, and reflow cues to meet target-language reading rules while retaining source lineage and overall spoken intervals.
 
