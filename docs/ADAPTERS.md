@@ -21,6 +21,8 @@ An adapter package must:
 
 Adapters run as trusted code inside a worker. Only install packages you trust.
 
+The Pydantic models in `anysub_worker.models` define the manifest and every message the worker exchanges with the application. `uv run anysub-protocol-schema` exports them as JSON Schema to `packages/contracts/schema/protocol.schema.json`, from which the application generates its TypeScript types and validators.
+
 ## Minimal package
 
 The package metadata registers a class or instance:

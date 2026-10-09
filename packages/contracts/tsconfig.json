@@ -6,6 +6,7 @@
     "moduleResolution": "Bundler",
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
+    "allowJs": true,
     "noEmit": true
   },
   "include": ["src/**/*.ts"]

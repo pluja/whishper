@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { MEDIA_PREPARATION_VERSION } from "@anysub/contracts";
   import { tick } from "svelte";
   import { formatClock } from "$lib/format";
   import { formatEditorTime } from "$lib/subtitles";
@@ -34,7 +35,7 @@
   };
 
   type DecodedWaveform = {
-    schemaVersion: "1.0";
+    schemaVersion: typeof MEDIA_PREPARATION_VERSION;
     durationUs: number;
     sampleRate: number;
     channelMix: string;
@@ -296,7 +297,7 @@
   function validateWaveform(value: unknown): DecodedWaveform {
     if (
       !isRecord(value) ||
-      value.schemaVersion !== "1.0" ||
+      value.schemaVersion !== MEDIA_PREPARATION_VERSION ||
       value.encoding !== "signed-int8-min-max-base64" ||
       !Number.isSafeInteger(value.durationUs) ||
       (value.durationUs as number) < 0 ||
@@ -307,7 +308,9 @@
       !Array.isArray(value.levels) ||
       value.levels.length === 0
     ) {
-      throw new Error("Waveform JSON does not match schema 1.0.");
+      throw new Error(
+        `Waveform JSON does not match schema ${MEDIA_PREPARATION_VERSION}.`,
+      );
     }
 
     const levels = value.levels.map((candidate) => {
@@ -335,7 +338,7 @@
     });
 
     return {
-      schemaVersion: "1.0",
+      schemaVersion: MEDIA_PREPARATION_VERSION,
       durationUs: value.durationUs as number,
       sampleRate: value.sampleRate as number,
       channelMix: value.channelMix,

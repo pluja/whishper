@@ -122,7 +122,7 @@ The worker mounts your media read only. It writes waveforms and other derived fi
 
 - `apps/web`: SvelteKit application, authentication, queue API, PostgreSQL schema, and migrations.
 - `workers/inference`: Python worker, adapter types, discovery, and the deterministic test adapter.
-- `packages/contracts`: TypeScript contracts shared by the application and its workers.
+- `packages/contracts`: the worker protocol as JSON Schema, with TypeScript types and validators generated from it. The Pydantic models in `workers/inference` are the source.
 - `docs/CONFIGURATION.md`: every setting, GPU setup, precision tuning, and storage.
 - `docs/ADAPTERS.md`: adapter contract and how to build an image with your own.
 - `docs/UPLOADS.md`: upload lifecycle, storage layout, and reverse-proxy notes.
@@ -145,6 +145,7 @@ The Makefile wraps the development commands:
 ```sh
 make          # list the targets
 make dev      # start the development stack, source mounted
+make generate # regenerate the protocol contracts after changing the worker models
 make verify   # run every check CI runs, before you push
 ```
 

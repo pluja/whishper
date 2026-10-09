@@ -10,6 +10,7 @@ import type {
   MediaPreparationJobCompletion,
   MediaPreparationJobPayload,
   MediaProbeArtifact,
+  MediaRational,
 } from "@anysub/contracts";
 import type { PoolClient } from "pg";
 
@@ -17,7 +18,7 @@ import { pool } from "$lib/server/db";
 import { withTransaction } from "$lib/server/db/transaction";
 import { privateEnv } from "$lib/server/env";
 import { resolveDataPath } from "$lib/server/media";
-import { hashToken, isRecord, linkIdempotent } from "$lib/server/util";
+import { hashToken, linkIdempotent } from "$lib/server/util";
 
 const ARTIFACT_MEDIA_TYPES: Record<MediaDerivativeKind, readonly string[]> = {
   waveform: ["application/vnd.anysub.waveform+json"],
@@ -352,7 +353,8 @@ export async function finalizeMediaPreparation(
     completion: MediaPreparationJobCompletion;
   },
 ): Promise<MediaFinalizationPlan> {
-  const completion = validateCompletion(input.completion);
+  const { completion } = input;
+  assertDerivativesAllowed(completion);
   const requiredKinds = requiredArtifactKinds(completion.probe);
   const artifacts = new Map<MediaDerivativeKind, MediaDerivativeUpload>();
   for (const artifact of completion.artifacts) {
@@ -606,38 +608,17 @@ function derivativeStorageKey(
   );
 }
 
-function validateCompletion(
-  value: MediaPreparationJobCompletion,
-): MediaPreparationJobCompletion {
-  if (
-    value.kind !== "media_prepare" ||
-    value.probe.schemaVersion !== "1.0" ||
-    !Number.isSafeInteger(value.probe.durationUs) ||
-    value.probe.durationUs < 0 ||
-    !Array.isArray(value.probe.streams) ||
-    !Array.isArray(value.probe.formatNames) ||
-    !Array.isArray(value.probe.proxyReasons) ||
-    !Array.isArray(value.artifacts) ||
-    value.generator?.id !== "ffmpeg" ||
-    typeof value.generator.version !== "string"
-  ) {
-    throw new Error("Worker returned invalid media preparation metadata.");
-  }
-  for (const artifact of value.artifacts) {
+function assertDerivativesAllowed(
+  completion: MediaPreparationJobCompletion,
+): void {
+  for (const artifact of completion.artifacts) {
     if (
-      !isMediaDerivativeKind(artifact.kind) ||
       !ARTIFACT_MEDIA_TYPES[artifact.kind].includes(artifact.mediaType) ||
-      !Number.isSafeInteger(artifact.sizeBytes) ||
-      artifact.sizeBytes <= 0 ||
-      artifact.sizeBytes > ARTIFACT_LIMITS[artifact.kind] ||
-      artifact.schemaVersion !== "1.0" ||
-      artifact.generatorVersion !== "1.0" ||
-      !isRecord(artifact.metadata)
+      artifact.sizeBytes > ARTIFACT_LIMITS[artifact.kind]
     ) {
       throw new Error("Worker returned an invalid derivative manifest.");
     }
   }
-  return value;
 }
 
 function requiredArtifactKinds(
@@ -657,21 +638,11 @@ function requiredArtifactKinds(
   return kinds;
 }
 
-function primaryFrameRate(
-  probe: MediaProbeArtifact,
-): { numerator: number; denominator: number } | null {
+function primaryFrameRate(probe: MediaProbeArtifact): MediaRational | null {
   for (const stream of probe.streams) {
     if (stream.type !== "video" || stream.video?.attachedPicture) continue;
     const frameRate = stream.video?.averageFrameRate ?? stream.video?.frameRate;
-    if (
-      frameRate &&
-      Number.isSafeInteger(frameRate.numerator) &&
-      frameRate.numerator > 0 &&
-      Number.isSafeInteger(frameRate.denominator) &&
-      frameRate.denominator > 0
-    ) {
-      return frameRate;
-    }
+    if (frameRate) return frameRate;
   }
   return null;
 }

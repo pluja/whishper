@@ -8,10 +8,10 @@ COMPOSE := $(COMPOSE_ENGINE) -f compose.yaml -f compose.dev.yaml -p anysub-dev
 RUN := $(COMPOSE) run --rm --no-deps
 
 .DEFAULT_GOAL := help
-.PHONY: help dev down check test lint verify
+.PHONY: help dev down generate check test lint verify
 
 help: ## List available targets
-	@awk 'BEGIN {FS = ":.*## "} /^[a-z][a-z-]*:.*## / {printf "  %-7s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "} /^[a-z][a-z-]*:.*## / {printf "  %-9s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 dev: ## Start the development stack
 	$(COMPOSE) up --build
@@ -19,10 +19,14 @@ dev: ## Start the development stack
 down: ## Stop the stack, keeping all data
 	$(COMPOSE) down
 
+generate: ## Regenerate the protocol schema and TypeScript contracts from the worker models
+	$(RUN) worker uv run anysub-protocol-schema
+	$(RUN) web pnpm --filter @anysub/contracts generate
+
 check: ## Type-check the web application
 	$(RUN) web pnpm check
 
-test: ## Run the web and worker test suites
+test: ## Run the web and worker test suites, including the contract drift checks
 	$(RUN) web pnpm test
 	$(RUN) worker uv run pytest
 

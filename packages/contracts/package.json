@@ -3,16 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
+    "generate": "node scripts/generate.mjs",
     "check": "tsc --noEmit",
     "test": "vitest run",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
+    "json-schema-to-typescript": "^16.0.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

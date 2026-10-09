@@ -1,21 +1,23 @@
 import { randomBytes } from "node:crypto";
 
-import type {
-  AdapterManifest,
-  JobCompletion,
-  TranscriptArtifact,
-  TranscriptionJobCompletion,
-  WorkerJobPayload,
-  WorkerLease,
-  WorkerManifest,
-  WorkerHardware,
+import {
+  MEDIA_PREPARATION_VERSION,
+  parseProtocolMessage,
+  validateWorkerManifest,
+  type JobCompletion,
+  type JobFailure,
+  type TranscriptArtifact,
+  type TranscriptionJobCompletion,
+  type WorkerJobPayload,
+  type WorkerLease,
+  type WorkerManifest,
 } from "@anysub/contracts";
 import type { PoolClient } from "pg";
 import type { MediaFinalizationPlan } from "$lib/server/media-preparation";
 
 import { pool } from "$lib/server/db";
 import { withTransaction } from "$lib/server/db/transaction";
-import { hashToken, isRecord } from "$lib/server/util";
+import { hashToken } from "$lib/server/util";
 import {
   commitMediaFinalization,
   cleanupStagedMediaArtifacts,
@@ -42,7 +44,7 @@ export async function leaseJob(
 ): Promise<WorkerLease | null> {
   const adapterIds = manifest.adapters.map((adapter) => adapter.id);
   const supportsMediaPreparation =
-    manifest.capabilities.mediaPreparation === "1.0";
+    manifest.capabilities.mediaPreparation === MEDIA_PREPARATION_VERSION;
   const { lease, reclaimedArtifactJobs } = await withTransaction(
     async (client) => {
       await upsertWorker(client, manifest);
@@ -232,7 +234,8 @@ async function storeTranscriptCompletion(
   },
   completion: TranscriptionJobCompletion,
 ): Promise<void> {
-  const artifact = validateArtifact(completion.artifact);
+  const { artifact } = completion;
+  assertTranscriptTiming(artifact);
   const track = await client.query<{ id: string }>(
     `insert into subtitle_tracks
       (project_id, source_run_id, name, language, kind, metadata)
@@ -271,7 +274,7 @@ async function storeTranscriptCompletion(
 export async function failJob(
   jobId: string,
   leaseToken: string,
-  failure: { code: string; message: string; retryable: boolean },
+  failure: JobFailure,
 ): Promise<boolean> {
   const job = await withTransaction(async (client) => {
     const updated = await client.query<{
@@ -395,107 +398,26 @@ async function cleanupReclaimedArtifacts(
   );
 }
 
-function validateArtifact(artifact: TranscriptArtifact): TranscriptArtifact {
-  if (
-    artifact.schemaVersion !== "1.0" ||
-    artifact.durationUs < 0 ||
-    !artifact.language
-  ) {
-    throw new Error("Adapter returned an unsupported transcript artifact");
-  }
+function assertTranscriptTiming(artifact: TranscriptArtifact): void {
   let previousStart = -1;
   for (const cue of artifact.cues) {
-    if (
-      cue.startUs < 0 ||
-      cue.endUs < cue.startUs ||
-      cue.endUs > artifact.durationUs
-    ) {
+    if (cue.endUs < cue.startUs || cue.endUs > artifact.durationUs) {
       throw new Error("Adapter returned invalid cue timing");
     }
     if (cue.startUs < previousStart)
       throw new Error("Adapter cues are not ordered");
     previousStart = cue.startUs;
   }
-  return artifact;
 }
 
 export function parseWorkerManifest(value: unknown): WorkerManifest {
-  if (!isRecord(value)) throw new Error("Worker manifest must be an object");
-  if (value.protocolVersion !== "1.0")
-    throw new Error("Unsupported worker protocol");
-  if (
-    typeof value.workerId !== "string" ||
-    typeof value.name !== "string" ||
-    typeof value.version !== "string" ||
-    typeof value.architecture !== "string" ||
-    !Array.isArray(value.adapters)
-  ) {
-    throw new Error("Worker manifest is incomplete");
+  const parsed = parseProtocolMessage(validateWorkerManifest, value);
+  if (!parsed.ok) {
+    throw new Error(`Invalid worker manifest: ${parsed.errors.join("; ")}`);
   }
-  const capabilities = isRecord(value.capabilities) ? value.capabilities : {};
-  if (
-    capabilities.mediaPreparation !== undefined &&
-    capabilities.mediaPreparation !== "1.0"
-  ) {
-    throw new Error("Unsupported media preparation capability");
-  }
-  for (const adapter of value.adapters) validateManifestAdapter(adapter);
-  const hardware =
-    value.hardware === undefined
-      ? undefined
-      : parseWorkerHardware(value.hardware);
-  return {
-    ...(value as unknown as Omit<WorkerManifest, "capabilities" | "hardware">),
-    capabilities: {
-      ...(capabilities.mediaPreparation === "1.0"
-        ? { mediaPreparation: "1.0" as const }
-        : {}),
-    },
-    ...(hardware ? { hardware } : {}),
-  };
-}
-
-function validateManifestAdapter(
-  value: unknown,
-): asserts value is AdapterManifest {
-  if (!isRecord(value) || value.protocolVersion !== "1.0") {
-    throw new Error("Unsupported adapter protocol");
-  }
-  if (typeof value.id !== "string" || !Array.isArray(value.models)) {
-    throw new Error("Adapter manifest is incomplete");
-  }
-}
-
-function parseWorkerHardware(value: unknown): WorkerHardware {
-  if (
-    !isRecord(value) ||
-    (value.device !== "cpu" && value.device !== "cuda") ||
-    typeof value.computeType !== "string" ||
-    !isRecord(value.cpu) ||
-    (value.cpu.model !== undefined && typeof value.cpu.model !== "string") ||
-    !isPositiveInteger(value.cpu.logicalCores) ||
-    !isRecord(value.memory) ||
-    !isPositiveInteger(value.memory.totalBytes) ||
-    !isNonNegativeInteger(value.memory.availableBytes) ||
-    value.memory.availableBytes > value.memory.totalBytes ||
-    !Array.isArray(value.gpus) ||
-    !value.gpus.every(
-      (gpu) =>
-        isRecord(gpu) &&
-        typeof gpu.name === "string" &&
-        (gpu.backend === "cuda" || gpu.backend === "rocm") &&
-        isPositiveInteger(gpu.totalMemoryBytes),
-    )
-  ) {
+  const memory = parsed.value.hardware?.memory;
+  if (memory && memory.availableBytes > memory.totalBytes) {
     throw new Error("Worker hardware inventory is invalid");
   }
-  return value as unknown as WorkerHardware;
-}
-
-function isPositiveInteger(value: unknown): value is number {
-  return Number.isSafeInteger(value) && Number(value) > 0;
-}
-
-function isNonNegativeInteger(value: unknown): value is number {
-  return Number.isSafeInteger(value) && Number(value) >= 0;
+  return parsed.value;
 }
