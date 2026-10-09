@@ -1,5 +1,6 @@
 import type { MediaDerivativeKind } from "@anysub/contracts";
 import { pool } from "$lib/server/db";
+import { withTransaction } from "$lib/server/db/transaction";
 import {
   availableTranscriptionModels,
   detectedWorkerHardware,
@@ -223,101 +224,99 @@ export const actions: Actions = {
     const separator = modelKey.indexOf(":");
     const adapterId = modelKey.slice(0, separator);
     const modelId = modelKey.slice(separator + 1);
-    const client = await pool.connect();
+    const userId = locals.user.id;
     try {
-      await client.query("begin");
-      const project = await client.query<{
-        id: string;
-        workspace_id: string;
-        media_original_key: string | null;
-      }>(
-        `select p.id, p.workspace_id, p.media_original_key
+      const rejection = await withTransaction(async (client) => {
+        const project = await client.query<{
+          id: string;
+          workspace_id: string;
+          media_original_key: string | null;
+        }>(
+          `select p.id, p.workspace_id, p.media_original_key
            from projects p
            join memberships m on m.workspace_id = p.workspace_id
           where p.id = $1 and m.user_id = $2
           for update of p`,
-        [params.projectId, locals.user.id],
-      );
-      const ownedProject = project.rows[0];
-      if (!ownedProject) error(404, "Project not found");
-      if (!ownedProject.media_original_key) {
-        await client.query("rollback");
-        return fail(409, { message: "The source upload is not complete yet." });
-      }
+          [params.projectId, userId],
+        );
+        const ownedProject = project.rows[0];
+        if (!ownedProject) error(404, "Project not found");
+        if (!ownedProject.media_original_key) {
+          return fail(409, {
+            message: "The source upload is not complete yet.",
+          });
+        }
 
-      const activeRun = await client.query(
-        `select 1 from transcription_runs
+        const activeRun = await client.query(
+          `select 1 from transcription_runs
           where project_id = $1 and status in ('queued', 'running') limit 1`,
-        [ownedProject.id],
-      );
-      if (activeRun.rowCount) {
-        await client.query("rollback");
-        return fail(409, {
-          message: "This project is already being transcribed.",
-        });
-      }
+          [ownedProject.id],
+        );
+        if (activeRun.rowCount) {
+          return fail(409, {
+            message: "This project is already being transcribed.",
+          });
+        }
 
-      const workers = await client.query<{ manifest: unknown }>(
-        `select manifest from workers where last_seen_at > now() - interval '15 seconds'`,
-      );
-      const available = availableTranscriptionModels(
-        workers.rows.map((worker) => worker.manifest),
-      );
-      if (
-        !available.some(
-          (model) => model.adapterId === adapterId && model.modelId === modelId,
-        )
-      ) {
-        await client.query("rollback");
-        return fail(409, {
-          message: "That model is not available on a connected worker.",
-        });
-      }
+        const workers = await client.query<{ manifest: unknown }>(
+          `select manifest from workers where last_seen_at > now() - interval '15 seconds'`,
+        );
+        const available = availableTranscriptionModels(
+          workers.rows.map((worker) => worker.manifest),
+        );
+        if (
+          !available.some(
+            (model) =>
+              model.adapterId === adapterId && model.modelId === modelId,
+          )
+        ) {
+          return fail(409, {
+            message: "That model is not available on a connected worker.",
+          });
+        }
 
-      const options = {
-        alignment,
-        maxLineLength,
-        ...(batchSize === undefined ? {} : { batchSize }),
-      };
-      const run = await client.query<{ id: string }>(
-        `insert into transcription_runs
+        const options = {
+          alignment,
+          maxLineLength,
+          ...(batchSize === undefined ? {} : { batchSize }),
+        };
+        const run = await client.query<{ id: string }>(
+          `insert into transcription_runs
           (project_id, adapter_id, model_id, options, created_by)
          values ($1, $2, $3, $4, $5)
          returning id`,
-        [
-          ownedProject.id,
-          adapterId,
-          modelId,
-          JSON.stringify(options),
-          locals.user.id,
-        ],
-      );
-      await client.query(
-        `insert into jobs (workspace_id, run_id, kind, payload)
-         values ($1, $2, 'transcribe', $3)`,
-        [
-          ownedProject.workspace_id,
-          run.rows[0].id,
-          JSON.stringify({
-            kind: "transcribe",
+          [
+            ownedProject.id,
             adapterId,
             modelId,
-            projectId: ownedProject.id,
-            runId: run.rows[0].id,
-            mediaPath: `/data/${ownedProject.media_original_key}`,
-            ...(languageValue === "auto" ? {} : { language: languageValue }),
-            options,
-          }),
-        ],
-      );
-      await client.query("commit");
+            JSON.stringify(options),
+            userId,
+          ],
+        );
+        await client.query(
+          `insert into jobs (workspace_id, run_id, kind, payload)
+         values ($1, $2, 'transcribe', $3)`,
+          [
+            ownedProject.workspace_id,
+            run.rows[0].id,
+            JSON.stringify({
+              kind: "transcribe",
+              adapterId,
+              modelId,
+              projectId: ownedProject.id,
+              runId: run.rows[0].id,
+              mediaPath: `/data/${ownedProject.media_original_key}`,
+              ...(languageValue === "auto" ? {} : { language: languageValue }),
+              options,
+            }),
+          ],
+        );
+      });
+      if (rejection) return rejection;
     } catch (cause) {
-      await client.query("rollback");
       if (cause && typeof cause === "object" && "status" in cause) throw cause;
       console.error("Could not enqueue transcription", cause);
       return fail(500, { message: "The transcription could not be queued." });
-    } finally {
-      client.release();
     }
     redirect(303, `/projects/${params.projectId}`);
   },

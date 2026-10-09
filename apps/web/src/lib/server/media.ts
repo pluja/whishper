@@ -2,6 +2,7 @@ import { link, mkdir, rm, stat, unlink } from "node:fs/promises";
 import { basename, dirname, extname, posix, resolve, sep } from "node:path";
 
 import { pool } from "$lib/server/db";
+import { withTransaction } from "$lib/server/db/transaction";
 import { privateEnv } from "$lib/server/env";
 import {
   enqueueMediaPreparation,
@@ -86,9 +87,7 @@ export async function createUploadProject(input: {
 }): Promise<string> {
   if (!SAFE_ID.test(input.uploadId)) throw new Error("Invalid upload ID.");
   const filename = normalizeFilename(input.filename);
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(async (client) => {
     const membership = await client.query(
       `select 1 from memberships where workspace_id = $1 and user_id = $2`,
       [input.workspaceId, input.userId],
@@ -123,14 +122,8 @@ export async function createUploadProject(input: {
         input.sizeBytes,
       ],
     );
-    await client.query("commit");
     return project.rows[0].id;
-  } catch (cause) {
-    await client.query("rollback");
-    throw cause;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export async function requireOwnedUpload(
@@ -208,9 +201,7 @@ export async function completeUpload(
       }
     }
 
-    const client = await pool.connect();
-    try {
-      await client.query("begin");
+    await withTransaction(async (client) => {
       await lockMediaPreparationProject(client, upload.projectId);
       await client.query(
         `update projects
@@ -232,13 +223,7 @@ export async function completeUpload(
         sourceFilename: upload.originalFilename,
         sourceMediaType: upload.mediaType,
       });
-      await client.query("commit");
-    } catch (cause) {
-      await client.query("rollback");
-      throw cause;
-    } finally {
-      client.release();
-    }
+    });
   } catch (cause) {
     if (linked) await unlink(canonicalPath).catch(() => undefined);
     await pool
@@ -275,12 +260,7 @@ export async function deleteProjectForUser(
   projectId: string,
   userId: string,
 ): Promise<boolean> {
-  const client = await pool.connect();
-  let workspaceId: string | null = null;
-  let uploadId: string | null = null;
-  let jobIds: string[] = [];
-  try {
-    await client.query("begin");
+  const deleted = await withTransaction(async (client) => {
     const authorized = await client.query(
       `select 1
          from projects p
@@ -289,12 +269,9 @@ export async function deleteProjectForUser(
           and (p.created_by = $2 or m.role in ('owner', 'admin'))`,
       [projectId, userId],
     );
-    if (!authorized.rows[0]) {
-      await client.query("rollback");
-      return false;
-    }
+    if (!authorized.rows[0]) return null;
     await lockMediaPreparationProject(client, projectId);
-    jobIds = (
+    const jobIds = (
       await client.query<{ id: string }>(
         `select id
            from jobs
@@ -316,12 +293,7 @@ export async function deleteProjectForUser(
         for update of p`,
       [projectId, userId],
     );
-    if (!project.rows[0]) {
-      await client.query("rollback");
-      return false;
-    }
-    workspaceId = project.rows[0].workspace_id;
-    uploadId = project.rows[0].upload_id;
+    if (!project.rows[0]) return null;
     await client.query(
       `update jobs
           set state = 'cancelled',
@@ -336,13 +308,14 @@ export async function deleteProjectForUser(
       [projectId],
     );
     await client.query("delete from projects where id = $1", [projectId]);
-    await client.query("commit");
-  } catch (cause) {
-    await client.query("rollback");
-    throw cause;
-  } finally {
-    client.release();
-  }
+    return {
+      workspaceId: project.rows[0].workspace_id,
+      uploadId: project.rows[0].upload_id,
+      jobIds,
+    };
+  });
+  if (!deleted) return false;
+  const { workspaceId, uploadId, jobIds } = deleted;
 
   const paths = [
     resolveDataPath(

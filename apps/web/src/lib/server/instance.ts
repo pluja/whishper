@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
 
 import { pool } from "$lib/server/db";
+import { withTransaction } from "$lib/server/db/transaction";
 
 type Queryable = Pick<PoolClient, "query">;
 type Connectable = Pick<Pool, "connect">;
@@ -43,16 +44,11 @@ export async function createInstanceOwner(
   owner: InstanceOwner,
   database: Connectable = pool,
 ): Promise<OwnerSetupOutcome> {
-  const client = await database.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(async (client) => {
     await client.query(
       "select pg_advisory_xact_lock(hashtext('anysub:instance-setup'))",
     );
-    if (await isInstanceInitialized(client)) {
-      await client.query("rollback");
-      return "already-initialized";
-    }
+    if (await isInstanceInitialized(client)) return "already-initialized";
 
     const user = await client.query<{ id: string }>(
       `insert into auth_users (id, name, email)
@@ -74,12 +70,6 @@ export async function createInstanceOwner(
       `insert into memberships (workspace_id, user_id, role) values ($1, $2, 'owner')`,
       [workspace.rows[0].id, userId],
     );
-    await client.query("commit");
     return "created";
-  } catch (cause) {
-    await client.query("rollback");
-    throw cause;
-  } finally {
-    client.release();
-  }
+  }, database);
 }

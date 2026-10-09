@@ -1,13 +1,11 @@
-import { pool } from "$lib/server/db";
+import { withTransaction } from "$lib/server/db/transaction";
 
 export async function deleteTranscriptForUser(
   projectId: string,
   trackId: string,
   userId: string,
 ): Promise<boolean> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(async (client) => {
     const track = await client.query<{ source_run_id: string | null }>(
       `select track.source_run_id
          from subtitle_tracks track
@@ -18,10 +16,7 @@ export async function deleteTranscriptForUser(
         for update of track`,
       [trackId, projectId, userId],
     );
-    if (!track.rows[0]) {
-      await client.query("rollback");
-      return false;
-    }
+    if (!track.rows[0]) return false;
 
     await client.query("delete from subtitle_tracks where id = $1", [trackId]);
     if (track.rows[0].source_run_id) {
@@ -29,12 +24,6 @@ export async function deleteTranscriptForUser(
         track.rows[0].source_run_id,
       ]);
     }
-    await client.query("commit");
     return true;
-  } catch (cause) {
-    await client.query("rollback");
-    throw cause;
-  } finally {
-    client.release();
-  }
+  });
 }

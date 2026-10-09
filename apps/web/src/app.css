@@ -1445,57 +1445,6 @@ progress {
   background: var(--color-error);
 }
 
-.diagnostics {
-  margin-block-start: var(--space-2xl);
-  border-block-start: 1px solid var(--color-border);
-  color: var(--color-text-soft);
-}
-
-.diagnostics summary {
-  display: flex;
-  min-height: 3.5rem;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  font-size: var(--text-sm);
-  list-style: none;
-}
-
-.diagnostics summary::-webkit-details-marker {
-  display: none;
-}
-
-.diagnostics summary > span {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-weight: 650;
-}
-
-.diagnostics[open] summary > svg {
-  transform: rotate(180deg);
-}
-
-.diagnostics-body {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  border-radius: var(--radius-sm);
-  padding: var(--space-md);
-  background: var(--color-surface-strong);
-}
-
-.diagnostics-body strong {
-  font-size: var(--text-sm);
-}
-
-.diagnostics-body p {
-  margin: var(--space-3xs) 0 0;
-  color: var(--color-muted);
-  font-size: var(--text-xs);
-}
-
 .breadcrumb {
   display: inline-flex;
   align-items: center;
@@ -2868,15 +2817,6 @@ progress {
     align-items: flex-start;
     flex-direction: column;
     gap: var(--space-md);
-  }
-
-  .diagnostics-body {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .diagnostics-body .button {
-    width: 100%;
   }
 
   .public-header,

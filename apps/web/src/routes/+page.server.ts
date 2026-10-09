@@ -155,62 +155,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-  createDemo: async ({ locals }) => {
-    if (!locals.user) redirect(303, "/login");
-    const client = await pool.connect();
-    try {
-      await client.query("begin");
-      const membership = await client.query<{ workspace_id: string }>(
-        `select workspace_id from memberships where user_id = $1 order by created_at asc limit 1`,
-        [locals.user.id],
-      );
-      const workspaceId = membership.rows[0]?.workspace_id;
-      if (!workspaceId)
-        return fail(409, { message: "Your account has no workspace." });
-
-      const project = await client.query<{ id: string }>(
-        `insert into projects (workspace_id, name, created_by)
-         values ($1, 'Adapter contract demo', $2)
-         returning id`,
-        [workspaceId, locals.user.id],
-      );
-      const run = await client.query<{ id: string }>(
-        `insert into transcription_runs
-          (project_id, adapter_id, model_id, options, created_by)
-         values ($1, 'builtin.fake', 'fake-v1', '{"delayMs": 80}'::jsonb, $2)
-         returning id`,
-        [project.rows[0].id, locals.user.id],
-      );
-      await client.query(
-        `insert into jobs (workspace_id, run_id, kind, payload)
-         values ($1, $2, 'transcribe', $3)`,
-        [
-          workspaceId,
-          run.rows[0].id,
-          JSON.stringify({
-            kind: "transcribe",
-            adapterId: "builtin.fake",
-            modelId: "fake-v1",
-            projectId: project.rows[0].id,
-            runId: run.rows[0].id,
-            language: "en",
-            options: { delayMs: 80 },
-          }),
-        ],
-      );
-      await client.query("commit");
-      redirect(303, `/projects/${project.rows[0].id}`);
-    } catch (cause) {
-      await client.query("rollback");
-      if (cause && typeof cause === "object" && "status" in cause) throw cause;
-      console.error("Could not create demo project", cause);
-      return fail(500, {
-        message: "The demo project could not be created. Try again.",
-      });
-    } finally {
-      client.release();
-    }
-  },
   renameProject: async ({ locals, request, url }) => {
     if (!locals.user) redirect(303, "/login");
     const values = await request.formData();

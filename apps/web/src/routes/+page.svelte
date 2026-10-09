@@ -583,10 +583,6 @@
     </dialog>
   {/if}
 
-  {#if form?.message}
-    <p class="helper error" role="alert">{form.message}</p>
-  {/if}
-
   <section class="projects-section" aria-labelledby="project-list-title">
     <div class="section-title-row">
       <div>
@@ -818,23 +814,4 @@
       </div>
     {/if}
   </section>
-
-  <details class="diagnostics">
-    <summary>
-      <span><Icon name="activity" size={17} /> Worker diagnostics</span>
-      <Icon name="chevron-down" size={16} />
-    </summary>
-    <div class="diagnostics-body">
-      <div>
-        <strong>Test the processing pipeline</strong>
-        <p>
-          Creates a deterministic subtitle track without using source media or
-          downloading a speech model.
-        </p>
-      </div>
-      <form method="POST" action="?/createDemo">
-        <button class="button secondary" type="submit">Run worker test</button>
-      </form>
-    </div>
-  </details>
 </div>

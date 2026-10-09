@@ -75,7 +75,7 @@ describe("instance owner setup", () => {
     );
 
     expect(fake.statements.some((s) => s.includes("insert"))).toBe(false);
-    expect(fake.statements.at(-1)).toBe("rollback");
+    expect(fake.statements.at(-1)).toBe("commit");
     expect(fake.isReleased()).toBe(true);
   });
 

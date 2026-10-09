@@ -15,6 +15,7 @@ import type {
 import type { PoolClient } from "pg";
 
 import { pool } from "$lib/server/db";
+import { withTransaction } from "$lib/server/db/transaction";
 import { privateEnv } from "$lib/server/env";
 import { resolveDataPath } from "$lib/server/media";
 
@@ -136,9 +137,7 @@ export async function requestMediaPreparationForUser(
   projectId: string,
   userId: string,
 ): Promise<boolean> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(async (client) => {
     const project = await client.query<{
       workspace_id: string;
       media_original_key: string;
@@ -156,10 +155,7 @@ export async function requestMediaPreparationForUser(
       [projectId, userId],
     );
     const row = project.rows[0];
-    if (!row) {
-      await client.query("rollback");
-      return false;
-    }
+    if (!row) return false;
     await enqueueMediaPreparation(client, {
       workspaceId: row.workspace_id,
       projectId,
@@ -167,24 +163,15 @@ export async function requestMediaPreparationForUser(
       sourceFilename: row.media_filename,
       sourceMediaType: row.media_type,
     });
-    await client.query("commit");
     return true;
-  } catch (cause) {
-    await client.query("rollback");
-    throw cause;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export async function cancelMediaPreparationForUser(
   projectId: string,
   userId: string,
 ): Promise<boolean> {
-  const client = await pool.connect();
-  let jobId: string | null = null;
-  try {
-    await client.query("begin");
+  const jobId = await withTransaction(async (client) => {
     const active = await client.query<{ id: string; prepared: boolean }>(
       `select j.id, (p.media_probe is not null) as prepared
          from jobs j
@@ -200,11 +187,7 @@ export async function cancelMediaPreparationForUser(
       [projectId, userId],
     );
     const job = active.rows[0];
-    if (!job) {
-      await client.query("rollback");
-      return false;
-    }
-    jobId = job.id;
+    if (!job) return null;
     await client.query(
       `update jobs
           set state = 'cancelled', lease_token_hash = null,
@@ -219,14 +202,10 @@ export async function cancelMediaPreparationForUser(
         where id = $1`,
       [projectId, job.prepared ? "completed" : "not_started"],
     );
-    await client.query("commit");
-  } catch (cause) {
-    await client.query("rollback");
-    throw cause;
-  } finally {
-    client.release();
-  }
-  if (jobId) await cleanupStagedMediaArtifacts(jobId);
+    return job.id;
+  });
+  if (!jobId) return false;
+  await cleanupStagedMediaArtifacts(jobId);
   return true;
 }
 
@@ -576,10 +555,7 @@ export async function deleteDerivativeForUser(
   kind: MediaDerivativeKind,
   userId: string,
 ): Promise<boolean> {
-  const client = await pool.connect();
-  let storageKey: string | null = null;
-  try {
-    await client.query("begin");
+  const storageKey = await withTransaction(async (client) => {
     const derivative = await client.query<{ storage_key: string }>(
       `select derivative.storage_key
          from media_derivatives derivative
@@ -589,24 +565,15 @@ export async function deleteDerivativeForUser(
         for update of derivative`,
       [projectId, kind, userId],
     );
-    if (!derivative.rows[0]) {
-      await client.query("rollback");
-      return false;
-    }
-    storageKey = derivative.rows[0].storage_key;
+    if (!derivative.rows[0]) return null;
     await client.query(
       `delete from media_derivatives where project_id = $1 and kind = $2`,
       [projectId, kind],
     );
-    await client.query("commit");
-  } catch (cause) {
-    await client.query("rollback");
-    throw cause;
-  } finally {
-    client.release();
-  }
-  if (storageKey)
-    await unlink(resolveDataPath(storageKey)).catch(() => undefined);
+    return derivative.rows[0].storage_key;
+  });
+  if (!storageKey) return false;
+  await unlink(resolveDataPath(storageKey)).catch(() => undefined);
   return true;
 }
 

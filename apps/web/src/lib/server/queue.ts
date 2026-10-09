@@ -14,6 +14,7 @@ import type { PoolClient } from "pg";
 import type { MediaFinalizationPlan } from "$lib/server/media-preparation";
 
 import { pool } from "$lib/server/db";
+import { withTransaction } from "$lib/server/db/transaction";
 import {
   commitMediaFinalization,
   cleanupStagedMediaArtifacts,
@@ -41,20 +42,17 @@ export async function leaseJob(
   const adapterIds = manifest.adapters.map((adapter) => adapter.id);
   const supportsMediaPreparation =
     manifest.capabilities.mediaPreparation === "1.0";
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    await upsertWorker(client, manifest);
-    const reclaimedArtifactJobs = await reclaimExpiredLeases(client);
+  const { lease, reclaimedArtifactJobs } = await withTransaction(
+    async (client) => {
+      await upsertWorker(client, manifest);
+      const reclaimedArtifactJobs = await reclaimExpiredLeases(client);
 
-    if (adapterIds.length === 0 && !supportsMediaPreparation) {
-      await client.query("commit");
-      await cleanupReclaimedArtifacts(reclaimedArtifactJobs);
-      return null;
-    }
+      if (adapterIds.length === 0 && !supportsMediaPreparation) {
+        return { lease: null, reclaimedArtifactJobs };
+      }
 
-    const selected = await client.query<LeasableJob>(
-      `select id, attempts, payload
+      const selected = await client.query<LeasableJob>(
+        `select id, attempts, payload
          from jobs
         where state = 'queued'
           and available_at <= now()
@@ -65,20 +63,16 @@ export async function leaseJob(
         order by priority desc, created_at asc
         for update skip locked
         limit 1`,
-      [adapterIds, supportsMediaPreparation],
-    );
+        [adapterIds, supportsMediaPreparation],
+      );
 
-    const job = selected.rows[0];
-    if (!job) {
-      await client.query("commit");
-      await cleanupReclaimedArtifacts(reclaimedArtifactJobs);
-      return null;
-    }
+      const job = selected.rows[0];
+      if (!job) return { lease: null, reclaimedArtifactJobs };
 
-    const leaseToken = randomBytes(32).toString("base64url");
-    const leaseTokenHash = hashToken(leaseToken);
-    const leased = await client.query<{ lease_expires_at: Date }>(
-      `update jobs
+      const leaseToken = randomBytes(32).toString("base64url");
+      const leaseTokenHash = hashToken(leaseToken);
+      const leased = await client.query<{ lease_expires_at: Date }>(
+        `update jobs
           set state = 'leased',
               leased_by = $2,
               lease_token_hash = $3,
@@ -87,39 +81,38 @@ export async function leaseJob(
               updated_at = now()
         where id = $1
         returning lease_expires_at`,
-      [job.id, manifest.workerId, leaseTokenHash, LEASE_SECONDS],
-    );
-    if (job.payload.kind === "transcribe") {
-      await client.query(
-        `update transcription_runs
+        [job.id, manifest.workerId, leaseTokenHash, LEASE_SECONDS],
+      );
+      if (job.payload.kind === "transcribe") {
+        await client.query(
+          `update transcription_runs
             set status = 'running'
           where id = $1 and status = 'queued'`,
-        [job.payload.runId],
-      );
-    } else {
-      await client.query(
-        `update projects
+          [job.payload.runId],
+        );
+      } else {
+        await client.query(
+          `update projects
             set media_preparation_status = 'running', updated_at = now()
           where id = $1`,
-        [job.payload.projectId],
-      );
-    }
+          [job.payload.projectId],
+        );
+      }
 
-    await client.query("commit");
-    await cleanupReclaimedArtifacts(reclaimedArtifactJobs);
-    return {
-      jobId: job.id,
-      attempt: job.attempts + 1,
-      leaseToken,
-      leaseExpiresAt: leased.rows[0].lease_expires_at.toISOString(),
-      payload: job.payload,
-    };
-  } catch (cause) {
-    await client.query("rollback");
-    throw cause;
-  } finally {
-    client.release();
-  }
+      return {
+        lease: {
+          jobId: job.id,
+          attempt: job.attempts + 1,
+          leaseToken,
+          leaseExpiresAt: leased.rows[0].lease_expires_at.toISOString(),
+          payload: job.payload,
+        },
+        reclaimedArtifactJobs,
+      };
+    },
+  );
+  await cleanupReclaimedArtifacts(reclaimedArtifactJobs);
+  return lease;
 }
 
 export async function reportProgress(
@@ -156,82 +149,77 @@ export async function completeJob(
   leaseToken: string,
   completion: JobCompletion,
 ): Promise<"completed" | "already-completed" | "lease-rejected"> {
-  const client = await pool.connect();
   let mediaFinalization: MediaFinalizationPlan | undefined;
   try {
-    await client.query("begin");
-    const locked = await client.query<{
-      state: string;
-      run_id: string | null;
-      workspace_id: string;
-      attempts: number;
-      payload: WorkerJobPayload;
-    }>(
-      `select state, run_id, workspace_id, attempts, payload
+    const outcome = await withTransaction(async (client) => {
+      const locked = await client.query<{
+        state: string;
+        run_id: string | null;
+        workspace_id: string;
+        attempts: number;
+        payload: WorkerJobPayload;
+      }>(
+        `select state, run_id, workspace_id, attempts, payload
          from jobs where id = $1 for update`,
-      [jobId],
-    );
-    const job = locked.rows[0];
-    if (!job) return await rollback(client, "lease-rejected");
-    if (job.state === "completed")
-      return await rollback(client, "already-completed");
+        [jobId],
+      );
+      const job = locked.rows[0];
+      if (!job) return "lease-rejected";
+      if (job.state === "completed") return "already-completed";
 
-    const accepted = await client.query(
-      `select 1 from jobs
+      const accepted = await client.query(
+        `select 1 from jobs
         where id = $1 and state = 'leased'
           and lease_token_hash = $2 and lease_expires_at > now()`,
-      [jobId, hashToken(leaseToken)],
-    );
-    if (accepted.rowCount !== 1)
-      return await rollback(client, "lease-rejected");
-
-    if (job.payload.kind === "transcribe") {
-      if (completion.kind !== "transcribe") {
-        throw new Error("Worker completion does not match the leased job.");
-      }
-      await storeTranscriptCompletion(
-        client,
-        { run_id: job.run_id, payload: job.payload },
-        completion,
+        [jobId, hashToken(leaseToken)],
       );
-    } else {
-      if (completion.kind !== "media_prepare") {
-        throw new Error("Worker completion does not match the leased job.");
-      }
-      mediaFinalization = await finalizeMediaPreparation(client, {
-        jobId,
-        attempt: job.attempts,
-        workspaceId: job.workspace_id,
-        payload: job.payload,
-        completion,
-      });
-    }
+      if (accepted.rowCount !== 1) return "lease-rejected";
 
-    await client.query(
-      `update jobs
+      if (job.payload.kind === "transcribe") {
+        if (completion.kind !== "transcribe") {
+          throw new Error("Worker completion does not match the leased job.");
+        }
+        await storeTranscriptCompletion(
+          client,
+          { run_id: job.run_id, payload: job.payload },
+          completion,
+        );
+      } else {
+        if (completion.kind !== "media_prepare") {
+          throw new Error("Worker completion does not match the leased job.");
+        }
+        mediaFinalization = await finalizeMediaPreparation(client, {
+          jobId,
+          attempt: job.attempts,
+          workspaceId: job.workspace_id,
+          payload: job.payload,
+          completion,
+        });
+      }
+
+      await client.query(
+        `update jobs
           set state = 'completed', result = $2, progress = 1,
               progress_message = 'Completed', completed_at = now(), updated_at = now(),
               lease_token_hash = null, lease_expires_at = null
         where id = $1`,
-      [jobId, JSON.stringify(completion)],
-    );
-    if (job.run_id) {
-      await client.query(
-        `update transcription_runs set status = 'completed', completed_at = now() where id = $1`,
-        [job.run_id],
+        [jobId, JSON.stringify(completion)],
       );
-    }
-    await client.query("commit");
-    if (mediaFinalization) {
+      if (job.run_id) {
+        await client.query(
+          `update transcription_runs set status = 'completed', completed_at = now() where id = $1`,
+          [job.run_id],
+        );
+      }
+      return "completed";
+    });
+    if (outcome === "completed" && mediaFinalization) {
       await commitMediaFinalization(mediaFinalization).catch(() => undefined);
     }
-    return "completed";
+    return outcome;
   } catch (cause) {
-    await client.query("rollback");
     if (mediaFinalization) await rollbackMediaFinalization(mediaFinalization);
     throw cause;
-  } finally {
-    client.release();
   }
 }
 
@@ -284,9 +272,7 @@ export async function failJob(
   leaseToken: string,
   failure: { code: string; message: string; retryable: boolean },
 ): Promise<boolean> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  const job = await withTransaction(async (client) => {
     const updated = await client.query<{
       run_id: string | null;
       state: string;
@@ -312,7 +298,7 @@ export async function failJob(
       ],
     );
     const job = updated.rows[0];
-    if (!job) return await rollback(client, false);
+    if (!job) return null;
     if (job.state === "failed" && job.run_id) {
       await client.query(
         `update transcription_runs set status = 'failed' where id = $1`,
@@ -327,17 +313,13 @@ export async function failJob(
         [job.payload.projectId, job.state === "failed" ? "failed" : "queued"],
       );
     }
-    await client.query("commit");
-    if (job.payload.kind === "media_prepare") {
-      await cleanupStagedMediaAttempt(jobId, job.attempts);
-    }
-    return true;
-  } catch (cause) {
-    await client.query("rollback");
-    throw cause;
-  } finally {
-    client.release();
+    return job;
+  });
+  if (!job) return false;
+  if (job.payload.kind === "media_prepare") {
+    await cleanupStagedMediaAttempt(jobId, job.attempts);
   }
+  return true;
 }
 
 async function upsertWorker(
@@ -438,11 +420,6 @@ function validateArtifact(artifact: TranscriptArtifact): TranscriptArtifact {
     previousStart = cue.startUs;
   }
   return artifact;
-}
-
-async function rollback<T>(client: PoolClient, result: T): Promise<T> {
-  await client.query("rollback");
-  return result;
 }
 
 export function parseWorkerManifest(value: unknown): WorkerManifest {

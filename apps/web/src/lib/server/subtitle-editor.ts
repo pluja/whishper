@@ -1,4 +1,4 @@
-import { pool } from "$lib/server/db";
+import { withTransaction } from "$lib/server/db/transaction";
 import type { SubtitleCueSnapshot } from "$lib/subtitles";
 
 const UUID =
@@ -84,9 +84,7 @@ export async function updateTrackForUser(
   userId: string,
   update: TrackUpdate,
 ): Promise<number | null> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(async (client) => {
     const track = await client.query<{
       revision: number;
       duration_us: number | null;
@@ -103,12 +101,8 @@ export async function updateTrackForUser(
         for update of track`,
       [trackId, projectId, userId],
     );
-    if (!track.rows[0]) {
-      await client.query("rollback");
-      return null;
-    }
+    if (!track.rows[0]) return null;
     if (Number(track.rows[0].revision) !== update.revision) {
-      await client.query("rollback");
       throw new TrackRevisionConflict(Number(track.rows[0].revision));
     }
     const durationUs =
@@ -119,7 +113,6 @@ export async function updateTrackForUser(
       durationUs !== null &&
       update.cues.some((cue) => cue.endUs > durationUs)
     ) {
-      await client.query("rollback");
       throw new TrackValidationError(
         "Cue timing cannot extend past the source duration.",
       );
@@ -171,14 +164,8 @@ export async function updateTrackForUser(
         returning revision`,
       [trackId],
     );
-    await client.query("commit");
     return Number(updated.rows[0].revision);
-  } catch (cause) {
-    await client.query("rollback").catch(() => undefined);
-    throw cause;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
