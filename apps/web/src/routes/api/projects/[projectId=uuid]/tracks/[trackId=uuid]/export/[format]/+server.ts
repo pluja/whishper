@@ -1,3 +1,4 @@
+import { projectForUser, requireUser } from "$lib/server/access";
 import { pool } from "$lib/server/db";
 import {
   renderSrt,
@@ -17,11 +18,14 @@ type ExportTrack = {
 };
 
 export const GET: RequestHandler = async ({ locals, params }) => {
-  if (!locals.user) error(401, "Authentication required");
+  const user = requireUser(locals);
   const format = params.format;
   if (!format || !["srt", "vtt", "json"].includes(format)) {
     error(404, "Export format not found");
   }
+
+  const project = await projectForUser(params.projectId, user.id);
+  if (!project) error(404, "Subtitle track not found");
 
   const track = await pool.query<ExportTrack>(
     `select p.id as project_id, p.name as project_name,
@@ -29,9 +33,8 @@ export const GET: RequestHandler = async ({ locals, params }) => {
             track.language, track.revision, track.metadata
        from subtitle_tracks track
        join projects p on p.id = track.project_id
-       join memberships m on m.workspace_id = p.workspace_id
-      where p.id = $1 and track.id = $2 and m.user_id = $3`,
-    [params.projectId, params.trackId, locals.user.id],
+      where p.id = $1 and track.id = $2`,
+    [project.id, params.trackId],
   );
   if (!track.rows[0]) error(404, "Subtitle track not found");
 

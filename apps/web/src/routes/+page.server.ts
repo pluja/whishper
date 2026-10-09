@@ -1,10 +1,12 @@
 import { auth } from "$lib/server/auth";
+import { projectForUser, requireUserOrLogin } from "$lib/server/access";
 import { pool } from "$lib/server/db";
 import { isInstanceInitialized } from "$lib/server/instance";
 import {
   normalizeProjectTitle,
   parseProjectLibrarySearch,
 } from "$lib/server/project-library";
+import { isUuid } from "$lib/uuid";
 import { fail, redirect, type Actions } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 
@@ -35,7 +37,7 @@ type ProjectRow = {
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (!(await isInstanceInitialized())) redirect(303, "/setup");
-  if (!locals.user) redirect(303, "/login");
+  const user = requireUserOrLogin(locals);
   const search = parseProjectLibrarySearch(url.searchParams);
 
   const workspace = await pool.query<{
@@ -58,7 +60,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       group by w.id
       order by w.created_at asc
       limit 1`,
-    [locals.user.id],
+    [user.id],
   );
   const currentWorkspace = workspace.rows[0];
   if (!currentWorkspace) {
@@ -156,15 +158,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 export const actions: Actions = {
   renameProject: async ({ locals, request, url }) => {
-    if (!locals.user) redirect(303, "/login");
+    const user = requireUserOrLogin(locals);
     const values = await request.formData();
     const projectId = String(values.get("projectId") ?? "");
     const name = normalizeProjectTitle(values.get("name"));
-    if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        projectId,
-      )
-    ) {
+    if (!isUuid(projectId)) {
       return fail(400, {
         renameProjectId: projectId,
         renameError: "That project could not be found.",
@@ -178,26 +176,17 @@ export const actions: Actions = {
     }
 
     try {
-      const renamed = await pool.query<{ id: string }>(
-        `update projects p
-            set name = $1,
-                updated_at = now()
-          where p.id = $2
-            and exists (
-              select 1
-                from memberships membership
-               where membership.workspace_id = p.workspace_id
-                 and membership.user_id = $3
-            )
-          returning p.id`,
-        [name, projectId, locals.user.id],
-      );
-      if (renamed.rowCount !== 1) {
+      const project = await projectForUser(projectId, user.id);
+      if (!project) {
         return fail(404, {
           renameProjectId: projectId,
           renameError: "That project could not be found.",
         });
       }
+      await pool.query(
+        "update projects set name = $1, updated_at = now() where id = $2",
+        [name, project.id],
+      );
     } catch (cause) {
       console.error("Could not rename project", cause);
       return fail(500, {

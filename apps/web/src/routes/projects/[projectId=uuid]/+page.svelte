@@ -3,6 +3,7 @@
   import { invalidateAll } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
   import Timeline from "$lib/components/studio/Timeline.svelte";
+  import { formatBytes } from "$lib/format";
   import { formatEditorTime, parseEditorTime } from "$lib/subtitles";
 
   type EditorCue = {
@@ -279,18 +280,6 @@
 
   function timecode(microseconds: number): string {
     return formatEditorTime(microseconds);
-  }
-
-  function formatBytes(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    const units = ["KiB", "MiB", "GiB", "TiB"];
-    let value = bytes;
-    let unit = -1;
-    do {
-      value /= 1024;
-      unit += 1;
-    } while (value >= 1024 && unit < units.length - 1);
-    return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unit]}`;
   }
 
   function formatModelMemory(

@@ -1,8 +1,8 @@
 import { withTransaction } from "$lib/server/db/transaction";
+import { isRecord } from "$lib/server/util";
 import type { SubtitleCueSnapshot } from "$lib/subtitles";
+import { isUuid } from "$lib/uuid";
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_CUES = 25_000;
 const MAX_CUE_TEXT = 20_000;
 const MAX_TOTAL_TEXT = 10_000_000;
@@ -40,7 +40,7 @@ export function parseTrackUpdate(value: unknown): TrackUpdate {
     if (
       !isRecord(candidate) ||
       typeof candidate.id !== "string" ||
-      !UUID.test(candidate.id)
+      !isUuid(candidate.id)
     ) {
       throw new Error(`Cue ${position + 1} has an invalid ID.`);
     }
@@ -166,8 +166,4 @@ export async function updateTrackForUser(
     );
     return Number(updated.rows[0].revision);
   });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

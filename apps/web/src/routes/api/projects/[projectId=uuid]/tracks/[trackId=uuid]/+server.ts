@@ -1,3 +1,4 @@
+import { requireUser } from "$lib/server/access";
 import {
   parseTrackUpdate,
   TrackRevisionConflict,
@@ -7,7 +8,7 @@ import {
 import { error, json, type RequestHandler } from "@sveltejs/kit";
 
 export const PUT: RequestHandler = async ({ locals, params, request }) => {
-  if (!locals.user) error(401, "Authentication required");
+  const user = requireUser(locals);
   const projectId = params.projectId;
   const trackId = params.trackId;
   if (!projectId || !trackId) error(400, "Project and track IDs are required");
@@ -29,7 +30,7 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
     const revision = await updateTrackForUser(
       projectId,
       trackId,
-      locals.user.id,
+      user.id,
       update,
     );
     if (revision === null) error(404, "Subtitle track not found");

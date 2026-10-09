@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 import type {
   AdapterManifest,
@@ -15,6 +15,7 @@ import type { MediaFinalizationPlan } from "$lib/server/media-preparation";
 
 import { pool } from "$lib/server/db";
 import { withTransaction } from "$lib/server/db/transaction";
+import { hashToken, isRecord } from "$lib/server/util";
 import {
   commitMediaFinalization,
   cleanupStagedMediaArtifacts,
@@ -394,10 +395,6 @@ async function cleanupReclaimedArtifacts(
   );
 }
 
-function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
-
 function validateArtifact(artifact: TranscriptArtifact): TranscriptArtifact {
   if (
     artifact.schemaVersion !== "1.0" ||
@@ -501,8 +498,4 @@ function isPositiveInteger(value: unknown): value is number {
 
 function isNonNegativeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 0;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

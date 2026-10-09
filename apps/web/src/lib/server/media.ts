@@ -1,4 +1,4 @@
-import { link, mkdir, rm, stat, unlink } from "node:fs/promises";
+import { mkdir, rm, stat, unlink } from "node:fs/promises";
 import { basename, dirname, extname, posix, resolve, sep } from "node:path";
 
 import { pool } from "$lib/server/db";
@@ -9,6 +9,7 @@ import {
   lockMediaPreparationProject,
 } from "$lib/server/media-preparation";
 import { normalizeProjectTitle } from "$lib/server/project-library";
+import { linkIdempotent } from "$lib/server/util";
 
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 const SAFE_EXTENSION = /^\.[a-zA-Z0-9]{1,12}$/;
@@ -183,23 +184,7 @@ export async function completeUpload(
 
   let linked = false;
   try {
-    try {
-      await link(stagingPath, canonicalPath);
-      linked = true;
-    } catch (cause) {
-      if (!isNodeError(cause, "EEXIST")) throw cause;
-      const [source, destination] = await Promise.all([
-        stat(stagingPath),
-        stat(canonicalPath),
-      ]);
-      if (
-        source.dev !== destination.dev ||
-        source.ino !== destination.ino ||
-        source.size !== destination.size
-      ) {
-        throw new Error("Canonical media path is already occupied.");
-      }
-    }
+    linked = await linkIdempotent(stagingPath, canonicalPath);
 
     await withTransaction(async (client) => {
       await lockMediaPreparationProject(client, upload.projectId);
@@ -342,11 +327,4 @@ export async function deleteProjectForUser(
     ),
   );
   return true;
-}
-
-function isNodeError(
-  cause: unknown,
-  code: string,
-): cause is NodeJS.ErrnoException {
-  return cause instanceof Error && "code" in cause && cause.code === code;
 }

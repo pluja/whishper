@@ -1,6 +1,5 @@
-import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { link, mkdir, rm, stat, unlink } from "node:fs/promises";
+import { mkdir, rm, stat, unlink } from "node:fs/promises";
 import { dirname, posix } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -18,6 +17,7 @@ import { pool } from "$lib/server/db";
 import { withTransaction } from "$lib/server/db/transaction";
 import { privateEnv } from "$lib/server/env";
 import { resolveDataPath } from "$lib/server/media";
+import { hashToken, isRecord, linkIdempotent } from "$lib/server/util";
 
 const ARTIFACT_MEDIA_TYPES: Record<MediaDerivativeKind, readonly string[]> = {
   waveform: ["application/vnd.anysub.waveform+json"],
@@ -230,7 +230,7 @@ export async function requireMediaPreparationLease(
         and j.lease_token_hash = $2
         and j.lease_expires_at > now()
         and j.payload->>'kind' = 'media_prepare'`,
-    [jobId, createHash("sha256").update(leaseToken).digest("hex")],
+    [jobId, hashToken(leaseToken)],
   );
   const row = result.rows[0];
   if (
@@ -407,24 +407,8 @@ export async function finalizeMediaPreparation(
       );
       const destination = resolveDataPath(storageKey);
       await mkdir(dirname(destination), { recursive: true });
-      try {
-        await link(stagedPath, destination);
+      if (await linkIdempotent(stagedPath, destination)) {
         createdPaths.push(destination);
-      } catch (cause) {
-        if (!isNodeError(cause, "EEXIST")) throw cause;
-        const [source, existing] = await Promise.all([
-          stat(stagedPath),
-          stat(destination),
-        ]);
-        if (
-          source.dev !== existing.dev ||
-          source.ino !== existing.ino ||
-          source.size !== existing.size
-        ) {
-          throw new Error(
-            `Destination for ${artifact.kind} is already occupied.`,
-          );
-        }
       }
       finalKeys.set(artifact.kind, storageKey);
     }
@@ -680,15 +664,4 @@ function primaryFrameRate(
     }
   }
   return null;
-}
-
-function isNodeError(
-  cause: unknown,
-  code: string,
-): cause is NodeJS.ErrnoException {
-  return cause instanceof Error && "code" in cause && cause.code === code;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

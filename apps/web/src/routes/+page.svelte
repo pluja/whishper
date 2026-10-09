@@ -2,6 +2,7 @@
   import { enhance } from "$app/forms";
   import { goto, invalidateAll } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
+  import { formatBytes, formatDuration } from "$lib/format";
   import type { SubmitFunction } from "@sveltejs/kit";
   import { onMount } from "svelte";
   import { Upload } from "tus-js-client";
@@ -319,29 +320,6 @@
       uploadMessage =
         error instanceof Error ? error.message : "Could not cancel the upload.";
     }
-  }
-
-  function formatBytes(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    const units = ["KiB", "MiB", "GiB", "TiB"];
-    let value = bytes;
-    let unit = -1;
-    do {
-      value /= 1024;
-      unit += 1;
-    } while (value >= 1024 && unit < units.length - 1);
-    return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unit]}`;
-  }
-
-  function formatDuration(microseconds: number): string {
-    const totalSeconds = Math.round(microseconds / 1_000_000);
-    const seconds = totalSeconds % 60;
-    const minutes = Math.floor(totalSeconds / 60) % 60;
-    const hours = Math.floor(totalSeconds / 3_600);
-    if (hours > 0) {
-      return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-    }
-    return `${minutes}:${String(seconds).padStart(2, "0")}`;
   }
 
   function formatDimensions(

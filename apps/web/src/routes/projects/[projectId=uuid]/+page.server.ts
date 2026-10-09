@@ -1,5 +1,7 @@
 import type { MediaDerivativeKind } from "@anysub/contracts";
+import { projectForUser, requireUserOrLogin } from "$lib/server/access";
 import { pool } from "$lib/server/db";
+import { isUuid } from "$lib/uuid";
 import { withTransaction } from "$lib/server/db/transaction";
 import {
   availableTranscriptionModels,
@@ -28,7 +30,7 @@ type CueRow = {
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-  if (!locals.user) redirect(303, "/login");
+  const user = requireUserOrLogin(locals);
 
   const project = await pool.query<{
     id: string;
@@ -61,7 +63,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
        join memberships m on m.workspace_id = p.workspace_id
        left join media_uploads upload on upload.project_id = p.id
       where p.id = $1 and m.user_id = $2`,
-    [params.projectId, locals.user.id],
+    [params.projectId, user.id],
   );
   if (!project.rows[0]) error(404, "Project not found");
 
@@ -184,7 +186,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
   transcribe: async ({ locals, params, request }) => {
-    if (!locals.user) redirect(303, "/login");
+    const user = requireUserOrLogin(locals);
     const values = await request.formData();
     const modelKey = String(values.get("model") ?? "");
     const languageValue = String(values.get("language") ?? "auto").trim();
@@ -224,22 +226,12 @@ export const actions: Actions = {
     const separator = modelKey.indexOf(":");
     const adapterId = modelKey.slice(0, separator);
     const modelId = modelKey.slice(separator + 1);
-    const userId = locals.user.id;
     try {
       const rejection = await withTransaction(async (client) => {
-        const project = await client.query<{
-          id: string;
-          workspace_id: string;
-          media_original_key: string | null;
-        }>(
-          `select p.id, p.workspace_id, p.media_original_key
-           from projects p
-           join memberships m on m.workspace_id = p.workspace_id
-          where p.id = $1 and m.user_id = $2
-          for update of p`,
-          [params.projectId, userId],
-        );
-        const ownedProject = project.rows[0];
+        const ownedProject = await projectForUser(params.projectId, user.id, {
+          executor: client,
+          lock: true,
+        });
         if (!ownedProject) error(404, "Project not found");
         if (!ownedProject.media_original_key) {
           return fail(409, {
@@ -290,7 +282,7 @@ export const actions: Actions = {
             adapterId,
             modelId,
             JSON.stringify(options),
-            userId,
+            user.id,
           ],
         );
         await client.query(
@@ -321,11 +313,11 @@ export const actions: Actions = {
     redirect(303, `/projects/${params.projectId}`);
   },
   prepareMedia: async ({ locals, params }) => {
-    if (!locals.user) redirect(303, "/login");
+    const user = requireUserOrLogin(locals);
     const projectId = params.projectId;
     if (!projectId) error(400, "Project ID is required");
     try {
-      if (!(await requestMediaPreparationForUser(projectId, locals.user.id))) {
+      if (!(await requestMediaPreparationForUser(projectId, user.id))) {
         return fail(404, { message: "Project media was not found." });
       }
     } catch (cause) {
@@ -335,11 +327,11 @@ export const actions: Actions = {
     redirect(303, `/projects/${projectId}`);
   },
   cancelMedia: async ({ locals, params }) => {
-    if (!locals.user) redirect(303, "/login");
+    const user = requireUserOrLogin(locals);
     const projectId = params.projectId;
     if (!projectId) error(400, "Project ID is required");
     try {
-      if (!(await cancelMediaPreparationForUser(projectId, locals.user.id))) {
+      if (!(await cancelMediaPreparationForUser(projectId, user.id))) {
         return fail(409, { message: "Media preparation is no longer active." });
       }
     } catch (cause) {
@@ -351,7 +343,7 @@ export const actions: Actions = {
     redirect(303, `/projects/${projectId}`);
   },
   deleteDerivative: async ({ locals, params, request }) => {
-    if (!locals.user) redirect(303, "/login");
+    const user = requireUserOrLogin(locals);
     const projectId = params.projectId;
     if (!projectId) error(400, "Project ID is required");
     const kind = String((await request.formData()).get("kind") ?? "");
@@ -359,7 +351,7 @@ export const actions: Actions = {
       return fail(400, { message: "The derivative type is invalid." });
     }
     try {
-      if (!(await deleteDerivativeForUser(projectId, kind, locals.user.id))) {
+      if (!(await deleteDerivativeForUser(projectId, kind, user.id))) {
         return fail(404, { message: "The derivative was not found." });
       }
     } catch (cause) {
@@ -369,17 +361,15 @@ export const actions: Actions = {
     redirect(303, `/projects/${projectId}`);
   },
   deleteTranscript: async ({ locals, params, request }) => {
-    if (!locals.user) redirect(303, "/login");
+    const user = requireUserOrLogin(locals);
     const projectId = params.projectId;
     if (!projectId) error(400, "Project ID is required");
     const trackId = String((await request.formData()).get("trackId") ?? "");
-    if (!/^[0-9a-f-]{36}$/i.test(trackId)) {
+    if (!isUuid(trackId)) {
       return fail(400, { message: "The subtitle track is invalid." });
     }
     try {
-      if (
-        !(await deleteTranscriptForUser(projectId, trackId, locals.user.id))
-      ) {
+      if (!(await deleteTranscriptForUser(projectId, trackId, user.id))) {
         return fail(404, {
           message: "The transcript was not found or cannot be deleted.",
         });
@@ -391,11 +381,11 @@ export const actions: Actions = {
     redirect(303, `/projects/${projectId}`);
   },
   deleteProject: async ({ locals, params }) => {
-    if (!locals.user) redirect(303, "/login");
+    const user = requireUserOrLogin(locals);
     const projectId = params.projectId;
     if (!projectId) error(400, "Project ID is required");
     try {
-      if (!(await deleteProjectForUser(projectId, locals.user.id))) {
+      if (!(await deleteProjectForUser(projectId, user.id))) {
         return fail(404, {
           message: "The project was not found or cannot be deleted.",
         });

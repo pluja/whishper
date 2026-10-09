@@ -11,11 +11,10 @@ import {
   requireOwnedUpload,
   updateUploadProgress,
 } from "$lib/server/media";
+import { isUuid } from "$lib/uuid";
 
 const TUS_PATH = "/api/uploads";
 const USER_HEADER = "x-anysub-authenticated-user";
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 let serverPromise: Promise<Server> | undefined;
 
@@ -72,7 +71,7 @@ async function createServer(): Promise<Server> {
     onUploadCreate: async (request, upload) => {
       const workspaceId = upload.metadata?.workspaceId;
       const filename = upload.metadata?.filename;
-      if (!workspaceId || !UUID.test(workspaceId)) {
+      if (!workspaceId || !isUuid(workspaceId)) {
         throw { status_code: 400, body: "A valid workspaceId is required.\n" };
       }
       if (!filename || upload.size === undefined || upload.size <= 0) {

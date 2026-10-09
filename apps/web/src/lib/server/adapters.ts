@@ -4,6 +4,8 @@ import type {
   WorkerHardware,
 } from "@anysub/contracts";
 
+import { isRecord } from "$lib/server/util";
+
 export type ModelFit = "good" | "caution" | "poor" | "unknown";
 
 export type AvailableTranscriptionModel = {
@@ -319,8 +321,4 @@ function isWorkerHardware(value: unknown): value is WorkerHardware {
     typeof value.memory.availableBytes === "number" &&
     Array.isArray(value.gpus)
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

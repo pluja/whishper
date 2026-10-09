@@ -1,5 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
+  import { formatClock } from "$lib/format";
+  import { formatEditorTime } from "$lib/subtitles";
 
   type ProbeState =
     "not_started" | "queued" | "running" | "completed" | "failed";
@@ -435,7 +437,7 @@
         const x = Math.round(tickUs * pixelsPerUs - offset) + 0.5;
         context.moveTo(x, 15);
         context.lineTo(x, RULER_HEIGHT);
-        context.fillText(formatRulerTime(tickUs), x + 4, 3);
+        context.fillText(formatClock(Math.floor(tickUs / 1_000_000)), x + 4, 3);
       }
       context.stroke();
 
@@ -498,26 +500,6 @@
     const multiplier =
       normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
     return Math.max(1_000, Math.round(multiplier * magnitude));
-  }
-
-  function formatRulerTime(us: number): string {
-    const totalSeconds = Math.floor(us / 1_000_000);
-    const hours = Math.floor(totalSeconds / 3_600);
-    const minutes = Math.floor((totalSeconds % 3_600) / 60);
-    const seconds = totalSeconds % 60;
-    return hours > 0
-      ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
-      : `${minutes}:${String(seconds).padStart(2, "0")}`;
-  }
-
-  function formatTime(us: number): string {
-    const value = Math.max(0, Math.round(us));
-    const totalSeconds = Math.floor(value / 1_000_000);
-    const milliseconds = Math.floor((value % 1_000_000) / 1_000);
-    const hours = Math.floor(totalSeconds / 3_600);
-    const minutes = Math.floor((totalSeconds % 3_600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`;
   }
 
   // Cue text is multiline; the timeline block has room for one line.
@@ -856,7 +838,7 @@
     <div class="timeline-heading">
       <strong>Timeline</strong>
       <output aria-label="Current playback time"
-        >{formatTime(playbackUs)}</output
+        >{formatEditorTime(playbackUs)}</output
       >
     </div>
     <div class="timeline-controls" aria-label="Timeline view controls">
@@ -939,7 +921,7 @@
             <button
               class="cue-body"
               type="button"
-              aria-label={`${cue.id === selectedCueId ? "Selected cue" : "Cue"} ${cueIndex + 1}, ${formatTime(timing.start_us)} to ${formatTime(timing.end_us)}. Drag to move; Arrow keys adjust by one millisecond.`}
+              aria-label={`${cue.id === selectedCueId ? "Selected cue" : "Cue"} ${cueIndex + 1}, ${formatEditorTime(timing.start_us)} to ${formatEditorTime(timing.end_us)}. Drag to move; Arrow keys adjust by one millisecond.`}
               onpointerdown={(event) => beginTimingDrag(event, cue, "whole")}
               onpointermove={moveTimingDrag}
               onpointerup={finishTimingDrag}
@@ -954,7 +936,7 @@
             <button
               class="cue-handle start"
               type="button"
-              aria-label={`Adjust start of ${cue.id === selectedCueId ? "selected cue" : "cue"} ${cueIndex + 1}, currently ${formatTime(timing.start_us)}. Arrow keys adjust by one millisecond.`}
+              aria-label={`Adjust start of ${cue.id === selectedCueId ? "selected cue" : "cue"} ${cueIndex + 1}, currently ${formatEditorTime(timing.start_us)}. Arrow keys adjust by one millisecond.`}
               onpointerdown={(event) => beginTimingDrag(event, cue, "start")}
               onpointermove={moveTimingDrag}
               onpointerup={finishTimingDrag}
@@ -966,7 +948,7 @@
             <button
               class="cue-handle end"
               type="button"
-              aria-label={`Adjust end of ${cue.id === selectedCueId ? "selected cue" : "cue"} ${cueIndex + 1}, currently ${formatTime(timing.end_us)}. Arrow keys adjust by one millisecond.`}
+              aria-label={`Adjust end of ${cue.id === selectedCueId ? "selected cue" : "cue"} ${cueIndex + 1}, currently ${formatEditorTime(timing.end_us)}. Arrow keys adjust by one millisecond.`}
               onpointerdown={(event) => beginTimingDrag(event, cue, "end")}
               onpointermove={moveTimingDrag}
               onpointerup={finishTimingDrag}
