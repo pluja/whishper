@@ -58,4 +58,20 @@ describe("subtitle exports", () => {
       "WEBVTT\n\n01:02:03.456 --> 01:02:05.000\na --&gt; b\n00:00.000 --&gt; 00:01.000\n",
     );
   });
+
+  it("escapes markup characters in WebVTT cue text", () => {
+    const markup = [{ ...cues[0], text: "Fish & <i>chips</i>" }];
+
+    expect(renderWebVtt(markup)).toBe(
+      "WEBVTT\n\n01:02:03.456 --> 01:02:05.000\nFish &amp; &lt;i&gt;chips&lt;/i&gt;\n",
+    );
+  });
+
+  it("neutralizes the timing arrow in SRT cue text", () => {
+    const injected = [{ ...cues[0], text: "a --> b" }];
+
+    expect(renderSrt(injected)).toBe(
+      "1\n01:02:03,456 --> 01:02:05,000\na -> b\n",
+    );
+  });
 });

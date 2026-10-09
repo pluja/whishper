@@ -81,14 +81,7 @@ async function createServer(): Promise<Server> {
           body: "A filename and non-empty upload length are required.\n",
         };
       }
-      const declaredMediaType = upload.metadata?.filetype?.trim();
-      const mediaType = normalizeMediaType(declaredMediaType);
-      if (declaredMediaType && !mediaType) {
-        throw {
-          status_code: 400,
-          body: "Only audio and video uploads are supported.\n",
-        };
-      }
+      const mediaType = declaredUploadMediaType(upload.metadata?.filetype);
       const projectId = await createUploadProject({
         uploadId: upload.id,
         workspaceId,
@@ -152,4 +145,19 @@ function tusError(cause: unknown): { status_code: number; body: string } {
     status_code: Number.isInteger(statusCode) ? statusCode : 500,
     body: `${statusCode >= 500 ? "Upload finalization failed." : message}\n`,
   };
+}
+
+export function declaredUploadMediaType(
+  declared: string | null | undefined,
+): string | null {
+  const trimmed = declared?.trim();
+  if (!trimmed) return null;
+  const mediaType = normalizeMediaType(trimmed);
+  if (!mediaType) {
+    throw {
+      status_code: 400,
+      body: "Only audio and video uploads are supported.\n",
+    };
+  }
+  return mediaType;
 }

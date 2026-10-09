@@ -1,7 +1,10 @@
 import { projectForUser, requireUser } from "$lib/server/access";
 import { pool } from "$lib/server/db";
 import { streamMediaFile } from "$lib/server/media-stream";
-import { isMediaDerivativeKind } from "$lib/server/media-preparation";
+import {
+  derivativeMediaType,
+  isMediaDerivativeKind,
+} from "$lib/server/media-preparation";
 import { resolveDataPath } from "$lib/server/media";
 import { error, type RequestHandler } from "@sveltejs/kit";
 
@@ -29,7 +32,7 @@ export const GET: RequestHandler = async ({ locals, params, request }) => {
 
   const response = await streamMediaFile(
     resolveDataPath(derivative.storage_key),
-    derivative.media_type,
+    derivativeMediaType(kind, derivative.media_type),
     request,
   );
   if (!response) error(404, "Derivative not found");

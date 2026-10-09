@@ -33,6 +33,9 @@ describe("media type sanitizing", () => {
   it("accepts only audio and video types", () => {
     expect(normalizeMediaType("video/mp4")).toBe("video/mp4");
     expect(normalizeMediaType("Audio/Ogg; codecs=opus")).toBe("audio/ogg");
+    expect(normalizeMediaType("application/ogg")).toBe("application/ogg");
+    expect(normalizeMediaType("application/mp4")).toBe("application/mp4");
+    expect(normalizeMediaType("application/json")).toBeNull();
     expect(normalizeMediaType("text/html")).toBeNull();
     expect(normalizeMediaType("image/svg+xml")).toBeNull();
     expect(normalizeMediaType("video/mp4\r\nX-Evil: 1")).toBeNull();

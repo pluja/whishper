@@ -3,7 +3,8 @@ import { Readable } from "node:stream";
 
 export type ByteRange = { start: number; end: number };
 
-const MEDIA_TYPE_PATTERN = /^(?:audio|video)\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;
+const MEDIA_TYPE_PATTERN =
+  /^(?:(?:audio|video)\/[a-z0-9][a-z0-9!#$&^_.+-]*|application\/(?:ogg|mp4))$/;
 
 export function normalizeMediaType(value: string | null | undefined) {
   const essence = value?.split(";")[0].trim().toLowerCase();

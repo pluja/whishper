@@ -24,6 +24,16 @@ const ARTIFACT_MEDIA_TYPES: Record<MediaDerivativeKind, readonly string[]> = {
   thumbnail: ["image/jpeg"],
   proxy: ["video/mp4", "audio/mpeg"],
 };
+export function derivativeMediaType(
+  kind: MediaDerivativeKind,
+  stored: string,
+): string {
+  return (
+    ARTIFACT_MEDIA_TYPES[kind].find((allowed) => allowed === stored) ??
+    "application/octet-stream"
+  );
+}
+
 const ARTIFACT_DIRECTORIES: Record<MediaDerivativeKind, string> = {
   waveform: "waveform",
   thumbnail: "thumbnails",

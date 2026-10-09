@@ -30,7 +30,7 @@ export function renderSrt(cues: SubtitleCueSnapshot[]): string {
   return `${cues
     .map(
       (cue, index) =>
-        `${index + 1}\n${formatSubtitleTime(cue.startUs, ",")} --> ${formatSubtitleTime(cue.endUs, ",")}\n${normalizeCueText(cue.text)}`,
+        `${index + 1}\n${formatSubtitleTime(cue.startUs, ",")} --> ${formatSubtitleTime(cue.endUs, ",")}\n${normalizeCueText(cue.text).replaceAll("-->", "->")}`,
     )
     .join("\n\n")}\n`;
 }
@@ -39,7 +39,7 @@ export function renderWebVtt(cues: SubtitleCueSnapshot[]): string {
   return `WEBVTT\n\n${cues
     .map(
       (cue) =>
-        `${formatSubtitleTime(cue.startUs, ".")} --> ${formatSubtitleTime(cue.endUs, ".")}\n${normalizeCueText(cue.text).replaceAll("-->", "--&gt;")}`,
+        `${formatSubtitleTime(cue.startUs, ".")} --> ${formatSubtitleTime(cue.endUs, ".")}\n${escapeWebVttText(normalizeCueText(cue.text))}`,
     )
     .join("\n\n")}\n`;
 }
@@ -62,4 +62,11 @@ function normalizeCueText(value: string): string {
     .replaceAll("\r", "\n")
     .replace(/\n[ \t]*(?:\n[ \t]*)+/g, "\n")
     .trim();
+}
+
+function escapeWebVttText(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }

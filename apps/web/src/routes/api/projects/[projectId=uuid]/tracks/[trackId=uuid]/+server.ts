@@ -5,7 +5,7 @@ import {
   TrackValidationError,
   updateTrackForUser,
 } from "$lib/server/subtitle-editor";
-import { error, json, type RequestHandler } from "@sveltejs/kit";
+import { error, isHttpError, json, type RequestHandler } from "@sveltejs/kit";
 
 export const PUT: RequestHandler = async ({ locals, params, request }) => {
   const user = requireUser(locals);
@@ -36,6 +36,7 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
     if (revision === null) error(404, "Subtitle track not found");
     return json({ revision });
   } catch (cause) {
+    if (isHttpError(cause)) throw cause;
     if (cause instanceof TrackRevisionConflict) {
       return json(
         {
