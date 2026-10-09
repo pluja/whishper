@@ -1,14 +1,13 @@
-import type { EditorCue } from "./cues";
-import { cueSnapshot } from "./history.svelte";
+import { copyCues, type EditorCue } from "./cues";
+import { parseCueJournal } from "./journal";
 
 export type SaveState = "saved" | "unsaved" | "saving" | "error" | "conflict";
 
 export type TrackRef = { projectId: string; trackId: string };
 
-type CueSource = { cues: EditorCue[] };
+type Timer = ReturnType<typeof setTimeout>;
 
 const SAVE_DEBOUNCE_MS = 800;
-const RESAVE_DELAY_MS = 50;
 const RECOVERED_SAVE_DELAY_MS = 1_200;
 const JOURNAL_DEBOUNCE_MS = 120;
 
@@ -23,51 +22,76 @@ const SAVE_LABELS: Record<SaveState, string> = {
 export class Autosave {
   state = $state<SaveState>("saved");
   message = $state("");
-  revision = $state(0);
-  #source: CueSource;
-  #track: () => TrackRef | null;
+  readonly track: TrackRef | null;
+  #revision: number;
+  #cues: () => readonly EditorCue[];
   #changeVersion = 0;
-  #saveTimer: number | undefined;
-  #journalTimer: number | undefined;
-  #saveAgain = false;
+  #savedVersion = 0;
+  #saveTimer: Timer | undefined;
+  #journalTimer: Timer | undefined;
+  #pendingSave: Promise<void> | null = null;
 
-  constructor(source: CueSource, track: () => TrackRef | null) {
-    this.#source = source;
-    this.#track = track;
+  constructor(
+    track: TrackRef | null,
+    revision: number,
+    cues: () => readonly EditorCue[],
+  ) {
+    this.track = track;
+    this.#revision = revision;
+    this.#cues = cues;
   }
 
   get label(): string {
     return SAVE_LABELS[this.state];
   }
 
+  get hasUnsavedChanges(): boolean {
+    return this.#changeVersion !== this.#savedVersion;
+  }
+
   get #journalKey(): string {
-    const track = this.#track();
-    return track ? `anysub:editor:${track.projectId}:${track.trackId}` : "";
+    return this.track
+      ? `anysub:editor:${this.track.projectId}:${this.track.trackId}`
+      : "";
   }
 
   markChanged(): void {
     this.#changeVersion += 1;
+    this.#scheduleJournal();
+    if (this.state === "conflict") return;
     this.state = "unsaved";
     this.message = "";
-    this.#scheduleJournal();
-    if (this.#saveTimer) window.clearTimeout(this.#saveTimer);
-    this.#saveTimer = window.setTimeout(
-      () => void this.flush(),
-      SAVE_DEBOUNCE_MS,
-    );
+    this.#scheduleSave(SAVE_DEBOUNCE_MS);
   }
 
-  async flush(): Promise<void> {
-    const track = this.#track();
-    if (!track || this.state === "conflict") return;
-    if (this.state === "saving") {
-      this.#saveAgain = true;
-      return;
+  flush(): Promise<void> {
+    this.#clearSaveTimer();
+    this.#pendingSave ??= this.#saveWhileUnsaved().finally(() => {
+      this.#pendingSave = null;
+    });
+    return this.#pendingSave;
+  }
+
+  // One PUT at a time: each request carries the revision returned by the
+  // previous one, so overlapping requests would conflict with each other.
+  async #saveWhileUnsaved(): Promise<void> {
+    while (this.track && this.hasUnsavedChanges && this.state !== "conflict") {
+      const version = this.#changeVersion;
+      this.state = "saving";
+      if (!(await this.#put(this.track))) return;
+      this.#savedVersion = version;
+      if (!this.hasUnsavedChanges) {
+        this.state = "saved";
+        this.#clearJournal();
+        return;
+      }
+      this.state = "unsaved";
+      this.#persistJournal();
+      if (this.#saveTimer !== undefined) return;
     }
-    if (this.state === "saved") return;
-    if (this.#saveTimer) window.clearTimeout(this.#saveTimer);
-    const savedChangeVersion = this.#changeVersion;
-    this.state = "saving";
+  }
+
+  async #put(track: TrackRef): Promise<boolean> {
     try {
       const response = await fetch(
         `/api/projects/${track.projectId}/tracks/${track.trackId}`,
@@ -75,8 +99,8 @@ export class Autosave {
           method: "PUT",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            revision: this.revision,
-            cues: this.#source.cues.map((cue) => ({
+            revision: this.#revision,
+            cues: this.#cues().map((cue) => ({
               id: cue.id,
               startUs: cue.start_us,
               endUs: cue.end_us,
@@ -90,38 +114,64 @@ export class Autosave {
         this.state = "conflict";
         this.message =
           "This track changed elsewhere. Reload before continuing.";
-        return;
+        return false;
       }
       if (!response.ok) throw new Error(result.message ?? "Save failed.");
-      this.revision = Number(result.revision);
-      if (savedChangeVersion === this.#changeVersion && !this.#saveAgain) {
-        this.state = "saved";
-        window.localStorage.removeItem(this.#journalKey);
-      } else {
-        this.#saveAgain = false;
-        this.state = "unsaved";
-        this.#persistJournal();
-        this.#saveTimer = window.setTimeout(
-          () => void this.flush(),
-          RESAVE_DELAY_MS,
-        );
-      }
+      this.#revision = Number(result.revision);
+      return true;
     } catch (cause) {
       this.state = "error";
       this.message = cause instanceof Error ? cause.message : "Save failed.";
       this.#persistJournal();
+      return false;
     }
   }
 
+  recoverJournal(): EditorCue[] | null {
+    const journalKey = this.#journalKey;
+    if (!journalKey) return null;
+    const serialized = localStorage.getItem(journalKey);
+    if (!serialized) return null;
+    const journal = parseCueJournal(serialized);
+    if (!journal) {
+      localStorage.removeItem(journalKey);
+      return null;
+    }
+    if (journal.revision !== this.#revision) return null;
+    this.#changeVersion += 1;
+    this.state = "unsaved";
+    this.message = "Recovered unsaved changes from this browser.";
+    this.#scheduleSave(RECOVERED_SAVE_DELAY_MS);
+    return journal.cues;
+  }
+
+  // Returns false when unsaved edits cannot reach the server, so leaving
+  // would strand them in the browser journal.
+  leave(): boolean {
+    if (!this.hasUnsavedChanges) return true;
+    this.#persistJournal();
+    if (this.state === "conflict" || this.state === "error") return false;
+    void this.flush();
+    return true;
+  }
+
+  dispose(): void {
+    const finalCues = copyCues(this.#cues());
+    this.#cues = () => finalCues;
+    this.leave();
+    this.#clearSaveTimer();
+  }
+
   #persistJournal(): void {
+    clearTimeout(this.#journalTimer);
     const journalKey = this.#journalKey;
     if (!journalKey) return;
     try {
-      window.localStorage.setItem(
+      localStorage.setItem(
         journalKey,
         JSON.stringify({
-          revision: this.revision,
-          cues: cueSnapshot(this.#source.cues),
+          revision: this.#revision,
+          cues: this.#cues(),
           updatedAt: Date.now(),
         }),
       );
@@ -131,46 +181,26 @@ export class Autosave {
     }
   }
 
+  #clearJournal(): void {
+    clearTimeout(this.#journalTimer);
+    if (this.#journalKey) localStorage.removeItem(this.#journalKey);
+  }
+
   #scheduleJournal(): void {
-    if (this.#journalTimer) window.clearTimeout(this.#journalTimer);
-    this.#journalTimer = window.setTimeout(
+    clearTimeout(this.#journalTimer);
+    this.#journalTimer = setTimeout(
       () => this.#persistJournal(),
       JOURNAL_DEBOUNCE_MS,
     );
   }
 
-  recoverJournal(): void {
-    const journalKey = this.#journalKey;
-    if (!journalKey) return;
-    try {
-      const value = window.localStorage.getItem(journalKey);
-      if (!value) return;
-      const journal = JSON.parse(value);
-      if (journal.revision !== this.revision || !Array.isArray(journal.cues))
-        return;
-      this.#source.cues = journal.cues;
-      this.state = "unsaved";
-      this.message = "Recovered unsaved changes from this browser.";
-      this.#changeVersion += 1;
-      this.#saveTimer = window.setTimeout(
-        () => void this.flush(),
-        RECOVERED_SAVE_DELAY_MS,
-      );
-    } catch {
-      window.localStorage.removeItem(journalKey);
-    }
+  #scheduleSave(delayMs: number): void {
+    this.#clearSaveTimer();
+    this.#saveTimer = setTimeout(() => void this.flush(), delayMs);
   }
 
-  guardUnload(): () => void {
-    const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (this.state === "saved") return;
-      event.preventDefault();
-    };
-    window.addEventListener("beforeunload", beforeUnload);
-    return () => {
-      if (this.#saveTimer) window.clearTimeout(this.#saveTimer);
-      if (this.#journalTimer) window.clearTimeout(this.#journalTimer);
-      window.removeEventListener("beforeunload", beforeUnload);
-    };
+  #clearSaveTimer(): void {
+    clearTimeout(this.#saveTimer);
+    this.#saveTimer = undefined;
   }
 }

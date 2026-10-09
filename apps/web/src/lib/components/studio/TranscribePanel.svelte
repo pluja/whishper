@@ -3,7 +3,7 @@
   import type {
     AvailableTranscriptionModel,
     DetectedWorkerHardware,
-  } from "$lib/server/adapters";
+  } from "$lib/transcription-models";
 
   type Props = {
     models: AvailableTranscriptionModel[];

@@ -47,8 +47,7 @@ export class PaneWidth {
       "pointerup",
       () => {
         this.#persist();
-        document.body.classList.remove("resizing-studio-pane");
-        this.#resizeController?.abort();
+        this.#endResize();
       },
       { once: true, signal: this.#resizeController.signal },
     );
@@ -64,7 +63,12 @@ export class PaneWidth {
     this.#persist();
   };
 
-  dispose(): void {
+  #endResize(): void {
+    document.body.classList.remove("resizing-studio-pane");
     this.#resizeController?.abort();
+  }
+
+  dispose(): void {
+    this.#endResize();
   }
 }

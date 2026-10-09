@@ -5,35 +5,11 @@ import type {
 } from "@anysub/contracts";
 
 import { isRecord } from "$lib/server/util";
-
-export type ModelFit = "good" | "caution" | "poor" | "unknown";
-
-export type AvailableTranscriptionModel = {
-  key: string;
-  adapterId: string;
-  adapterName: string;
-  modelId: string;
-  displayName: string;
-  description: string | null;
-  parameterCount: number | null;
-  requiredVramBytes: number | null;
-  recommendedRamBytes: number | null;
-  downloaded: boolean | null;
-  recommended: boolean;
-  memoryRequirementBytes: number | null;
-  memoryRequirementKind: "ram" | "vram" | null;
-  optionsSchema: Record<string, unknown>;
-  fit: ModelFit;
-  fitLabel: string;
-  fitReason: string;
-  workerSummary: string;
-};
-
-export type DetectedWorkerHardware = {
-  kind: "cpu" | "gpu";
-  name: string;
-  details: string[];
-};
+import type {
+  AvailableTranscriptionModel,
+  DetectedWorkerHardware,
+  ModelFit,
+} from "$lib/transcription-models";
 
 const GIB = 1024 ** 3;
 const FIT_RANK: Record<ModelFit, number> = {

@@ -1,5 +1,6 @@
 import { Autosave, type TrackRef } from "./autosave.svelte";
 import {
+  copyCues,
   cueIssues,
   deleteCue,
   insertCueAfter,
@@ -10,32 +11,29 @@ import {
   type CueEdit,
   type EditorCue,
 } from "./cues";
-import { CueHistory, cueSnapshot } from "./history.svelte";
+import { CueHistory } from "./history.svelte";
+import { Transport, type TransportOptions } from "./transport.svelte";
 
 type CueEditorOptions = {
   cues: EditorCue[];
-  revision: number;
-  track: () => TrackRef | null;
   maxLineLength: () => number;
-  playbackUs: () => number;
-  sourceDurationUs: () => number;
+  transport: TransportOptions;
 };
 
 export class CueEditor {
   cues = $state<EditorCue[]>([]);
   selectedCueId = $state<string | null>(null);
+  autosave = $state.raw(new Autosave(null, 0, () => this.cues));
   readonly history = new CueHistory();
-  readonly autosave: Autosave;
+  readonly transport: Transport;
   readonly #options: CueEditorOptions;
   readonly #cursorPositions = new Map<string, number>();
 
   selectedCueIndex = $derived(
     this.cues.findIndex((cue) => cue.id === this.selectedCueId),
   );
-  issues = $derived(
-    this.cues.map((_, index) =>
-      cueIssues(this.cues, index, this.#options.maxLineLength()),
-    ),
+  issues = $derived.by(() =>
+    cueIssues(this.cues, this.#options.maxLineLength()),
   );
   issueCount = $derived(
     this.issues.reduce((count, issues) => count + issues.length, 0),
@@ -45,21 +43,20 @@ export class CueEditor {
     this.#options = options;
     this.cues = options.cues;
     this.selectedCueId = this.cues[0]?.id ?? null;
-    this.autosave = new Autosave(this, options.track);
-    this.autosave.revision = options.revision;
+    this.transport = new Transport(this, options.transport);
   }
 
   get maxLineLength(): number {
     return this.#options.maxLineLength();
   }
 
-  loadTrack(cues: EditorCue[], revision: number): void {
-    this.cues = cues;
-    this.autosave.revision = revision;
+  loadTrack(track: TrackRef, cues: EditorCue[], revision: number): void {
+    if (this.autosave.track?.trackId === track.trackId) return;
+    this.autosave.dispose();
+    this.autosave = new Autosave(track, revision, () => this.cues);
+    this.cues = this.autosave.recoverJournal() ?? cues;
     this.selectedCueId = this.cues[0]?.id ?? null;
-    this.autosave.state = "saved";
     this.history.reset();
-    queueMicrotask(() => this.autosave.recoverJournal());
   }
 
   select(cueId: string): void {
@@ -81,8 +78,12 @@ export class CueEditor {
   }
 
   setTime(index: number, field: "start_us" | "end_us", value: number): void {
-    this.cues[index][field] = value;
-    this.cues = [...this.cues];
+    const cue = this.cues[index];
+    this.cues = retimeCue(this.cues, index, {
+      start_us: cue.start_us,
+      end_us: cue.end_us,
+      [field]: value,
+    }).cues;
     this.autosave.markChanged();
   }
 
@@ -91,7 +92,7 @@ export class CueEditor {
   }
 
   #apply(edit: CueEdit): void {
-    this.history.record(cueSnapshot(this.cues));
+    this.history.record(copyCues(this.cues));
     this.cues = edit.cues;
     if (edit.selectedCueId !== undefined) {
       this.selectedCueId = edit.selectedCueId;
@@ -103,7 +104,7 @@ export class CueEditor {
     const index = this.selectedCueIndex;
     if (index < 0) return;
     const result = splitCue(this.cues, index, {
-      playbackUs: this.#options.playbackUs(),
+      playbackUs: this.transport.playbackUs,
       cursorPosition: this.#cursorPositions.get(this.cues[index].id),
       newId: crypto.randomUUID(),
     });
@@ -125,7 +126,7 @@ export class CueEditor {
       this.selectedCueIndex < 0 ? this.cues.length - 1 : this.selectedCueIndex;
     this.#apply(
       insertCueAfter(this.cues, index, {
-        sourceDurationUs: this.#options.sourceDurationUs(),
+        sourceDurationUs: this.transport.sourceDurationUs,
         newId: crypto.randomUUID(),
       }),
     );

@@ -7,9 +7,11 @@ type CueSelection = {
   selectedCueId: string | null;
 };
 
-type TransportOptions = {
+// Durations are zero when unknown.
+export type TransportOptions = {
   frameDurationUs: () => number;
-  sourceDurationUs: () => number;
+  preparedDurationUs: () => number;
+  trackDurationUs: () => number;
 };
 
 const DEFAULT_FRAME_DURATION_US = 40_000;
@@ -54,6 +56,11 @@ export class Transport {
   #shuttleDirection: ShuttleDirection = 0;
   #shuttleRate = 1;
 
+  sourceDurationUs = $derived.by(
+    () =>
+      this.#options.preparedDurationUs() ||
+      Math.max(this.#options.trackDurationUs(), this.mediaDurationUs),
+  );
   activeCue = $derived.by(() =>
     this.#selection.cues.find(
       (cue) => cue.start_us <= this.playbackUs && cue.end_us >= this.playbackUs,
@@ -102,7 +109,7 @@ export class Transport {
     if (media && Number.isFinite(media.duration) && media.duration > 0) {
       return Math.round(media.duration * 1_000_000);
     }
-    return this.#options.sourceDurationUs();
+    return this.sourceDurationUs;
   }
 
   #clearReverseShuttleTimer(): void {

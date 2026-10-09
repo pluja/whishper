@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { invalidateAll } from "$app/navigation";
+  import { beforeNavigate, invalidateAll } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
   import CueList from "$lib/components/studio/CueList.svelte";
   import EditorToolbar from "$lib/components/studio/EditorToolbar.svelte";
@@ -16,7 +16,7 @@
     handleStudioKeydown,
     type StudioCommands,
   } from "$lib/editor/shortcuts";
-  import { Transport, frameDurationUs } from "$lib/editor/transport.svelte";
+  import { frameDurationUs } from "$lib/editor/transport.svelte";
 
   let { data, form } = $props();
 
@@ -26,6 +26,18 @@
       start_us: Number(cue.start_us),
       end_us: Number(cue.end_us),
     }));
+  }
+
+  function knownDurationUs(value: unknown): number {
+    const durationUs = Number(value ?? 0);
+    return Number.isSafeInteger(durationUs) && durationUs > 0 ? durationUs : 0;
+  }
+
+  function derivativeUrl(kind: string): string | null {
+    return (
+      data.derivatives.find((derivative) => derivative.kind === kind)?.url ??
+      null
+    );
   }
 
   let selectedModelKey = $state(
@@ -38,48 +50,16 @@
         )?.key ?? "",
     ),
   );
-  let loadedTrackId = $state<string | null>(
-    untrack(() => data.track?.id ?? null),
-  );
   let shortcutGuide = $state<ReturnType<typeof ShortcutGuide>>();
-  const paneWidth = new PaneWidth();
-
-  const editor: CueEditor = new CueEditor({
-    cues: untrack(editorCues),
-    revision: Number(untrack(() => data.track?.revision ?? 0)),
-    track: () =>
-      data.track
-        ? { projectId: data.project.id, trackId: data.track.id }
-        : null,
-    maxLineLength: () => maxLineLength,
-    playbackUs: () => transport.playbackUs,
-    sourceDurationUs: () => sourceDurationUs,
-  });
-  const transport: Transport = new Transport(editor, {
-    frameDurationUs: () =>
-      frameDurationUs(
-        data.project.media_frame_rate_num,
-        data.project.media_frame_rate_den,
-      ),
-    sourceDurationUs: () => sourceDurationUs,
-  });
-
   let maxLineLength = $derived(
     Number(data.track?.metadata?.maxLineLength ?? 42),
   );
-  let sourceDurationUs = $derived.by(() => {
-    const preparedDurationUs = Number(data.project.media_duration_us ?? 0);
-    if (Number.isSafeInteger(preparedDurationUs) && preparedDurationUs > 0) {
-      return preparedDurationUs;
-    }
-    const trackDurationUs = Number(data.track?.metadata?.durationUs ?? 0);
-    return Math.max(
-      Number.isSafeInteger(trackDurationUs) && trackDurationUs > 0
-        ? trackDurationUs
-        : 0,
-      transport.mediaDurationUs,
-    );
-  });
+  let preparedDurationUs = $derived(
+    knownDurationUs(data.project.media_duration_us),
+  );
+  let trackDurationUs = $derived(
+    knownDurationUs(data.track?.metadata?.durationUs),
+  );
   let waveformUrl = $derived(derivativeUrl("waveform"));
   let proxyUrl = $derived(derivativeUrl("proxy"));
   let thumbnailUrl = $derived(derivativeUrl("thumbnail"));
@@ -93,6 +73,21 @@
       ),
   );
 
+  const paneWidth = new PaneWidth();
+  const editor = new CueEditor({
+    cues: untrack(editorCues),
+    maxLineLength: () => maxLineLength,
+    transport: {
+      frameDurationUs: () =>
+        frameDurationUs(
+          data.project.media_frame_rate_num,
+          data.project.media_frame_rate_den,
+        ),
+      preparedDurationUs: () => preparedDurationUs,
+      trackDurationUs: () => trackDurationUs,
+    },
+  });
+  const transport = editor.transport;
   const commands: StudioCommands = {
     transport,
     isGuideOpen: () => shortcutGuide?.isOpen() ?? false,
@@ -108,21 +103,36 @@
     deleteSelected: () => editor.deleteSelected(),
   };
 
-  function derivativeUrl(kind: string): string | null {
-    return (
-      data.derivatives.find((derivative) => derivative.kind === kind)?.url ??
-      null
-    );
-  }
-
   function onStudioKeydown(event: KeyboardEvent): void {
     handleStudioKeydown(event, commands);
   }
 
   $effect(() => {
-    if (!data.track || data.track.id === loadedTrackId) return;
-    loadedTrackId = data.track.id;
-    editor.loadTrack(editorCues(), Number(data.track.revision));
+    const track = data.track;
+    if (!track) return;
+    untrack(() =>
+      editor.loadTrack(
+        { projectId: data.project.id, trackId: track.id },
+        editorCues(),
+        Number(track.revision),
+      ),
+    );
+  });
+
+  beforeNavigate((navigation) => {
+    const canSave = editor.autosave.leave();
+    if (navigation.willUnload) {
+      if (editor.autosave.hasUnsavedChanges) navigation.cancel();
+      return;
+    }
+    if (
+      !canSave &&
+      !window.confirm(
+        "Your latest edits could not be saved. They stay in this browser until you return. Leave anyway?",
+      )
+    ) {
+      navigation.cancel();
+    }
   });
 
   onMount(() => {
@@ -143,11 +153,9 @@
             }
           }, 1_500)
         : undefined;
-    editor.autosave.recoverJournal();
-    const releaseUnloadGuard = editor.autosave.guardUnload();
     return () => {
       if (interval) window.clearInterval(interval);
-      releaseUnloadGuard();
+      editor.autosave.dispose();
       paneWidth.dispose();
       transport.resetShuttleRate();
     };
@@ -252,7 +260,7 @@
       </div>
 
       <Timeline
-        durationUs={sourceDurationUs}
+        durationUs={transport.sourceDurationUs}
         probeState={data.project.media_preparation_status}
         {waveformUrl}
         cues={editor.cues}

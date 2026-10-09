@@ -33,7 +33,7 @@ function track(...items: EditorCue[]): EditorCue[] {
 
 describe("cueIssues", () => {
   it("reports no issues for a readable cue", () => {
-    expect(cueIssues([cue("a", 0, 2)], 0, 42)).toEqual([]);
+    expect(cueIssues([cue("a", 0, 2)], 42)).toEqual([[]]);
   });
 
   it("flags empty, long, short, fast and overlapping cues", () => {
@@ -41,20 +41,37 @@ describe("cueIssues", () => {
       cue("a", 0, 1.2),
       cue("b", 1, 1.3, "this line is far too long for the configured limit"),
     );
-    expect(cueIssues(cues, 1, 20)).toEqual([
+    expect(cueIssues(cues, 20)[1]).toEqual([
       "Over 20 characters",
       "Under 0.5 seconds",
       "Over 20 CPS",
       "Overlaps previous cue",
     ]);
-    expect(cueIssues([cue("a", 0, 8, "  ")], 0, 42)).toEqual([
-      "Empty cue",
-      "Over 7 seconds",
+    expect(cueIssues([cue("a", 0, 8, "  ")], 42)).toEqual([
+      ["Empty cue", "Over 7 seconds"],
     ]);
   });
 
   it("reports a zero length cue without a rate check", () => {
-    expect(cueIssues([cue("a", 1, 1)], 0, 42)).toEqual(["No duration"]);
+    expect(cueIssues([cue("a", 1, 1)], 42)).toEqual([["No duration"]]);
+  });
+
+  it("flags overlap on both sides, including non adjacent cues", () => {
+    const cues = track(
+      cue("long", 0, 6),
+      cue("b", 1, 2),
+      cue("c", 3, 4),
+      cue("d", 7, 8),
+    );
+    const overlaps = cueIssues(cues, 42).map((issues) =>
+      issues.filter((issue) => issue.startsWith("Overlaps")),
+    );
+    expect(overlaps).toEqual([
+      ["Overlaps next cue"],
+      ["Overlaps previous cue"],
+      ["Overlaps previous cue"],
+      [],
+    ]);
   });
 });
 
@@ -204,6 +221,14 @@ describe("nudgeCue", () => {
     const result = nudgeCue(track(cue("a", 0.05, 1)), 0, -100);
     expect(result.cues[0]).toMatchObject({ start_us: 0, end_us: 950_000 });
   });
+
+  it("reorders a cue nudged past its neighbour", () => {
+    const cues = track(cue("a", 1, 2), cue("b", 1.05, 3));
+    expect(nudgeCue(cues, 0, 100).cues.map((item) => item.id)).toEqual([
+      "b",
+      "a",
+    ]);
+  });
 });
 
 describe("retimeCue", () => {
@@ -213,5 +238,24 @@ describe("retimeCue", () => {
       retimeCue(cues, 1, { start_us: 1_200_000, end_us: 2_500_000 }).cues[1],
     ).toMatchObject({ start_us: 1_200_000, end_us: 2_500_000 });
     expect(cues[1].start_us).toBe(1_000_000);
+  });
+
+  it("keeps cues sorted by start with positions reassigned", () => {
+    const cues = track(cue("a", 0, 1), cue("b", 2, 3), cue("c", 4, 5));
+    const result = retimeCue(cues, 0, {
+      start_us: 4_500_000,
+      end_us: 6_000_000,
+    });
+    expect(result.cues.map((item) => [item.id, item.position])).toEqual([
+      ["b", 0],
+      ["c", 1],
+      ["a", 2],
+    ]);
+  });
+
+  it("orders cues sharing a start by their end", () => {
+    const cues = track(cue("a", 0, 1), cue("b", 2, 3));
+    const result = retimeCue(cues, 1, { start_us: 0, end_us: 500_000 });
+    expect(result.cues.map((item) => item.id)).toEqual(["b", "a"]);
   });
 });

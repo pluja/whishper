@@ -17,12 +17,24 @@ const MIN_SPLIT_DURATION_US = 200_000;
 const SPLIT_EDGE_MARGIN_US = 100_000;
 const INSERTED_CUE_DURATION_US = 2_000_000;
 
+// Expects cues sorted by start, which every timing edit preserves.
 export function cueIssues(
   cues: readonly EditorCue[],
-  index: number,
   maxLineLength: number,
-): string[] {
-  const cue = cues[index];
+): string[][] {
+  let latestEndUs = -Infinity;
+  return cues.map((cue, index) => {
+    const issues = textAndTimingIssues(cue, maxLineLength);
+    if (latestEndUs > cue.start_us) issues.push("Overlaps previous cue");
+    const following = cues[index + 1];
+    if (following && following.start_us < cue.end_us)
+      issues.push("Overlaps next cue");
+    latestEndUs = Math.max(latestEndUs, cue.end_us);
+    return issues;
+  });
+}
+
+function textAndTimingIssues(cue: EditorCue, maxLineLength: number): string[] {
   const issues: string[] = [];
   const duration = (cue.end_us - cue.start_us) / 1_000_000;
   const characters = cue.text.replace(/\s/g, "").length;
@@ -35,8 +47,6 @@ export function cueIssues(
     if (duration > 7) issues.push("Over 7 seconds");
     if (characters / duration > 20) issues.push("Over 20 CPS");
   }
-  if (index > 0 && cues[index - 1].end_us > cue.start_us)
-    issues.push("Overlaps previous cue");
   return issues;
 }
 
@@ -51,13 +61,21 @@ export function nearestWordBoundary(text: string, preferred: number): number {
   return -1;
 }
 
-function copyCues(cues: readonly EditorCue[]): EditorCue[] {
+export function copyCues(cues: readonly EditorCue[]): EditorCue[] {
   return cues.map((cue) => ({ ...cue }));
 }
 
 function renumber(cues: EditorCue[]): EditorCue[] {
   cues.forEach((cue, position) => (cue.position = position));
   return cues;
+}
+
+function sortByStart(cues: EditorCue[]): EditorCue[] {
+  cues.sort(
+    (first, second) =>
+      first.start_us - second.start_us || first.end_us - second.end_us,
+  );
+  return renumber(cues);
 }
 
 export function splitCue(
@@ -168,7 +186,7 @@ export function nudgeCue(
     cue.start_us += delta;
     cue.end_us += delta;
   }
-  return { cues: renumber(next) };
+  return { cues: sortByStart(next) };
 }
 
 export function retimeCue(
@@ -179,5 +197,5 @@ export function retimeCue(
   const next = copyCues(cues);
   next[index].start_us = timing.start_us;
   next[index].end_us = timing.end_us;
-  return { cues: renumber(next) };
+  return { cues: sortByStart(next) };
 }
