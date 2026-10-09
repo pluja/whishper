@@ -1,11 +1,27 @@
-import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import { Readable } from "node:stream";
 
+export type ByteRange = { start: number; end: number };
+
+const MEDIA_TYPE_PATTERN = /^(?:audio|video)\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;
+
+export function normalizeMediaType(value: string | null | undefined) {
+  const essence = value?.split(";")[0].trim().toLowerCase();
+  return essence && MEDIA_TYPE_PATTERN.test(essence) ? essence : null;
+}
+
+export function safeMediaType(value: string | null | undefined): string {
+  return normalizeMediaType(value) ?? "application/octet-stream";
+}
+
+/**
+ * Returns null when the header must be ignored (absent, multi-range or
+ * malformed, per RFC 9110) and "unsatisfiable" for a single range past the end.
+ */
 export function parseByteRange(
   value: string | null,
   size: number,
-): { start: number; end: number } | null {
+): ByteRange | "unsatisfiable" | null {
   if (!value) return null;
   const match = /^bytes=(\d*)-(\d*)$/.exec(value.trim());
   if (!match || size <= 0 || (!match[1] && !match[2])) return null;
@@ -17,16 +33,16 @@ export function parseByteRange(
   }
 
   const start = Number(match[1]);
-  const requestedEnd = match[2] ? Number(match[2]) : size - 1;
+  const requestedEnd = match[2] ? Number(match[2]) : Number.MAX_SAFE_INTEGER;
   if (
     !Number.isSafeInteger(start) ||
     !Number.isSafeInteger(requestedEnd) ||
     start < 0 ||
-    start >= size ||
     requestedEnd < start
   ) {
     return null;
   }
+  if (start >= size) return "unsatisfiable";
   return { start, end: Math.min(requestedEnd, size - 1) };
 }
 
@@ -35,29 +51,50 @@ export async function streamMediaFile(
   mediaType: string,
   request: Request,
 ): Promise<Response | null> {
-  const file = await stat(path).catch(() => null);
-  if (!file?.isFile()) return null;
+  const handle = await open(path, "r").catch(() => null);
+  if (!handle) return null;
 
-  const range = parseByteRange(request.headers.get("range"), file.size);
-  if (request.headers.has("range") && !range) {
-    return new Response(null, {
-      status: 416,
-      headers: { "Content-Range": `bytes */${file.size}` },
+  try {
+    const file = await handle.stat();
+    if (!file.isFile()) {
+      await handle.close();
+      return null;
+    }
+
+    const range = parseByteRange(request.headers.get("range"), file.size);
+    if (range === "unsatisfiable") {
+      await handle.close();
+      return new Response(null, {
+        status: 416,
+        headers: { "Content-Range": `bytes */${file.size}` },
+      });
+    }
+
+    const start = range?.start ?? 0;
+    const end = range?.end ?? file.size - 1;
+    const headers = new Headers({
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "private, no-store",
+      "Content-Length": String(Math.max(0, end - start + 1)),
+      "Content-Type": mediaType,
+      "X-Content-Type-Options": "nosniff",
     });
-  }
-  const start = range?.start ?? 0;
-  const end = range?.end ?? Math.max(0, file.size - 1);
-  const stream = createReadStream(path, { start, end });
-  const headers = new Headers({
-    "Accept-Ranges": "bytes",
-    "Cache-Control": "private, no-store",
-    "Content-Length": String(Math.max(0, end - start + 1)),
-    "Content-Type": mediaType,
-  });
-  if (range) headers.set("Content-Range", `bytes ${start}-${end}/${file.size}`);
+    if (range) {
+      headers.set("Content-Range", `bytes ${start}-${end}/${file.size}`);
+    }
 
-  return new Response(Readable.toWeb(stream) as ReadableStream<Uint8Array>, {
-    status: range ? 206 : 200,
-    headers,
-  });
+    if (file.size === 0) {
+      await handle.close();
+      return new Response(null, { status: 200, headers });
+    }
+
+    const stream = handle.createReadStream({ start, end });
+    return new Response(Readable.toWeb(stream) as ReadableStream<Uint8Array>, {
+      status: range ? 206 : 200,
+      headers,
+    });
+  } catch (cause) {
+    await handle.close().catch(() => undefined);
+    throw cause;
+  }
 }

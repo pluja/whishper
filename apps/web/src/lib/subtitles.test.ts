@@ -39,4 +39,23 @@ describe("subtitle exports", () => {
       "WEBVTT\n\n01:02:03.456 --> 01:02:05.000\nA subtitle.\n",
     );
   });
+
+  it("collapses blank lines inside a cue so it cannot split into two", () => {
+    const blankLines = [{ ...cues[0], text: "First\n\n \r\nSecond" }];
+
+    expect(renderSrt(blankLines)).toBe(
+      "1\n01:02:03,456 --> 01:02:05,000\nFirst\nSecond\n",
+    );
+    expect(renderWebVtt(blankLines)).toBe(
+      "WEBVTT\n\n01:02:03.456 --> 01:02:05.000\nFirst\nSecond\n",
+    );
+  });
+
+  it("escapes the WebVTT cue timing arrow in cue text", () => {
+    const injected = [{ ...cues[0], text: "a --> b\n00:00.000 --> 00:01.000" }];
+
+    expect(renderWebVtt(injected)).toBe(
+      "WEBVTT\n\n01:02:03.456 --> 01:02:05.000\na --&gt; b\n00:00.000 --&gt; 00:01.000\n",
+    );
+  });
 });

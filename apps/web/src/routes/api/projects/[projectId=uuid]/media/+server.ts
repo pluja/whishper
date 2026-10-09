@@ -1,6 +1,6 @@
 import { projectForUser, requireUser } from "$lib/server/access";
 import { pool } from "$lib/server/db";
-import { streamMediaFile } from "$lib/server/media-stream";
+import { safeMediaType, streamMediaFile } from "$lib/server/media-stream";
 import { resolveDataPath } from "$lib/server/media";
 import { error, type RequestHandler } from "@sveltejs/kit";
 
@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ locals, params, request }) => {
   const path = resolveDataPath(project.media_original_key);
   const response = await streamMediaFile(
     path,
-    upload.rows[0]?.media_type || "application/octet-stream",
+    safeMediaType(upload.rows[0]?.media_type),
     request,
   );
   if (!response) error(404, "Media not found");

@@ -50,14 +50,6 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
       return json({ message: cause.message }, { status: 400 });
     }
     console.error("Could not save subtitle track", cause);
-    return json(
-      {
-        message:
-          cause instanceof Error
-            ? cause.message
-            : "The subtitle track could not be saved.",
-      },
-      { status: 500 },
-    );
+    error(500, "The subtitle track could not be saved.");
   }
 };

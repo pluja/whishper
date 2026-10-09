@@ -4,13 +4,14 @@ import { error, json, type RequestHandler } from "@sveltejs/kit";
 
 export const POST: RequestHandler = async (event) => {
   requireWorker(event);
+  let manifest;
   try {
-    const manifest = parseWorkerManifest(await event.request.json());
-    return json({ lease: await leaseJob(manifest), pollAfterMs: 2_000 });
+    manifest = parseWorkerManifest(await event.request.json());
   } catch (cause) {
     error(
       400,
       cause instanceof Error ? cause.message : "Invalid worker manifest",
     );
   }
+  return json({ lease: await leaseJob(manifest), pollAfterMs: 2_000 });
 };

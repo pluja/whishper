@@ -11,6 +11,7 @@ import {
   requireOwnedUpload,
   updateUploadProgress,
 } from "$lib/server/media";
+import { normalizeMediaType } from "$lib/server/media-stream";
 import { isUuid } from "$lib/uuid";
 
 const TUS_PATH = "/api/uploads";
@@ -80,13 +81,21 @@ async function createServer(): Promise<Server> {
           body: "A filename and non-empty upload length are required.\n",
         };
       }
+      const declaredMediaType = upload.metadata?.filetype?.trim();
+      const mediaType = normalizeMediaType(declaredMediaType);
+      if (declaredMediaType && !mediaType) {
+        throw {
+          status_code: 400,
+          body: "Only audio and video uploads are supported.\n",
+        };
+      }
       const projectId = await createUploadProject({
         uploadId: upload.id,
         workspaceId,
         userId: requireUserId(request),
         filename,
         projectName: upload.metadata?.projectName ?? null,
-        mediaType: upload.metadata?.filetype ?? null,
+        mediaType,
         sizeBytes: upload.size,
       }).catch((cause) => {
         throw tusError(cause);
