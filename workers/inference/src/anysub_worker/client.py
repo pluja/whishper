@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import platform
 import uuid
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import httpx
 
 from .config import WorkerSettings
-from .hardware import detect_hardware
+from .hardware import detect_hardware, detect_memory
 from .models import (
     MEDIA_PREPARATION_VERSION,
     JobCompletionReport,
@@ -26,14 +28,37 @@ from .models import (
 )
 from .registry import AdapterRegistry
 
+LOGGER = logging.getLogger(__name__)
 WORKER_VERSION = "0.1.0"
 ARTIFACT_CHUNK_BYTES = 16 * 1024 * 1024
+FINAL_REPORT_RETRY_DELAYS_SECONDS = (1, 2, 4, 8, 15, 30)
+
+Sleep = Callable[[float], Awaitable[None]]
+
+
+class LeaseLostError(RuntimeError):
+    def __init__(self, job_id: str) -> None:
+        super().__init__(f"lease for job {job_id} is no longer active")
+
+
+def _is_transient(error: httpx.HTTPError) -> bool:
+    if isinstance(error, httpx.HTTPStatusError):
+        return error.response.is_server_error
+    return isinstance(error, httpx.TransportError)
 
 
 class ApplicationClient:
-    def __init__(self, settings: WorkerSettings, registry: AdapterRegistry) -> None:
+    def __init__(
+        self,
+        settings: WorkerSettings,
+        registry: AdapterRegistry,
+        *,
+        sleep: Sleep = asyncio.sleep,
+    ) -> None:
         self._settings = settings
         self._registry = registry
+        self._sleep = sleep
+        self._hardware = detect_hardware(settings)
         self.worker_id = _load_or_create_worker_id(settings.worker_id_file)
         self._client = httpx.AsyncClient(
             base_url=str(settings.app_url).rstrip("/"),
@@ -52,20 +77,18 @@ class ApplicationClient:
             architecture=platform.machine(),
             capabilities=WorkerCapabilities(mediaPreparation=MEDIA_PREPARATION_VERSION),
             adapters=tuple(adapter.manifest for adapter in self._registry.adapters),
-            hardware=detect_hardware(self._settings),
+            hardware=self._hardware.model_copy(update={"memory": detect_memory()}),
         )
         response = await self._client.post("/api/internal/workers/lease", json=_wire(manifest))
         response.raise_for_status()
         return LeaseResponse.model_validate(response.json())
 
     async def progress(self, lease: WorkerLease, progress: float, message: str) -> None:
-        response = await self._client.post(
-            f"/api/internal/jobs/{lease.job_id}/progress",
-            json=_wire(
-                JobProgressReport(leaseToken=lease.lease_token, progress=progress, message=message)
-            ),
+        await self._post_job_report(
+            lease,
+            "progress",
+            JobProgressReport(leaseToken=lease.lease_token, progress=progress, message=message),
         )
-        response.raise_for_status()
 
     async def download_source(self, lease: WorkerLease, destination: Path) -> None:
         async with self._client.stream(
@@ -73,6 +96,8 @@ class ApplicationClient:
             f"/api/internal/jobs/{lease.job_id}/source",
             headers={"X-Anysub-Lease-Token": lease.lease_token},
         ) as response:
+            if response.is_error:
+                await response.aread()
             response.raise_for_status()
             with destination.open("wb") as output:
                 async for chunk in response.aiter_bytes(1024 * 1024):
@@ -161,17 +186,45 @@ class ApplicationClient:
         lease: WorkerLease,
         completion: TranscriptionJobCompletion | MediaPreparationJobCompletion,
     ) -> None:
-        response = await self._client.post(
-            f"/api/internal/jobs/{lease.job_id}/complete",
-            json=_wire(JobCompletionReport(leaseToken=lease.lease_token, result=completion)),
+        await self._post_final_report(
+            lease,
+            "complete",
+            JobCompletionReport(leaseToken=lease.lease_token, result=completion),
         )
-        response.raise_for_status()
 
     async def fail(self, lease: WorkerLease, failure: JobFailure) -> None:
-        response = await self._client.post(
-            f"/api/internal/jobs/{lease.job_id}/fail",
-            json=_wire(JobFailureReport(leaseToken=lease.lease_token, error=failure)),
+        await self._post_final_report(
+            lease,
+            "fail",
+            JobFailureReport(leaseToken=lease.lease_token, error=failure),
         )
+
+    async def _post_final_report(
+        self, lease: WorkerLease, action: str, report: StrictModel
+    ) -> None:
+        for delay in FINAL_REPORT_RETRY_DELAYS_SECONDS:
+            try:
+                await self._post_job_report(lease, action, report)
+                return
+            except httpx.HTTPError as error:
+                if not _is_transient(error):
+                    raise
+                LOGGER.warning(
+                    "job %s report failed job_id=%s, retrying in %ss: %s",
+                    action,
+                    lease.job_id,
+                    delay,
+                    error,
+                )
+            await self._sleep(delay)
+        await self._post_job_report(lease, action, report)
+
+    async def _post_job_report(self, lease: WorkerLease, action: str, report: StrictModel) -> None:
+        response = await self._client.post(
+            f"/api/internal/jobs/{lease.job_id}/{action}", json=_wire(report)
+        )
+        if response.status_code == httpx.codes.CONFLICT:
+            raise LeaseLostError(lease.job_id)
         response.raise_for_status()
 
 

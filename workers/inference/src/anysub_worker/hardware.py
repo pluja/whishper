@@ -18,7 +18,6 @@ def detect_hardware(
     cgroup_root: Path = Path("/sys/fs/cgroup"),
     torch_module: Any | None = None,
 ) -> WorkerHardware:
-    total_bytes, available_bytes = _detect_memory(proc_root, cgroup_root)
     torch = torch_module if torch_module is not None else _optional_torch()
     return WorkerHardware(
         device=settings.device,
@@ -27,12 +26,18 @@ def detect_hardware(
             model=_cpu_model(proc_root),
             logicalCores=_logical_cores(),
         ),
-        memory=WorkerMemory(
-            totalBytes=total_bytes,
-            availableBytes=available_bytes,
-        ),
+        memory=detect_memory(proc_root=proc_root, cgroup_root=cgroup_root),
         gpus=_detect_gpus(torch),
     )
+
+
+def detect_memory(
+    *,
+    proc_root: Path = Path("/proc"),
+    cgroup_root: Path = Path("/sys/fs/cgroup"),
+) -> WorkerMemory:
+    total_bytes, available_bytes = _detect_memory(proc_root, cgroup_root)
+    return WorkerMemory(totalBytes=total_bytes, availableBytes=available_bytes)
 
 
 def _detect_memory(proc_root: Path, cgroup_root: Path) -> tuple[int, int]:

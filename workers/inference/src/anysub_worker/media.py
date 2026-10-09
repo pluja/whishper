@@ -5,12 +5,12 @@ import base64
 import json
 import re
 import struct
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from .adapter import ProgressReporter
 from .models import (
     MEDIA_PREPARATION_VERSION,
     MediaAudioDetails,
@@ -23,7 +23,6 @@ from .models import (
     MediaVideoDetails,
 )
 
-ProgressReporter = Callable[[float, str], Awaitable[None]]
 WAVEFORM_SAMPLE_RATE = 4_000
 WAVEFORM_PEAKS_PER_SECOND = 50
 WAVEFORM_SAMPLES_PER_PEAK = WAVEFORM_SAMPLE_RATE // WAVEFORM_PEAKS_PER_SECOND
