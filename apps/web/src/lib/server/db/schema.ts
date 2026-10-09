@@ -290,7 +290,9 @@ export const jobs = pgTable(
     availableAt: timestamp("available_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
-    leasedBy: uuid("leased_by"),
+    leasedBy: uuid("leased_by").references(() => workers.id, {
+      onDelete: "set null",
+    }),
     leaseTokenHash: text("lease_token_hash"),
     leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })

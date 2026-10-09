@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "@fontsource-variable/geist";
-@import "../../../tokens.css";
+@import "./tokens.css";
 
 *,
 *::before,

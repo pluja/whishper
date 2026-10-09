@@ -29,7 +29,6 @@
     "@tailwindcss/vite": "^4.1.12",
     "@types/node": "^24.3.0",
     "@types/pg": "^8.15.5",
-    "drizzle-kit": "^0.31.4",
     "prettier": "^3.6.2",
     "prettier-plugin-svelte": "^3.4.0",
     "svelte": "^5.38.6",
