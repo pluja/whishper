@@ -63,7 +63,9 @@ tag and migration completion dependency.
 For development, run `make COMPOSE_ENGINE='podman compose' dev`. The same
 setting works with `check`, `test`, `lint`, `verify`, and `down`. The NVIDIA
 overlay in `compose.cuda.yaml` uses Docker GPU reservations and is intended
-for Docker Engine; the Podman commands above run the CPU worker.
+for Docker Engine; the Podman commands above run the CPU worker. The make
+targets use the separate `anysub-dev` project, so development never touches the
+database or volumes of the `anysub` stack above.
 
 Running Anysub behind a reverse proxy or on another machine? Set `BETTER_AUTH_URL` in `.env` to the address people will type in their browser, including the port.
 
@@ -146,7 +148,7 @@ make dev      # start the development stack, source mounted
 make verify   # run every check CI runs, before you push
 ```
 
-Each target is one `docker compose` command against the development overlay, which mounts the source and keeps dependencies in named volumes. Nothing is hidden: `make -n verify` prints the commands it would run without running them.
+Each target is one `docker compose` command against the development overlay, which mounts the source and keeps dependencies in named volumes. It runs as the separate `anysub-dev` project with its own database, app data and model cache, so development never touches your production data. Nothing is hidden: `make -n verify` prints the commands it would run without running them.
 
 ## Development disclosure
 
