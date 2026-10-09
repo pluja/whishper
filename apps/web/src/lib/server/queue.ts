@@ -17,6 +17,7 @@ import type { MediaFinalizationPlan } from "$lib/server/media-finalize";
 
 import { pool } from "$lib/server/db";
 import { insertCues } from "$lib/server/cues";
+import { unprocessable } from "$lib/server/http-error";
 import { withTransaction } from "$lib/server/db/transaction";
 import { hashToken } from "$lib/server/util";
 import { cleanupStagedMediaAttempt } from "$lib/server/media-artifact-staging";
@@ -66,8 +67,8 @@ export async function leaseJob(
         where state = 'queued'
           and available_at <= now()
           and (
-            (payload->>'kind' = 'transcribe' and payload->>'adapterId' = any($1::text[]))
-            or (payload->>'kind' = 'media_prepare' and $2)
+            (kind = 'transcribe' and payload->>'adapterId' = any($1::text[]))
+            or (kind = 'media_prepare' and $2)
           )
         order by priority desc, created_at asc
         for update skip locked
@@ -181,18 +182,14 @@ export async function completeJob(
       if (!job.lease_accepted) return "lease-rejected";
 
       if (job.payload.kind === "transcribe") {
-        if (completion.kind !== "transcribe") {
-          throw new Error("Worker completion does not match the leased job.");
-        }
+        if (completion.kind !== "transcribe") throw completionKindMismatch();
         await storeTranscriptCompletion(
           client,
           { run_id: job.run_id, payload: job.payload },
           completion,
         );
       } else {
-        if (completion.kind !== "media_prepare") {
-          throw new Error("Worker completion does not match the leased job.");
-        }
+        if (completion.kind !== "media_prepare") throw completionKindMismatch();
         mediaFinalization = await finalizeMediaPreparation(client, {
           jobId,
           attempt: job.attempts,
@@ -282,10 +279,14 @@ export async function failJob(
               available_at = case when $3 then now() + interval '5 seconds' else available_at end,
               error = $4,
               progress_message = $5,
+              leased_by = null,
               lease_token_hash = null,
               lease_expires_at = null,
               updated_at = now()
-        where id = $1 and state = 'leased' and lease_token_hash = $2
+        where id = $1
+          and state = 'leased'
+          and lease_token_hash = $2
+          and lease_expires_at > now()
         returning run_id, state, attempts, payload`,
       [
         jobId,
@@ -399,14 +400,19 @@ async function cleanupReclaimedArtifacts(
   );
 }
 
+function completionKindMismatch(): Error {
+  return unprocessable("Worker completion does not match the leased job.");
+}
+
 function assertTranscriptTiming(artifact: TranscriptArtifact): void {
   let previousStart = -1;
   for (const cue of artifact.cues) {
     if (cue.endUs < cue.startUs || cue.endUs > artifact.durationUs) {
-      throw new Error("Adapter returned invalid cue timing");
+      throw unprocessable("Adapter returned invalid cue timing.");
     }
-    if (cue.startUs < previousStart)
-      throw new Error("Adapter cues are not ordered");
+    if (cue.startUs < previousStart) {
+      throw unprocessable("Adapter cues are not ordered.");
+    }
     previousStart = cue.startUs;
   }
 }

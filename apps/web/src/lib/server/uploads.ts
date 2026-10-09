@@ -4,6 +4,7 @@ import { mkdir, unlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import { privateEnv } from "$lib/server/env";
+import { publicFailure } from "$lib/server/http-error";
 import {
   cancelUpload,
   completeUpload,
@@ -137,7 +138,7 @@ async function createServer(): Promise<Server> {
         return;
       await requireOwnedUpload(uploadId, requireUserId(request)).catch(
         (cause) => {
-          throw tusError(cause);
+          throw tusError(cause, "Upload lookup failed.");
         },
       );
     },
@@ -163,7 +164,7 @@ async function createServer(): Promise<Server> {
         mediaType,
         sizeBytes: upload.size,
       }).catch((cause) => {
-        throw tusError(cause);
+        throw tusError(cause, "Upload creation failed.");
       });
       return {
         metadata: { ...upload.metadata, projectId },
@@ -175,7 +176,7 @@ async function createServer(): Promise<Server> {
         requireUserId(request),
       ).catch((cause) => {
         console.error(`Could not finalize upload ${upload.id}`, cause);
-        throw tusError(cause);
+        throw tusError(cause, "Upload finalization failed.");
       });
       return {
         headers: { "Upload-Project": completed.projectId },
@@ -204,16 +205,12 @@ function requireUserId(request: Request): string {
   return userId;
 }
 
-function tusError(cause: unknown): { status_code: number; body: string } {
-  const statusCode =
-    cause && typeof cause === "object" && "statusCode" in cause
-      ? Number(cause.statusCode)
-      : 500;
-  const message = cause instanceof Error ? cause.message : "Upload failed.";
-  return {
-    status_code: Number.isInteger(statusCode) ? statusCode : 500,
-    body: `${statusCode >= 500 ? "Upload finalization failed." : message}\n`,
-  };
+export function tusError(
+  cause: unknown,
+  fallbackMessage: string,
+): { status_code: number; body: string } {
+  const { status, message } = publicFailure(cause, fallbackMessage);
+  return { status_code: status, body: `${message}\n` };
 }
 
 export function declaredUploadMediaType(

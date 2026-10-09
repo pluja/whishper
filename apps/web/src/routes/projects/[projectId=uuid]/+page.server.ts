@@ -17,8 +17,8 @@ import {
   isMediaDerivativeKind,
 } from "$lib/server/media-finalize";
 import { deleteTranscriptForUser } from "$lib/server/transcripts";
-import { error, fail, redirect, type Actions } from "@sveltejs/kit";
-import type { PageServerLoad } from "./$types";
+import { error, fail, isHttpError, isRedirect, redirect } from "@sveltejs/kit";
+import type { Actions, PageServerLoad } from "./$types";
 
 type MediaPreparationStatus =
   "not_started" | "queued" | "running" | "completed" | "failed";
@@ -130,7 +130,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   }>(
     `select state, progress, progress_message, error
        from jobs
-      where payload->>'kind' = 'media_prepare'
+      where kind = 'media_prepare'
         and project_id = $1
       order by created_at desc
       limit 1`,
@@ -309,7 +309,7 @@ export const actions: Actions = {
       });
       if (rejection) return rejection;
     } catch (cause) {
-      if (cause && typeof cause === "object" && "status" in cause) throw cause;
+      if (isHttpError(cause) || isRedirect(cause)) throw cause;
       console.error("Could not enqueue transcription", cause);
       return fail(500, { message: "The transcription could not be queued." });
     }
@@ -318,7 +318,6 @@ export const actions: Actions = {
   prepareMedia: async ({ locals, params }) => {
     const user = requireUserOrLogin(locals);
     const projectId = params.projectId;
-    if (!projectId) error(400, "Project ID is required");
     try {
       if (!(await requestMediaPreparationForUser(projectId, user.id))) {
         return fail(404, { message: "Project media was not found." });
@@ -332,7 +331,6 @@ export const actions: Actions = {
   cancelMedia: async ({ locals, params }) => {
     const user = requireUserOrLogin(locals);
     const projectId = params.projectId;
-    if (!projectId) error(400, "Project ID is required");
     try {
       if (!(await cancelMediaPreparationForUser(projectId, user.id))) {
         return fail(409, { message: "Media preparation is no longer active." });
@@ -348,7 +346,6 @@ export const actions: Actions = {
   deleteDerivative: async ({ locals, params, request }) => {
     const user = requireUserOrLogin(locals);
     const projectId = params.projectId;
-    if (!projectId) error(400, "Project ID is required");
     const kind = String((await request.formData()).get("kind") ?? "");
     if (!isMediaDerivativeKind(kind)) {
       return fail(400, { message: "The derivative type is invalid." });
@@ -366,7 +363,6 @@ export const actions: Actions = {
   deleteTranscript: async ({ locals, params, request }) => {
     const user = requireUserOrLogin(locals);
     const projectId = params.projectId;
-    if (!projectId) error(400, "Project ID is required");
     const trackId = String((await request.formData()).get("trackId") ?? "");
     if (!isUuid(trackId)) {
       return fail(400, { message: "The subtitle track is invalid." });
@@ -386,7 +382,6 @@ export const actions: Actions = {
   deleteProject: async ({ locals, params }) => {
     const user = requireUserOrLogin(locals);
     const projectId = params.projectId;
-    if (!projectId) error(400, "Project ID is required");
     try {
       if (!(await deleteProjectForUser(projectId, user.id))) {
         return fail(404, {

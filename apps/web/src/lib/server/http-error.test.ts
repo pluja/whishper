@@ -1,7 +1,7 @@
 import { isHttpError } from "@sveltejs/kit";
 import { describe, expect, it } from "vitest";
 
-import { httpErrorFrom } from "./http-error";
+import { httpErrorFrom, StatusError, unprocessable } from "./http-error";
 
 function thrownBy(action: () => never) {
   try {
@@ -28,6 +28,22 @@ describe("httpErrorFrom", () => {
     );
     expect(thrown.status).toBe(500);
     expect(thrown.body.message).toBe("Transfer failed");
+  });
+
+  it("hides the message of every 5xx status", () => {
+    const thrown = thrownBy(() =>
+      httpErrorFrom(new StatusError(503, "pool exhausted"), "Transfer failed"),
+    );
+    expect(thrown.status).toBe(503);
+    expect(thrown.body.message).toBe("Transfer failed");
+  });
+
+  it("maps an unprocessable completion to a 422 with its reason", () => {
+    const thrown = thrownBy(() =>
+      httpErrorFrom(unprocessable("Adapter cues are not ordered."), "Failed"),
+    );
+    expect(thrown.status).toBe(422);
+    expect(thrown.body.message).toBe("Adapter cues are not ordered.");
   });
 
   it("falls back to 500 for non-error causes and invalid status codes", () => {

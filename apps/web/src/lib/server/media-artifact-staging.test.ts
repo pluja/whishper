@@ -15,6 +15,7 @@ vi.mock("$lib/server/env", () => ({
 
 import {
   appendArtifactChunk,
+  parseUploadInteger,
   stagedArtifactOffset,
   stagingArtifactPath,
   type MediaPreparationLease,
@@ -83,6 +84,15 @@ describe("appendArtifactChunk", () => {
     expect((await stat(path)).size).toBe(0);
   });
 
+  it.each([Number.NaN, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    "rejects the invalid upload offset %s",
+    async (offset) => {
+      await expect(
+        appendArtifactChunk(lease, "thumbnail", offset, 20, 1, bodyOf("a")),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    },
+  );
+
   it("serializes concurrent appends for the same lease", async () => {
     const path = stagingArtifactPath(lease, "waveform");
     const results = await Promise.allSettled([
@@ -95,4 +105,18 @@ describe("appendArtifactChunk", () => {
     ]);
     expect((await stat(path)).size).toBe(4);
   });
+});
+
+describe("parseUploadInteger", () => {
+  it("accepts plain non-negative decimal integers", () => {
+    expect(parseUploadInteger("0")).toBe(0);
+    expect(parseUploadInteger("1048576")).toBe(1048576);
+  });
+
+  it.each([null, "", " 5", "-1", "1.5", "1e3", "0x10", "abc"])(
+    "maps %j to NaN",
+    (header) => {
+      expect(parseUploadInteger(header)).toBeNaN();
+    },
+  );
 });

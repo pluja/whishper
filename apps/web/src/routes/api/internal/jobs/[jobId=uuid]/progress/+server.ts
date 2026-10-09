@@ -1,7 +1,8 @@
 import { validateJobProgressReport } from "@anysub/contracts";
 import { reportProgress } from "$lib/server/queue";
 import { readWorkerReport } from "$lib/server/worker-request";
-import { error, json, type RequestHandler } from "@sveltejs/kit";
+import { error, json } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async (event) => {
   const report = await readWorkerReport(
@@ -11,7 +12,7 @@ export const POST: RequestHandler = async (event) => {
   );
   if (
     !(await reportProgress(
-      event.params.jobId!,
+      event.params.jobId,
       report.leaseToken,
       report.progress,
       report.message,

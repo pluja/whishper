@@ -5,7 +5,10 @@ import {
   renderWebVtt,
   type SubtitleCueSnapshot,
 } from "$lib/subtitles";
-import { error, type RequestHandler } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
+
+const JSON_EXPORT_SCHEMA_VERSION = "1.0";
 
 type ExportTrack = {
   project_id: string;
@@ -20,7 +23,7 @@ type ExportTrack = {
 export const GET: RequestHandler = async ({ locals, params }) => {
   const user = requireUser(locals);
   const format = params.format;
-  if (!format || !["srt", "vtt", "json"].includes(format)) {
+  if (!["srt", "vtt", "json"].includes(format)) {
     error(404, "Export format not found");
   }
 
@@ -95,7 +98,7 @@ function exportBody(
   return {
     body: `${JSON.stringify(
       {
-        schemaVersion: "1.0",
+        schemaVersion: JSON_EXPORT_SCHEMA_VERSION,
         project: { id: track.project_id, name: track.project_name },
         track: {
           id: track.track_id,

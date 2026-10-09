@@ -2,26 +2,25 @@ import { httpErrorFrom } from "$lib/server/http-error";
 import {
   appendArtifactChunk,
   ArtifactOffsetError,
+  parseUploadInteger,
   requireMediaPreparationLease,
   stagedArtifactOffset,
 } from "$lib/server/media-artifact-staging";
 import { isMediaDerivativeKind } from "$lib/server/media-finalize";
 import { requireWorkerLeaseToken } from "$lib/server/worker-request";
-import { error, type RequestEvent, type RequestHandler } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
+import type { RequestEvent, RequestHandler } from "./$types";
 
 async function activeArtifactLease(event: RequestEvent) {
   const leaseToken = requireWorkerLeaseToken(event);
-  const kind = event.params.kind!;
+  const kind = event.params.kind;
   if (!isMediaDerivativeKind(kind)) {
     error(400, "A valid derivative kind is required");
   }
   try {
     return {
       kind,
-      lease: await requireMediaPreparationLease(
-        event.params.jobId!,
-        leaseToken,
-      ),
+      lease: await requireMediaPreparationLease(event.params.jobId, leaseToken),
     };
   } catch (cause) {
     httpErrorFrom(cause, "Artifact transfer failed");
@@ -40,9 +39,13 @@ export const HEAD: RequestHandler = async (event) => {
 
 export const PATCH: RequestHandler = async (event) => {
   const { kind, lease } = await activeArtifactLease(event);
-  const offset = Number(event.request.headers.get("upload-offset"));
-  const uploadLength = Number(event.request.headers.get("upload-length"));
-  const contentLength = Number(event.request.headers.get("content-length"));
+  const offset = parseUploadInteger(event.request.headers.get("upload-offset"));
+  const uploadLength = parseUploadInteger(
+    event.request.headers.get("upload-length"),
+  );
+  const contentLength = parseUploadInteger(
+    event.request.headers.get("content-length"),
+  );
   if (!event.request.body) error(400, "Artifact chunk body is required");
 
   try {

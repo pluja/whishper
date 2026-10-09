@@ -11,7 +11,7 @@ import {
   seedLeasedTranscriptionJob,
   seedProject,
 } from "$lib/server/db/testing/fixtures";
-import { completeJob, leaseJob } from "$lib/server/queue";
+import { completeJob, failJob, leaseJob } from "$lib/server/queue";
 import { isUuid } from "$lib/uuid";
 
 const ACTIVE_LEASE = { attempts: 1, maxAttempts: 3, expiresInSeconds: 60 };
@@ -55,10 +55,11 @@ function transcriptCompletion(): TranscriptionJobCompletion {
 }
 
 async function jobRow(jobId: string) {
-  const result = await pool.query<{ state: string; error: unknown }>(
-    `select state, error from jobs where id = $1`,
-    [jobId],
-  );
+  const result = await pool.query<{
+    state: string;
+    error: unknown;
+    leased_by: string | null;
+  }>(`select state, error, leased_by from jobs where id = $1`, [jobId]);
   return result.rows[0];
 }
 
@@ -114,6 +115,33 @@ describe("completeJob", () => {
     expect(tracks.rowCount).toBe(0);
   });
 
+  it("rejects a transcript with invalid cue timing as unprocessable", async () => {
+    const project = await seedProject();
+    const job = await seedLeasedTranscriptionJob(project, ACTIVE_LEASE);
+    const completion = transcriptCompletion();
+    completion.artifact.cues[1].endUs = 9_000_000;
+
+    await expect(
+      completeJob(job.jobId, job.leaseToken, completion),
+    ).rejects.toMatchObject({
+      statusCode: 422,
+      message: "Adapter returned invalid cue timing.",
+    });
+    expect((await jobRow(job.jobId)).state).toBe("leased");
+  });
+
+  it("rejects a completion of the wrong kind as unprocessable", async () => {
+    const project = await seedProject();
+    const job = await seedLeasedTranscriptionJob(project, ACTIVE_LEASE);
+
+    await expect(
+      completeJob(job.jobId, job.leaseToken, {
+        kind: "media_prepare",
+      } as unknown as TranscriptionJobCompletion),
+    ).rejects.toMatchObject({ statusCode: 422 });
+    expect((await jobRow(job.jobId)).state).toBe("leased");
+  });
+
   it("rejects a completion after the lease expired", async () => {
     const project = await seedProject();
     const job = await seedLeasedTranscriptionJob(project, {
@@ -153,5 +181,49 @@ describe("leaseJob reclaim", () => {
     expect(reclaimed.state).toBe("failed");
     expect(reclaimed.error).toMatchObject({ code: "lease_expired" });
     expect(await runStatus(job.runId)).toBe("failed");
+  });
+});
+
+describe("failJob", () => {
+  const FAILURE = { code: "adapter_error", message: "boom", retryable: true };
+
+  it("requeues a retryable failure and releases the worker", async () => {
+    const project = await seedProject();
+    const job = await seedLeasedTranscriptionJob(project, ACTIVE_LEASE);
+    const workerId = randomUUID();
+    await pool.query(
+      `insert into workers (id, name, version, architecture, protocol_version, manifest)
+       values ($1, 'worker', '1.0.0', 'x86_64', '1.0', '{}')`,
+      [workerId],
+    );
+    await pool.query(`update jobs set leased_by = $2 where id = $1`, [
+      job.jobId,
+      workerId,
+    ]);
+
+    try {
+      await expect(failJob(job.jobId, job.leaseToken, FAILURE)).resolves.toBe(
+        true,
+      );
+      const failed = await jobRow(job.jobId);
+      expect(failed.state).toBe("queued");
+      expect(failed.leased_by).toBeNull();
+      expect(await runStatus(job.runId)).toBe("queued");
+    } finally {
+      await pool.query(`delete from workers where id = $1`, [workerId]);
+    }
+  });
+
+  it("rejects a failure report after the lease expired", async () => {
+    const project = await seedProject();
+    const job = await seedLeasedTranscriptionJob(project, {
+      ...ACTIVE_LEASE,
+      expiresInSeconds: -1,
+    });
+
+    await expect(failJob(job.jobId, job.leaseToken, FAILURE)).resolves.toBe(
+      false,
+    );
+    expect((await jobRow(job.jobId)).state).toBe("leased");
   });
 });

@@ -4,14 +4,14 @@ import {
   requireMediaPreparationLease,
 } from "$lib/server/media-artifact-staging";
 import { requireWorkerLeaseToken } from "$lib/server/worker-request";
-import type { RequestHandler } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async (event) => {
   const leaseToken = requireWorkerLeaseToken(event);
 
   try {
     const lease = await requireMediaPreparationLease(
-      event.params.jobId!,
+      event.params.jobId,
       leaseToken,
     );
     const source = await openMediaPreparationSource(lease);

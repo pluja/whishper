@@ -10,6 +10,7 @@ import type {
 } from "@anysub/contracts";
 
 import { pool } from "$lib/server/db";
+import { StatusError } from "$lib/server/http-error";
 import { privateEnv } from "$lib/server/env";
 import { resolveDataPath } from "$lib/server/media";
 import { hashToken, withKeyedLock } from "$lib/server/util";
@@ -54,7 +55,7 @@ export async function requireMediaPreparationLease(
         and j.state = 'leased'
         and j.lease_token_hash = $2
         and j.lease_expires_at > now()
-        and j.payload->>'kind' = 'media_prepare'`,
+        and j.kind = 'media_prepare'`,
     [jobId, hashToken(leaseToken)],
   );
   const row = result.rows[0];
@@ -63,12 +64,7 @@ export async function requireMediaPreparationLease(
     row.payload.kind !== "media_prepare" ||
     row.media_original_key !== row.payload.sourceStorageKey
   ) {
-    throw Object.assign(
-      new Error("Media preparation lease is no longer active."),
-      {
-        statusCode: 409,
-      },
-    );
+    throw new StatusError(409, "Media preparation lease is no longer active.");
   }
   return {
     jobId,
@@ -87,6 +83,10 @@ export async function stagedArtifactOffset(
   return file?.isFile() ? file.size : 0;
 }
 
+export function parseUploadInteger(header: string | null): number {
+  return header !== null && /^\d+$/.test(header) ? Number(header) : Number.NaN;
+}
+
 export async function appendArtifactChunk(
   lease: MediaPreparationLease,
   kind: MediaDerivativeKind,
@@ -102,12 +102,11 @@ export async function appendArtifactChunk(
     !Number.isSafeInteger(contentLength) ||
     contentLength <= 0 ||
     contentLength > 32 * 1024 * 1024 ||
+    !Number.isSafeInteger(offset) ||
     offset < 0 ||
     offset + contentLength > uploadLength
   ) {
-    throw Object.assign(new Error("Invalid artifact upload size."), {
-      statusCode: 400,
-    });
+    throw new StatusError(400, "Invalid artifact upload size.");
   }
 
   return withKeyedLock(`${lease.jobId}:${lease.attempt}`, async () => {
@@ -134,9 +133,9 @@ export async function appendArtifactChunk(
 }
 
 function chunkLengthError(): Error {
-  return Object.assign(
-    new Error("Artifact chunk length did not match its headers."),
-    { statusCode: 400 },
+  return new StatusError(
+    400,
+    "Artifact chunk length did not match its headers.",
   );
 }
 
@@ -160,9 +159,7 @@ export async function openMediaPreparationSource(
   const path = resolveDataPath(lease.payload.sourceStorageKey);
   const file = await stat(path);
   if (!file.isFile()) {
-    throw Object.assign(new Error("Source media was not found."), {
-      statusCode: 404,
-    });
+    throw new StatusError(404, "Source media was not found.");
   }
   return {
     stream: Readable.toWeb(

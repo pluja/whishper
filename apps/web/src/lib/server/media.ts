@@ -3,6 +3,7 @@ import { basename, dirname, extname, posix, resolve, sep } from "node:path";
 
 import { pool } from "$lib/server/db";
 import { withTransaction } from "$lib/server/db/transaction";
+import { StatusError } from "$lib/server/http-error";
 import { privateEnv } from "$lib/server/env";
 import {
   enqueueMediaPreparation,
@@ -29,7 +30,7 @@ export function normalizeFilename(value: string): string {
     .replace(/[\u0000-\u001f\u007f]/g, "_")
     .trim();
   if (!leaf || leaf === "." || leaf === "..") {
-    throw new Error("A valid filename is required.");
+    throw new StatusError(400, "A valid filename is required.");
   }
   return leaf.slice(0, 255);
 }
@@ -86,7 +87,8 @@ export async function createUploadProject(input: {
   projectName?: string | null;
   sizeBytes: number;
 }): Promise<string> {
-  if (!SAFE_ID.test(input.uploadId)) throw new Error("Invalid upload ID.");
+  if (!SAFE_ID.test(input.uploadId))
+    throw new StatusError(400, "Invalid upload ID.");
   const filename = normalizeFilename(input.filename);
   return withTransaction(async (client) => {
     const membership = await client.query(
@@ -94,9 +96,7 @@ export async function createUploadProject(input: {
       [input.workspaceId, input.userId],
     );
     if (membership.rowCount !== 1) {
-      throw Object.assign(new Error("Workspace not found."), {
-        statusCode: 404,
-      });
+      throw new StatusError(404, "Workspace not found.");
     }
     const project = await client.query<{ id: string }>(
       `insert into projects (workspace_id, name, media_filename, created_by)
@@ -140,7 +140,7 @@ export async function requireOwnedUpload(
   );
   const upload = result.rows[0];
   if (!upload) {
-    throw Object.assign(new Error("Upload not found."), { statusCode: 404 });
+    throw new StatusError(404, "Upload not found.");
   }
   return upload;
 }
@@ -248,15 +248,6 @@ export async function deleteProjectForUser(
   userId: string,
 ): Promise<boolean> {
   const deleted = await withTransaction(async (client) => {
-    const authorized = await client.query(
-      `select 1
-         from projects p
-         join memberships m on m.workspace_id = p.workspace_id
-        where p.id = $1 and m.user_id = $2
-          and (p.created_by = $2 or m.role in ('owner', 'admin'))`,
-      [projectId, userId],
-    );
-    if (!authorized.rows[0]) return null;
     await lockMediaPreparationProject(client, projectId);
     const jobIds = (
       await client.query<{ id: string }>(
@@ -281,19 +272,6 @@ export async function deleteProjectForUser(
       [projectId, userId],
     );
     if (!project.rows[0]) return null;
-    await client.query(
-      `update jobs
-          set state = 'cancelled',
-              leased_by = null,
-              lease_token_hash = null,
-              lease_expires_at = null,
-              progress_message = 'Project deleted',
-              updated_at = now()
-        where payload->>'kind' = 'media_prepare'
-          and project_id = $1
-          and state in ('queued', 'leased')`,
-      [projectId],
-    );
     await client.query("delete from projects where id = $1", [projectId]);
     return {
       workspaceId: project.rows[0].workspace_id,

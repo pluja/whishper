@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { declaredUploadMediaType, removeStoredUpload } from "./uploads";
+import { StatusError } from "./http-error";
+import {
+  declaredUploadMediaType,
+  removeStoredUpload,
+  tusError,
+} from "./uploads";
 
 describe("declared upload media type", () => {
   it("accepts audio, video and the browser application aliases", () => {
@@ -21,6 +26,27 @@ describe("declared upload media type", () => {
       expect.objectContaining({ status_code: 400 }),
     );
   });
+});
+
+describe("tusError", () => {
+  it("passes client errors through with their reason", () => {
+    expect(
+      tusError(
+        new StatusError(400, "A valid filename is required."),
+        "Failed.",
+      ),
+    ).toEqual({ status_code: 400, body: "A valid filename is required.\n" });
+  });
+
+  it.each([new Error("disk path /secret"), new StatusError(503, "pg down")])(
+    "hides the reason of server failures",
+    (cause) => {
+      expect(tusError(cause, "Upload creation failed.")).toEqual({
+        status_code: cause instanceof StatusError ? 503 : 500,
+        body: "Upload creation failed.\n",
+      });
+    },
+  );
 });
 
 describe("removeStoredUpload", () => {

@@ -4,8 +4,8 @@ import {
   isInstanceInitialized,
   isValidOwnerEmail,
 } from "$lib/server/instance";
-import { fail, redirect, type Actions } from "@sveltejs/kit";
-import type { PageServerLoad } from "./$types";
+import { fail, redirect } from "@sveltejs/kit";
+import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async () => {
   if (await isInstanceInitialized()) redirect(303, "/login");

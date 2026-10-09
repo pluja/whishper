@@ -2,7 +2,8 @@ import { projectForUser, requireUser } from "$lib/server/access";
 import { pool } from "$lib/server/db";
 import { safeMediaType, streamMediaFile } from "$lib/server/media-stream";
 import { resolveDataPath } from "$lib/server/media";
-import { error, type RequestHandler } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ locals, params, request }) => {
   const user = requireUser(locals);

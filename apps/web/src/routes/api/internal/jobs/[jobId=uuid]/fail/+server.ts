@@ -1,7 +1,8 @@
 import { validateJobFailureReport } from "@anysub/contracts";
 import { failJob } from "$lib/server/queue";
 import { readWorkerReport } from "$lib/server/worker-request";
-import { error, json, type RequestHandler } from "@sveltejs/kit";
+import { error, json } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async (event) => {
   const report = await readWorkerReport(
@@ -9,7 +10,7 @@ export const POST: RequestHandler = async (event) => {
     validateJobFailureReport,
     "failure report",
   );
-  if (!(await failJob(event.params.jobId!, report.leaseToken, report.error))) {
+  if (!(await failJob(event.params.jobId, report.leaseToken, report.error))) {
     error(409, "Lease is no longer active");
   }
   return json({ accepted: true });

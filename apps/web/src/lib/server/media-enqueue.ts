@@ -37,7 +37,7 @@ export async function enqueueMediaPreparation(
   const existing = await client.query<{ id: string }>(
     `select id
        from jobs
-      where payload->>'kind' = 'media_prepare'
+      where kind = 'media_prepare'
         and project_id = $1
         and state in ('queued', 'leased')
       order by created_at desc
@@ -114,7 +114,7 @@ export async function cancelMediaPreparationForUser(
          from jobs j
          join projects p on p.id = j.project_id
          join memberships m on m.workspace_id = p.workspace_id
-        where j.payload->>'kind' = 'media_prepare'
+        where j.kind = 'media_prepare'
           and j.project_id = $1
           and j.state in ('queued', 'leased')
           and m.user_id = $2

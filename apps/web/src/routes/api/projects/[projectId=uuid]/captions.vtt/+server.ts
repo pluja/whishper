@@ -1,7 +1,8 @@
 import { pool } from "$lib/server/db";
 import { projectForUser, requireUser } from "$lib/server/access";
 import { renderWebVtt } from "$lib/subtitles";
-import { error, type RequestHandler } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ locals, params }) => {
   const user = requireUser(locals);

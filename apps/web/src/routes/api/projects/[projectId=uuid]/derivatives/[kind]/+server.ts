@@ -6,7 +6,8 @@ import {
   isMediaDerivativeKind,
 } from "$lib/server/media-finalize";
 import { resolveDataPath } from "$lib/server/media";
-import { error, type RequestHandler } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ locals, params, request }) => {
   const user = requireUser(locals);

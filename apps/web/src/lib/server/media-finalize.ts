@@ -12,6 +12,7 @@ import type {
 import type { PoolClient } from "pg";
 
 import { withTransaction } from "$lib/server/db/transaction";
+import { unprocessable } from "$lib/server/http-error";
 import {
   ARTIFACT_LIMITS,
   stagingArtifactPath,
@@ -74,7 +75,7 @@ export async function finalizeMediaPreparation(
   const artifacts = new Map<MediaDerivativeKind, MediaDerivativeUpload>();
   for (const artifact of completion.artifacts) {
     if (artifacts.has(artifact.kind)) {
-      throw new Error(
+      throw unprocessable(
         `Worker returned duplicate ${artifact.kind} derivatives.`,
       );
     }
@@ -82,7 +83,9 @@ export async function finalizeMediaPreparation(
   }
   for (const kind of requiredKinds) {
     if (!artifacts.has(kind)) {
-      throw new Error(`Worker did not upload the required ${kind} derivative.`);
+      throw unprocessable(
+        `Worker did not upload the required ${kind} derivative.`,
+      );
     }
   }
 
@@ -92,7 +95,7 @@ export async function finalizeMediaPreparation(
     input.payload.projectId,
   ]);
   if (project.rows[0]?.media_original_key !== input.payload.sourceStorageKey) {
-    throw new Error(
+    throw unprocessable(
       "Project source changed before media preparation completed.",
     );
   }
@@ -123,7 +126,9 @@ export async function finalizeMediaPreparation(
       );
       const stagedFile = await stat(stagedPath).catch(() => null);
       if (!stagedFile?.isFile() || stagedFile.size !== artifact.sizeBytes) {
-        throw new Error(`Staged ${artifact.kind} derivative is incomplete.`);
+        throw unprocessable(
+          `Staged ${artifact.kind} derivative is incomplete.`,
+        );
       }
 
       const storageKey = derivativeStorageKey(
@@ -275,7 +280,9 @@ function derivativeStorageKey(
 ): string {
   const extension = ARTIFACT_EXTENSIONS[artifact.mediaType];
   if (!extension)
-    throw new Error("Worker returned an unsupported derivative media type.");
+    throw unprocessable(
+      "Worker returned an unsupported derivative media type.",
+    );
   return posix.join(
     "workspaces",
     workspaceId,
@@ -295,7 +302,7 @@ function assertDerivativesAllowed(
       !ARTIFACT_MEDIA_TYPES[artifact.kind].includes(artifact.mediaType) ||
       artifact.sizeBytes > ARTIFACT_LIMITS[artifact.kind]
     ) {
-      throw new Error("Worker returned an invalid derivative manifest.");
+      throw unprocessable("Worker returned an invalid derivative manifest.");
     }
   }
 }

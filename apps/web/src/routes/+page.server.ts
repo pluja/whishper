@@ -7,8 +7,8 @@ import {
   parseProjectLibrarySearch,
 } from "$lib/server/project-library";
 import { isUuid } from "$lib/uuid";
-import { fail, redirect, type Actions } from "@sveltejs/kit";
-import type { PageServerLoad } from "./$types";
+import { fail, redirect } from "@sveltejs/kit";
+import type { Actions, PageServerLoad } from "./$types";
 
 type ProjectRow = {
   id: string;

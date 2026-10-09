@@ -1,6 +1,7 @@
 import { leaseJob, parseWorkerManifest } from "$lib/server/queue";
 import { requireWorker } from "$lib/server/worker-auth";
-import { error, json, type RequestHandler } from "@sveltejs/kit";
+import { error, json } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async (event) => {
   requireWorker(event);

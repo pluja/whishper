@@ -30,6 +30,11 @@ describe("media storage naming", () => {
   });
 
   it("rejects empty and traversal-only names", () => {
-    expect(() => normalizeFilename("../..")).toThrow("valid filename");
+    expect(() => normalizeFilename("../..")).toThrow(
+      expect.objectContaining({
+        statusCode: 400,
+        message: "A valid filename is required.",
+      }),
+    );
   });
 });

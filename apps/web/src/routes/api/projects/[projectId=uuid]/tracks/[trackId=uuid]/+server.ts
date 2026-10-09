@@ -5,13 +5,11 @@ import {
   TrackValidationError,
   updateTrackForUser,
 } from "$lib/server/subtitle-editor";
-import { error, isHttpError, json, type RequestHandler } from "@sveltejs/kit";
+import { error, isHttpError, json } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
 
 export const PUT: RequestHandler = async ({ locals, params, request }) => {
   const user = requireUser(locals);
-  const projectId = params.projectId;
-  const trackId = params.trackId;
-  if (!projectId || !trackId) error(400, "Project and track IDs are required");
 
   let update;
   try {
@@ -28,8 +26,8 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 
   try {
     const revision = await updateTrackForUser(
-      projectId,
-      trackId,
+      params.projectId,
+      params.trackId,
       user.id,
       update,
     );
