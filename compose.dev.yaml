@@ -3,7 +3,7 @@ services:
     build:
       target: development
     volumes:
-      - .:/workspace
+      - .:/workspace:z
       - web-node-modules:/workspace/node_modules
     working_dir: /workspace/apps/web
     command: ["pnpm", "migrate"]
@@ -12,7 +12,7 @@ services:
     build:
       target: development
     volumes:
-      - .:/workspace
+      - .:/workspace:z
       - web-node-modules:/workspace/node_modules
     working_dir: /workspace
     command: ["pnpm", "--filter", "@anysub/web", "dev", "--host", "0.0.0.0"]
@@ -31,7 +31,7 @@ services:
     build:
       target: development
     volumes:
-      - ./workers/inference:/workspace
+      - ./workers/inference:/workspace:z
       - worker-venv:/workspace/.venv
       - app-data:/data:ro
       - model-cache:/models

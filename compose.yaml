@@ -2,7 +2,7 @@ name: anysub
 
 services:
   postgres:
-    image: postgres:17.5-bookworm
+    image: docker.io/library/postgres:17.5-bookworm
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-anysub}

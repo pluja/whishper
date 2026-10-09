@@ -1,4 +1,4 @@
-FROM python:3.12.11-slim-bookworm AS base
+FROM docker.io/library/python:3.12.11-slim-bookworm AS base
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.25 /uv /uvx /bin/
 
@@ -38,7 +38,7 @@ COPY workers/inference/src ./src
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --extra speech --extra "$ANYSUB_ACCELERATOR" --no-editable
 
-FROM python:3.12.11-slim-bookworm AS runtime
+FROM docker.io/library/python:3.12.11-slim-bookworm AS runtime
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \

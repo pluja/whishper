@@ -18,7 +18,7 @@ Anysub is a ground-up rewrite of [Whishper](https://github.com/pluja/whishper). 
 
 ## What you need
 
-- A machine running Linux with Docker Engine and Docker Compose.
+- A machine running Linux with Docker Engine or Podman, and Docker Compose.
 - Disk space for your media, plus a few gigabytes for the speech models.
 - Patience on the first run. Anysub downloads the model you choose, then keeps it.
 
@@ -38,6 +38,32 @@ docker compose up --build
 The setup script writes a `.env` file with passwords unique to your installation. Anysub refuses to start without it, which keeps anyone from reaching a server that still uses the examples from this repository.
 
 Open `http://localhost:5173` and create your account. The first account you make owns the installation.
+
+### Fedora with Podman
+
+Use rootless Podman with Docker Compose as its provider:
+
+```sh
+sudo dnf install podman docker-compose
+systemctl --user enable --now podman.socket
+export PODMAN_COMPOSE_PROVIDER=/usr/libexec/docker/cli-plugins/docker-compose
+./scripts/init-env.sh # skip if .env already exists
+podman compose up --build -d
+```
+
+Open `http://localhost:5173`. Use `podman compose logs -f` to follow logs and
+`podman compose down` to stop the stack while keeping its data. To start it
+again after a reboot, run `podman compose up -d`.
+
+The Compose files use fully qualified image names, and the development
+overlay labels its source bind mounts for SELinux. Keep SELinux enabled. Docker
+Compose is required as the provider for the development overlay's `!override`
+tag and migration completion dependency.
+
+For development, run `make COMPOSE_ENGINE='podman compose' dev`. The same
+setting works with `check`, `test`, `lint`, `verify`, and `down`. The NVIDIA
+overlay in `compose.cuda.yaml` uses Docker GPU reservations and is intended
+for Docker Engine; the Podman commands above run the CPU worker.
 
 Running Anysub behind a reverse proxy or on another machine? Set `BETTER_AUTH_URL` in `.env` to the address people will type in their browser, including the port.
 

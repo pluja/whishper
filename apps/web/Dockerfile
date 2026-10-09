@@ -1,4 +1,4 @@
-FROM node:24.6.0-bookworm-slim AS base
+FROM docker.io/library/node:24.6.0-bookworm-slim AS base
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -29,7 +29,7 @@ COPY . .
 RUN pnpm --filter @anysub/web build \
     && pnpm --filter @anysub/web deploy --prod /opt/anysub
 
-FROM node:24.6.0-bookworm-slim AS runtime
+FROM docker.io/library/node:24.6.0-bookworm-slim AS runtime
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \

@@ -1,7 +1,8 @@
 # Thin wrappers around the development commands. Every recipe is a single
 # documented command, so `make -n <target>` shows exactly what will run.
 
-COMPOSE := docker compose -f compose.yaml -f compose.dev.yaml
+COMPOSE_ENGINE ?= docker compose
+COMPOSE := $(COMPOSE_ENGINE) -f compose.yaml -f compose.dev.yaml
 
 .DEFAULT_GOAL := help
 .PHONY: help dev down check test lint verify
