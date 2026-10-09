@@ -13,7 +13,7 @@ import {
 
 const manifest = {
   protocolVersion: WORKER_PROTOCOL_VERSION,
-  workerId: "worker-1",
+  workerId: "df5e0394-88e1-4ff1-8033-c0a670f0633e",
   name: "Local worker",
   version: "0.1.0",
   architecture: "x86_64",

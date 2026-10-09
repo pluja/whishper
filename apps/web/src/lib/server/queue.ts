@@ -16,17 +16,23 @@ import type { PoolClient } from "pg";
 import type { MediaFinalizationPlan } from "$lib/server/media-preparation";
 
 import { pool } from "$lib/server/db";
+import { insertCues } from "$lib/server/cues";
 import { withTransaction } from "$lib/server/db/transaction";
 import { hashToken } from "$lib/server/util";
 import {
   commitMediaFinalization,
-  cleanupStagedMediaArtifacts,
   cleanupStagedMediaAttempt,
   finalizeMediaPreparation,
   rollbackMediaFinalization,
 } from "$lib/server/media-preparation";
 
 const LEASE_SECONDS = 60;
+
+const LEASE_EXPIRED_FAILURE: JobFailure = {
+  code: "lease_expired",
+  message: "Worker lease expired",
+  retryable: false,
+};
 
 type LeasableJob = {
   id: string;
@@ -161,22 +167,18 @@ export async function completeJob(
         workspace_id: string;
         attempts: number;
         payload: WorkerJobPayload;
+        lease_accepted: boolean;
       }>(
-        `select state, run_id, workspace_id, attempts, payload
+        `select state, run_id, workspace_id, attempts, payload,
+                (state = 'leased' and lease_token_hash = $2
+                 and lease_expires_at > now()) as lease_accepted
          from jobs where id = $1 for update`,
-        [jobId],
+        [jobId, hashToken(leaseToken)],
       );
       const job = locked.rows[0];
       if (!job) return "lease-rejected";
       if (job.state === "completed") return "already-completed";
-
-      const accepted = await client.query(
-        `select 1 from jobs
-        where id = $1 and state = 'leased'
-          and lease_token_hash = $2 and lease_expires_at > now()`,
-        [jobId, hashToken(leaseToken)],
-      );
-      if (accepted.rowCount !== 1) return "lease-rejected";
+      if (!job.lease_accepted) return "lease-rejected";
 
       if (job.payload.kind === "transcribe") {
         if (completion.kind !== "transcribe") {
@@ -217,7 +219,9 @@ export async function completeJob(
       return "completed";
     });
     if (outcome === "completed" && mediaFinalization) {
-      await commitMediaFinalization(mediaFinalization).catch(() => undefined);
+      await commitMediaFinalization(mediaFinalization).catch((cause) => {
+        console.warn(`Could not finalize media for job ${jobId}`, cause);
+      });
     }
     return outcome;
   } catch (cause) {
@@ -255,20 +259,7 @@ async function storeTranscriptCompletion(
     ],
   );
 
-  for (const [position, cue] of artifact.cues.entries()) {
-    await client.query(
-      `insert into cues (track_id, position, start_us, end_us, text, words)
-       values ($1, $2, $3, $4, $5, $6)`,
-      [
-        track.rows[0].id,
-        position,
-        cue.startUs,
-        cue.endUs,
-        cue.text,
-        JSON.stringify(cue.words),
-      ],
-    );
-  }
+  await insertCues(client, track.rows[0].id, artifact.cues);
 }
 
 export async function failJob(
@@ -303,20 +294,7 @@ export async function failJob(
     );
     const job = updated.rows[0];
     if (!job) return null;
-    if (job.state === "failed" && job.run_id) {
-      await client.query(
-        `update transcription_runs set status = 'failed' where id = $1`,
-        [job.run_id],
-      );
-    }
-    if (job.payload.kind === "media_prepare") {
-      await client.query(
-        `update projects
-            set media_preparation_status = $2, updated_at = now()
-          where id = $1`,
-        [job.payload.projectId, job.state === "failed" ? "failed" : "queued"],
-      );
-    }
+    await syncJobSubject(client, job);
     return job;
   });
   if (!job) return false;
@@ -356,6 +334,7 @@ async function reclaimExpiredLeases(
 ): Promise<ReclaimedMediaAttempt[]> {
   const reclaimed = await client.query<{
     id: string;
+    run_id: string | null;
     state: string;
     attempts: number;
     payload: WorkerJobPayload;
@@ -367,25 +346,44 @@ async function reclaimExpiredLeases(
             lease_token_hash = null,
             lease_expires_at = null,
             progress_message = 'Worker lease expired',
+            error = case
+              when attempts < max_attempts then error
+              else $1::jsonb
+            end,
             updated_at = now()
       where state = 'leased' and lease_expires_at <= now()
-      returning id, state, attempts, payload`,
+      returning id, run_id, state, attempts, payload`,
+    [JSON.stringify(LEASE_EXPIRED_FAILURE)],
   );
+  for (const job of reclaimed.rows) await syncJobSubject(client, job);
   const mediaJobs = reclaimed.rows.filter(
     (job) => job.payload.kind === "media_prepare",
   );
-  for (const job of mediaJobs) {
-    await client.query(
-      `update projects
-          set media_preparation_status = $2, updated_at = now()
-        where id = $1`,
-      [job.payload.projectId, job.state === "failed" ? "failed" : "queued"],
-    );
-  }
   return mediaJobs.map((job) => ({
     jobId: job.id,
     attempt: job.attempts,
   }));
+}
+
+async function syncJobSubject(
+  client: PoolClient,
+  job: { run_id: string | null; state: string; payload: WorkerJobPayload },
+): Promise<void> {
+  const failed = job.state === "failed";
+  if (job.run_id) {
+    await client.query(
+      `update transcription_runs set status = $2 where id = $1`,
+      [job.run_id, failed ? "failed" : "queued"],
+    );
+  }
+  if (job.payload.kind === "media_prepare") {
+    await client.query(
+      `update projects
+          set media_preparation_status = $2, updated_at = now()
+        where id = $1`,
+      [job.payload.projectId, failed ? "failed" : "queued"],
+    );
+  }
 }
 
 async function cleanupReclaimedArtifacts(

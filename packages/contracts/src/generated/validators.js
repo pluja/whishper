@@ -7,7 +7,11 @@ const schema20 = {
   additionalProperties: false,
   properties: {
     protocolVersion: { $ref: "#/$defs/WorkerProtocolVersion", default: "1.0" },
-    workerId: { minLength: 1, type: "string" },
+    workerId: {
+      pattern:
+        "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      type: "string",
+    },
     name: { minLength: 1, type: "string" },
     version: { minLength: 1, type: "string" },
     architecture: { type: "string" },
@@ -440,7 +444,7 @@ const schema26 = {
   type: "object",
 };
 const func1 = Object.prototype.hasOwnProperty;
-const pattern4 = new RegExp("^[a-zA-Z0-9][a-zA-Z0-9._/-]*$", "u");
+const pattern5 = new RegExp("^[a-zA-Z0-9][a-zA-Z0-9._/-]*$", "u");
 const schema27 = {
   enum: ["transcribe", "align"],
   title: "AdapterCapability",
@@ -704,7 +708,7 @@ function validate63(
           }
           errors++;
         }
-        if (!pattern4.test(data0)) {
+        if (!pattern5.test(data0)) {
           const err12 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/properties/id/pattern",
@@ -1386,7 +1390,7 @@ validate63.evaluated = {
   dynamicProps: false,
   dynamicItems: false,
 };
-const pattern3 = new RegExp("^[a-z0-9][a-z0-9._-]*$", "u");
+const pattern4 = new RegExp("^[a-z0-9][a-z0-9._-]*$", "u");
 function validate60(
   data,
   {
@@ -1556,7 +1560,7 @@ function validate60(
           }
           errors++;
         }
-        if (!pattern3.test(data1)) {
+        if (!pattern4.test(data1)) {
           const err8 = {
             instancePath: instancePath + "/id",
             schemaPath: "#/properties/id/pattern",
@@ -2756,6 +2760,10 @@ validate68.evaluated = {
   dynamicProps: false,
   dynamicItems: false,
 };
+const pattern3 = new RegExp(
+  "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+  "u",
+);
 function validate129(
   data,
   {
@@ -2942,13 +2950,19 @@ function validate129(
     if (data.workerId !== undefined) {
       let data1 = data.workerId;
       if (typeof data1 === "string") {
-        if (data1.length < 1) {
+        if (!pattern3.test(data1)) {
           const err9 = {
             instancePath: instancePath + "/workerId",
-            schemaPath: "#/properties/workerId/minLength",
-            keyword: "minLength",
-            params: { limit: 1 },
-            message: "must NOT have fewer than 1 characters",
+            schemaPath: "#/properties/workerId/pattern",
+            keyword: "pattern",
+            params: {
+              pattern:
+                "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            },
+            message:
+              'must match pattern "' +
+              "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" +
+              '"',
           };
           if (vErrors === null) {
             vErrors = [err9];

@@ -129,7 +129,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     `select state, progress, progress_message, error
        from jobs
       where payload->>'kind' = 'media_prepare'
-        and payload->>'projectId' = $1
+        and project_id = $1
       order by created_at desc
       limit 1`,
     [params.projectId],
@@ -286,10 +286,11 @@ export const actions: Actions = {
           ],
         );
         await client.query(
-          `insert into jobs (workspace_id, run_id, kind, payload)
-         values ($1, $2, 'transcribe', $3)`,
+          `insert into jobs (workspace_id, project_id, run_id, kind, payload)
+         values ($1, $2, $3, 'transcribe', $4)`,
           [
             ownedProject.workspace_id,
+            ownedProject.id,
             run.rows[0].id,
             JSON.stringify({
               kind: "transcribe",

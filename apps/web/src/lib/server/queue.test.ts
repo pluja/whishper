@@ -58,6 +58,12 @@ describe("worker manifest validation", () => {
     expect(parsed.hardware).toBeNull();
   });
 
+  it("rejects a worker id that is not a UUID", () => {
+    expect(() =>
+      parseWorkerManifest({ ...manifest, workerId: "not-a-uuid" }),
+    ).toThrow("/workerId");
+  });
+
   it("rejects an unknown worker protocol", () => {
     expect(() =>
       parseWorkerManifest({ ...manifest, protocolVersion: "2.0" }),

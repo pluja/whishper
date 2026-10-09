@@ -38,6 +38,12 @@ WireInt = Annotated[int, Field(ge=-MAX_WIRE_INTEGER, le=MAX_WIRE_INTEGER)]
 NonNegativeWireInt = Annotated[int, Field(ge=0, le=MAX_WIRE_INTEGER)]
 PositiveWireInt = Annotated[int, Field(gt=0, le=MAX_WIRE_INTEGER)]
 
+# A pattern, not format: uuid, so the generated standalone validators need no format plugin.
+UuidString = Annotated[
+    str,
+    Field(pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"),
+]
+
 
 class AdapterCapability(StrEnum):
     TRANSCRIBE = "transcribe"
@@ -120,7 +126,7 @@ class WorkerManifest(StrictModel):
     protocol_version: WorkerProtocolVersion = Field(
         default=WORKER_PROTOCOL_VERSION, alias="protocolVersion"
     )
-    worker_id: str = Field(alias="workerId", min_length=1)
+    worker_id: UuidString = Field(alias="workerId")
     name: str = Field(min_length=1)
     version: str = Field(min_length=1)
     architecture: str

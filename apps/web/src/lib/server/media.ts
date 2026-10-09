@@ -260,7 +260,7 @@ export async function deleteProjectForUser(
       await client.query<{ id: string }>(
         `select id
            from jobs
-          where payload->>'projectId' = $1
+          where project_id = $1
           for update`,
         [projectId],
       )
@@ -288,7 +288,7 @@ export async function deleteProjectForUser(
               progress_message = 'Project deleted',
               updated_at = now()
         where payload->>'kind' = 'media_prepare'
-          and payload->>'projectId' = $1
+          and project_id = $1
           and state in ('queued', 'leased')`,
       [projectId],
     );

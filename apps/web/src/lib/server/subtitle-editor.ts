@@ -1,3 +1,4 @@
+import { insertCues } from "$lib/server/cues";
 import { withTransaction } from "$lib/server/db/transaction";
 import { isRecord } from "$lib/server/util";
 import type { SubtitleCueSnapshot } from "$lib/subtitles";
@@ -133,30 +134,7 @@ export async function updateTrackForUser(
     });
 
     await client.query("delete from cues where track_id = $1", [trackId]);
-    if (storedCues.length) {
-      await client.query(
-        `insert into cues (id, track_id, position, start_us, end_us, text, words)
-         select value.id::uuid, $1, value.position, value.start_us,
-                value.end_us, value.text, value.words
-           from jsonb_to_recordset($2::jsonb) as value(
-             id text, position integer, start_us bigint, end_us bigint,
-             text text, words jsonb
-           )`,
-        [
-          trackId,
-          JSON.stringify(
-            storedCues.map((cue) => ({
-              id: cue.id,
-              position: cue.position,
-              start_us: cue.startUs,
-              end_us: cue.endUs,
-              text: cue.text,
-              words: cue.words,
-            })),
-          ),
-        ],
-      );
-    }
+    await insertCues(client, trackId, storedCues);
     const updated = await client.query<{ revision: number }>(
       `update subtitle_tracks
           set revision = revision + 1, updated_at = now()

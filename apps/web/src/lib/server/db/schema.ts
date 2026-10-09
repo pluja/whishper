@@ -277,6 +277,9 @@ export const jobs = pgTable(
     runId: uuid("run_id").references(() => transcriptionRuns.id, {
       onDelete: "cascade",
     }),
+    projectId: uuid("project_id").references(() => projects.id, {
+      onDelete: "cascade",
+    }),
     kind: text("kind").notNull(),
     state: text("state").notNull().default("queued"),
     priority: integer("priority").notNull().default(0),
@@ -311,6 +314,7 @@ export const jobs = pgTable(
       table.createdAt,
     ),
     index("jobs_run_idx").on(table.runId),
+    index("jobs_project_idx").on(table.projectId, table.kind, table.state),
     check(
       "jobs_progress_check",
       sql`${table.progress} >= 0 and ${table.progress} <= 1`,

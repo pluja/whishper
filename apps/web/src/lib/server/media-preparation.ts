@@ -112,7 +112,7 @@ export async function enqueueMediaPreparation(
     `select id
        from jobs
       where payload->>'kind' = 'media_prepare'
-        and payload->>'projectId' = $1
+        and project_id = $1
         and state in ('queued', 'leased')
       order by created_at desc
       limit 1`,
@@ -130,10 +130,10 @@ export async function enqueueMediaPreparation(
       : {}),
   };
   const job = await client.query<{ id: string }>(
-    `insert into jobs (workspace_id, kind, payload)
-     values ($1, 'media_prepare', $2)
+    `insert into jobs (workspace_id, project_id, kind, payload)
+     values ($1, $2, 'media_prepare', $3)
      returning id`,
-    [input.workspaceId, JSON.stringify(payload)],
+    [input.workspaceId, input.projectId, JSON.stringify(payload)],
   );
   await client.query(
     `update projects
@@ -186,10 +186,10 @@ export async function cancelMediaPreparationForUser(
     const active = await client.query<{ id: string; prepared: boolean }>(
       `select j.id, (p.media_probe is not null) as prepared
          from jobs j
-         join projects p on p.id = (j.payload->>'projectId')::uuid
+         join projects p on p.id = j.project_id
          join memberships m on m.workspace_id = p.workspace_id
         where j.payload->>'kind' = 'media_prepare'
-          and j.payload->>'projectId' = $1
+          and j.project_id = $1
           and j.state in ('queued', 'leased')
           and m.user_id = $2
         order by j.created_at desc
@@ -234,7 +234,7 @@ export async function requireMediaPreparationLease(
     `select j.attempts, j.workspace_id, j.payload, upload.media_type,
             p.media_original_key
        from jobs j
-       join projects p on p.id = (j.payload->>'projectId')::uuid
+       join projects p on p.id = j.project_id
        left join media_uploads upload on upload.project_id = p.id
       where j.id = $1
         and j.state = 'leased'
