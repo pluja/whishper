@@ -128,13 +128,13 @@ Local workers may read project assets through a read-only shared mount. Remote w
 
 PostgreSQL stores durable runs, stages, attempts, leases, progress, cancellation requests, and errors. The application performs lease transactions and exposes them through the worker API.
 
-One user-visible run contains durable stages:
+The built jobs are `transcribe` and `media_prepare`. A `transcribe` job runs ASR and alignment as one job. Planned: separate durable stages, with diarization as an optional one:
 
 ```text
 prepare -> transcribe -> align -> diarize? -> segment -> finalize
 ```
 
-Translation, proxy creation, export, purge, and URL import also use durable jobs.
+Proxy creation runs inside `media_prepare`. Planned as durable jobs: translation, export, purge, and URL import.
 
 The scheduler provides FIFO order within a workspace and fair rotation across workspaces. It prefers worker affinity between related stages without making affinity a correctness requirement.
 
@@ -316,7 +316,7 @@ Authentication stays enabled in every deployment. Public sign-up is disabled. Th
 
 Better Auth manages identities, password credentials, secure cookies, and database sessions. Anysub owns workspaces, memberships, and authorization checks. Invitations are planned.
 
-V1 requires no SMTP. Administrators copy invitation and password-reset links. SMTP, passkeys, OIDC, and SSO remain future additions.
+V1 requires no SMTP. Password reset and invitations are not built. Planned: administrators copy invitation and password-reset links. SMTP, passkeys, OIDC, and SSO remain future additions.
 
 One active editor lease protects a track from concurrent changes. Other users may view the track and an authorized member may take over an abandoned lease. V1 does not implement real-time co-editing.
 
@@ -338,7 +338,7 @@ The application exposes health and readiness endpoints. Administrators can downl
 
 The public REST API covers stable automation workflows and uses a versioned namespace. Scoped personal access tokens authenticate API clients. Anysub publishes an OpenAPI document.
 
-The editor may use private endpoints while patch and collaboration semantics mature. Worker enrollment, leases, artifact transfers, and results live under a separate internal API namespace.
+The editor may use private endpoints while patch and collaboration semantics mature. Leases, artifact transfers, and results live under `/api/internal`, authenticated by the shared worker token. Worker enrollment is planned.
 
 ## Operations
 

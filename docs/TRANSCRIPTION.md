@@ -70,6 +70,6 @@ docker compose ps
 docker compose logs -f worker
 ```
 
-During a run, the project page shows the current stage and progress. On failure it shows the adapter error and allows another run. The worker retries errors marked transient up to the job’s attempt limit, which is three. Errors that a retry cannot fix fail at once: FFmpeg timeouts, CUDA out-of-memory, and rejected requests. A worker that receives SIGTERM returns its job to the queue before exiting.
+During a run, the project page shows the current stage and progress. On failure it shows the adapter error and allows another run. The worker retries errors marked transient up to the job’s attempt limit, which is three. Errors that a retry cannot fix fail at once: FFmpeg timeouts, CUDA out-of-memory, and rejected requests. A worker that receives SIGTERM reports its job as a retryable failure before exiting, so the job returns to the queue while attempts remain and fails once they run out.
 
 If the project says it is waiting for a speech worker, confirm the worker is running and that its logs list the `whisperx` adapter. If forced alignment cannot run for a language, Anysub keeps the unaligned cues and records the reason in the run metadata. If a first model download fails, verify outbound access to Hugging Face and retry the transcription.
