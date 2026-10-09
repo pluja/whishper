@@ -1,17 +1,34 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-ADAPTER_PROTOCOL_VERSION = "1.0"
-WORKER_PROTOCOL_VERSION = "1.0"
-MEDIA_PREPARATION_VERSION = "1.0"
+type AdapterProtocolVersion = Literal["1.0"]
+type WorkerProtocolVersion = Literal["1.0"]
+type MediaPreparationVersion = Literal["1.0"]
+type TranscriptSchemaVersion = Literal["1.0"]
+
+ADAPTER_PROTOCOL_VERSION: Final[AdapterProtocolVersion] = "1.0"
+WORKER_PROTOCOL_VERSION: Final[WorkerProtocolVersion] = "1.0"
+MEDIA_PREPARATION_VERSION: Final[MediaPreparationVersion] = "1.0"
+TRANSCRIPT_SCHEMA_VERSION: Final[TranscriptSchemaVersion] = "1.0"
 
 
+# Defaulted fields count as required in the serialization schema because the
+# worker always emits them, which is what the application receives.
 class StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+        json_schema_serialization_defaults_required=True,
+    )
+
+
+# Application messages may gain fields before deployed workers are upgraded.
+class InboundModel(BaseModel):
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
 
 class AdapterCapability(StrEnum):
@@ -33,7 +50,7 @@ class AdapterModel(StrictModel):
 
 
 class AdapterManifest(StrictModel):
-    protocol_version: Literal["1.0"] = Field(
+    protocol_version: AdapterProtocolVersion = Field(
         default=ADAPTER_PROTOCOL_VERSION, alias="protocolVersion"
     )
     id: str = Field(min_length=1, pattern=r"^[a-z0-9][a-z0-9._-]*$")
@@ -85,6 +102,25 @@ class WorkerHardware(StrictModel):
     gpus: tuple[WorkerGpu, ...] = ()
 
 
+class WorkerCapabilities(StrictModel):
+    media_preparation: MediaPreparationVersion | None = Field(
+        default=None, alias="mediaPreparation"
+    )
+
+
+class WorkerManifest(StrictModel):
+    protocol_version: WorkerProtocolVersion = Field(
+        default=WORKER_PROTOCOL_VERSION, alias="protocolVersion"
+    )
+    worker_id: str = Field(alias="workerId", min_length=1)
+    name: str = Field(min_length=1)
+    version: str = Field(min_length=1)
+    architecture: str
+    capabilities: WorkerCapabilities = Field(default_factory=WorkerCapabilities)
+    adapters: tuple[AdapterManifest, ...] = ()
+    hardware: WorkerHardware | None = None
+
+
 class TranscriptionRequest(StrictModel):
     job_id: str = Field(alias="jobId")
     project_id: str = Field(alias="projectId")
@@ -127,8 +163,10 @@ class TranscriptCue(StrictModel):
 
 
 class TranscriptArtifact(StrictModel):
-    schema_version: Literal["1.0"] = Field(default="1.0", alias="schemaVersion")
-    language: str
+    schema_version: TranscriptSchemaVersion = Field(
+        default=TRANSCRIPT_SCHEMA_VERSION, alias="schemaVersion"
+    )
+    language: str = Field(min_length=1)
     duration_us: Annotated[int, Field(ge=0)] = Field(alias="durationUs")
     cues: tuple[TranscriptCue, ...]
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -171,7 +209,9 @@ class MediaProbeStream(StrictModel):
 
 
 class MediaProbeArtifact(StrictModel):
-    schema_version: Literal["1.0"] = Field(default=MEDIA_PREPARATION_VERSION, alias="schemaVersion")
+    schema_version: MediaPreparationVersion = Field(
+        default=MEDIA_PREPARATION_VERSION, alias="schemaVersion"
+    )
     duration_us: Annotated[int, Field(ge=0)] = Field(alias="durationUs")
     start_us: int | None = Field(default=None, alias="startUs")
     format_names: tuple[str, ...] = Field(alias="formatNames")
@@ -188,14 +228,16 @@ class MediaDerivativeUpload(StrictModel):
     kind: Literal["waveform", "thumbnail", "proxy"]
     media_type: str = Field(alias="mediaType")
     size_bytes: Annotated[int, Field(gt=0)] = Field(alias="sizeBytes")
-    schema_version: Literal["1.0"] = Field(default=MEDIA_PREPARATION_VERSION, alias="schemaVersion")
-    generator_version: Literal["1.0"] = Field(
+    schema_version: MediaPreparationVersion = Field(
+        default=MEDIA_PREPARATION_VERSION, alias="schemaVersion"
+    )
+    generator_version: MediaPreparationVersion = Field(
         default=MEDIA_PREPARATION_VERSION, alias="generatorVersion"
     )
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class TranscriptionJobPayload(StrictModel):
+class TranscriptionJobPayload(InboundModel):
     kind: Literal["transcribe"]
     adapter_id: str = Field(alias="adapterId")
     model_id: str = Field(alias="modelId")
@@ -206,7 +248,7 @@ class TranscriptionJobPayload(StrictModel):
     options: dict[str, Any] = Field(default_factory=dict)
 
 
-class MediaPreparationJobPayload(StrictModel):
+class MediaPreparationJobPayload(InboundModel):
     kind: Literal["media_prepare"]
     project_id: str = Field(alias="projectId")
     source_storage_key: str = Field(alias="sourceStorageKey")
@@ -214,23 +256,32 @@ class MediaPreparationJobPayload(StrictModel):
     source_media_type: str | None = Field(default=None, alias="sourceMediaType")
 
 
-class WorkerLease(StrictModel):
+type WorkerJobPayload = TranscriptionJobPayload | MediaPreparationJobPayload
+
+
+class WorkerLease(InboundModel):
     job_id: str = Field(alias="jobId")
     attempt: int = Field(ge=1)
     lease_token: str = Field(alias="leaseToken")
     lease_expires_at: str = Field(alias="leaseExpiresAt")
-    payload: TranscriptionJobPayload | MediaPreparationJobPayload
+    payload: WorkerJobPayload
 
 
-class LeaseResponse(StrictModel):
+class LeaseResponse(InboundModel):
     lease: WorkerLease | None
     poll_after_ms: int = Field(default=2_000, alias="pollAfterMs", ge=100)
+
+
+class AdapterReference(StrictModel):
+    id: str = Field(min_length=1)
+    version: str = Field(min_length=1)
+    model_id: str = Field(alias="modelId", min_length=1)
 
 
 class TranscriptionJobCompletion(StrictModel):
     kind: Literal["transcribe"] = "transcribe"
     artifact: TranscriptArtifact
-    adapter: dict[str, str]
+    adapter: AdapterReference
 
 
 class MediaGenerator(StrictModel):
@@ -249,3 +300,22 @@ class JobFailure(StrictModel):
     code: str
     message: str
     retryable: bool
+
+
+type JobCompletion = TranscriptionJobCompletion | MediaPreparationJobCompletion
+
+
+class JobProgressReport(StrictModel):
+    lease_token: str = Field(alias="leaseToken", min_length=1)
+    progress: float = Field(ge=0, le=1)
+    message: str
+
+
+class JobCompletionReport(StrictModel):
+    lease_token: str = Field(alias="leaseToken", min_length=1)
+    result: JobCompletion
+
+
+class JobFailureReport(StrictModel):
+    lease_token: str = Field(alias="leaseToken", min_length=1)
+    error: JobFailure

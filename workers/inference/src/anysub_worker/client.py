@@ -10,12 +10,19 @@ import httpx
 from .config import WorkerSettings
 from .hardware import detect_hardware
 from .models import (
+    MEDIA_PREPARATION_VERSION,
+    JobCompletionReport,
     JobFailure,
+    JobFailureReport,
+    JobProgressReport,
     LeaseResponse,
     MediaPreparationJobCompletion,
+    StrictModel,
     TranscriptArtifact,
     TranscriptionJobCompletion,
+    WorkerCapabilities,
     WorkerLease,
+    WorkerManifest,
 )
 from .registry import AdapterRegistry
 
@@ -38,33 +45,25 @@ class ApplicationClient:
         await self._client.aclose()
 
     async def lease(self) -> LeaseResponse:
-        response = await self._client.post(
-            "/api/internal/workers/lease",
-            json={
-                "protocolVersion": "1.0",
-                "workerId": self.worker_id,
-                "name": self._settings.worker_name,
-                "version": WORKER_VERSION,
-                "architecture": platform.machine(),
-                "capabilities": {"mediaPreparation": "1.0"},
-                "adapters": [
-                    adapter.manifest.model_dump(by_alias=True, mode="json")
-                    for adapter in self._registry.adapters
-                ],
-                "hardware": detect_hardware(self._settings).model_dump(by_alias=True, mode="json"),
-            },
+        manifest = WorkerManifest(
+            workerId=self.worker_id,
+            name=self._settings.worker_name,
+            version=WORKER_VERSION,
+            architecture=platform.machine(),
+            capabilities=WorkerCapabilities(mediaPreparation=MEDIA_PREPARATION_VERSION),
+            adapters=tuple(adapter.manifest for adapter in self._registry.adapters),
+            hardware=detect_hardware(self._settings),
         )
+        response = await self._client.post("/api/internal/workers/lease", json=_wire(manifest))
         response.raise_for_status()
         return LeaseResponse.model_validate(response.json())
 
     async def progress(self, lease: WorkerLease, progress: float, message: str) -> None:
         response = await self._client.post(
             f"/api/internal/jobs/{lease.job_id}/progress",
-            json={
-                "leaseToken": lease.lease_token,
-                "progress": progress,
-                "message": message,
-            },
+            json=_wire(
+                JobProgressReport(leaseToken=lease.lease_token, progress=progress, message=message)
+            ),
         )
         response.raise_for_status()
 
@@ -164,22 +163,20 @@ class ApplicationClient:
     ) -> None:
         response = await self._client.post(
             f"/api/internal/jobs/{lease.job_id}/complete",
-            json={
-                "leaseToken": lease.lease_token,
-                "result": completion.model_dump(by_alias=True, mode="json"),
-            },
+            json=_wire(JobCompletionReport(leaseToken=lease.lease_token, result=completion)),
         )
         response.raise_for_status()
 
     async def fail(self, lease: WorkerLease, failure: JobFailure) -> None:
         response = await self._client.post(
             f"/api/internal/jobs/{lease.job_id}/fail",
-            json={
-                "leaseToken": lease.lease_token,
-                "error": failure.model_dump(by_alias=True, mode="json"),
-            },
+            json=_wire(JobFailureReport(leaseToken=lease.lease_token, error=failure)),
         )
         response.raise_for_status()
+
+
+def _wire(message: StrictModel) -> dict[str, object]:
+    return message.model_dump(by_alias=True, mode="json")
 
 
 def _load_or_create_worker_id(path: Path) -> str:

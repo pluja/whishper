@@ -1,0 +1,1202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "AdapterCapability": {
+      "enum": [
+        "transcribe",
+        "align"
+      ],
+      "title": "AdapterCapability",
+      "type": "string"
+    },
+    "AdapterManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "protocolVersion": {
+          "$ref": "#/$defs/AdapterProtocolVersion",
+          "default": "1.0"
+        },
+        "id": {
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "type": "string"
+        },
+        "displayName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "models": {
+          "items": {
+            "$ref": "#/$defs/AdapterModel"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "id",
+        "displayName",
+        "version",
+        "description",
+        "models"
+      ],
+      "title": "AdapterManifest",
+      "type": "object"
+    },
+    "AdapterModel": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._/-]*$",
+          "type": "string"
+        },
+        "displayName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "capabilities": {
+          "items": {
+            "$ref": "#/$defs/AdapterCapability"
+          },
+          "type": "array"
+        },
+        "languages": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "const": "all",
+              "type": "string"
+            }
+          ],
+          "default": "all"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "parameterCount": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "requiredVramBytes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "recommendedRamBytes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "downloaded": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "optionsSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "displayName",
+        "capabilities",
+        "languages",
+        "description",
+        "parameterCount",
+        "requiredVramBytes",
+        "recommendedRamBytes",
+        "downloaded",
+        "optionsSchema"
+      ],
+      "title": "AdapterModel",
+      "type": "object"
+    },
+    "AdapterProtocolVersion": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "AdapterReference": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "modelId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "modelId"
+      ],
+      "title": "AdapterReference",
+      "type": "object"
+    },
+    "JobCompletion": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TranscriptionJobCompletion"
+        },
+        {
+          "$ref": "#/$defs/MediaPreparationJobCompletion"
+        }
+      ]
+    },
+    "JobCompletionReport": {
+      "additionalProperties": false,
+      "properties": {
+        "leaseToken": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/JobCompletion"
+        }
+      },
+      "required": [
+        "leaseToken",
+        "result"
+      ],
+      "title": "JobCompletionReport",
+      "type": "object"
+    },
+    "JobFailure": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "title": "JobFailure",
+      "type": "object"
+    },
+    "JobFailureReport": {
+      "additionalProperties": false,
+      "properties": {
+        "leaseToken": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "error": {
+          "$ref": "#/$defs/JobFailure"
+        }
+      },
+      "required": [
+        "leaseToken",
+        "error"
+      ],
+      "title": "JobFailureReport",
+      "type": "object"
+    },
+    "JobProgressReport": {
+      "additionalProperties": false,
+      "properties": {
+        "leaseToken": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "progress": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "leaseToken",
+        "progress",
+        "message"
+      ],
+      "title": "JobProgressReport",
+      "type": "object"
+    },
+    "LeaseResponse": {
+      "properties": {
+        "lease": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkerLease"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pollAfterMs": {
+          "default": 2000,
+          "minimum": 100,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "lease"
+      ],
+      "title": "LeaseResponse",
+      "type": "object"
+    },
+    "MediaAudioDetails": {
+      "additionalProperties": false,
+      "properties": {
+        "sampleRate": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "channels": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "channelLayout": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "sampleRate",
+        "channels",
+        "channelLayout"
+      ],
+      "title": "MediaAudioDetails",
+      "type": "object"
+    },
+    "MediaDerivativeUpload": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "waveform",
+            "thumbnail",
+            "proxy"
+          ],
+          "type": "string"
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/MediaPreparationVersion",
+          "default": "1.0"
+        },
+        "generatorVersion": {
+          "$ref": "#/$defs/MediaPreparationVersion",
+          "default": "1.0"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "kind",
+        "mediaType",
+        "sizeBytes",
+        "schemaVersion",
+        "generatorVersion",
+        "metadata"
+      ],
+      "title": "MediaDerivativeUpload",
+      "type": "object"
+    },
+    "MediaGenerator": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "const": "ffmpeg",
+          "default": "ffmpeg",
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "title": "MediaGenerator",
+      "type": "object"
+    },
+    "MediaPreparationJobCompletion": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "media_prepare",
+          "default": "media_prepare",
+          "type": "string"
+        },
+        "probe": {
+          "$ref": "#/$defs/MediaProbeArtifact"
+        },
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/MediaDerivativeUpload"
+          },
+          "type": "array"
+        },
+        "generator": {
+          "$ref": "#/$defs/MediaGenerator"
+        }
+      },
+      "required": [
+        "kind",
+        "probe",
+        "artifacts",
+        "generator"
+      ],
+      "title": "MediaPreparationJobCompletion",
+      "type": "object"
+    },
+    "MediaPreparationJobPayload": {
+      "properties": {
+        "kind": {
+          "const": "media_prepare",
+          "type": "string"
+        },
+        "projectId": {
+          "type": "string"
+        },
+        "sourceStorageKey": {
+          "type": "string"
+        },
+        "sourceFilename": {
+          "type": "string"
+        },
+        "sourceMediaType": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "kind",
+        "projectId",
+        "sourceStorageKey",
+        "sourceFilename"
+      ],
+      "title": "MediaPreparationJobPayload",
+      "type": "object"
+    },
+    "MediaPreparationVersion": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "MediaProbeArtifact": {
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "$ref": "#/$defs/MediaPreparationVersion",
+          "default": "1.0"
+        },
+        "durationUs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "startUs": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "formatNames": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "formatLongName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "bitRate": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "seekable": {
+          "type": "boolean"
+        },
+        "frameRateMode": {
+          "enum": [
+            "constant",
+            "variable",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "proxyRecommended": {
+          "type": "boolean"
+        },
+        "proxyReasons": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "streams": {
+          "items": {
+            "$ref": "#/$defs/MediaProbeStream"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "durationUs",
+        "startUs",
+        "formatNames",
+        "formatLongName",
+        "bitRate",
+        "seekable",
+        "frameRateMode",
+        "proxyRecommended",
+        "proxyReasons",
+        "streams"
+      ],
+      "title": "MediaProbeArtifact",
+      "type": "object"
+    },
+    "MediaProbeStream": {
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": {
+          "enum": [
+            "audio",
+            "video",
+            "subtitle",
+            "data",
+            "attachment",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "codec": {
+          "type": "string"
+        },
+        "durationUs": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "bitRate": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "audio": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MediaAudioDetails"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "video": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MediaVideoDetails"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "index",
+        "type",
+        "codec",
+        "durationUs",
+        "bitRate",
+        "audio",
+        "video"
+      ],
+      "title": "MediaProbeStream",
+      "type": "object"
+    },
+    "MediaRational": {
+      "additionalProperties": false,
+      "properties": {
+        "numerator": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "denominator": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "numerator",
+        "denominator"
+      ],
+      "title": "MediaRational",
+      "type": "object"
+    },
+    "MediaVideoDetails": {
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "pixelFormat": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "frameRate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MediaRational"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "averageFrameRate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MediaRational"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "attachedPicture": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "pixelFormat",
+        "frameRate",
+        "averageFrameRate",
+        "attachedPicture"
+      ],
+      "title": "MediaVideoDetails",
+      "type": "object"
+    },
+    "TranscriptArtifact": {
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "$ref": "#/$defs/TranscriptSchemaVersion",
+          "default": "1.0"
+        },
+        "language": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "durationUs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cues": {
+          "items": {
+            "$ref": "#/$defs/TranscriptCue"
+          },
+          "type": "array"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "language",
+        "durationUs",
+        "cues",
+        "metadata"
+      ],
+      "title": "TranscriptArtifact",
+      "type": "object"
+    },
+    "TranscriptCue": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "startUs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "endUs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "text": {
+          "type": "string"
+        },
+        "words": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WordToken"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "startUs",
+        "endUs",
+        "text",
+        "words"
+      ],
+      "title": "TranscriptCue",
+      "type": "object"
+    },
+    "TranscriptSchemaVersion": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "TranscriptionJobCompletion": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "transcribe",
+          "default": "transcribe",
+          "type": "string"
+        },
+        "artifact": {
+          "$ref": "#/$defs/TranscriptArtifact"
+        },
+        "adapter": {
+          "$ref": "#/$defs/AdapterReference"
+        }
+      },
+      "required": [
+        "kind",
+        "artifact",
+        "adapter"
+      ],
+      "title": "TranscriptionJobCompletion",
+      "type": "object"
+    },
+    "TranscriptionJobPayload": {
+      "properties": {
+        "kind": {
+          "const": "transcribe",
+          "type": "string"
+        },
+        "adapterId": {
+          "type": "string"
+        },
+        "modelId": {
+          "type": "string"
+        },
+        "projectId": {
+          "type": "string"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "mediaPath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "options": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "kind",
+        "adapterId",
+        "modelId",
+        "projectId",
+        "runId"
+      ],
+      "title": "TranscriptionJobPayload",
+      "type": "object"
+    },
+    "WordToken": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "startUs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "endUs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "speaker": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "startUs",
+        "endUs",
+        "confidence",
+        "speaker"
+      ],
+      "title": "WordToken",
+      "type": "object"
+    },
+    "WorkerCapabilities": {
+      "additionalProperties": false,
+      "properties": {
+        "mediaPreparation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MediaPreparationVersion"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "mediaPreparation"
+      ],
+      "title": "WorkerCapabilities",
+      "type": "object"
+    },
+    "WorkerCpu": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "logicalCores": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "model",
+        "logicalCores"
+      ],
+      "title": "WorkerCpu",
+      "type": "object"
+    },
+    "WorkerGpu": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "backend": {
+          "enum": [
+            "cuda",
+            "rocm"
+          ],
+          "type": "string"
+        },
+        "totalMemoryBytes": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "backend",
+        "totalMemoryBytes"
+      ],
+      "title": "WorkerGpu",
+      "type": "object"
+    },
+    "WorkerHardware": {
+      "additionalProperties": false,
+      "properties": {
+        "device": {
+          "enum": [
+            "cpu",
+            "cuda"
+          ],
+          "type": "string"
+        },
+        "computeType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "cpu": {
+          "$ref": "#/$defs/WorkerCpu"
+        },
+        "memory": {
+          "$ref": "#/$defs/WorkerMemory"
+        },
+        "gpus": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WorkerGpu"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "device",
+        "computeType",
+        "cpu",
+        "memory",
+        "gpus"
+      ],
+      "title": "WorkerHardware",
+      "type": "object"
+    },
+    "WorkerJobPayload": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TranscriptionJobPayload"
+        },
+        {
+          "$ref": "#/$defs/MediaPreparationJobPayload"
+        }
+      ]
+    },
+    "WorkerLease": {
+      "properties": {
+        "jobId": {
+          "type": "string"
+        },
+        "attempt": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "leaseToken": {
+          "type": "string"
+        },
+        "leaseExpiresAt": {
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/WorkerJobPayload"
+        }
+      },
+      "required": [
+        "jobId",
+        "attempt",
+        "leaseToken",
+        "leaseExpiresAt",
+        "payload"
+      ],
+      "title": "WorkerLease",
+      "type": "object"
+    },
+    "WorkerManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "protocolVersion": {
+          "$ref": "#/$defs/WorkerProtocolVersion",
+          "default": "1.0"
+        },
+        "workerId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "architecture": {
+          "type": "string"
+        },
+        "capabilities": {
+          "$ref": "#/$defs/WorkerCapabilities"
+        },
+        "adapters": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/AdapterManifest"
+          },
+          "type": "array"
+        },
+        "hardware": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkerHardware"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "workerId",
+        "name",
+        "version",
+        "architecture",
+        "capabilities",
+        "adapters",
+        "hardware"
+      ],
+      "title": "WorkerManifest",
+      "type": "object"
+    },
+    "WorkerMemory": {
+      "additionalProperties": false,
+      "properties": {
+        "totalBytes": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "availableBytes": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "totalBytes",
+        "availableBytes"
+      ],
+      "title": "WorkerMemory",
+      "type": "object"
+    },
+    "WorkerProtocolVersion": {
+      "const": "1.0",
+      "type": "string"
+    }
+  },
+  "title": "ProtocolMessage",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/WorkerManifest"
+    },
+    {
+      "$ref": "#/$defs/JobProgressReport"
+    },
+    {
+      "$ref": "#/$defs/JobFailureReport"
+    },
+    {
+      "$ref": "#/$defs/JobCompletionReport"
+    },
+    {
+      "$ref": "#/$defs/LeaseResponse"
+    }
+  ]
+}

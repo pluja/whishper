@@ -43,6 +43,10 @@ services:
     volumes:
       - ./workers/inference:/workspace:z
       - worker-venv:/workspace/.venv
+      # Mirrors the repository layout, where ../../packages/contracts is
+      # reachable from the worker root, so the protocol schema export and its
+      # drift test work in the container too.
+      - ./packages/contracts/schema:/packages/contracts/schema:z
       - app-data:/data:ro
       - model-cache:/models
     working_dir: /workspace

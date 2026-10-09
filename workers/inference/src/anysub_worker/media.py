@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .models import (
+    MEDIA_PREPARATION_VERSION,
     MediaAudioDetails,
     MediaDerivativeUpload,
     MediaGenerator,
@@ -78,8 +79,6 @@ async def prepare_media(
                 kind="waveform",
                 mediaType="application/vnd.anysub.waveform+json",
                 sizeBytes=waveform_path.stat().st_size,
-                schemaVersion="1.0",
-                generatorVersion="1.0",
                 metadata=waveform_metadata,
             )
         )
@@ -93,8 +92,6 @@ async def prepare_media(
                 kind="thumbnail",
                 mediaType="image/jpeg",
                 sizeBytes=thumbnail_path.stat().st_size,
-                schemaVersion="1.0",
-                generatorVersion="1.0",
                 metadata={"widthLimit": 640},
             )
         )
@@ -110,8 +107,6 @@ async def prepare_media(
                 kind="proxy",
                 mediaType=media_type,
                 sizeBytes=proxy_path.stat().st_size,
-                schemaVersion="1.0",
-                generatorVersion="1.0",
                 metadata=proxy_metadata,
             )
         )
@@ -402,7 +397,7 @@ async def _generate_waveform(
         samples_per_peak *= WAVEFORM_LEVEL_FACTOR
 
     artifact = {
-        "schemaVersion": "1.0",
+        "schemaVersion": MEDIA_PREPARATION_VERSION,
         "durationUs": duration_us,
         "sampleRate": WAVEFORM_SAMPLE_RATE,
         "channelMix": "mono",

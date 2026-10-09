@@ -18,7 +18,7 @@ dependencies = [
 [project.scripts]
 anysub-worker = "anysub_worker.cli:main"
 anysub-adapters = "anysub_worker.cli:list_adapters"
-anysub-adapter-schema = "anysub_worker.cli:write_adapter_schema"
+anysub-protocol-schema = "anysub_worker.cli:export_protocol_schema"
 
 [project.entry-points."anysub.adapters"]
 fake = "anysub_worker.adapters.fake:FakeAdapter"
