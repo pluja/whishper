@@ -4,11 +4,9 @@ from typing import Self
 from pydantic import AnyHttpUrl, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-CPU_COMPUTE_TYPES = frozenset({"int8", "int8_float32", "float32", "bfloat16"})
-CUDA_COMPUTE_TYPES = frozenset(
-    {"int8", "int8_float16", "int8_bfloat16", "float16", "float32", "bfloat16"}
-)
-COMPUTE_TYPES_BY_DEVICE = {"cpu": CPU_COMPUTE_TYPES, "cuda": CUDA_COMPUTE_TYPES}
+# CTranslate2 maps every other compute type onto the device, falling back where needed.
+# Half-precision floats are the only ones it refuses to run on a CPU.
+CPU_REJECTED_COMPUTE_TYPES = frozenset({"float16", "int8_float16"})
 
 
 class WorkerSettings(BaseSettings):
@@ -26,10 +24,9 @@ class WorkerSettings(BaseSettings):
 
     @model_validator(mode="after")
     def _compute_type_matches_device(self) -> Self:
-        supported = COMPUTE_TYPES_BY_DEVICE[self.device]
-        if self.compute_type not in supported:
+        if self.device == "cpu" and self.compute_type in CPU_REJECTED_COMPUTE_TYPES:
             raise ValueError(
-                f"ANYSUB_COMPUTE_TYPE={self.compute_type} is not supported on "
-                f"ANYSUB_DEVICE={self.device}. Use one of: {', '.join(sorted(supported))}."
+                f"ANYSUB_COMPUTE_TYPE={self.compute_type} needs a graphics card and cannot "
+                "run with ANYSUB_DEVICE=cpu. Use int8, int8_float32, float32, default or auto."
             )
         return self

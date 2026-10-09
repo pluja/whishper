@@ -68,6 +68,8 @@ On CUDA:
 - `int8_float16` uses less VRAM, which helps fit a larger model on a smaller card.
 - `float32` doubles VRAM use for little gain.
 
+`default` and `auto` are accepted on both devices. `float16` and `int8_float16` need a graphics card, so the worker refuses to start with them on `ANYSUB_DEVICE=cpu`.
+
 If a run fails with a message about an unsupported compute type, your device does not offer that precision. Fall back to `int8` on CPU or `float16` on CUDA.
 
 ### Choosing a model

@@ -41,6 +41,7 @@ class WhisperXAdapter:
         self._align_model: Any | None = None
         self._align_metadata: Any | None = None
         self._align_key: tuple[str, str] | None = None
+        self._model_loading_started = False
 
     @property
     def manifest(self) -> AdapterManifest:
@@ -101,11 +102,14 @@ class WhisperXAdapter:
     async def transcribe(
         self, request: TranscriptionRequest, report_progress: ProgressReporter
     ) -> TranscriptArtifact:
+        self._model_loading_started = False
         try:
             return await self._transcribe(request, report_progress)
         except BaseException as error:
-            self._release_all_models()
-            if isinstance(error, Exception) and is_cuda_out_of_memory(error):
+            out_of_memory = isinstance(error, Exception) and is_cuda_out_of_memory(error)
+            if self._model_loading_started or out_of_memory:
+                self._release_all_models()
+            if out_of_memory:
                 raise AdapterExecutionError(
                     "The graphics card ran out of memory. Choose a smaller model or lower "
                     "the batch size.",
@@ -139,6 +143,7 @@ class WhisperXAdapter:
         duration_us = max(0, int(len(audio) / SAMPLE_RATE * 1_000_000))
 
         await report_progress(0.08, f"Loading {request.model_id} model")
+        self._model_loading_started = True
         model = await self._load_model(whisperx, request.model_id, request.language)
 
         await report_progress(0.16, "Transcribing speech")

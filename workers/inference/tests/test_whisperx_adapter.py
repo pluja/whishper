@@ -378,3 +378,45 @@ async def test_cancelled_inference_flushes_memory_when_the_thread_finishes(monke
 
     release_thread.set()
     await asyncio.wait_for(flushed.wait(), timeout=5)
+
+
+def install_fake_torch(monkeypatch):  # type: ignore[no-untyped-def]
+    class FakeOutOfMemoryError(RuntimeError):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules,
+        "torch",
+        SimpleNamespace(
+            cuda=SimpleNamespace(OutOfMemoryError=FakeOutOfMemoryError, is_available=lambda: False)
+        ),
+    )
+    return FakeOutOfMemoryError
+
+
+async def test_out_of_memory_during_alignment_is_terminal_not_a_fallback(  # type: ignore[no-untyped-def]
+    transcribe_setup, monkeypatch
+) -> None:
+    out_of_memory = install_fake_torch(monkeypatch)
+    adapter, request = transcribe_setup(StubWhisperX(align_error=out_of_memory("CUDA OOM")))
+
+    with pytest.raises(AdapterExecutionError) as raised:
+        await adapter.transcribe(request, noop_progress)
+
+    assert raised.value.retryable is False
+    assert "smaller model" in str(raised.value)
+    assert adapter._model is None
+    assert adapter._align_model is None
+
+
+async def test_validation_failure_keeps_the_warm_cached_model(transcribe_setup) -> None:  # type: ignore[no-untyped-def]
+    adapter, request = transcribe_setup(StubWhisperX())
+    await adapter.transcribe(request, noop_progress)
+    warm_model = adapter._model
+    assert warm_model is not None
+
+    bad_request = request.model_copy(update={"options": {"batchSize": 0}})
+    with pytest.raises(AdapterExecutionError):
+        await adapter.transcribe(bad_request, noop_progress)
+
+    assert adapter._model is warm_model
