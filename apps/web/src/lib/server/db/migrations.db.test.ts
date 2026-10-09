@@ -4,9 +4,9 @@ import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { applyMigrations } from "../../../../scripts/migrations.mjs";
-import { testDatabaseUrl } from "./testing/database-url";
+import { assertTestDatabaseUrl, testDatabaseUrl } from "./testing/database-url";
 
-const scratchDatabase = `anysub_migration_${randomUUID().replaceAll("-", "")}`;
+const scratchDatabase = `anysub_test_migration_${randomUUID().replaceAll("-", "")}`;
 const admin = new pg.Client({ connectionString: testDatabaseUrl() });
 let scratch: pg.Client;
 
@@ -15,7 +15,9 @@ beforeAll(async () => {
   await admin.query(`create database ${scratchDatabase}`);
   const url = new URL(testDatabaseUrl());
   url.pathname = `/${scratchDatabase}`;
-  scratch = new pg.Client({ connectionString: url.toString() });
+  scratch = new pg.Client({
+    connectionString: assertTestDatabaseUrl(url.toString()),
+  });
   await scratch.connect();
 });
 

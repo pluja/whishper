@@ -5,6 +5,22 @@ import type { TranscriptionJobPayload } from "@anysub/contracts";
 import { pool } from "$lib/server/db";
 import { hashToken } from "$lib/server/util";
 
+const seededUserIds: string[] = [];
+const seededWorkspaceIds: string[] = [];
+
+// Deleting the workspace cascades to its projects, runs, jobs, tracks and
+// uploads, so every test leaves the shared database as it found it.
+export async function deleteSeededRows(): Promise<void> {
+  const workspaceIds = seededWorkspaceIds.splice(0);
+  const userIds = seededUserIds.splice(0);
+  await pool.query(`delete from workspaces where id = any($1::uuid[])`, [
+    workspaceIds,
+  ]);
+  await pool.query(`delete from auth_users where id = any($1::text[])`, [
+    userIds,
+  ]);
+}
+
 export type SeededProject = {
   userId: string;
   workspaceId: string;
@@ -19,11 +35,13 @@ export async function seedProject(
     `insert into auth_users (id, name, email) values ($1, 'Tester', $2)`,
     [userId, `${userId}@example.test`],
   );
+  seededUserIds.push(userId);
   const workspace = await pool.query<{ id: string }>(
     `insert into workspaces (name, slug) values ('Workspace', $1) returning id`,
     [`workspace-${userId}`],
   );
   const workspaceId = workspace.rows[0].id;
+  seededWorkspaceIds.push(workspaceId);
   await pool.query(
     `insert into memberships (workspace_id, user_id, role) values ($1, $2, 'owner')`,
     [workspaceId, userId],
