@@ -10,6 +10,7 @@ type Timer = ReturnType<typeof setTimeout>;
 const SAVE_DEBOUNCE_MS = 800;
 const RECOVERED_SAVE_DELAY_MS = 1_200;
 const JOURNAL_DEBOUNCE_MS = 120;
+const KEEPALIVE_BODY_LIMIT_BYTES = 64 * 1024;
 
 const SAVE_LABELS: Record<SaveState, string> = {
   saving: "Saving…",
@@ -30,6 +31,7 @@ export class Autosave {
   #saveTimer: Timer | undefined;
   #journalTimer: Timer | undefined;
   #pendingSave: Promise<void> | null = null;
+  #leaving = false;
 
   constructor(
     track: TrackRef | null,
@@ -59,7 +61,7 @@ export class Autosave {
     this.#changeVersion += 1;
     this.#scheduleJournal();
     if (this.state === "conflict") return;
-    this.state = "unsaved";
+    this.state = this.#pendingSave ? "saving" : "unsaved";
     this.message = "";
     this.#scheduleSave(SAVE_DEBOUNCE_MS);
   }
@@ -93,20 +95,26 @@ export class Autosave {
 
   async #put(track: TrackRef): Promise<boolean> {
     try {
+      const body = JSON.stringify({
+        revision: this.#revision,
+        cues: this.#cues().map((cue) => ({
+          id: cue.id,
+          startUs: cue.start_us,
+          endUs: cue.end_us,
+          text: cue.text,
+        })),
+      });
       const response = await fetch(
         `/api/projects/${track.projectId}/tracks/${track.trackId}`,
         {
           method: "PUT",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            revision: this.#revision,
-            cues: this.#cues().map((cue) => ({
-              id: cue.id,
-              startUs: cue.start_us,
-              endUs: cue.end_us,
-              text: cue.text,
-            })),
-          }),
+          body,
+          // keepalive lets the request outlive an unloading page, but browsers
+          // reject keepalive bodies above 64 KiB.
+          keepalive:
+            this.#leaving &&
+            new TextEncoder().encode(body).length <= KEEPALIVE_BODY_LIMIT_BYTES,
         },
       );
       const result = await response.json();
@@ -128,16 +136,21 @@ export class Autosave {
   }
 
   recoverJournal(): EditorCue[] | null {
-    const journalKey = this.#journalKey;
-    if (!journalKey) return null;
-    const serialized = localStorage.getItem(journalKey);
+    const serialized = this.#readJournal();
     if (!serialized) return null;
     const journal = parseCueJournal(serialized);
     if (!journal) {
-      localStorage.removeItem(journalKey);
+      this.#clearJournal();
       return null;
     }
-    if (journal.revision !== this.#revision) return null;
+    // Edits made against an older revision cannot be replayed without
+    // overwriting the newer server copy, so they are dropped, but visibly.
+    if (journal.revision !== this.#revision) {
+      this.#clearJournal();
+      this.message =
+        "Unsaved edits from an older version of this track were found in this browser and discarded, because the track has changed since.";
+      return null;
+    }
     this.#changeVersion += 1;
     this.state = "unsaved";
     this.message = "Recovered unsaved changes from this browser.";
@@ -151,6 +164,7 @@ export class Autosave {
     if (!this.hasUnsavedChanges) return true;
     this.#persistJournal();
     if (this.state === "conflict" || this.state === "error") return false;
+    this.#leaving = true;
     void this.flush();
     return true;
   }
@@ -181,9 +195,24 @@ export class Autosave {
     }
   }
 
+  // Storage access throws when the browser blocks site data.
+  #readJournal(): string | null {
+    if (!this.#journalKey) return null;
+    try {
+      return localStorage.getItem(this.#journalKey);
+    } catch {
+      return null;
+    }
+  }
+
   #clearJournal(): void {
     clearTimeout(this.#journalTimer);
-    if (this.#journalKey) localStorage.removeItem(this.#journalKey);
+    if (!this.#journalKey) return;
+    try {
+      localStorage.removeItem(this.#journalKey);
+    } catch {
+      return;
+    }
   }
 
   #scheduleJournal(): void {

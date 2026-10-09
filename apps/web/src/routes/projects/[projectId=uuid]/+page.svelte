@@ -107,15 +107,15 @@
     handleStudioKeydown(event, commands);
   }
 
+  // SvelteKit reuses this component across projects, so a changed or
+  // missing track must replace the editor state rather than be skipped.
   $effect(() => {
     const track = data.track;
-    if (!track) return;
+    const trackRef = track
+      ? { projectId: data.project.id, trackId: track.id }
+      : null;
     untrack(() =>
-      editor.loadTrack(
-        { projectId: data.project.id, trackId: track.id },
-        editorCues(),
-        Number(track.revision),
-      ),
+      editor.loadTrack(trackRef, editorCues(), Number(track?.revision ?? 0)),
     );
   });
 

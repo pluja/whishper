@@ -9,6 +9,7 @@ const journalKey = "anysub:editor:project:track";
 type PendingPut = {
   revision: number;
   texts: string[];
+  keepalive: boolean;
   respond(status: number, body: unknown): Promise<void>;
 };
 
@@ -28,6 +29,7 @@ function stubFetch(): void {
         puts.push({
           revision: body.revision,
           texts: body.cues.map((item: { text: string }) => item.text),
+          keepalive: init.keepalive === true,
           async respond(status, responseBody) {
             resolve({
               status,
@@ -101,7 +103,7 @@ describe("Autosave", () => {
     void editor.autosave.flush();
     await vi.advanceTimersByTimeAsync(800);
     expect(puts).toHaveLength(1);
-    expect(editor.autosave.state).toBe("unsaved");
+    expect(editor.autosave.state).toBe("saving");
 
     await puts[0].respond(200, { revision: 2 });
     expect(puts).toHaveLength(2);
@@ -156,12 +158,25 @@ describe("Autosave", () => {
     expect(storage.has(journalKey)).toBe(false);
   });
 
-  it("journals and flushes immediately when leaving", async () => {
+  it("journals and flushes with keepalive when leaving", async () => {
     const editor = editorWith("");
     editor.type("a");
     expect(editor.autosave.leave()).toBe(true);
     expect(JSON.parse(storage.get(journalKey)!).cues[0].text).toBe("a");
     expect(puts).toHaveLength(1);
+    expect(puts[0].keepalive).toBe(true);
+  });
+
+  it("uses keepalive only for leaving and only under 64 KiB", async () => {
+    const editor = editorWith("");
+    editor.type("a");
+    await vi.advanceTimersByTimeAsync(800);
+    expect(puts[0].keepalive).toBe(false);
+    await puts[0].respond(200, { revision: 2 });
+
+    editor.type("x".repeat(70 * 1024));
+    editor.autosave.leave();
+    expect(puts[1].keepalive).toBe(false);
   });
 
   it("reports that leaving would strand edits after a failure", async () => {
@@ -204,10 +219,29 @@ describe("Autosave", () => {
       expect(puts[0].texts).toEqual(["recovered"]);
     });
 
-    it("ignores a journal from another revision", () => {
+    it("discards a journal from another revision and says so", () => {
       storeJournal(7, [cue("old")]);
       const editor = editorWith("server");
       expect(editor.autosave.recoverJournal()).toBeNull();
+      expect(editor.autosave.state).toBe("saved");
+      expect(editor.autosave.message).toMatch(/older version.*discarded/);
+      expect(storage.has(journalKey)).toBe(false);
+    });
+
+    it("survives storage that the browser blocks", async () => {
+      const blocked = () => {
+        throw new Error("SecurityError");
+      };
+      vi.stubGlobal("localStorage", {
+        getItem: blocked,
+        setItem: blocked,
+        removeItem: blocked,
+      });
+      const editor = editorWith("");
+      expect(editor.autosave.recoverJournal()).toBeNull();
+      editor.type("a");
+      await vi.advanceTimersByTimeAsync(800);
+      await puts[0].respond(200, { revision: 2 });
       expect(editor.autosave.state).toBe("saved");
     });
 

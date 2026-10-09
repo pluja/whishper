@@ -106,7 +106,7 @@ export const shortcutGroups: readonly ShortcutGroup[] = [
       {
         id: "undo",
         keys: ["Ctrl/Command", "Z"],
-        description: "Undo the last cue edit outside text fields",
+        description: "Undo the last cue edit; text fields keep their own undo",
       },
       {
         id: "redo",
@@ -136,7 +136,12 @@ function handleCommandShortcut(
     commands.save();
     return;
   }
-  if (matchesClosest(event.target, TEXT_ENTRY_TARGET_SELECTOR)) return;
+  if (
+    (key === "z" || key === "y") &&
+    matchesClosest(event.target, TEXT_ENTRY_TARGET_SELECTOR)
+  ) {
+    return;
+  }
   if (!event.shiftKey && key === "z" && commands.canUndo()) {
     event.preventDefault();
     commands.undo();

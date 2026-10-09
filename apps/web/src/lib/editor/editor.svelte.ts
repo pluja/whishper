@@ -50,12 +50,13 @@ export class CueEditor {
     return this.#options.maxLineLength();
   }
 
-  loadTrack(track: TrackRef, cues: EditorCue[], revision: number): void {
-    if (this.autosave.track?.trackId === track.trackId) return;
+  loadTrack(track: TrackRef | null, cues: EditorCue[], revision: number): void {
+    if (this.autosave.track?.trackId === track?.trackId) return;
     this.autosave.dispose();
     this.autosave = new Autosave(track, revision, () => this.cues);
     this.cues = this.autosave.recoverJournal() ?? cues;
     this.selectedCueId = this.cues[0]?.id ?? null;
+    this.#cursorPositions.clear();
     this.history.reset();
   }
 

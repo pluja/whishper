@@ -6,7 +6,8 @@ class FakeElement {
   constructor(private readonly tagName: string) {}
 
   closest(selector: string): FakeElement | null {
-    return selector.split(", ").includes(this.tagName) ? this : null;
+    const tagSelectors = selector.split(",").map((part) => part.trim());
+    return tagSelectors.includes(this.tagName) ? this : null;
   }
 }
 
@@ -64,9 +65,9 @@ describe("handleStudioKeydown", () => {
   beforeEach(() => vi.stubGlobal("Element", FakeElement));
   afterEach(() => vi.unstubAllGlobals());
 
-  it("leaves Ctrl+Z, Ctrl+Y and Ctrl+K to a focused textarea", () => {
+  it("leaves Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z to a focused text field", () => {
     const studio = commands();
-    for (const key of ["z", "y", "k"]) {
+    for (const key of ["z", "y"]) {
       const event = keydown(key, { ctrlKey: true, target: "textarea" });
       press(event, studio);
       expect(event.preventDefault).not.toHaveBeenCalled();
@@ -80,7 +81,14 @@ describe("handleStudioKeydown", () => {
     expect(redo.preventDefault).not.toHaveBeenCalled();
     expect(studio.undo).not.toHaveBeenCalled();
     expect(studio.redo).not.toHaveBeenCalled();
-    expect(studio.splitSelected).not.toHaveBeenCalled();
+  });
+
+  it("splits at the caret with Ctrl+K from inside a textarea", () => {
+    const studio = commands();
+    const event = keydown("k", { ctrlKey: true, target: "textarea" });
+    press(event, studio);
+    expect(studio.splitSelected).toHaveBeenCalledOnce();
+    expect(event.preventDefault).toHaveBeenCalledOnce();
   });
 
   it("saves with Ctrl+S from inside a textarea", () => {
