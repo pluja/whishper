@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from anysub_worker.media import MediaPreparationError, ffmpeg
+from anysub_worker.media import MediaPreparationError, derivatives, ffmpeg
+from anysub_worker.media.errors import MediaToolTimeoutError
 from anysub_worker.media.waveform import (
     WAVEFORM_LEVEL_FACTOR,
     WAVEFORM_MAX_TOP_LEVEL_PEAKS,
@@ -44,12 +45,14 @@ async def test_nonzero_exit_reports_the_stderr_tail() -> None:
 
 async def test_timeout_kills_the_child_and_keeps_stderr_context(tmp_path: Path) -> None:
     pid_file = tmp_path / "pid"
-    script = f"echo $$ > {pid_file}; exec sleep 30"
+    script = f"echo decoder stalled >&2; echo $$ > {pid_file}; exec sleep 30"
 
-    with pytest.raises(MediaPreparationError, match="timed out after 0s") as raised:
-        await ffmpeg.run_ffmpeg(["-c", script], 0.3, program="sh")
+    with pytest.raises(
+        MediaToolTimeoutError, match=r"timed out after 0\.5s: decoder stalled"
+    ) as raised:
+        await ffmpeg.run_ffmpeg(["-c", script], 0.5, program="sh")
 
-    assert raised.value.retryable
+    assert not raised.value.retryable
     assert not process_is_alive(int(pid_file.read_text()))
 
 
@@ -159,3 +162,19 @@ def test_levels_downsample_until_the_top_level_is_small() -> None:
     top = base64.b64decode(levels[-1]["data"])
     assert (top[0], top[1]) == (-90 + 128, 1 + 128)
     assert (top[-2], top[-1]) == (-1 + 128, 100 + 128)
+
+
+async def test_thumbnail_does_not_retry_after_a_timeout(monkeypatch, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    calls = 0
+
+    async def timing_out(*_args, **_kwargs) -> ffmpeg.FfmpegResult:  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        raise MediaToolTimeoutError("ffmpeg timed out")
+
+    monkeypatch.setattr(derivatives, "run_ffmpeg", timing_out)
+
+    with pytest.raises(MediaToolTimeoutError):
+        await derivatives.generate_thumbnail(tmp_path / "source.mp4", tmp_path, 600_000_000)
+
+    assert calls == 1

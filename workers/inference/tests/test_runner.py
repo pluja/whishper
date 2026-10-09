@@ -390,6 +390,11 @@ def test_http_status_errors_never_expose_urls(body: str, expected_detail: str) -
     assert "mozilla" not in message
 
 
+@pytest.mark.parametrize("body", ["9" * 5000, "[" * 100_000])
+def test_pathological_json_bodies_do_not_break_error_description(body: str) -> None:
+    assert runner.describe_error(status_error(500, body)).startswith("HTTPStatusError: 500 ")
+
+
 class StopPolling(Exception):
     pass
 
@@ -459,6 +464,7 @@ async def test_sigterm_stops_the_worker_and_closes_the_client(tmp_path: Path, mo
 
 async def test_unexpected_execute_errors_do_not_kill_the_poll_loop(monkeypatch, caplog) -> None:  # type: ignore[no-untyped-def]
     polls = 0
+    delays: list[float] = []
 
     class ScriptedClient:
         async def lease(self) -> LeaseResponse:
@@ -473,8 +479,39 @@ async def test_unexpected_execute_errors_do_not_kill_the_poll_loop(monkeypatch, 
 
     monkeypatch.setattr(runner, "_execute", crash)
 
+    async def record_sleep(seconds: float) -> None:
+        delays.append(seconds)
+
     with pytest.raises(StopPolling):
-        await runner.poll_forever(ScriptedClient(), AdapterRegistry(()))  # type: ignore[arg-type]
+        await runner.poll_forever(  # type: ignore[arg-type]
+            ScriptedClient(), AdapterRegistry(()), sleep=record_sleep, jitter=lambda: 1.0
+        )
 
     assert polls == 2
+    assert delays == [1]
     assert "job execution crashed" in caplog.text
+
+
+async def test_repeated_execute_crashes_back_off_exponentially(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    class ScriptedClient:
+        async def lease(self) -> LeaseResponse:
+            return LeaseResponse(lease=transcription_lease(), pollAfterMs=100)
+
+    async def crash(*_args) -> None:  # type: ignore[no-untyped-def]
+        raise httpx.InvalidURL("bad url")
+
+    delays: list[float] = []
+
+    async def record_sleep(seconds: float) -> None:
+        delays.append(seconds)
+        if len(delays) == 3:
+            raise StopPolling
+
+    monkeypatch.setattr(runner, "_execute", crash)
+
+    with pytest.raises(StopPolling):
+        await runner.poll_forever(  # type: ignore[arg-type]
+            ScriptedClient(), AdapterRegistry(()), sleep=record_sleep, jitter=lambda: 1.0
+        )
+
+    assert delays == [1, 2, 4]

@@ -95,14 +95,18 @@ async def poll_forever(
             )
             await sleep(delay)
             continue
-        consecutive_failures = 0
         if response.lease is None:
+            consecutive_failures = 0
             await sleep(response.poll_after_ms / 1000)
             continue
         try:
             await _execute(client, registry, response.lease)
         except Exception:
             LOGGER.exception("job execution crashed job_id=%s", response.lease.job_id)
+            consecutive_failures += 1
+            await sleep(poll_backoff_seconds(consecutive_failures, jitter()))
+        else:
+            consecutive_failures = 0
 
 
 def poll_backoff_seconds(consecutive_failures: int, jitter: float) -> float:
@@ -125,7 +129,7 @@ def describe_error(error: BaseException) -> str:
 
 def _summarize_response_body(response: httpx.Response) -> str:
     text = response.text
-    with suppress(json.JSONDecodeError):
+    with suppress(ValueError, RecursionError):
         body = json.loads(text)
         if isinstance(body, dict) and isinstance(body.get("message"), str):
             text = body["message"]

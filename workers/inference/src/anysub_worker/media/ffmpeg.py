@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-from collections import deque
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from .errors import MediaPreparationError
+from .errors import MediaPreparationError, MediaToolTimeoutError
 
 PROBE_TIMEOUT_SECONDS = 30
 VERSION_TIMEOUT_SECONDS = 10
@@ -57,15 +56,16 @@ async def run_ffmpeg(
         raise MediaPreparationError(f"{program} is not installed on this worker.") from cause
 
     retained = bytearray()
+    stderr = _StderrTail()
     consume = on_stdout if on_stdout is not None else retained.extend
     try:
         async with asyncio.timeout(timeout):
-            _, stderr_tail, _ = await asyncio.gather(
-                _drain_stdout(process, consume), _drain_stderr(process), process.wait()
+            await asyncio.gather(
+                _drain_stdout(process, consume), _drain_stderr(process, stderr), process.wait()
             )
     except TimeoutError as cause:
-        raise MediaPreparationError(
-            f"{program} timed out after {timeout:.0f}s.", retryable=True
+        raise MediaToolTimeoutError(
+            f"{program} timed out after {timeout:g}s: {stderr.tail()}"
         ) from cause
     finally:
         if process.returncode is None:
@@ -74,9 +74,9 @@ async def run_ffmpeg(
 
     if process.returncode != 0:
         raise MediaPreparationError(
-            f"{program} exited with code {process.returncode}: {stderr_tail}"
+            f"{program} exited with code {process.returncode}: {stderr.tail()}"
         )
-    return FfmpegResult(stdout=bytes(retained), stderr=stderr_tail)
+    return FfmpegResult(stdout=bytes(retained), stderr=stderr.tail())
 
 
 async def ffmpeg_version() -> str:
@@ -94,10 +94,19 @@ async def _drain_stdout(
         consume(chunk)
 
 
-async def _drain_stderr(process: asyncio.subprocess.Process) -> str:
+class _StderrTail:
+    def __init__(self) -> None:
+        self._buffer = b""
+
+    def feed(self, chunk: bytes) -> None:
+        self._buffer = (self._buffer + chunk)[-STDERR_TAIL_BYTES:]
+
+    def tail(self) -> str:
+        lines = self._buffer.decode("utf-8", errors="replace").splitlines()
+        return "\n".join(lines[-STDERR_TAIL_LINES:])
+
+
+async def _drain_stderr(process: asyncio.subprocess.Process, tail: _StderrTail) -> None:
     assert process.stderr is not None
-    tail = b""
     while chunk := await process.stderr.read(READ_CHUNK_BYTES):
-        tail = (tail + chunk)[-STDERR_TAIL_BYTES:]
-    lines = deque(tail.decode("utf-8", errors="replace").splitlines(), maxlen=STDERR_TAIL_LINES)
-    return "\n".join(lines)
+        tail.feed(chunk)

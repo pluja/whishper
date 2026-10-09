@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from ..models import MediaProbeArtifact, MediaRational
-from .errors import MediaPreparationError
+from .errors import MediaPreparationError, MediaToolTimeoutError
 from .ffmpeg import (
     PROXY_FLOOR_SECONDS,
     PROXY_SECONDS_PER_MEDIA_SECOND,
@@ -42,8 +42,8 @@ async def generate_thumbnail(source_path: Path, output_directory: Path, duration
                 ],
                 THUMBNAIL_TIMEOUT_SECONDS,
             )
-        except MediaPreparationError:
-            if seek == 0:
+        except MediaPreparationError as error:
+            if seek == 0 or isinstance(error, MediaToolTimeoutError):
                 raise
             continue
         if path.exists() and path.stat().st_size > 0:
