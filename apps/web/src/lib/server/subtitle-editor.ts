@@ -134,7 +134,7 @@ export async function updateTrackForUser(
     });
 
     await client.query("delete from cues where track_id = $1", [trackId]);
-    await insertCues(client, trackId, storedCues);
+    await insertCues(client, trackId, { ids: "provided", cues: storedCues });
     const updated = await client.query<{ revision: number }>(
       `update subtitle_tracks
           set revision = revision + 1, updated_at = now()

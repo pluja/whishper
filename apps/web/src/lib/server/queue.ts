@@ -259,7 +259,10 @@ async function storeTranscriptCompletion(
     ],
   );
 
-  await insertCues(client, track.rows[0].id, artifact.cues);
+  await insertCues(client, track.rows[0].id, {
+    ids: "generate",
+    cues: artifact.cues,
+  });
 }
 
 export async function failJob(

@@ -146,10 +146,11 @@ The Makefile wraps the development commands:
 make          # list the targets
 make dev      # start the development stack, source mounted
 make generate # regenerate the protocol contracts after changing the worker models
+make test-db  # run the database tests in a throwaway database
 make verify   # run every check CI runs, before you push
 ```
 
-Each target is one `docker compose` command against the development overlay, which mounts the source and keeps dependencies in named volumes. It runs as the separate `anysub-dev` project with its own database, app data and model cache, so development never touches your production data. Nothing is hidden: `make -n verify` prints the commands it would run without running them.
+Each target runs `docker compose` commands against the development overlay, which mounts the source and keeps dependencies in named volumes. It runs as the separate `anysub-dev` project with its own database, app data and model cache, so development never touches your production data. Nothing is hidden: `make -n verify` prints the commands it would run without running them.
 
 ## Development disclosure
 
