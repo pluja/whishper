@@ -10,6 +10,10 @@ services:
       - web-node-modules:/workspace/node_modules
       - web-app-node-modules:/workspace/apps/web/node_modules
       - web-contracts-node-modules:/workspace/packages/contracts/node_modules
+    # Named node_modules volumes are only seeded from the image once. CI makes
+    # pnpm reinstall them non-interactively when the lockfile moves on.
+    environment: &pnpm-non-interactive
+      CI: "true"
     working_dir: /workspace/apps/web
     command: ["pnpm", "migrate"]
 
@@ -18,6 +22,7 @@ services:
     build:
       target: development
     volumes: *web-volumes
+    environment: *pnpm-non-interactive
     working_dir: /workspace
     command: ["pnpm", "--filter", "@anysub/web", "dev", "--host", "0.0.0.0"]
     ports: !override
