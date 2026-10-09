@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  charactersPerSecond,
   cueIssues,
+  cueTimeError,
   deleteCue,
   insertCueAfter,
   mergeCueWithNext,
@@ -285,5 +287,37 @@ describe("orderCuesByStart", () => {
       { ...cue("b", 2, 3), position: 5 },
     ];
     expect(orderCuesByStart(cues).changed).toBe(true);
+  });
+});
+
+describe("charactersPerSecond", () => {
+  it("counts non-whitespace characters per second of duration", () => {
+    expect(charactersPerSecond(cue("a", 0, 2, "hello world"))).toBe(5);
+  });
+
+  it("is null for cues without a positive duration", () => {
+    expect(charactersPerSecond(cue("a", 2, 2))).toBeNull();
+    expect(charactersPerSecond(cue("a", 3, 2))).toBeNull();
+  });
+});
+
+describe("cueTimeError", () => {
+  const timed = cue("a", 2, 4);
+
+  it("accepts times that keep Out at or after In", () => {
+    expect(cueTimeError(timed, "end_us", 2_000_000)).toBeNull();
+    expect(cueTimeError(timed, "start_us", 3_000_000)).toBeNull();
+  });
+
+  it("rejects an Out time before In", () => {
+    expect(cueTimeError(timed, "end_us", 1_000_000)).toBe(
+      "Out must not be earlier than In.",
+    );
+  });
+
+  it("rejects an In time after Out", () => {
+    expect(cueTimeError(timed, "start_us", 5_000_000)).toBe(
+      "In must not be later than Out.",
+    );
   });
 });

@@ -101,7 +101,7 @@ describe("available transcription models", () => {
         parameterCount: 244_000_000,
         fit: "good",
         fitLabel: "Runs well",
-        workerSummary: expect.stringContaining("6 GB RAM available"),
+        workerSummary: expect.stringContaining("6.00 GiB RAM available"),
         downloaded: false,
         memoryRequirementBytes: 4 * gib,
         memoryRequirementKind: "ram",
@@ -110,7 +110,7 @@ describe("available transcription models", () => {
         modelId: "medium",
         fit: "poor",
         fitLabel: "Not recommended",
-        fitReason: expect.stringContaining("8 GB"),
+        fitReason: expect.stringContaining("8.00 GiB"),
         memoryRequirementBytes: 8 * gib,
         memoryRequirementKind: "ram",
       }),
@@ -227,7 +227,7 @@ describe("available transcription models", () => {
       {
         kind: "cpu",
         name: "Test CPU",
-        details: ["8 logical cores", "12 GB RAM available"],
+        details: ["8 logical cores", "12.0 GiB RAM available"],
       },
     ]);
   });

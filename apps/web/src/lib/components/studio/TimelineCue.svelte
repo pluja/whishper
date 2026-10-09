@@ -7,6 +7,7 @@
     timeToPx,
     timingAfterDelta,
     type CueTiming,
+    type TimingGesture,
     type TimingBounds,
     type TimingPart,
   } from "$lib/timeline/math";
@@ -20,7 +21,7 @@
     neighbourBounds: TimingBounds;
     onselect: (cueId: string) => void;
     ondragstart: () => void;
-    oncommittiming: (timing: CueTiming) => void;
+    oncommittiming: (timing: CueTiming, gesture: TimingGesture) => void;
   };
 
   type TimingDrag = {
@@ -149,7 +150,7 @@
     const final = dragTiming(active, event);
     releasePointer(active);
     drag = null;
-    if (!isUnchanged(final, active.original)) oncommittiming(final);
+    if (!isUnchanged(final, active.original)) oncommittiming(final, "drag");
   }
 
   function nudge(event: KeyboardEvent, part: TimingPart): void {
@@ -175,7 +176,7 @@
       event.key === "ArrowLeft" ? -stepUs : stepUs,
       neighbourBounds,
     );
-    if (!isUnchanged(next, cue)) oncommittiming(next);
+    if (!isUnchanged(next, cue)) oncommittiming(next, "nudge");
   }
 
   function interactions(part: TimingPart) {

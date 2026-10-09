@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   displayState,
+  isPreparationActive,
   isProjectActive,
+  isRunActive,
   isStudioActive,
   mediaPlaceholder,
   projectMessage,
@@ -41,6 +43,37 @@ describe("isProjectActive", () => {
         media_preparation_status: "failed",
       }),
     ).toBe(false);
+  });
+});
+
+describe("isRunActive", () => {
+  it.each([
+    ["queued", true],
+    ["running", true],
+    ["completed", false],
+    ["failed", false],
+  ])("treats a %s run as active: %s", (status, active) => {
+    expect(isRunActive({ status })).toBe(active);
+  });
+
+  it("is false without a run", () => {
+    expect(isRunActive(null)).toBe(false);
+  });
+});
+
+describe("isPreparationActive", () => {
+  it.each([
+    ["queued", true],
+    ["leased", true],
+    ["running", false],
+    ["completed", false],
+    ["cancelled", false],
+  ])("treats a %s preparation job as active: %s", (state, active) => {
+    expect(isPreparationActive({ state })).toBe(active);
+  });
+
+  it("is false without a preparation job", () => {
+    expect(isPreparationActive(null)).toBe(false);
   });
 });
 

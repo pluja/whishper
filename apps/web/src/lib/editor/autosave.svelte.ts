@@ -1,5 +1,6 @@
 import { copyCues, type EditorCue } from "./cues";
 import { parseCueJournal } from "./journal";
+import { readStorage, removeStorage, writeStorage } from "$lib/safe-storage";
 
 export type SaveState = "saved" | "unsaved" | "saving" | "error" | "conflict";
 
@@ -19,6 +20,12 @@ const SAVE_LABELS: Record<SaveState, string> = {
   conflict: "Editing conflict",
   saved: "Saved",
 };
+
+function responseMessage(body: unknown): string | null {
+  if (typeof body !== "object" || body === null) return null;
+  const { message } = body as { message?: unknown };
+  return typeof message === "string" && message ? message : null;
+}
 
 export class Autosave {
   state = $state<SaveState>("saved");
@@ -117,15 +124,23 @@ export class Autosave {
             new TextEncoder().encode(body).length <= KEEPALIVE_BODY_LIMIT_BYTES,
         },
       );
-      const result = await response.json();
       if (response.status === 409) {
         this.state = "conflict";
         this.message =
           "This track changed elsewhere. Reload before continuing.";
         return false;
       }
-      if (!response.ok) throw new Error(result.message ?? "Save failed.");
-      this.#revision = Number(result.revision);
+      const result: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          responseMessage(result) ?? `Save failed (HTTP ${response.status}).`,
+        );
+      }
+      const revision = (result as { revision?: unknown } | null)?.revision;
+      if (!Number.isSafeInteger(revision)) {
+        throw new Error("Save failed: the server sent an unexpected response.");
+      }
+      this.#revision = revision as number;
       return true;
     } catch (cause) {
       this.state = "error";
@@ -180,39 +195,24 @@ export class Autosave {
     clearTimeout(this.#journalTimer);
     const journalKey = this.#journalKey;
     if (!journalKey) return;
-    try {
-      localStorage.setItem(
-        journalKey,
-        JSON.stringify({
-          revision: this.#revision,
-          cues: this.#cues(),
-          updatedAt: Date.now(),
-        }),
-      );
-    } catch {
+    const journal = JSON.stringify({
+      revision: this.#revision,
+      cues: this.#cues(),
+      updatedAt: Date.now(),
+    });
+    if (!writeStorage(journalKey, journal)) {
       this.message =
-        "Browser recovery storage is full. Server autosave is still active.";
+        "Browser recovery storage is unavailable. Server autosave is still active.";
     }
   }
 
-  // Storage access throws when the browser blocks site data.
   #readJournal(): string | null {
-    if (!this.#journalKey) return null;
-    try {
-      return localStorage.getItem(this.#journalKey);
-    } catch {
-      return null;
-    }
+    return this.#journalKey ? readStorage(this.#journalKey) : null;
   }
 
   #clearJournal(): void {
     clearTimeout(this.#journalTimer);
-    if (!this.#journalKey) return;
-    try {
-      localStorage.removeItem(this.#journalKey);
-    } catch {
-      return;
-    }
+    if (this.#journalKey) removeStorage(this.#journalKey);
   }
 
   #scheduleJournal(): void {

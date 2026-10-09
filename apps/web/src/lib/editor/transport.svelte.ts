@@ -5,6 +5,7 @@ type ShuttleDirection = -1 | 0 | 1;
 type CueSelection = {
   readonly cues: EditorCue[];
   selectedCueId: string | null;
+  readonly editing: boolean;
 };
 
 // Durations are zero when unknown.
@@ -91,7 +92,7 @@ export class Transport {
     if (
       current &&
       current.id !== this.#selection.selectedCueId &&
-      !document.activeElement?.closest(".cue-editor")
+      !this.#selection.editing
     ) {
       this.#selection.selectedCueId = current.id;
       scrollCueIntoView(current.id);

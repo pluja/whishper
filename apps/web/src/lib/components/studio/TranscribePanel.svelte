@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
+  import { formatBytes } from "$lib/format";
   import type {
     AvailableTranscriptionModel,
     DetectedWorkerHardware,
@@ -31,9 +32,7 @@
     ) {
       return "Memory use unknown";
     }
-    const useMegabytes = bytes < 1024 ** 3;
-    const value = bytes / 1024 ** (useMegabytes ? 2 : 3);
-    return `~${Number(value.toFixed(1))} ${useMegabytes ? "MB" : "GB"} ${kind.toUpperCase()}`;
+    return `~${formatBytes(bytes)} ${kind.toUpperCase()}`;
   }
 
   function handleModelPickerToggle(event: ToggleEvent): void {

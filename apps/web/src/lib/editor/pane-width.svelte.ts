@@ -1,3 +1,5 @@
+import { readStorage, writeStorage } from "$lib/safe-storage";
+
 const STORAGE_KEY = "anysub:editor-pane-width";
 const STACKED_LAYOUT_MAX_WIDTH_PX = 928;
 const KEYBOARD_STEP_PX = 24;
@@ -15,14 +17,14 @@ export class PaneWidth {
   #resizeController: AbortController | undefined;
 
   restore(): void {
-    const storedWidth = window.localStorage.getItem(STORAGE_KEY);
+    const storedWidth = readStorage(STORAGE_KEY);
     if (storedWidth === null) return;
     const parsedWidth = Number(storedWidth);
     if (Number.isFinite(parsedWidth)) this.width = clampPaneWidth(parsedWidth);
   }
 
   #persist(): void {
-    window.localStorage.setItem(STORAGE_KEY, String(Math.round(this.width)));
+    writeStorage(STORAGE_KEY, String(Math.round(this.width)));
   }
 
   beginResize = (event: PointerEvent): void => {
@@ -35,22 +37,22 @@ export class PaneWidth {
     this.#resizeController?.abort();
     this.#resizeController = new AbortController();
     document.body.classList.add("resizing-studio-pane");
+    const signal = this.#resizeController.signal;
 
     window.addEventListener(
       "pointermove",
       (moveEvent) => {
         this.width = clampPaneWidth(startWidth + startX - moveEvent.clientX);
       },
-      { signal: this.#resizeController.signal },
+      { signal },
     );
-    window.addEventListener(
-      "pointerup",
-      () => {
-        this.#persist();
-        this.#endResize();
-      },
-      { once: true, signal: this.#resizeController.signal },
-    );
+    const finishResize = () => {
+      this.#persist();
+      this.#endResize();
+    };
+    window.addEventListener("pointerup", finishResize, { signal });
+    window.addEventListener("pointercancel", finishResize, { signal });
+    separator.addEventListener("lostpointercapture", finishResize, { signal });
   };
 
   resizeWithKeyboard = (event: KeyboardEvent): void => {

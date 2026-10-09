@@ -14,6 +14,11 @@ import {
 } from "./cues";
 import { CueHistory } from "./history.svelte";
 import { Transport, type TransportOptions } from "./transport.svelte";
+import type { TimingGesture } from "$lib/timeline/math";
+
+function nudgeHistoryKey(cueId: string): string {
+  return `nudge:${cueId}`;
+}
 
 type CueEditorOptions = {
   cues: EditorCue[];
@@ -24,6 +29,7 @@ type CueEditorOptions = {
 export class CueEditor {
   cues = $state<EditorCue[]>([]);
   selectedCueId = $state<string | null>(null);
+  editing = $state(false);
   autosave = $state.raw(new Autosave(null, 0, () => this.cues));
   readonly history = new CueHistory();
   readonly transport: Transport;
@@ -59,6 +65,7 @@ export class CueEditor {
     this.cues = ordered.cues;
     this.selectedCueId = this.cues[0]?.id ?? null;
     this.#cursorPositions.clear();
+    this.editing = false;
     this.history.reset();
     if (ordered.changed) this.autosave.markChanged();
   }
@@ -68,10 +75,12 @@ export class CueEditor {
   }
 
   beginEdit(): void {
+    this.editing = true;
     this.history.beginEdit(this.cues);
   }
 
   finishEdit(): void {
+    this.editing = false;
     this.history.finishEdit(this.cues);
   }
 
@@ -95,8 +104,8 @@ export class CueEditor {
     this.#cursorPositions.set(cueId, position);
   }
 
-  #apply(edit: CueEdit): void {
-    this.history.record(copyCues(this.cues));
+  #apply(edit: CueEdit, coalesceKey?: string): void {
+    this.history.record(copyCues(this.cues), coalesceKey);
     this.cues = edit.cues;
     if (edit.selectedCueId !== undefined) {
       this.selectedCueId = edit.selectedCueId;
@@ -142,11 +151,18 @@ export class CueEditor {
   }
 
   nudgeSelected(milliseconds: number): void {
-    if (this.selectedCueIndex < 0) return;
-    this.#apply(nudgeCue(this.cues, this.selectedCueIndex, milliseconds));
+    const index = this.selectedCueIndex;
+    if (index < 0) return;
+    this.#apply(
+      nudgeCue(this.cues, index, milliseconds),
+      nudgeHistoryKey(this.cues[index].id),
+    );
   }
 
-  retime(timing: { id: string; start_us: number; end_us: number }): void {
+  retime(
+    timing: { id: string; start_us: number; end_us: number },
+    gesture: TimingGesture = "drag",
+  ): void {
     const index = this.cues.findIndex((cue) => cue.id === timing.id);
     if (index < 0) return;
     const cue = this.cues[index];
@@ -155,6 +171,7 @@ export class CueEditor {
     if (cue.start_us === startUs && cue.end_us === endUs) return;
     this.#apply(
       retimeCue(this.cues, index, { start_us: startUs, end_us: endUs }),
+      gesture === "nudge" ? nudgeHistoryKey(timing.id) : undefined,
     );
   }
 

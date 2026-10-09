@@ -34,7 +34,12 @@ function stubFetch(): void {
             resolve({
               status,
               ok: status >= 200 && status < 300,
-              json: async () => responseBody,
+              json: async () => {
+                if (typeof responseBody === "string") {
+                  throw new SyntaxError("Unexpected token '<'");
+                }
+                return responseBody;
+              },
             });
             await vi.advanceTimersByTimeAsync(0);
           },
@@ -137,6 +142,33 @@ describe("Autosave", () => {
     await editor.autosave.flush();
     expect(puts).toHaveLength(1);
     expect(editor.autosave.state).toBe("conflict");
+  });
+
+  it("treats a non-JSON 409 as a conflict", async () => {
+    const editor = editorWith("");
+    editor.type("a");
+    await vi.advanceTimersByTimeAsync(800);
+    await puts[0].respond(409, "<html>Conflict</html>");
+    expect(editor.autosave.state).toBe("conflict");
+  });
+
+  it("reports the status of a non-JSON gateway error and keeps the journal", async () => {
+    const editor = editorWith("");
+    editor.type("a");
+    await vi.advanceTimersByTimeAsync(800);
+    await puts[0].respond(502, "<html>Bad Gateway</html>");
+    expect(editor.autosave.state).toBe("error");
+    expect(editor.autosave.message).toBe("Save failed (HTTP 502).");
+    expect(storage.has(journalKey)).toBe(true);
+  });
+
+  it("rejects a success response without a revision", async () => {
+    const editor = editorWith("");
+    editor.type("a");
+    await vi.advanceTimersByTimeAsync(800);
+    await puts[0].respond(200, "<html>Login</html>");
+    expect(editor.autosave.state).toBe("error");
+    expect(editor.autosave.hasUnsavedChanges).toBe(true);
   });
 
   it("journals failed saves and retries on flush", async () => {

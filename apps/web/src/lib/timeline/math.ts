@@ -2,6 +2,8 @@ import type { EditorCue } from "$lib/editor/cues";
 
 export type CueTiming = Pick<EditorCue, "id" | "start_us" | "end_us">;
 
+export type TimingGesture = "drag" | "nudge";
+
 export type TimingPart = "whole" | "start" | "end";
 
 export type TimingBounds = { minUs: number; maxUs: number };

@@ -34,10 +34,28 @@ export function cueIssues(
   });
 }
 
+export function charactersPerSecond(cue: EditorCue): number | null {
+  const durationSeconds = (cue.end_us - cue.start_us) / 1_000_000;
+  if (durationSeconds <= 0) return null;
+  return cue.text.replace(/\s/g, "").length / durationSeconds;
+}
+
+export function cueTimeError(
+  cue: EditorCue,
+  field: "start_us" | "end_us",
+  value: number,
+): string | null {
+  const startUs = field === "start_us" ? value : cue.start_us;
+  const endUs = field === "end_us" ? value : cue.end_us;
+  if (endUs >= startUs) return null;
+  return field === "end_us"
+    ? "Out must not be earlier than In."
+    : "In must not be later than Out.";
+}
+
 function textAndTimingIssues(cue: EditorCue, maxLineLength: number): string[] {
   const issues: string[] = [];
   const duration = (cue.end_us - cue.start_us) / 1_000_000;
-  const characters = cue.text.replace(/\s/g, "").length;
   if (!cue.text.trim()) issues.push("Empty cue");
   if (cue.text.length > maxLineLength)
     issues.push(`Over ${maxLineLength} characters`);
@@ -45,7 +63,7 @@ function textAndTimingIssues(cue: EditorCue, maxLineLength: number): string[] {
   else {
     if (duration < 0.5) issues.push("Under 0.5 seconds");
     if (duration > 7) issues.push("Over 7 seconds");
-    if (characters / duration > 20) issues.push("Over 20 CPS");
+    if ((charactersPerSecond(cue) ?? 0) > 20) issues.push("Over 20 CPS");
   }
   return issues;
 }

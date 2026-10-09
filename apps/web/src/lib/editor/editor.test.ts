@@ -121,3 +121,80 @@ describe("CueEditor.loadTrack", () => {
     expect(editor.history.undoStack).toEqual([]);
   });
 });
+
+describe("CueEditor nudge history", () => {
+  function timedCue(id: string, startSeconds: number): EditorCue {
+    return {
+      id,
+      position: 0,
+      start_us: startSeconds * 1_000_000,
+      end_us: (startSeconds + 1) * 1_000_000,
+      text: id,
+    };
+  }
+
+  function editorWithTwoCues(): CueEditor {
+    const editor = newEditor();
+    editor.loadTrack(trackA, [timedCue("a", 1), timedCue("b", 5)], 1);
+    return editor;
+  }
+
+  function nudgeTiming(editor: CueEditor, id: string, deltaUs: number) {
+    const target = editor.cues.find((item) => item.id === id)!;
+    editor.retime(
+      {
+        id,
+        start_us: target.start_us + deltaUs,
+        end_us: target.end_us + deltaUs,
+      },
+      "nudge",
+    );
+  }
+
+  it("coalesces a held arrow key on one cue into a single undo step", () => {
+    const editor = editorWithTwoCues();
+    for (let step = 0; step < 60; step += 1) {
+      nudgeTiming(editor, "a", 1_000);
+      vi.advanceTimersByTime(30);
+    }
+
+    expect(editor.cues[0].start_us).toBe(1_060_000);
+    expect(editor.history.undoStack).toHaveLength(1);
+    editor.undo();
+    expect(editor.cues[0].start_us).toBe(1_000_000);
+  });
+
+  it("coalesces repeated toolbar nudges of the selected cue", () => {
+    const editor = editorWithTwoCues();
+    editor.nudgeSelected(100);
+    editor.nudgeSelected(100);
+    editor.nudgeSelected(100);
+
+    expect(editor.history.undoStack).toHaveLength(1);
+  });
+
+  it("starts a new undo step for another cue, after a pause or after a drag", () => {
+    const editor = editorWithTwoCues();
+    nudgeTiming(editor, "a", 1_000);
+    nudgeTiming(editor, "b", 1_000);
+    expect(editor.history.undoStack).toHaveLength(2);
+
+    vi.advanceTimersByTime(1_500);
+    nudgeTiming(editor, "b", 1_000);
+    expect(editor.history.undoStack).toHaveLength(3);
+
+    editor.retime({ id: "b", start_us: 6_000_000, end_us: 7_000_000 });
+    nudgeTiming(editor, "b", 1_000);
+    expect(editor.history.undoStack).toHaveLength(5);
+  });
+
+  it("does not fold a nudge into the step before an undo", () => {
+    const editor = editorWithTwoCues();
+    nudgeTiming(editor, "a", 1_000);
+    editor.undo();
+    nudgeTiming(editor, "a", 1_000);
+
+    expect(editor.history.undoStack).toHaveLength(1);
+    expect(editor.history.redoStack).toHaveLength(0);
+  });
+});

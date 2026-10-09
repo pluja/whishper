@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
+  import { isPreparationActive, isRunActive } from "$lib/projectStatus";
 
   type JobProgress = {
     progress: number | null;
@@ -17,7 +18,7 @@
 </script>
 
 {#if run}
-  {#if run.status === "queued" || run.status === "running"}
+  {#if isRunActive(run)}
     <div class="processing-banner" aria-live="polite">
       <span class="processing-icon"><Icon name="activity" size={18} /></span>
       <div>
@@ -39,7 +40,7 @@
   {/if}
 {/if}
 
-{#if preparation && (preparation.state === "queued" || preparation.state === "leased")}
+{#if preparation && isPreparationActive(preparation)}
   <div class="processing-banner" aria-live="polite">
     <span class="processing-icon"><Icon name="activity" size={18} /></span>
     <div>

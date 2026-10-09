@@ -4,6 +4,7 @@ import type {
   WorkerHardware,
 } from "@anysub/contracts";
 
+import { formatBytes } from "$lib/format";
 import { isRecord } from "$lib/server/util";
 import type {
   AvailableTranscriptionModel,
@@ -11,7 +12,6 @@ import type {
   ModelFit,
 } from "$lib/transcription-models";
 
-const GIB = 1024 ** 3;
 const FIT_RANK: Record<ModelFit, number> = {
   poor: 0,
   unknown: 1,
@@ -191,7 +191,7 @@ function scoreModelFit(
       ...resource,
       fit: "poor",
       fitLabel: "Not recommended",
-      fitReason: `This model needs about ${formatMemory(memoryRequirementBytes)} of graphics memory, but only ${formatMemory(gpu.totalMemoryBytes)} is available.`,
+      fitReason: `This model needs about ${formatBytes(memoryRequirementBytes)} of graphics memory, but only ${formatBytes(gpu.totalMemoryBytes)} is available.`,
     };
   }
 
@@ -208,7 +208,7 @@ function scoreModelFit(
       ...resource,
       fit: "poor",
       fitLabel: "Not recommended",
-      fitReason: `This model needs about ${formatMemory(memoryRequirementBytes)} of memory, but only ${formatMemory(availableRam)} is available.`,
+      fitReason: `This model needs about ${formatBytes(memoryRequirementBytes)} of memory, but only ${formatBytes(availableRam)} is available.`,
     };
   }
   if (
@@ -241,13 +241,13 @@ function formatWorkerSummary(
 }
 
 function describeHardware(hardware: WorkerHardware): DetectedWorkerHardware {
-  const ram = `${formatMemory(hardware.memory.availableBytes)} RAM available`;
+  const ram = `${formatBytes(hardware.memory.availableBytes)} RAM available`;
   if (hardware.device === "cuda" && hardware.gpus[0]) {
     const gpu = hardware.gpus[0];
     return {
       kind: "gpu",
       name: gpu.name,
-      details: [`${formatMemory(gpu.totalMemoryBytes)} VRAM`, ram],
+      details: [`${formatBytes(gpu.totalMemoryBytes)} VRAM`, ram],
     };
   }
   return {
@@ -255,12 +255,6 @@ function describeHardware(hardware: WorkerHardware): DetectedWorkerHardware {
     name: hardware.cpu.model ?? "CPU",
     details: [`${hardware.cpu.logicalCores} logical cores`, ram],
   };
-}
-
-function formatMemory(bytes: number): string {
-  const gib = bytes / GIB;
-  const precision = gib >= 10 || Number.isInteger(gib) ? 0 : 1;
-  return `${gib.toFixed(precision)} GB`;
 }
 
 function positiveNumber(value: unknown): number | null {

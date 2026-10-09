@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { charactersPerSecond, cueTimeError } from "$lib/editor/cues";
   import type { CueEditor } from "$lib/editor/editor.svelte";
   import { formatEditorTime, parseEditorTime } from "$lib/subtitles";
 
@@ -22,7 +23,12 @@
       input.reportValidity();
       return;
     }
-    input.setCustomValidity("");
+    const timeError = cueTimeError(editor.cues[index], field, parsed);
+    input.setCustomValidity(timeError ?? "");
+    if (timeError) {
+      input.reportValidity();
+      return;
+    }
     editor.setTime(index, field, parsed);
   }
 
@@ -37,6 +43,7 @@
 <div class="cue-list">
   {#each editor.cues as cue, index (cue.id)}
     {@const issues = editor.issues[index]}
+    {@const cps = charactersPerSecond(cue)}
     <article
       id={`cue-${cue.id}`}
       class:active={activeCueId === cue.id}
@@ -106,13 +113,8 @@
           <span class:over-limit={cue.text.length > editor.maxLineLength}>
             {cue.text.length}/{editor.maxLineLength} chars
           </span>
-          {#if cue.end_us > cue.start_us}
-            <span
-              >{(
-                cue.text.replace(/\s/g, "").length /
-                ((cue.end_us - cue.start_us) / 1_000_000)
-              ).toFixed(1)} CPS</span
-            >
+          {#if cps !== null}
+            <span>{cps.toFixed(1)} CPS</span>
           {/if}
           {#each issues as issue (issue)}
             <span class="quality-tag">{issue}</span>

@@ -18,7 +18,7 @@
   } from "$lib/editor/shortcuts";
   import { frameDurationUs } from "$lib/editor/transport.svelte";
   import { pollWhileActive } from "$lib/polling.svelte";
-  import { isStudioActive } from "$lib/projectStatus";
+  import { isRunActive, isStudioActive } from "$lib/projectStatus";
 
   let { data, form } = $props();
 
@@ -193,7 +193,7 @@
             ? "Editing proxy"
             : data.project.media_preparation_status === "completed"
               ? "Source prepared"
-              : data.cues[0]
+              : editor.cues.length > 0
                 ? "Track visible"
                 : "Source stored"}
         </span>
@@ -267,7 +267,7 @@
         seekRevision={transport.seekRevision}
         onseek={transport.seekTo}
         onselect={(cueId) => editor.select(cueId)}
-        oncommittiming={(timing) => editor.retime(timing)}
+        oncommittiming={(timing, gesture) => editor.retime(timing, gesture)}
       />
     </section>
 
@@ -311,7 +311,7 @@
           <span class="empty-illustration"
             ><Icon name="subtitles" size={28} /></span
           >
-          {#if data.run && ["queued", "running"].includes(data.run.status)}
+          {#if isRunActive(data.run)}
             <h2>Preparing the first track</h2>
             <p>
               The worker will place normalized subtitle cues here when

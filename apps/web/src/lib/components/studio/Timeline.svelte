@@ -18,6 +18,7 @@
     scrollLeftRevealing,
     timeToPx,
     type CueTiming,
+    type TimingGesture,
   } from "$lib/timeline/math";
   import {
     chooseWaveformLevel,
@@ -36,7 +37,7 @@
     seekRevision: number;
     onseek: (us: number) => void;
     onselect: (cueId: string) => void;
-    oncommittiming: (timing: CueTiming) => void;
+    oncommittiming: (timing: CueTiming, gesture: TimingGesture) => void;
   };
 
   type PanDrag = {
@@ -152,8 +153,7 @@
   }
 
   function scrollViewTo(node: HTMLDivElement, target: number) {
-    if (node.scrollLeft === target) return;
-    node.scrollLeft = target;
+    if (node.scrollLeft !== target) node.scrollLeft = target;
     lastAutoScrollLeft = node.scrollLeft;
   }
 

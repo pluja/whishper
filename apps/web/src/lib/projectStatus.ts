@@ -13,6 +13,7 @@ export type ProjectMessageFields = {
 };
 
 const ACTIVE_JOB_STATES = ["queued", "leased"];
+const ACTIVE_RUN_STATUSES = ["queued", "running"];
 const ACTIVE_UPLOAD_STATUSES = ["uploading", "finalizing"];
 const ACTIVE_PREPARATION_STATUSES = ["queued", "running"];
 
@@ -31,16 +32,21 @@ export function isProjectActive(
   );
 }
 
+export function isRunActive(run: { status: string } | null): boolean {
+  return run !== null && ACTIVE_RUN_STATUSES.includes(run.status);
+}
+
+export function isPreparationActive(
+  preparation: { state: string } | null,
+): boolean {
+  return preparation !== null && ACTIVE_JOB_STATES.includes(preparation.state);
+}
+
 export function isStudioActive(studio: {
   run: { status: string } | null;
   preparation: { state: string } | null;
 }): boolean {
-  return (
-    (studio.run !== null &&
-      ["queued", "running"].includes(studio.run.status)) ||
-    (studio.preparation !== null &&
-      ACTIVE_JOB_STATES.includes(studio.preparation.state))
-  );
+  return isRunActive(studio.run) || isPreparationActive(studio.preparation);
 }
 
 export function displayState(project: ProjectStatusFields): string {

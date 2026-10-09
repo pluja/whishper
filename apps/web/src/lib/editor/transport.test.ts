@@ -16,6 +16,7 @@ function fakeMedia(paused: boolean) {
 function newTransport(): Transport {
   return new Transport(
     {
+      editing: false,
       cues: [
         {
           id: "a",
@@ -115,5 +116,40 @@ describe("Transport.seekRevision", () => {
     } as unknown as Event);
     expect(transport.playbackUs).toBe(5_000_000);
     expect(transport.seekRevision).toBe(0);
+  });
+});
+
+describe("Transport playback selection", () => {
+  function playingTransport(editing: boolean) {
+    const selection = {
+      cues: [
+        {
+          id: "a",
+          position: 0,
+          start_us: 1_000_000,
+          end_us: 2_000_000,
+          text: "",
+        },
+      ],
+      selectedCueId: null as string | null,
+      editing,
+    };
+    const transport = new Transport(selection, {
+      frameDurationUs: () => 40_000,
+      preparedDurationUs: () => 10_000_000,
+      trackDurationUs: () => 0,
+    });
+    transport.updatePlayback({
+      currentTarget: { ...fakeMedia(false), currentTime: 1.5 },
+    } as unknown as Event);
+    return selection;
+  }
+
+  it("selects the cue under the playhead", () => {
+    expect(playingTransport(false).selectedCueId).toBe("a");
+  });
+
+  it("leaves the selection alone while a cue is being edited", () => {
+    expect(playingTransport(true).selectedCueId).toBeNull();
   });
 });
