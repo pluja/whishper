@@ -13,6 +13,7 @@ from anysub_worker.config import WorkerSettings
 from anysub_worker.media import PreparedMedia
 from anysub_worker.models import (
     JobFailure,
+    LeaseResponse,
     MediaDerivativeUpload,
     MediaGenerator,
     MediaPreparationJobCompletion,
@@ -250,7 +251,9 @@ def network_error() -> httpx.ConnectError:
 def status_error(status_code: int, body: str) -> httpx.HTTPStatusError:
     request = httpx.Request("POST", "http://app.test/api/internal/jobs/job-1/complete")
     response = httpx.Response(status_code, text=body, request=request)
-    return httpx.HTTPStatusError(f"status {status_code}", request=request, response=response)
+    with pytest.raises(httpx.HTTPStatusError) as raised:
+        response.raise_for_status()
+    return raised.value
 
 
 async def test_heartbeat_recovers_after_network_error(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -340,7 +343,7 @@ async def test_rejected_request_fails_the_job_permanently_with_response_detail()
     assert client.failures == [
         JobFailure(
             code="adapter_error",
-            message="HTTPStatusError: status 400: invalid artifact",
+            message="HTTPStatusError: 400 Bad Request: invalid artifact",
             retryable=False,
         )
     ]
@@ -351,9 +354,13 @@ async def test_rejected_request_fails_the_job_permanently_with_response_detail()
     [
         (RuntimeError("disk full"), "RuntimeError: disk full", True),
         (TimeoutError(), "TimeoutError", True),
-        (status_error(503, "busy"), "HTTPStatusError: status 503: busy", True),
-        (status_error(422, ""), "HTTPStatusError: status 422", False),
-        (status_error(409, "stale"), "HTTPStatusError: status 409: stale", True),
+        (status_error(503, "busy"), "HTTPStatusError: 503 Service Unavailable: busy", True),
+        (
+            status_error(422, ""),
+            f"HTTPStatusError: 422 {httpx.codes.UNPROCESSABLE_ENTITY.phrase}",
+            False,
+        ),
+        (status_error(409, "stale"), "HTTPStatusError: 409 Conflict: stale", True),
     ],
 )
 def test_unexpected_failures_are_described_with_their_type(
@@ -364,6 +371,23 @@ def test_unexpected_failures_are_described_with_their_type(
     assert failure == JobFailure(
         code="media_preparation_error", message=message, retryable=retryable
     )
+
+
+@pytest.mark.parametrize(
+    ("body", "expected_detail"),
+    [
+        ('{"message": "artifact too large", "code": 1}', "artifact too large"),
+        ("<html><body><h1>Bad Gateway</h1>\n<p>nginx</p></body></html>", "Bad Gateway"),
+        ("\n\n  first line  \nsecond", "first line"),
+        ("x" * 1000, "x" * runner.MAX_RESPONSE_DETAIL_CHARS),
+    ],
+)
+def test_http_status_errors_never_expose_urls(body: str, expected_detail: str) -> None:
+    message = runner.describe_error(status_error(502, body))
+
+    assert message == f"HTTPStatusError: 502 Bad Gateway: {expected_detail}"
+    assert "app.test" not in message
+    assert "mozilla" not in message
 
 
 class StopPolling(Exception):
@@ -431,3 +455,26 @@ async def test_sigterm_stops_the_worker_and_closes_the_client(tmp_path: Path, mo
     )
 
     assert IdleClient.closed
+
+
+async def test_unexpected_execute_errors_do_not_kill_the_poll_loop(monkeypatch, caplog) -> None:  # type: ignore[no-untyped-def]
+    polls = 0
+
+    class ScriptedClient:
+        async def lease(self) -> LeaseResponse:
+            nonlocal polls
+            polls += 1
+            if polls > 1:
+                raise StopPolling
+            return LeaseResponse(lease=transcription_lease(), pollAfterMs=100)
+
+    async def crash(*_args) -> None:  # type: ignore[no-untyped-def]
+        raise httpx.InvalidURL("bad url")
+
+    monkeypatch.setattr(runner, "_execute", crash)
+
+    with pytest.raises(StopPolling):
+        await runner.poll_forever(ScriptedClient(), AdapterRegistry(()))  # type: ignore[arg-type]
+
+    assert polls == 2
+    assert "job execution crashed" in caplog.text

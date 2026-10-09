@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import random
+import re
 import signal
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
@@ -33,7 +34,8 @@ POLL_BACKOFF_BASE_SECONDS = 1
 POLL_BACKOFF_CAP_SECONDS = 30
 # Compose stops containers after 10s, so the shutdown failure report must finish well before.
 SHUTDOWN_REPORT_SECONDS = 5
-MAX_RESPONSE_DETAIL_CHARS = 500
+MAX_RESPONSE_DETAIL_CHARS = 200
+HTML_TAG = re.compile(r"<[^>]*>")
 SHUTDOWN_SIGNALS = (signal.SIGTERM, signal.SIGINT)
 LEASE_POLL_ERRORS = (httpx.HTTPError, ValidationError, json.JSONDecodeError)
 
@@ -97,7 +99,10 @@ async def poll_forever(
         if response.lease is None:
             await sleep(response.poll_after_ms / 1000)
             continue
-        await _execute(client, registry, response.lease)
+        try:
+            await _execute(client, registry, response.lease)
+        except Exception:
+            LOGGER.exception("job execution crashed job_id=%s", response.lease.job_id)
 
 
 def poll_backoff_seconds(consecutive_failures: int, jitter: float) -> float:
@@ -107,13 +112,28 @@ def poll_backoff_seconds(consecutive_failures: int, jitter: float) -> float:
 
 
 def describe_error(error: BaseException) -> str:
-    message = f"{type(error).__name__}: {error}" if str(error) else type(error).__name__
     if isinstance(error, httpx.HTTPStatusError):
+        response = error.response
+        message = f"{type(error).__name__}: {response.status_code} {response.reason_phrase}"
         with suppress(httpx.ResponseNotRead):
-            detail = error.response.text.strip()[:MAX_RESPONSE_DETAIL_CHARS]
+            detail = _summarize_response_body(response)
             if detail:
                 message = f"{message}: {detail}"
-    return message
+        return message
+    return f"{type(error).__name__}: {error}" if str(error) else type(error).__name__
+
+
+def _summarize_response_body(response: httpx.Response) -> str:
+    text = response.text
+    with suppress(json.JSONDecodeError):
+        body = json.loads(text)
+        if isinstance(body, dict) and isinstance(body.get("message"), str):
+            text = body["message"]
+    for line in HTML_TAG.sub(" ", text).splitlines():
+        collapsed = " ".join(line.split())
+        if collapsed:
+            return collapsed[:MAX_RESPONSE_DETAIL_CHARS]
+    return ""
 
 
 class _LeasedJob:

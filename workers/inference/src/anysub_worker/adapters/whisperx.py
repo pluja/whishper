@@ -328,8 +328,8 @@ def _normalize_result(
     for cue_index, segment in enumerate(result.get("segments") or [], start=1):
         words: list[WordToken] = []
         for word_index, source_word in enumerate(segment.get("words") or [], start=1):
-            start = _seconds_to_us(source_word.get("start"))
-            end = _seconds_to_us(source_word.get("end"))
+            start = _clamped_seconds_to_us(source_word.get("start"))
+            end = _clamped_seconds_to_us(source_word.get("end"))
             if start is None or end is None or end < start:
                 continue
             words.append(
@@ -343,8 +343,8 @@ def _normalize_result(
                 )
             )
 
-        start_us = _seconds_to_us(segment.get("start"))
-        end_us = _seconds_to_us(segment.get("end"))
+        start_us = _clamped_seconds_to_us(segment.get("start"))
+        end_us = _clamped_seconds_to_us(segment.get("end"))
         if start_us is None:
             start_us = words[0].start_us if words else 0
         if end_us is None:
@@ -526,7 +526,7 @@ def _display_model_name(model_id: str) -> str:
     return model_id.capitalize()
 
 
-def _seconds_to_us(value: Any) -> int | None:
+def _clamped_seconds_to_us(value: Any) -> int | None:
     if value is None:
         return None
     return max(0, round(float(value) * 1_000_000))

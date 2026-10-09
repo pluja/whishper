@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+import asyncio
+from collections import deque
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+
+from .errors import MediaPreparationError
+
+PROBE_TIMEOUT_SECONDS = 30
+VERSION_TIMEOUT_SECONDS = 10
+THUMBNAIL_TIMEOUT_SECONDS = 300
+WAVEFORM_TIMEOUT_SECONDS = 900
+FRAME_RATE_DETECTION_FLOOR_SECONDS = 120
+FRAME_RATE_DETECTION_SECONDS_PER_MEDIA_SECOND = 1
+PROXY_FLOOR_SECONDS = 900
+PROXY_SECONDS_PER_MEDIA_SECOND = 3
+
+STDERR_TAIL_LINES = 20
+STDERR_TAIL_BYTES = 16 * 1024
+READ_CHUNK_BYTES = 64 * 1024
+
+
+@dataclass(frozen=True)
+class FfmpegResult:
+    stdout: bytes
+    stderr: str
+
+
+def scaled_timeout_seconds(
+    duration_us: int, seconds_per_media_second: float, floor: float
+) -> float:
+    return max(floor, duration_us / 1_000_000 * seconds_per_media_second)
+
+
+async def run_ffmpeg(
+    arguments: Sequence[str],
+    timeout: float,
+    *,
+    program: str = "ffmpeg",
+    on_stdout: Callable[[bytes], None] | None = None,
+) -> FfmpegResult:
+    """Runs a media tool to completion.
+
+    With `on_stdout`, output is streamed to the callback and not retained, which keeps
+    memory flat for large raw streams.
+    """
+    try:
+        process = await asyncio.create_subprocess_exec(
+            program,
+            *arguments,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except FileNotFoundError as cause:
+        raise MediaPreparationError(f"{program} is not installed on this worker.") from cause
+
+    retained = bytearray()
+    consume = on_stdout if on_stdout is not None else retained.extend
+    try:
+        async with asyncio.timeout(timeout):
+            _, stderr_tail, _ = await asyncio.gather(
+                _drain_stdout(process, consume), _drain_stderr(process), process.wait()
+            )
+    except TimeoutError as cause:
+        raise MediaPreparationError(
+            f"{program} timed out after {timeout:.0f}s.", retryable=True
+        ) from cause
+    finally:
+        if process.returncode is None:
+            process.kill()
+            await process.wait()
+
+    if process.returncode != 0:
+        raise MediaPreparationError(
+            f"{program} exited with code {process.returncode}: {stderr_tail}"
+        )
+    return FfmpegResult(stdout=bytes(retained), stderr=stderr_tail)
+
+
+async def ffmpeg_version() -> str:
+    result = await run_ffmpeg(["-version"], VERSION_TIMEOUT_SECONDS)
+    lines = result.stdout.decode("utf-8", errors="replace").splitlines()
+    parts = lines[0].split() if lines else []
+    return parts[2] if len(parts) >= 3 else "unknown"
+
+
+async def _drain_stdout(
+    process: asyncio.subprocess.Process, consume: Callable[[bytes], None]
+) -> None:
+    assert process.stdout is not None
+    while chunk := await process.stdout.read(READ_CHUNK_BYTES):
+        consume(chunk)
+
+
+async def _drain_stderr(process: asyncio.subprocess.Process) -> str:
+    assert process.stderr is not None
+    tail = b""
+    while chunk := await process.stderr.read(READ_CHUNK_BYTES):
+        tail = (tail + chunk)[-STDERR_TAIL_BYTES:]
+    lines = deque(tail.decode("utf-8", errors="replace").splitlines(), maxlen=STDERR_TAIL_LINES)
+    return "\n".join(lines)
