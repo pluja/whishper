@@ -45,7 +45,7 @@ async def test_nonzero_exit_reports_the_stderr_tail() -> None:
 
 async def test_timeout_kills_the_child_and_keeps_stderr_context(tmp_path: Path) -> None:
     pid_file = tmp_path / "pid"
-    script = f"echo decoder stalled >&2; echo $$ > {pid_file}; exec sleep 30"
+    script = f"echo $$ > {pid_file}; echo decoder stalled >&2; exec sleep 30"
 
     with pytest.raises(
         MediaToolTimeoutError, match=r"timed out after 0\.5s: decoder stalled"
