@@ -1,3 +1,4 @@
+import { httpErrorFrom } from "$lib/server/http-error";
 import {
   appendArtifactChunk,
   ArtifactOffsetError,
@@ -5,33 +6,25 @@ import {
   requireMediaPreparationLease,
   stagedArtifactOffset,
 } from "$lib/server/media-preparation";
-import { requireWorker } from "$lib/server/worker-auth";
+import { requireWorkerLeaseToken } from "$lib/server/worker-request";
 import { error, type RequestEvent, type RequestHandler } from "@sveltejs/kit";
 
 async function activeArtifactLease(event: RequestEvent) {
-  requireWorker(event);
-  const jobId = event.params.jobId;
-  const kind = event.params.kind;
-  const leaseToken = event.request.headers.get("x-anysub-lease-token");
-  if (!jobId || !kind || !leaseToken || !isMediaDerivativeKind(kind)) {
-    error(400, "A valid derivative kind and active lease are required");
+  const leaseToken = requireWorkerLeaseToken(event);
+  const kind = event.params.kind!;
+  if (!isMediaDerivativeKind(kind)) {
+    error(400, "A valid derivative kind is required");
   }
   try {
     return {
       kind,
-      lease: await requireMediaPreparationLease(jobId, leaseToken),
+      lease: await requireMediaPreparationLease(
+        event.params.jobId!,
+        leaseToken,
+      ),
     };
   } catch (cause) {
-    const status =
-      cause instanceof Error && "statusCode" in cause
-        ? Number(cause.statusCode)
-        : 500;
-    error(
-      status,
-      status === 500 || !(cause instanceof Error)
-        ? "Artifact transfer failed"
-        : cause.message,
-    );
+    httpErrorFrom(cause, "Artifact transfer failed");
   }
 }
 
@@ -75,15 +68,6 @@ export const PATCH: RequestHandler = async (event) => {
         headers: { "Upload-Offset": String(cause.currentOffset) },
       });
     }
-    const status =
-      cause instanceof Error && "statusCode" in cause
-        ? Number(cause.statusCode)
-        : 500;
-    error(
-      status,
-      status === 500 || !(cause instanceof Error)
-        ? "Artifact upload failed"
-        : cause.message,
-    );
+    httpErrorFrom(cause, "Artifact upload failed");
   }
 };
