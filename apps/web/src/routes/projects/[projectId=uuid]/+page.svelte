@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { beforeNavigate, invalidateAll } from "$app/navigation";
+  import { beforeNavigate } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
   import CueList from "$lib/components/studio/CueList.svelte";
   import EditorToolbar from "$lib/components/studio/EditorToolbar.svelte";
@@ -17,8 +17,12 @@
     type StudioCommands,
   } from "$lib/editor/shortcuts";
   import { frameDurationUs } from "$lib/editor/transport.svelte";
+  import { pollWhileActive } from "$lib/polling.svelte";
+  import { isStudioActive } from "$lib/projectStatus";
 
   let { data, form } = $props();
+
+  pollWhileActive(() => isStudioActive(data), 1_500);
 
   function editorCues(): EditorCue[] {
     return data.cues.map((cue) => ({
@@ -137,24 +141,7 @@
 
   onMount(() => {
     paneWidth.restore();
-    const interval =
-      (data.run && ["queued", "running"].includes(data.run.status)) ||
-      (data.preparation &&
-        ["queued", "leased"].includes(data.preparation.state))
-        ? window.setInterval(() => {
-            if (
-              (data.run && ["queued", "running"].includes(data.run.status)) ||
-              (data.preparation &&
-                ["queued", "leased"].includes(data.preparation.state))
-            ) {
-              void invalidateAll();
-            } else if (interval) {
-              window.clearInterval(interval);
-            }
-          }, 1_500)
-        : undefined;
     return () => {
-      if (interval) window.clearInterval(interval);
       editor.autosave.dispose();
       paneWidth.dispose();
       transport.resetShuttleRate();
