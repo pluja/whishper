@@ -228,7 +228,14 @@ def test_word_assignment_matches_the_previous_quadratic_behaviour(monkeypatch) -
 
 
 class StubWhisperX:
-    def __init__(self, *, align_error: Exception | None = None, asr_error: Exception | None = None):
+    def __init__(
+        self,
+        *,
+        align_error: Exception | None = None,
+        asr_error: Exception | None = None,
+        load_error: Exception | None = None,
+    ):
+        self.load_error = load_error
         self.align_error = align_error
         self.asr_error = asr_error
         self.aligned = False
@@ -237,6 +244,8 @@ class StubWhisperX:
         return [0.0] * 16_000
 
     def load_model(self, model_id, device, **kwargs):  # type: ignore[no-untyped-def]
+        if self.load_error:
+            raise self.load_error
         outer = self
 
         class Model:
@@ -420,3 +429,22 @@ async def test_validation_failure_keeps_the_warm_cached_model(transcribe_setup) 
         await adapter.transcribe(bad_request, noop_progress)
 
     assert adapter._model is warm_model
+
+
+async def test_invalid_compute_type_on_model_load_is_not_retryable(transcribe_setup) -> None:  # type: ignore[no-untyped-def]
+    ct2_message = "Requested float16 compute type, but the target device does not support it"
+    adapter, request = transcribe_setup(StubWhisperX(load_error=ValueError(ct2_message)))
+
+    with pytest.raises(AdapterExecutionError) as raised:
+        await adapter.transcribe(request, noop_progress)
+
+    assert raised.value.retryable is False
+    assert ct2_message in str(raised.value)
+    assert "ANYSUB_COMPUTE_TYPE" in str(raised.value)
+
+
+async def test_download_errors_on_model_load_stay_retryable(transcribe_setup) -> None:  # type: ignore[no-untyped-def]
+    adapter, request = transcribe_setup(StubWhisperX(load_error=ConnectionError("offline")))
+
+    with pytest.raises(ConnectionError):
+        await adapter.transcribe(request, noop_progress)

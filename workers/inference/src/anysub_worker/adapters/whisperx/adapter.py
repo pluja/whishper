@@ -218,12 +218,19 @@ class WhisperXAdapter:
         }
         if language:
             kwargs["language"] = language
-        self._model = await _run_in_thread(
-            whisperx.load_model,
-            model_id,
-            self._settings.device,
-            **kwargs,
-        )
+        try:
+            self._model = await _run_in_thread(
+                whisperx.load_model,
+                model_id,
+                self._settings.device,
+                **kwargs,
+            )
+        except ValueError as error:
+            raise AdapterExecutionError(
+                f"The {model_id} model could not be loaded: {error}. Check ANYSUB_COMPUTE_TYPE "
+                f"({self._settings.compute_type}) and ANYSUB_DEVICE ({self._settings.device}).",
+                retryable=False,
+            ) from error
         self._model_key = key
         return self._model
 
