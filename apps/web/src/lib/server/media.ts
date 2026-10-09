@@ -7,7 +7,7 @@ import { privateEnv } from "$lib/server/env";
 import {
   enqueueMediaPreparation,
   lockMediaPreparationProject,
-} from "$lib/server/media-preparation";
+} from "$lib/server/media-enqueue";
 import { normalizeProjectTitle } from "$lib/server/project-library";
 import { linkIdempotent } from "$lib/server/util";
 

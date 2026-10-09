@@ -10,10 +10,12 @@ import {
 import { deleteProjectForUser } from "$lib/server/media";
 import {
   cancelMediaPreparationForUser,
+  requestMediaPreparationForUser,
+} from "$lib/server/media-enqueue";
+import {
   deleteDerivativeForUser,
   isMediaDerivativeKind,
-  requestMediaPreparationForUser,
-} from "$lib/server/media-preparation";
+} from "$lib/server/media-finalize";
 import { deleteTranscriptForUser } from "$lib/server/transcripts";
 import { error, fail, redirect, type Actions } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";

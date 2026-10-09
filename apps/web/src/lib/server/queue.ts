@@ -13,18 +13,18 @@ import {
   type WorkerManifest,
 } from "@anysub/contracts";
 import type { PoolClient } from "pg";
-import type { MediaFinalizationPlan } from "$lib/server/media-preparation";
+import type { MediaFinalizationPlan } from "$lib/server/media-finalize";
 
 import { pool } from "$lib/server/db";
 import { insertCues } from "$lib/server/cues";
 import { withTransaction } from "$lib/server/db/transaction";
 import { hashToken } from "$lib/server/util";
+import { cleanupStagedMediaAttempt } from "$lib/server/media-artifact-staging";
 import {
   commitMediaFinalization,
-  cleanupStagedMediaAttempt,
   finalizeMediaPreparation,
   rollbackMediaFinalization,
-} from "$lib/server/media-preparation";
+} from "$lib/server/media-finalize";
 
 const LEASE_SECONDS = 60;
 

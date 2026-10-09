@@ -1,8 +1,5 @@
-import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, rm, stat, unlink } from "node:fs/promises";
 import { dirname, posix } from "node:path";
-import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
 
 import type {
   MediaDerivativeKind,
@@ -14,11 +11,13 @@ import type {
 } from "@anysub/contracts";
 import type { PoolClient } from "pg";
 
-import { pool } from "$lib/server/db";
 import { withTransaction } from "$lib/server/db/transaction";
-import { privateEnv } from "$lib/server/env";
+import {
+  ARTIFACT_LIMITS,
+  stagingArtifactPath,
+} from "$lib/server/media-artifact-staging";
 import { resolveDataPath } from "$lib/server/media";
-import { hashToken, linkIdempotent } from "$lib/server/util";
+import { linkIdempotent } from "$lib/server/util";
 
 const ARTIFACT_MEDIA_TYPES: Record<MediaDerivativeKind, readonly string[]> = {
   waveform: ["application/vnd.anysub.waveform+json"],
@@ -46,19 +45,6 @@ const ARTIFACT_EXTENSIONS: Record<string, string> = {
   "video/mp4": ".mp4",
   "audio/mpeg": ".mp3",
 };
-const ARTIFACT_LIMITS: Record<MediaDerivativeKind, number> = {
-  waveform: 64 * 1024 * 1024,
-  thumbnail: 16 * 1024 * 1024,
-  proxy: privateEnv.maxUploadBytes,
-};
-
-export type MediaPreparationLease = {
-  jobId: string;
-  attempt: number;
-  workspaceId: string;
-  payload: MediaPreparationJobPayload;
-  mediaType: string | null;
-};
 
 export type MediaFinalizationPlan = {
   createdPaths: string[];
@@ -66,281 +52,10 @@ export type MediaFinalizationPlan = {
   stagingRoot: string;
 };
 
-export class ArtifactOffsetError extends Error {
-  constructor(public readonly currentOffset: number) {
-    super("Artifact upload offset does not match staged data.");
-  }
-}
-
 export function isMediaDerivativeKind(
   value: string,
 ): value is MediaDerivativeKind {
   return value === "waveform" || value === "thumbnail" || value === "proxy";
-}
-
-export async function lockMediaPreparationProject(
-  client: PoolClient,
-  projectId: string,
-): Promise<void> {
-  await client.query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [
-    projectId,
-  ]);
-}
-
-export async function enqueueMediaPreparation(
-  client: PoolClient,
-  input: {
-    workspaceId: string;
-    projectId: string;
-    sourceStorageKey: string;
-    sourceFilename: string;
-    sourceMediaType: string | null;
-  },
-): Promise<string> {
-  await lockMediaPreparationProject(client, input.projectId);
-  const project = await client.query<{ media_original_key: string | null }>(
-    "select media_original_key from projects where id = $1 for update",
-    [input.projectId],
-  );
-  if (
-    !project.rows[0] ||
-    project.rows[0].media_original_key !== input.sourceStorageKey
-  ) {
-    throw new Error("Project source changed before media preparation queued.");
-  }
-  const existing = await client.query<{ id: string }>(
-    `select id
-       from jobs
-      where payload->>'kind' = 'media_prepare'
-        and project_id = $1
-        and state in ('queued', 'leased')
-      order by created_at desc
-      limit 1`,
-    [input.projectId],
-  );
-  if (existing.rows[0]) return existing.rows[0].id;
-
-  const payload: MediaPreparationJobPayload = {
-    kind: "media_prepare",
-    projectId: input.projectId,
-    sourceStorageKey: input.sourceStorageKey,
-    sourceFilename: input.sourceFilename,
-    ...(input.sourceMediaType
-      ? { sourceMediaType: input.sourceMediaType }
-      : {}),
-  };
-  const job = await client.query<{ id: string }>(
-    `insert into jobs (workspace_id, project_id, kind, payload)
-     values ($1, $2, 'media_prepare', $3)
-     returning id`,
-    [input.workspaceId, input.projectId, JSON.stringify(payload)],
-  );
-  await client.query(
-    `update projects
-        set media_preparation_status = 'queued', updated_at = now()
-      where id = $1`,
-    [input.projectId],
-  );
-  return job.rows[0].id;
-}
-
-export async function requestMediaPreparationForUser(
-  projectId: string,
-  userId: string,
-): Promise<boolean> {
-  return withTransaction(async (client) => {
-    const project = await client.query<{
-      workspace_id: string;
-      media_original_key: string;
-      media_filename: string;
-      media_type: string | null;
-    }>(
-      `select p.workspace_id, p.media_original_key, p.media_filename,
-              upload.media_type
-         from projects p
-         join memberships m on m.workspace_id = p.workspace_id
-         left join media_uploads upload on upload.project_id = p.id
-        where p.id = $1 and m.user_id = $2
-          and p.media_original_key is not null
-        `,
-      [projectId, userId],
-    );
-    const row = project.rows[0];
-    if (!row) return false;
-    await enqueueMediaPreparation(client, {
-      workspaceId: row.workspace_id,
-      projectId,
-      sourceStorageKey: row.media_original_key,
-      sourceFilename: row.media_filename,
-      sourceMediaType: row.media_type,
-    });
-    return true;
-  });
-}
-
-export async function cancelMediaPreparationForUser(
-  projectId: string,
-  userId: string,
-): Promise<boolean> {
-  const jobId = await withTransaction(async (client) => {
-    const active = await client.query<{ id: string; prepared: boolean }>(
-      `select j.id, (p.media_probe is not null) as prepared
-         from jobs j
-         join projects p on p.id = j.project_id
-         join memberships m on m.workspace_id = p.workspace_id
-        where j.payload->>'kind' = 'media_prepare'
-          and j.project_id = $1
-          and j.state in ('queued', 'leased')
-          and m.user_id = $2
-        order by j.created_at desc
-        limit 1
-        for update of j, p`,
-      [projectId, userId],
-    );
-    const job = active.rows[0];
-    if (!job) return null;
-    await client.query(
-      `update jobs
-          set state = 'cancelled', lease_token_hash = null,
-              lease_expires_at = null, progress_message = 'Cancelled',
-              updated_at = now()
-        where id = $1`,
-      [job.id],
-    );
-    await client.query(
-      `update projects
-          set media_preparation_status = $2, updated_at = now()
-        where id = $1`,
-      [projectId, job.prepared ? "completed" : "not_started"],
-    );
-    return job.id;
-  });
-  if (!jobId) return false;
-  await cleanupStagedMediaArtifacts(jobId);
-  return true;
-}
-
-export async function requireMediaPreparationLease(
-  jobId: string,
-  leaseToken: string,
-): Promise<MediaPreparationLease> {
-  const result = await pool.query<{
-    attempts: number;
-    workspace_id: string;
-    payload: MediaPreparationJobPayload;
-    media_type: string | null;
-    media_original_key: string | null;
-  }>(
-    `select j.attempts, j.workspace_id, j.payload, upload.media_type,
-            p.media_original_key
-       from jobs j
-       join projects p on p.id = j.project_id
-       left join media_uploads upload on upload.project_id = p.id
-      where j.id = $1
-        and j.state = 'leased'
-        and j.lease_token_hash = $2
-        and j.lease_expires_at > now()
-        and j.payload->>'kind' = 'media_prepare'`,
-    [jobId, hashToken(leaseToken)],
-  );
-  const row = result.rows[0];
-  if (
-    !row ||
-    row.payload.kind !== "media_prepare" ||
-    row.media_original_key !== row.payload.sourceStorageKey
-  ) {
-    throw Object.assign(
-      new Error("Media preparation lease is no longer active."),
-      {
-        statusCode: 409,
-      },
-    );
-  }
-  return {
-    jobId,
-    attempt: row.attempts,
-    workspaceId: row.workspace_id,
-    payload: row.payload,
-    mediaType: row.media_type,
-  };
-}
-
-export async function stagedArtifactOffset(
-  lease: MediaPreparationLease,
-  kind: MediaDerivativeKind,
-): Promise<number> {
-  const file = await stat(stagingArtifactPath(lease, kind)).catch(() => null);
-  return file?.isFile() ? file.size : 0;
-}
-
-export async function appendArtifactChunk(
-  lease: MediaPreparationLease,
-  kind: MediaDerivativeKind,
-  offset: number,
-  uploadLength: number,
-  contentLength: number,
-  body: ReadableStream<Uint8Array>,
-): Promise<number> {
-  if (
-    !Number.isSafeInteger(uploadLength) ||
-    uploadLength <= 0 ||
-    uploadLength > ARTIFACT_LIMITS[kind] ||
-    !Number.isSafeInteger(contentLength) ||
-    contentLength <= 0 ||
-    contentLength > 32 * 1024 * 1024 ||
-    offset < 0 ||
-    offset + contentLength > uploadLength
-  ) {
-    throw Object.assign(new Error("Invalid artifact upload size."), {
-      statusCode: 400,
-    });
-  }
-
-  const path = stagingArtifactPath(lease, kind);
-  await mkdir(dirname(path), { recursive: true });
-  const currentOffset = await stagedArtifactOffset(lease, kind);
-  if (currentOffset !== offset) throw new ArtifactOffsetError(currentOffset);
-
-  await pipeline(
-    Readable.fromWeb(body as never),
-    createWriteStream(path, { flags: "a", mode: 0o600 }),
-  );
-  const nextOffset = await stagedArtifactOffset(lease, kind);
-  if (
-    nextOffset > uploadLength ||
-    nextOffset - currentOffset !== contentLength
-  ) {
-    throw Object.assign(
-      new Error("Artifact chunk length did not match its headers."),
-      {
-        statusCode: 400,
-      },
-    );
-  }
-  return nextOffset;
-}
-
-export async function openMediaPreparationSource(
-  lease: MediaPreparationLease,
-): Promise<{
-  stream: ReadableStream<Uint8Array>;
-  sizeBytes: number;
-  mediaType: string;
-}> {
-  const path = resolveDataPath(lease.payload.sourceStorageKey);
-  const file = await stat(path);
-  if (!file.isFile()) {
-    throw Object.assign(new Error("Source media was not found."), {
-      statusCode: 404,
-    });
-  }
-  return {
-    stream: Readable.toWeb(
-      createReadStream(path),
-    ) as ReadableStream<Uint8Array>,
-    sizeBytes: file.size,
-    mediaType: lease.mediaType || "application/octet-stream",
-  };
 }
 
 export async function finalizeMediaPreparation(
@@ -525,27 +240,6 @@ export async function rollbackMediaFinalization(
   );
 }
 
-export async function cleanupStagedMediaAttempt(
-  jobId: string,
-  attempt: number,
-): Promise<void> {
-  await rm(
-    resolveDataPath(
-      posix.join("staging", "worker-artifacts", jobId, String(attempt)),
-    ),
-    { recursive: true, force: true },
-  ).catch(() => undefined);
-}
-
-export async function cleanupStagedMediaArtifacts(
-  jobId: string,
-): Promise<void> {
-  await rm(resolveDataPath(posix.join("staging", "worker-artifacts", jobId)), {
-    recursive: true,
-    force: true,
-  }).catch(() => undefined);
-}
-
 export async function deleteDerivativeForUser(
   projectId: string,
   kind: MediaDerivativeKind,
@@ -571,21 +265,6 @@ export async function deleteDerivativeForUser(
   if (!storageKey) return false;
   await unlink(resolveDataPath(storageKey)).catch(() => undefined);
   return true;
-}
-
-function stagingArtifactPath(
-  lease: MediaPreparationLease,
-  kind: MediaDerivativeKind,
-): string {
-  return resolveDataPath(
-    posix.join(
-      "staging",
-      "worker-artifacts",
-      lease.jobId,
-      String(lease.attempt),
-      `${kind}.part`,
-    ),
-  );
 }
 
 function derivativeStorageKey(

@@ -2,10 +2,10 @@ import { httpErrorFrom } from "$lib/server/http-error";
 import {
   appendArtifactChunk,
   ArtifactOffsetError,
-  isMediaDerivativeKind,
   requireMediaPreparationLease,
   stagedArtifactOffset,
-} from "$lib/server/media-preparation";
+} from "$lib/server/media-artifact-staging";
+import { isMediaDerivativeKind } from "$lib/server/media-finalize";
 import { requireWorkerLeaseToken } from "$lib/server/worker-request";
 import { error, type RequestEvent, type RequestHandler } from "@sveltejs/kit";
 

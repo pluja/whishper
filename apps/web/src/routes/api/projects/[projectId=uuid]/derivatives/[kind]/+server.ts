@@ -4,7 +4,7 @@ import { streamMediaFile } from "$lib/server/media-stream";
 import {
   derivativeMediaType,
   isMediaDerivativeKind,
-} from "$lib/server/media-preparation";
+} from "$lib/server/media-finalize";
 import { resolveDataPath } from "$lib/server/media";
 import { error, type RequestHandler } from "@sveltejs/kit";
 

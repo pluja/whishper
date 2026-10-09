@@ -2,7 +2,7 @@ import { httpErrorFrom } from "$lib/server/http-error";
 import {
   openMediaPreparationSource,
   requireMediaPreparationLease,
-} from "$lib/server/media-preparation";
+} from "$lib/server/media-artifact-staging";
 import { requireWorkerLeaseToken } from "$lib/server/worker-request";
 import type { RequestHandler } from "@sveltejs/kit";
 
