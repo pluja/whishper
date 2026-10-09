@@ -120,6 +120,26 @@ export const shortcutGroups: readonly ShortcutGroup[] = [
       },
     ],
   },
+  {
+    title: "Timeline",
+    shortcuts: [
+      {
+        id: "timeline-nudge",
+        keys: ["← / →"],
+        description: "Move a focused cue or handle by one millisecond",
+      },
+      {
+        id: "timeline-large-nudge",
+        keys: ["Shift", "← / →"],
+        description: "Move a focused cue or handle by 100 milliseconds",
+      },
+      {
+        id: "timeline-pass-neighbours",
+        keys: ["Alt", "Drag"],
+        description: "Drag a cue or handle past its neighbouring cues",
+      },
+    ],
+  },
 ];
 
 function matchesClosest(target: EventTarget | null, selector: string): boolean {

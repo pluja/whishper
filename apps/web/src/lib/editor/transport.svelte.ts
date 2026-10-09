@@ -51,7 +51,8 @@ export class Transport {
   mediaElement = $state<HTMLMediaElement>();
   readonly #selection: CueSelection;
   readonly #options: TransportOptions;
-  #reverseShuttleTimer: number | undefined;
+  #reverseShuttleTimer = $state<number>();
+  #mediaPlaying = $state(false);
   #reverseShuttleLastTickMs = 0;
   #shuttleDirection: ShuttleDirection = 0;
   #shuttleRate = 1;
@@ -60,6 +61,9 @@ export class Transport {
     () =>
       this.#options.preparedDurationUs() ||
       Math.max(this.#options.trackDurationUs(), this.mediaDurationUs),
+  );
+  playing = $derived(
+    this.#mediaPlaying || this.#reverseShuttleTimer !== undefined,
   );
   activeCue = $derived.by(() =>
     this.#selection.cues.find(
@@ -89,6 +93,10 @@ export class Transport {
       this.#selection.selectedCueId = current.id;
       scrollCueIntoView(current.id);
     }
+  };
+
+  updatePlayingState = (event: Event): void => {
+    this.#mediaPlaying = !(event.currentTarget as HTMLMediaElement).paused;
   };
 
   seekTo = (microseconds: number): void => {

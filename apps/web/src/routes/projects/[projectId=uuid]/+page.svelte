@@ -226,6 +226,8 @@
                 onkeydowncapture={onStudioKeydown}
                 ontimeupdate={transport.updatePlayback}
                 ondurationchange={transport.updatePlayback}
+                onplay={transport.updatePlayingState}
+                onpause={transport.updatePlayingState}
               ></audio>
             </div>
           {:else}
@@ -239,6 +241,8 @@
               onkeydowncapture={onStudioKeydown}
               ontimeupdate={transport.updatePlayback}
               ondurationchange={transport.updatePlayback}
+              onplay={transport.updatePlayingState}
+              onpause={transport.updatePlayingState}
             >
               <track
                 kind="captions"
@@ -266,6 +270,7 @@
         cues={editor.cues}
         selectedCueId={editor.selectedCueId}
         playbackUs={transport.playbackUs}
+        playing={transport.playing}
         onseek={transport.seekTo}
         onselect={(cueId) => editor.select(cueId)}
         oncommittiming={(timing) => editor.retime(timing)}
