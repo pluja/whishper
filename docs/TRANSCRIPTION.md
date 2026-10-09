@@ -60,7 +60,7 @@ The worker dependency lock also contains the CUDA 12.8 PyTorch variant. The NVID
 The development Compose override also synchronizes the `speech` and `cpu` extras before starting the worker. This repairs existing `worker-venv` volumes created before those dependencies were included. After changing worker dependencies, rebuild and recreate the development worker with:
 
 ```sh
-docker compose -f compose.yaml -f compose.dev.yaml up -d --build worker
+docker compose -f compose.yaml -f compose.dev.yaml -p anysub-dev up -d --build worker
 ```
 
 ## Inspecting a run

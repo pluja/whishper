@@ -44,11 +44,11 @@ Your reverse proxy needs matching limits. Nginx defaults to a 1 MiB request body
 
 ## Worker
 
-| Variable              | Default                          | Notes                                                                                                         |
-| --------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `ANYSUB_ACCELERATOR`  | `cpu`                            | `cpu` or `cuda`. Selects the PyTorch wheels compiled into the worker image, and the device the worker runs on. |
-| `ANYSUB_COMPUTE_TYPE` | `int8` on cpu, `float16` on cuda | Model precision. See below.                                                                                   |
-| `ANYSUB_WORKER_NAME`  | `local-worker`                   | Shown in the model picker when several workers are connected.                                                 |
+| Variable              | Default                                     | Notes                                                                                                          |
+| --------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `ANYSUB_ACCELERATOR`  | `cpu`                                       | `cpu` or `cuda`. Selects the PyTorch wheels compiled into the worker image, and the device the worker runs on. |
+| `ANYSUB_COMPUTE_TYPE` | `int8`, or `float16` with compose.cuda.yaml | Model precision. See below.                                                                                    |
+| `ANYSUB_WORKER_NAME`  | `local-worker`                              | Shown in the model picker when several workers are connected.                                                  |
 
 These three arrive commented out in `.env`. Each mode already picks a working default, and a value set here applies to every mode, so uncomment one only when you want to override it.
 

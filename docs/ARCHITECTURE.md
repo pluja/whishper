@@ -26,7 +26,7 @@ Worker API
 Python worker  <---->  project storage and model cache
 ```
 
-A future optional LibreTranslate container may provide local translation. Administrators may add workers on the same host or remote machines.
+A future optional LibreTranslate container may provide local translation. Administrators may add workers on the same host. Planned: workers on remote machines, which today cannot read the shared `/data` mount they need (see CONFIGURATION.md).
 
 The default stack does not include Redis, MongoDB, a search service, a reverse proxy, or object storage.
 
@@ -40,7 +40,7 @@ The default stack does not include Redis, MongoDB, a search service, a reverse p
 - PostgreSQL.
 - Drizzle ORM with `node-postgres`. Migrations are hand-written SQL files in `apps/web/migrations`, applied by `apps/web/scripts/migrate.mjs`.
 - Better Auth for identity and database-backed sessions.
-- Bits UI for accessible headless primitives.
+- Planned: Bits UI for accessible headless primitives.
 - Tailwind CSS v4 with a custom Anysub token and component system.
 - tus embedded in the Node application for resumable uploads.
 
@@ -48,11 +48,11 @@ The default stack does not include Redis, MongoDB, a search service, a reverse p
 
 - Python managed with `uv`.
 - A versioned, capability-based adapter SDK using standard Python package entry points.
-- Faster-Whisper and CTranslate2 for ASR.
+- Faster-Whisper and CTranslate2 for ASR, through WhisperX.
 - WhisperX for accurate forced alignment.
-- Pyannote for optional speaker diarization.
+- Planned: Pyannote for optional speaker diarization. It is not a dependency yet.
 - FFmpeg and FFprobe for media preparation and inspection.
-- yt-dlp for URL imports.
+- Planned: yt-dlp for URL imports. It is not a dependency yet.
 - CPU and NVIDIA CUDA worker images.
 
 ### Repository and documentation
@@ -60,8 +60,8 @@ The default stack does not include Redis, MongoDB, a search service, a reverse p
 - pnpm workspace for TypeScript packages.
 - `uv.lock` for the Python worker.
 - JSON Schema for language-neutral worker contracts. The Pydantic models in `workers/inference` are the source. Run `make generate` after changing them to refresh `packages/contracts/schema/protocol.schema.json` and the TypeScript types and validators in `packages/contracts/src/generated`. Tests fail when the committed files drift from the models.
-- Astro Starlight for public documentation.
-- ADRs under `docs/adr/` for later decisions that change this direction.
+- Planned: Astro Starlight for public documentation. Today the documentation is Markdown in `docs/`.
+- Planned: ADRs under `docs/adr/` for later decisions that change this direction.
 - AGPL-3.0-only license for the application and worker.
 - Developer Certificate of Origin sign-off for contributions.
 
@@ -72,12 +72,12 @@ The SvelteKit application is a modular monolith. It owns:
 - Accounts, sessions, and first-run setup.
 - Workspaces and memberships. Invitations are planned.
 - Projects, media metadata, tracks, cues, and revisions.
-- Uploads, inbox discovery, URL-import requests, and storage policy.
+- Uploads. Planned: inbox discovery, URL-import requests, and storage policy.
 - Queue records, scheduling, and leases.
-- Search, collections, tags, trash, and audit events.
-- Model availability and provider configuration.
-- Public automation and internal worker APIs.
-- Export orchestration and download authorization.
+- Model availability.
+- Internal worker APIs.
+- Subtitle export and download authorization.
+- Planned: search, collections, tags, trash, audit events, provider configuration, and a public automation API.
 
 Modules share one process and database but expose narrow domain functions. Route handlers do not contain business rules.
 
@@ -86,12 +86,10 @@ Modules share one process and database but expose narrow domain functions. Route
 Workers perform expensive or failure-prone media and ML work:
 
 - Probe and prepare media.
-- Generate preview proxies, audio derivatives, waveform peaks, and thumbnails.
-- Download URL media through yt-dlp.
+- Generate preview proxies, waveform peaks, and thumbnails.
 - Download and cache models.
 - Transcribe, align, and segment.
-- Later, diarize speakers and translate through LibreTranslate.
-- Generate large export artifacts when application-side generation would block requests.
+- Planned: audio derivatives, URL downloads through yt-dlp, speaker diarization, translation through LibreTranslate, and large export artifacts when application-side generation would block requests.
 
 Workers do not connect to the application database. They poll the internal API, lease compatible work, transfer authorized assets, report progress, and upload versioned results.
 
@@ -116,17 +114,17 @@ Workers authenticate with the single shared `ANYSUB_WORKER_TOKEN`. Per-worker en
 - GPU backend, device, and available memory.
 - Installed models.
 - Supported pipeline stages.
-- Current concurrency and health.
+- Planned: current concurrency and health.
 
 The application grants a time-limited lease for one compatible stage. Workers renew leases through heartbeats. The application returns an expired lease to the queue after a safety window.
 
 Every stage operation must be idempotent. The application accepts a result once for the matching run, stage, attempt, and lease. Retries cannot create duplicate tracks.
 
-Local workers may read project assets through a read-only shared mount. Remote workers use authenticated transfer endpoints. A later object-storage adapter can replace transfers with short-lived object URLs.
+Workers read transcription media through a read-only shared mount. Media preparation already downloads its source and uploads derivatives through authenticated transfer endpoints. Planned: transcription moves to the same endpoints so remote workers become possible, and a later object-storage adapter can replace transfers with short-lived object URLs.
 
 ## Queue model
 
-PostgreSQL stores durable runs, stages, attempts, leases, progress, cancellation requests, and errors. The application performs lease transactions and exposes them through the worker API.
+PostgreSQL stores durable runs, jobs, attempts, leases, progress, cancellations, and errors. Planned: separate durable stages. The application performs lease transactions and exposes them through the worker API.
 
 The built jobs are `transcribe` and `media_prepare`. A `transcribe` job runs ASR and alignment as one job. Planned: separate durable stages, with diarization as an optional one:
 
@@ -136,9 +134,9 @@ prepare -> transcribe -> align -> diarize? -> segment -> finalize
 
 Proxy creation runs inside `media_prepare`. Planned as durable jobs: translation, export, purge, and URL import.
 
-The scheduler provides FIFO order within a workspace and fair rotation across workspaces. It prefers worker affinity between related stages without making affinity a correctness requirement.
+The scheduler leases jobs by priority, then oldest first. Planned: FIFO order within a workspace with fair rotation across workspaces, and worker affinity between related stages without making affinity a correctness requirement.
 
-The default worker runs conservative concurrency. Administrators can add workers and resource limits. A worker resolves compute type, batch size, and thread use from its capabilities and the job's model choice.
+The default worker runs one job at a time. Administrators can add workers on the same host. A worker resolves compute type, batch size, and thread use from its capabilities and the job's model choice.
 
 ## Domain model
 
@@ -152,23 +150,17 @@ A project contains exactly one canonical source media item. Generated audio, pro
 
 ### Run and transcript
 
-A transcription run records:
-
-- Selected model and requested options.
-- Resolved worker, hardware, compute, and batch settings.
-- Provider and component versions.
-- Stage attempts, artifacts, timing, and errors.
-- Immutable raw output normalized into Anysub's versioned schema.
+A transcription run records the selected adapter, model, and requested options. Its job records attempts, progress, and errors, and the resulting track keeps the adapter version, device, compute type, batch size, and alignment outcome. Planned: the resolved worker and hardware, per-stage timing, and immutable raw output.
 
 Retranscription creates a new run. It does not replace prior output.
 
 ### Track and cue
 
-A project can contain multiple subtitle tracks. Tracks may come from a run, an imported subtitle file, or a translation. Each translated track records its source lineage.
+A project can contain multiple subtitle tracks. Tracks come from transcription runs. Planned: tracks from imported subtitle files and translations, with each translated track recording its source lineage.
 
-Cues are the editing unit. Each cue has a stable identity, integer-microsecond timing, text, semantic type, and optional speaker or style references. Stable IDs and revisioned commands leave room for simultaneous editing later.
+Cues are the editing unit. Each cue has a stable identity, integer-microsecond timing, and text. Planned: a semantic type and optional speaker or style references. Stable IDs and revisioned commands leave room for simultaneous editing later.
 
-Word tokens retain timestamps, confidence, language, and optional speaker assignment. The editor uses them for highlighting, segmentation, karaoke behavior, and social-caption presentation. Unchanged cues retain their word references; text edits invalidate the affected cue's alignment rather than displaying misleading highlights. A future forced re-alignment workflow will rebuild tokens after substantial corrections.
+Word tokens retain timestamps, confidence, and optional speaker assignment. Unchanged cues retain their word references; text edits invalidate the affected cue's alignment rather than displaying misleading highlights. Planned: the editor uses word tokens for highlighting, segmentation, karaoke behavior, and social-caption presentation. A future forced re-alignment workflow will rebuild tokens after substantial corrections.
 
 ### Revisions
 
@@ -189,20 +181,16 @@ data/
       media/
         original/
         proxy/
-        audio/
         waveform/
         thumbnails/
-      runs/<run-id>/
-        raw/
-      attachments/
-      exports/
   staging/
     uploads/
-    imports/
-  models/
+    worker-artifacts/
 ```
 
-IDs define directories because project titles can change or collide. Users may inspect and back up this layout, but Anysub manages its contents. Users place files in watched inboxes instead of modifying project directories.
+Planned: `audio/` derivatives, `runs/<run-id>/raw/` output, `attachments/`, `exports/`, and `staging/imports/`. Models live in their own `model-cache` volume.
+
+IDs define directories because project titles can change or collide. Users may inspect and back up this layout, but Anysub manages its contents. Planned: users place files in watched inboxes instead of modifying project directories.
 
 Resumable browser uploads use `/data/staging/uploads` and durable PostgreSQL records. On completion, the local storage adapter hard-links the finished staging file into the project directory, commits the canonical key, and removes the staging name. This avoids a second full-file copy while keeping staging recoverable until the database commit succeeds. Staging and canonical project storage therefore remain on the same filesystem in the default deployment.
 
@@ -210,7 +198,7 @@ The storage interface uses relative object keys and streaming operations. A late
 
 ### Canonical ownership
 
-Uploads, URL downloads, and inbox imports become canonical project media. Watched folders act as staging inboxes. Anysub copies or filesystem-clones a stable inbox file into project storage and leaves the source untouched by default.
+Uploads become canonical project media. Planned: URL downloads and inbox imports do the same, with watched folders acting as staging inboxes. Anysub would copy or filesystem-clone a stable inbox file into project storage and leave the source untouched by default.
 
 V1 does not support permanently linked external media. That mode can follow if archives demonstrate a need that outweighs lifecycle and permission risks.
 
@@ -218,20 +206,15 @@ V1 does not support permanently linked external media. That mode can follow if a
 
 FFprobe inspects every source. Anysub streams a browser-compatible, reliably seekable original when possible. It generates a constant-frame-rate preview proxy when codecs, container, frame behavior, or source size make direct playback unreliable.
 
-Users can inspect the recommendation and create, cancel, delete, or regenerate a proxy. Administrators choose automatic, ask-first, or disabled policy. Cue times remain relative to the original timeline.
+Users can inspect the recommendation and create, cancel, delete, or regenerate a proxy. Planned: administrators choose an automatic, ask-first, or disabled policy. Cue times remain relative to the original timeline.
 
 ## Ingest
 
-All ingest adapters produce the same canonical media record:
-
-- tus browser upload.
-- Watched mounted inbox.
-- Direct HTTP URL.
-- yt-dlp URL.
+All ingest adapters produce the same canonical media record. tus browser upload is built. Planned: a watched mounted inbox, direct HTTP URLs, and yt-dlp URLs.
 
 tus uploads stream to workspace-scoped staging, resume after interruption, and become visible to workers only after finalization. Reverse-proxy examples must preserve tus methods and headers and disable harmful buffering.
 
-The yt-dlp adapter uses its Python API, controlled output paths, and progress hooks. Anysub pins yt-dlp through `uv.lock` and does not expose arbitrary flags or browser-cookie extraction in v1.
+Planned: the yt-dlp adapter uses its Python API, controlled output paths, and progress hooks. Anysub would pin yt-dlp through `uv.lock` and not expose arbitrary flags or browser-cookie extraction in v1.
 
 ## Processing pipeline
 
@@ -242,7 +225,7 @@ The UI exposes product choices rather than implementation libraries:
 - Independent speaker-diarization toggle, once diarization is built.
 - Language and advanced subtitle settings.
 
-Accurate timing is the default. Faster-Whisper performs ASR and WhisperX performs forced alignment. Fast timing uses Faster-Whisper word timestamps without alignment.
+Accurate timing is the default. Faster-Whisper performs ASR and WhisperX performs forced alignment. Fast timing skips alignment and keeps segment-level timing.
 
 Diarization is planned as an optional Pyannote stage. Administrators accept the model terms and provide a Hugging Face token for initial download. Anysub disables Pyannote telemetry. Users may provide automatic, exact, or bounded speaker counts.
 
@@ -252,14 +235,7 @@ Each first-party implementation is an adapter package. The worker normalizes all
 
 Models live in a persistent cache shared across worker upgrades and CPU/GPU image changes. Faster-Whisper and WhisperX use the same CTranslate2 ASR weights. Alignment and diarization require additional models.
 
-The administrator model manager:
-
-- Lists available and installed models.
-- Shows purpose, approximate size, and hardware fit.
-- Downloads with progress, retry, and cancellation.
-- Removes unused models.
-- Reports cache and authorization errors.
-- Supports documented offline cache seeding.
+The model picker lists available models with their purpose, approximate size, download state, and hardware fit. Models download on first use. Planned: an administrator model manager that downloads with progress, retry, and cancellation, removes unused models, reports cache and authorization errors, and supports documented offline cache seeding.
 
 Docker images do not bundle large model weights.
 
@@ -277,12 +253,12 @@ Anysub uses a calm, utilitarian workbench with editorial polish. The interface a
 
 The design system uses:
 
-- Bits UI for accessible headless behavior.
 - Tailwind CSS v4 for layout and state styling.
 - Custom semantic tokens in OKLCH.
 - Purpose-built timeline, waveform, cue, quality, and transport components.
 - Complete default, hover, focus, active, disabled, loading, error, and success states.
-- Visible focus, keyboard operation, reduced motion, and tested light/dark themes.
+- Visible focus and keyboard operation.
+- Planned: Bits UI for accessible headless behavior, reduced motion, and tested light and dark themes.
 
 The full editor targets desktop and tablet landscape. Small screens provide playback, review, project status, flags, and light cue-text correction without squeezing the desktop timeline into a phone layout.
 
@@ -290,21 +266,21 @@ Anysub does not modify media. Live preview and subtitle-file export stay inside 
 
 ## Subtitle quality
 
-Tracks target a versioned quality profile. Built-in profiles cover general creator, long-form, social, education/accessibility, and conservative broadcast-style use. Users clone built-ins to create workspace profiles.
+The editor flags empty cues, cues over the line length, durations under 0.5 or over 7 seconds, more than 20 characters per second, and overlaps. Fixes happen only through explicit, reversible user actions.
 
-Profiles control line length, line count, CPS, duration, gaps, overlaps, punctuation, and segmentation. Anysub reports violations and applies fixes only after an explicit, reversible user action.
+Planned: tracks target a versioned quality profile. Built-in profiles would cover general creator, long-form, social, education/accessibility, and conservative broadcast-style use, and users would clone built-ins to create workspace profiles. Profiles would control line length, line count, CPS, duration, gaps, overlaps, punctuation, and segmentation.
 
-Anysub supports manual SDH cues, speaker identification, and non-speech semantics. V1 does not detect sound events automatically.
+Planned: manual SDH cues, speaker identification, and non-speech semantics. V1 does not detect sound events automatically.
 
 ## Time model
 
-The database stores cue and word time as integer microseconds. The UI can display clock time or frame-based timecode and can nudge by milliseconds or frames.
+The database stores cue and word time as integer microseconds. The UI displays clock time, nudges cues by milliseconds, and steps the playhead by frames. Planned: frame-based timecode display.
 
-Media metadata records detected frame rates and variable-frame-rate behavior. The editor handles common fractional rates and relevant drop-frame display. Preview proxies provide a reliable constant-frame-rate editing surface when the source does not.
+Media metadata records detected frame rates and variable-frame-rate behavior. The editor derives its frame step from common fractional rates. Planned: drop-frame display. Preview proxies provide a reliable constant-frame-rate editing surface when the source does not.
 
 ## Search and organization
 
-PostgreSQL provides workspace-scoped search over projects, cues, speakers, languages, and tags. Full-text indexes handle supported languages. Language-neutral tokenization and trigram indexes provide a multilingual fallback.
+Planned, not built. PostgreSQL provides workspace-scoped search over projects, cues, speakers, languages, and tags. Full-text indexes handle supported languages. Language-neutral tokenization and trigram indexes provide a multilingual fallback.
 
 Results include context and media timestamps. Filters cover project, owner, date, language, speaker, track type, tag, and run state.
 
@@ -318,31 +294,31 @@ Better Auth manages identities, password credentials, secure cookies, and databa
 
 V1 requires no SMTP. Password reset and invitations are not built. Planned: administrators copy invitation and password-reset links. SMTP, passkeys, OIDC, and SSO remain future additions.
 
-One active editor lease protects a track from concurrent changes. Other users may view the track and an authorized member may take over an abandoned lease. V1 does not implement real-time co-editing.
+A monotonic track revision rejects a save made against an older copy, so concurrent edits surface as a conflict instead of overwriting each other. Planned: one active editor lease protects a track from concurrent changes, other users may view the track, and an authorized member may take over an abandoned lease. V1 does not implement real-time co-editing.
 
 ## Security and privacy
 
 - Anysub sends zero telemetry.
 - Logs omit transcript text, media content, credentials, and sensitive filenames by default.
 - Workers share one installation-wide token. Planned: remote workers enroll through the administrator and receive narrowly scoped credentials.
-- Remote worker traffic requires HTTPS outside the Compose network.
-- Passwords and access tokens use one-way hashing.
-- Integration secrets receive encryption with an installation key kept outside PostgreSQL.
+- Planned: remote worker traffic requires HTTPS outside the Compose network.
+- Passwords and job lease tokens use one-way hashing.
+- Planned: integration secrets receive encryption with an installation key kept outside PostgreSQL.
 - Project media and database content use host-level storage encryption rather than application encryption.
 - Documentation states the storage, transport, and remote-worker trust boundaries.
 - Workers count as installation-wide trusted compute in self-hosted v1.
 
-The application exposes health and readiness endpoints. Administrators can download a redacted diagnostic bundle that contains versions, hardware, configuration shape, job IDs, and recent errors without content data.
+The application exposes a health endpoint. Planned: a readiness endpoint, and a redacted diagnostic bundle for administrators that contains versions, hardware, configuration shape, job IDs, and recent errors without content data.
 
 ## API boundaries
 
-The public REST API covers stable automation workflows and uses a versioned namespace. Scoped personal access tokens authenticate API clients. Anysub publishes an OpenAPI document.
+Planned, not built: a public REST API covers stable automation workflows and uses a versioned namespace. Scoped personal access tokens authenticate API clients. Anysub publishes an OpenAPI document.
 
 The editor may use private endpoints while patch and collaboration semantics mature. Leases, artifact transfers, and results live under `/api/internal`, authenticated by the shared worker token. Worker enrollment is planned.
 
 ## Operations
 
-The default Compose stack exposes one HTTP application port. Anysub does not manage TLS or certificates. Documentation provides tested configurations for common reverse proxies.
+The default Compose stack exposes one HTTP application port. Anysub does not manage TLS or certificates. Planned: tested configurations for common reverse proxies.
 
 Administrators perform explicit upgrades with matching, immutable application and worker image versions. The migration script applies pending migrations in order under a PostgreSQL advisory lock, so concurrent starts cannot apply the same migration twice. It does not check upgrade paths yet.
 
@@ -352,25 +328,22 @@ Backup tooling starts as a CLI enhancement after the core workflow. A supported 
 
 ## Testing
 
-Every pull request must run without a GPU or large model download:
+Every pull request runs without a GPU or large model download:
 
-- Vitest for TypeScript domain, server, and Svelte component tests.
-- Playwright for browser workflows and failure traces.
-- pytest for worker logic and protocol tests.
+- Vitest for TypeScript domain and server tests.
+- pytest for worker logic and protocol tests, including checks that the generated contracts match the worker models.
 - Real PostgreSQL for integration tests.
-- A deterministic fake inference adapter for end-to-end tests.
-- Versioned contract fixtures shared across languages.
-- Small redistributable media and subtitle fixtures.
+- A deterministic fake inference adapter.
 
-Scheduled and release jobs run a tiny real model on CPU. GPU tests run separately when suitable hardware is available.
+Planned: Svelte component tests, Playwright for browser workflows and failure traces, end-to-end tests on the fake adapter, versioned contract fixtures shared across languages, small redistributable media and subtitle fixtures, scheduled and release jobs that run a tiny real model on CPU, and GPU tests when suitable hardware is available.
 
 ## Documentation
 
-Astro Starlight builds the documentation site from the monorepo. User-facing changes update documentation in the same pull request.
+Documentation lives as Markdown in `docs/`. Planned: Astro Starlight builds a documentation site from the monorepo. User-facing changes update documentation in the same pull request.
 
 The documentation prioritizes task guides, deployment examples, troubleshooting, and copyable diagnostics. Contributor documentation explains domain language, module ownership, contracts, and ADRs.
 
-V1 ships the UI and documentation in English. Code uses an internationalization message system from the start. Subtitle content supports Unicode, BCP 47 language tags, RTL text, and mixed-direction cues.
+V1 ships the UI and documentation in English. Planned: an internationalization message system. Subtitle content supports Unicode, BCP 47 language tags, RTL text, and mixed-direction cues.
 
 ## Managed-service compatibility
 

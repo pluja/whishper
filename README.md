@@ -148,8 +148,10 @@ make          # list the targets
 make dev      # start the development stack, source mounted
 make generate # regenerate the protocol contracts after changing the worker models
 make test-db  # run the database tests in a throwaway database
-make verify   # run every check CI runs, before you push
+make verify   # run the web and worker checks CI runs, before you push
 ```
+
+The development stack serves on `http://localhost:5174`, so it can run next to the production stack on 5173. Set `ANYSUB_DEV_PORT` in `.env` to use another port; sign-in follows it automatically.
 
 Each target runs `docker compose` commands against the development overlay, which mounts the source and keeps dependencies in named volumes. It runs as the separate `anysub-dev` project with its own database, app data and model cache, so development never touches your production data. `make test-db` runs against a database named `anysub_test`; if you run the database tests yourself, `ANYSUB_TEST_DATABASE_URL` must name a database that starts with `anysub_test`. Nothing is hidden: `make -n verify` prints the commands it would run without running them.
 

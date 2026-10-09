@@ -1,3 +1,7 @@
+# The project name keeps development containers, networks and volumes apart
+# from the production stack in compose.yaml, even when -p is forgotten.
+name: anysub-dev
+
 services:
   migrate:
     image: anysub-web-dev
@@ -22,11 +26,16 @@ services:
     build:
       target: development
     volumes: *web-volumes
-    environment: *pnpm-non-interactive
+    # Its own port lets development run next to production. Sign-in and
+    # uploads only accept requests from BETTER_AUTH_URL, so it follows the port.
+    environment:
+      <<: *pnpm-non-interactive
+      BETTER_AUTH_URL: http://localhost:${ANYSUB_DEV_PORT:-5174}
+      ORIGIN: http://localhost:${ANYSUB_DEV_PORT:-5174}
     working_dir: /workspace
     command: ["pnpm", "--filter", "@anysub/web", "dev", "--host", "0.0.0.0"]
     ports: !override
-      - "${ANYSUB_PORT:-5173}:5173"
+      - "${ANYSUB_DEV_PORT:-5174}:5173"
     healthcheck:
       test:
         [

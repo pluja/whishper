@@ -11,7 +11,7 @@ TEST_DATABASE := anysub_test
 psql = $(COMPOSE) exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "$(1)"'
 
 .DEFAULT_GOAL := help
-.PHONY: help dev down generate check test test-db lint verify
+.PHONY: help dev down generate check test test-db lint build verify
 
 help: ## List available targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z][a-z-]*:.*## / {printf "  %-9s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -45,4 +45,7 @@ lint: ## Check formatting and lint the web and worker
 	$(RUN) worker uv run ruff check .
 	$(RUN) worker uv run ruff format --check .
 
-verify: check test test-db lint ## Run everything CI runs, before you push
+build: ## Build the production web bundle
+	$(RUN) web pnpm --filter @anysub/web build
+
+verify: check test test-db lint build ## Run the web and worker checks CI runs, before you push

@@ -55,7 +55,8 @@ ANYSUB_BODY_SIZE_LIMIT=64M
 #   docker compose -f compose.yaml -f compose.cuda.yaml up --build
 #ANYSUB_ACCELERATOR=cpu
 
-# Model precision. Defaults to int8 on cpu and float16 on cuda.
+# Model precision. Defaults to int8. The NVIDIA overlay (compose.cuda.yaml)
+# defaults it to float16 instead.
 #   cpu:  int8, int8_float32, float32
 #   cuda: float16, int8_float16, float32
 #ANYSUB_COMPUTE_TYPE=int8
