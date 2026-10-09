@@ -3,7 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { hashToken, isNodeError, isRecord, linkIdempotent } from "./util";
+import {
+  hashToken,
+  isNodeError,
+  isRecord,
+  linkIdempotent,
+  withKeyedLock,
+} from "./util";
 
 describe("isRecord", () => {
   it("accepts plain objects only", () => {
@@ -67,5 +73,24 @@ describe("linkIdempotent", () => {
     await expect(
       linkIdempotent(join(directory, "missing"), join(directory, "out")),
     ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+});
+
+describe("withKeyedLock", () => {
+  it("runs same-key work one at a time and keeps going after a failure", async () => {
+    const order: string[] = [];
+    const slow = withKeyedLock("k", async () => {
+      order.push("slow:start");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      order.push("slow:end");
+      throw new Error("boom");
+    });
+    const next = withKeyedLock("k", async () => {
+      order.push("next");
+      return "ok";
+    });
+    await expect(slow).rejects.toThrow("boom");
+    await expect(next).resolves.toBe("ok");
+    expect(order).toEqual(["slow:start", "slow:end", "next"]);
   });
 });

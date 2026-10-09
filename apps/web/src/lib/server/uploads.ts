@@ -12,11 +12,16 @@ import {
   updateUploadProgress,
 } from "$lib/server/media";
 import { normalizeMediaType } from "$lib/server/media-stream";
+import {
+  startUploadMaintenance,
+  UPLOAD_EXPIRATION_MS,
+} from "$lib/server/upload-maintenance";
 import { isUuid } from "$lib/uuid";
 
 const TUS_PATH = "/api/uploads";
 const USER_HEADER = "x-anysub-authenticated-user";
 
+let storePromise: Promise<FileStore> | undefined;
 let serverPromise: Promise<Server> | undefined;
 
 export function isUploadPath(pathname: string): boolean {
@@ -38,13 +43,33 @@ async function getServer(): Promise<Server> {
   return serverPromise;
 }
 
-async function createServer(): Promise<Server> {
-  const stagingDirectory = resolve(privateEnv.dataRoot, "staging", "uploads");
-  await mkdir(stagingDirectory, { recursive: true });
-  const store = new FileStore({
-    directory: stagingDirectory,
-    expirationPeriodInMilliseconds: 7 * 24 * 60 * 60 * 1_000,
+function getStore(): Promise<FileStore> {
+  storePromise ??= (async () => {
+    const stagingDirectory = resolve(privateEnv.dataRoot, "staging", "uploads");
+    await mkdir(stagingDirectory, { recursive: true });
+    return new FileStore({
+      directory: stagingDirectory,
+      expirationPeriodInMilliseconds: UPLOAD_EXPIRATION_MS,
+    });
+  })();
+  return storePromise;
+}
+
+export function startUploadCleanup(): void {
+  startUploadMaintenance({
+    removeTusUpload: async (uploadId) => {
+      const store = await getStore();
+      await store.remove(uploadId).catch(() => undefined);
+      await store.configstore.delete(uploadId).catch(() => undefined);
+    },
+    deleteExpiredTusFiles: async () => {
+      await (await getStore()).deleteExpired();
+    },
   });
+}
+
+async function createServer(): Promise<Server> {
+  const store = await getStore();
   const server = new Server({
     path: TUS_PATH,
     datastore: store,

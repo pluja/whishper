@@ -67,6 +67,13 @@ Anysub does not ship a reverse proxy. Its upload endpoint rejects missing sessio
 
 `ANYSUB_MAX_UPLOAD_BYTES` controls the maximum complete source size in bytes. The default is 500 GiB. `ANYSUB_BODY_SIZE_LIMIT` controls SvelteKit's per-request streaming limit and defaults to 64 MiB so it can accept one 32 MiB tus chunk. Keep the latter larger than the browser chunk size. Browser uploads must declare a non-zero length; deferred-length uploads are not accepted by this first implementation.
 
-Incomplete tus files carry a seven-day expiration policy, but the scheduled cleanup and startup reconciliation pass are still required before the public alpha. Until then, cancelling from the active browser removes the draft project and staging upload, while abandoned files remain eligible for the later cleanup pass.
+A maintenance sweep starts with the server and then runs every 15 minutes. A Postgres advisory lock lets only one sweep run at a time. Each pass:
+
+- retries finalization for uploads whose tus file is complete but whose row is not `completed`, after the row has been idle for 10 minutes;
+- marks an upload `failed` when its staged file is missing, or when finalization still fails 24 hours after the upload started;
+- deletes uploads that started more than seven days ago and never completed, together with their staged tus files and placeholder projects;
+- removes orphaned tus files that passed the same seven-day expiry.
+
+Cancelling from the active browser removes the draft project and staging upload immediately.
 
 Watched inboxes will feed the same project and storage lifecycle. They will not bypass canonical ownership or create permanently linked external media.

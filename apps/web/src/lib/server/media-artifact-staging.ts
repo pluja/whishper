@@ -1,7 +1,7 @@
 import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir, rm, stat } from "node:fs/promises";
+import { mkdir, rm, stat, truncate } from "node:fs/promises";
 import { dirname, posix } from "node:path";
-import { Readable } from "node:stream";
+import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
 import type {
@@ -12,7 +12,7 @@ import type {
 import { pool } from "$lib/server/db";
 import { privateEnv } from "$lib/server/env";
 import { resolveDataPath } from "$lib/server/media";
-import { hashToken } from "$lib/server/util";
+import { hashToken, withKeyedLock } from "$lib/server/util";
 
 export const ARTIFACT_LIMITS: Record<MediaDerivativeKind, number> = {
   waveform: 64 * 1024 * 1024,
@@ -110,28 +110,44 @@ export async function appendArtifactChunk(
     });
   }
 
-  const path = stagingArtifactPath(lease, kind);
-  await mkdir(dirname(path), { recursive: true });
-  const currentOffset = await stagedArtifactOffset(lease, kind);
-  if (currentOffset !== offset) throw new ArtifactOffsetError(currentOffset);
+  return withKeyedLock(`${lease.jobId}:${lease.attempt}`, async () => {
+    const path = stagingArtifactPath(lease, kind);
+    await mkdir(dirname(path), { recursive: true });
+    const currentOffset = await stagedArtifactOffset(lease, kind);
+    if (currentOffset !== offset) throw new ArtifactOffsetError(currentOffset);
 
-  await pipeline(
-    Readable.fromWeb(body as never),
-    createWriteStream(path, { flags: "a", mode: 0o600 }),
+    try {
+      await pipeline(
+        Readable.fromWeb(body as never),
+        capBytes(contentLength),
+        createWriteStream(path, { flags: "a", mode: 0o600 }),
+      );
+      const nextOffset = await stagedArtifactOffset(lease, kind);
+      if (nextOffset - currentOffset !== contentLength)
+        throw chunkLengthError();
+      return nextOffset;
+    } catch (cause) {
+      await truncate(path, currentOffset).catch(() => undefined);
+      throw cause;
+    }
+  });
+}
+
+function chunkLengthError(): Error {
+  return Object.assign(
+    new Error("Artifact chunk length did not match its headers."),
+    { statusCode: 400 },
   );
-  const nextOffset = await stagedArtifactOffset(lease, kind);
-  if (
-    nextOffset > uploadLength ||
-    nextOffset - currentOffset !== contentLength
-  ) {
-    throw Object.assign(
-      new Error("Artifact chunk length did not match its headers."),
-      {
-        statusCode: 400,
-      },
-    );
-  }
-  return nextOffset;
+}
+
+function capBytes(limit: number): Transform {
+  let received = 0;
+  return new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      received += chunk.length;
+      callback(received > limit ? chunkLengthError() : null, chunk);
+    },
+  });
 }
 
 export async function openMediaPreparationSource(
