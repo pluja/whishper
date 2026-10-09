@@ -9,7 +9,7 @@ class WorkerSettings(BaseSettings):
 
     app_url: AnyHttpUrl = "http://web:3000"  # type: ignore[assignment]
     worker_token: str = Field(min_length=8)
-    worker_name: str = "local-cpu"
+    worker_name: str = "local-worker"
     worker_id_file: Path = Path("/models/.worker-id")
     data_root: Path = Path("/data")
     model_root: Path = Path("/models")

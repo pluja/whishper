@@ -57,7 +57,6 @@ RUN apt-get update \
     && mkdir -p /app /data /models \
     && chown -R anysub:anysub /app /data /models
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.25 /uv /uvx /bin/
 COPY --from=builder --chown=anysub:anysub /app/.venv /app/.venv
 
 RUN ["/app/.venv/bin/anysub-adapters"]
