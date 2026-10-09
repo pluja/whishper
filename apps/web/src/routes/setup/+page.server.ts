@@ -2,6 +2,7 @@ import { auth } from "$lib/server/auth";
 import {
   createInstanceOwner,
   isInstanceInitialized,
+  isValidOwnerEmail,
 } from "$lib/server/instance";
 import { fail, redirect, type Actions } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
@@ -27,7 +28,7 @@ export const actions: Actions = {
       return fail(400, {
         message: "Use at least two characters for your name.",
       });
-    if (!email.includes("@"))
+    if (!isValidOwnerEmail(email))
       return fail(400, { message: "Enter a valid email address." });
     if (
       password.length < minPasswordLength ||

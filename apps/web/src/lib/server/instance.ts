@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from "pg";
+import { z } from "zod";
 
 import { pool } from "$lib/server/db";
 
@@ -22,10 +23,16 @@ export async function isInstanceInitialized(
   return result.rows[0].initialized;
 }
 
+// better-auth sign-in rejects any address z.email() refuses, so an owner
+// created with one could never log in.
+export function isValidOwnerEmail(email: string): boolean {
+  return z.email().safeParse(email).success;
+}
+
 function workspaceSlug(userId: string): string {
   return `workspace-${userId
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^a-z0-9]/g, "")
     .slice(0, 24)}`;
 }
 
