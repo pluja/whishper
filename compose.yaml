@@ -1,5 +1,7 @@
 name: anysub
 
+x-database-url: &database-url postgresql://${POSTGRES_USER:-anysub}:${POSTGRES_PASSWORD:?not set. Run scripts/init-env.sh to generate .env}@postgres:5432/${POSTGRES_DB:-anysub}
+
 services:
   postgres:
     image: docker.io/library/postgres:17.5-bookworm
@@ -23,14 +25,8 @@ services:
       dockerfile: apps/web/Dockerfile
       target: runtime
     command: ["node", "scripts/migrate.mjs"]
-    environment: &web-environment
-      DATABASE_URL: postgresql://${POSTGRES_USER:-anysub}:${POSTGRES_PASSWORD:?not set. Run scripts/init-env.sh to generate .env}@postgres:5432/${POSTGRES_DB:-anysub}
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?not set. Run scripts/init-env.sh to generate .env}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:5173}
-      ORIGIN: ${BETTER_AUTH_URL:-http://localhost:5173}
-      ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:?not set. Run scripts/init-env.sh to generate .env}
-      DATA_ROOT: /data
-      BODY_SIZE_LIMIT: ${ANYSUB_BODY_SIZE_LIMIT:-64M}
+    environment:
+      DATABASE_URL: *database-url
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,7 +38,15 @@ services:
       dockerfile: apps/web/Dockerfile
       target: runtime
     restart: unless-stopped
-    environment: *web-environment
+    environment:
+      DATABASE_URL: *database-url
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?not set. Run scripts/init-env.sh to generate .env}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:5173}
+      ORIGIN: ${BETTER_AUTH_URL:-http://localhost:5173}
+      ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:?not set. Run scripts/init-env.sh to generate .env}
+      DATA_ROOT: /data
+      BODY_SIZE_LIMIT: ${ANYSUB_BODY_SIZE_LIMIT:-64M}
+      ANYSUB_MAX_UPLOAD_BYTES: ${ANYSUB_MAX_UPLOAD_BYTES:-536870912000}
     depends_on:
       migrate:
         condition: service_completed_successfully
