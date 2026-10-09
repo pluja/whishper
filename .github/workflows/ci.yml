@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [v4]
+    branches: [main, v4]
   pull_request:
 
 permissions:
@@ -35,6 +35,8 @@ jobs:
 
       - run: pnpm format:check
 
+      - run: pnpm --filter @anysub/web build
+
   worker:
     name: Worker checks
     runs-on: ubuntu-latest
@@ -56,6 +58,8 @@ jobs:
       - run: uv sync --locked
 
       - run: uv run ruff check .
+
+      - run: uv run ruff format --check .
 
       - run: uv run pytest
 

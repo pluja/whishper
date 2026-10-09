@@ -23,8 +23,9 @@ test: ## Run the web and worker test suites
 	$(COMPOSE) run --rm web pnpm test
 	$(COMPOSE) run --rm worker uv run pytest
 
-lint: ## Check formatting and lint the worker
+lint: ## Check formatting and lint the web and worker
 	$(COMPOSE) run --rm web pnpm format:check
 	$(COMPOSE) run --rm worker uv run ruff check .
+	$(COMPOSE) run --rm worker uv run ruff format --check .
 
 verify: check test lint ## Run everything CI runs, before you push
