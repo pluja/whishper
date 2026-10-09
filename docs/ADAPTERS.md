@@ -8,13 +8,13 @@ This boundary allows first-party and administrator-built adapters for Faster-Whi
 
 ## Contract
 
-Every adapter implements the small manifest-only base protocol. Capability-specific protocols add operations such as transcription. This means, for example, a future translation-only adapter will not need to implement a meaningless transcription stub.
+Every adapter implements the small manifest-only base protocol. Capability-specific protocols add operations such as transcription. This means, for example, a translation-only adapter, once translation exists, will not need to implement a meaningless transcription stub.
 
 An adapter package must:
 
 1. Publish one entry point in the `anysub.adapters` group.
 2. Return an `AdapterManifest` using adapter protocol `1.0`.
-3. Implement the capabilities declared by each model.
+3. Implement the capabilities declared by each model. The only capabilities today are `transcribe` and `align`. Diarization and translation are planned and not available.
 4. Validate model-specific options before loading expensive model state.
 5. Return normalized Anysub artifacts with integer-microsecond timestamps.
 6. Report progress without contacting the Anysub application directly.

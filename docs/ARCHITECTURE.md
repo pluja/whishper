@@ -38,7 +38,7 @@ The default stack does not include Redis, MongoDB, a search service, a reverse p
 - SvelteKit Node adapter for the production server.
 - Svelte 5 client code.
 - PostgreSQL.
-- Drizzle ORM with `node-postgres`.
+- Drizzle ORM with `node-postgres`. Migrations are hand-written SQL files in `apps/web/migrations`, applied by `apps/web/scripts/migrate.mjs`.
 - Better Auth for identity and database-backed sessions.
 - Bits UI for accessible headless primitives.
 - Tailwind CSS v4 with a custom Anysub token and component system.
@@ -59,7 +59,7 @@ The default stack does not include Redis, MongoDB, a search service, a reverse p
 
 - pnpm workspace for TypeScript packages.
 - `uv.lock` for the Python worker.
-- JSON Schema for language-neutral worker contracts.
+- JSON Schema for language-neutral worker contracts. The Pydantic models in `workers/inference` are the source. Run `make generate` after changing them to refresh `packages/contracts/schema/protocol.schema.json` and the TypeScript types and validators in `packages/contracts/src/generated`. Tests fail when the committed files drift from the models.
 - Astro Starlight for public documentation.
 - ADRs under `docs/adr/` for later decisions that change this direction.
 - AGPL-3.0-only license for the application and worker.
@@ -70,10 +70,10 @@ The default stack does not include Redis, MongoDB, a search service, a reverse p
 The SvelteKit application is a modular monolith. It owns:
 
 - Accounts, sessions, and first-run setup.
-- Workspaces, memberships, and invitations.
+- Workspaces and memberships. Invitations are planned.
 - Projects, media metadata, tracks, cues, and revisions.
 - Uploads, inbox discovery, URL-import requests, and storage policy.
-- Queue records, scheduling, leases, and worker enrollment.
+- Queue records, scheduling, and leases.
 - Search, collections, tags, trash, and audit events.
 - Model availability and provider configuration.
 - Public automation and internal worker APIs.
@@ -109,7 +109,7 @@ Custom adapters are trusted worker code. Administrators install them by building
 
 ## Worker protocol
 
-Each worker enrolls through a one-time administrator token and receives a revocable credential. The worker reports:
+Workers authenticate with the single shared `ANYSUB_WORKER_TOKEN`. Per-worker enrollment with one-time administrator tokens and revocable credentials is planned and not built. The worker reports:
 
 - Protocol and worker version.
 - CPU architecture and thread capacity.
@@ -312,9 +312,9 @@ Projects use flat collections and tags. V1 does not implement nested folders or 
 
 ## Authentication and authorization
 
-Authentication stays enabled in every deployment. First launch creates the owner. Later users join by expiring invitation.
+Authentication stays enabled in every deployment. Public sign-up is disabled. The first-run setup page creates the single owner in one transaction, and no other way to create accounts exists yet. Planned: later users join by expiring invitation.
 
-Better Auth manages identities, password credentials, secure cookies, and database sessions. Anysub owns workspaces, memberships, invitations, and authorization checks.
+Better Auth manages identities, password credentials, secure cookies, and database sessions. Anysub owns workspaces, memberships, and authorization checks. Invitations are planned.
 
 V1 requires no SMTP. Administrators copy invitation and password-reset links. SMTP, passkeys, OIDC, and SSO remain future additions.
 
@@ -324,7 +324,7 @@ One active editor lease protects a track from concurrent changes. Other users ma
 
 - Anysub sends zero telemetry.
 - Logs omit transcript text, media content, credentials, and sensitive filenames by default.
-- Remote workers require administrator enrollment and narrowly scoped credentials.
+- Workers share one installation-wide token. Planned: remote workers enroll through the administrator and receive narrowly scoped credentials.
 - Remote worker traffic requires HTTPS outside the Compose network.
 - Passwords and access tokens use one-way hashing.
 - Integration secrets receive encryption with an installation key kept outside PostgreSQL.
@@ -344,7 +344,7 @@ The editor may use private endpoints while patch and collaboration semantics mat
 
 The default Compose stack exposes one HTTP application port. Anysub does not manage TLS or certificates. Documentation provides tested configurations for common reverse proxies.
 
-Administrators perform explicit upgrades with matching, immutable application and worker image versions. The application applies supported migrations under a PostgreSQL advisory lock and refuses unsupported upgrade jumps.
+Administrators perform explicit upgrades with matching, immutable application and worker image versions. The migration script applies pending migrations in order under a PostgreSQL advisory lock, so concurrent starts cannot apply the same migration twice. It does not check upgrade paths yet.
 
 Anysub does not claim rollback after an incompatible database migration. Administrators restore a backup when rollback requires older data structures.
 

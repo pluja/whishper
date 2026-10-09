@@ -37,7 +37,7 @@ docker compose up --build
 
 The setup script writes a `.env` file with passwords unique to your installation. Anysub refuses to start without it, which keeps anyone from reaching a server that still uses the examples from this repository.
 
-Open `http://localhost:5173` and create your account. The first account you make owns the installation.
+Open `http://localhost:5173` and create the owner account on the setup page. That is the only account. Public sign-up is disabled, and Anysub has no way to add more users yet.
 
 ### Fedora with Podman
 
@@ -89,10 +89,11 @@ These are not built yet:
 - Labelling who is speaking.
 - Watching a folder for new media.
 - Importing from a URL or an existing subtitle file.
+- Adding more users or workers with their own credentials.
 - Managing downloaded models from the interface.
 - Named revisions you can roll back to.
 
-Two rough edges worth knowing. Editing a cue's text drops that cue's word timings, because the old timings no longer describe the new words. Abandoned uploads are not cleaned up on a schedule yet.
+One rough edge worth knowing. Editing a cue's text drops that cue's word timings, because the old timings no longer describe the new words. Anysub deletes uploads that never finished after seven days.
 
 ## Stopping and removing
 
@@ -150,7 +151,7 @@ make test-db  # run the database tests in a throwaway database
 make verify   # run every check CI runs, before you push
 ```
 
-Each target runs `docker compose` commands against the development overlay, which mounts the source and keeps dependencies in named volumes. It runs as the separate `anysub-dev` project with its own database, app data and model cache, so development never touches your production data. Nothing is hidden: `make -n verify` prints the commands it would run without running them.
+Each target runs `docker compose` commands against the development overlay, which mounts the source and keeps dependencies in named volumes. It runs as the separate `anysub-dev` project with its own database, app data and model cache, so development never touches your production data. `make test-db` runs against a database named `anysub_test`; if you run the database tests yourself, `ANYSUB_TEST_DATABASE_URL` must name a database that starts with `anysub_test`. Nothing is hidden: `make -n verify` prints the commands it would run without running them.
 
 ## Development disclosure
 

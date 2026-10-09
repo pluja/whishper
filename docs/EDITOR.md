@@ -18,7 +18,7 @@ Prepared media adds a bounded timeline below the program monitor. It draws the t
 
 Drag a cue body to move the cue or drag either boundary to trim it. The editor previews pointer movement locally, then commits one integer-microsecond timing change on pointer release. One drag creates one undo entry and one autosave change. Pointer cancellation and unchanged drags commit nothing.
 
-Focus a cue body or boundary and press the left or right arrow key for a 1 ms adjustment. Timeline edits keep the existing overlap policy: the editor reports overlaps but does not block them.
+Hold `Alt` while dragging to move a cue or boundary past its neighbours. Without it, a drag stops at the adjacent cues. Focus a cue body or boundary and press the left or right arrow key for a 1 ms adjustment, or `Shift` with the arrow key for 100 ms. Timeline edits keep the existing overlap policy: the editor reports overlaps but does not block them.
 
 ## Editing cues
 
@@ -27,7 +27,7 @@ Select a cue by focusing its text or timing fields. Clicking its numbered badge 
 The editor currently supports:
 
 - Multiline cue text and `HH:MM:SS.mmm` timing entry.
-- 100 ms whole-cue timing nudges in the cue sheet and 1 ms focused nudges in the timeline.
+- 100 ms whole-cue timing nudges in the cue sheet, and 1 ms or 100 ms focused nudges in the timeline.
 - Split at the playhead, or at the cue midpoint when the playhead is outside the cue. The text cursor chooses the nearest word boundary.
 - Merge with the following cue.
 - Insert after and delete.
@@ -42,13 +42,13 @@ The **Shortcuts** button, or `?` when focus is outside a text-entry field, opens
 
 The left and right arrow keys step one frame, or five frames with `Shift`. The up and down arrow keys jump between cue starts, while `Home` and `End` jump to the source boundaries. `Ctrl/Command+K` splits the selected cue, including at the cursor when its text field has focus. `Shift+Delete` or `Shift+Backspace` deliberately removes the selected cue.
 
-Unmodified studio shortcuts do not capture keystrokes from text-entry controls. `Space` preserves native activation when a button, link, or disclosure control has focus; focused media instead uses the studio transport controls. Save, undo, redo, and split remain available with their `Ctrl` or `Command` modifiers while editing text. Opening the shortcut guide suspends studio shortcuts and leaves native `Escape` handling intact.
+Unmodified studio shortcuts do not capture keystrokes from text-entry controls. `Space` preserves native activation when a button, link, or disclosure control has focus; focused media instead uses the studio transport controls. Save and split remain available with their `Ctrl` or `Command` modifiers while editing text. Undo and redo stay native inside text fields, which keep their own history. Opening the shortcut guide suspends studio shortcuts and leaves native `Escape` handling intact.
 
 ## Saving and recovery
 
 Changes autosave after a short pause. Every track carries a monotonically increasing revision. The server locks the track, compares the expected revision, validates the complete cue snapshot, and commits it in one PostgreSQL transaction. If another editor saved first, Anysub refuses to overwrite that work and asks the user to reload.
 
-While changes are unsaved, the browser keeps a local journal keyed by project and track. A reload or crash can recover that journal when its base revision still matches PostgreSQL. Browser recovery is an additional safety net; PostgreSQL remains canonical.
+While changes are unsaved, the browser keeps a local journal keyed by project and track. A reload or crash can recover that journal when its base revision still matches PostgreSQL. If the journal is older than the saved track, Anysub discards it and shows a notice instead of restoring it. Browser recovery is an additional safety net; PostgreSQL remains canonical.
 
 Changing cue text clears that cue's word alignment because old word tokens no longer reliably describe the edited text. Unchanged cues retain their original word timestamps. A later forced re-alignment workflow will rebuild tokens after substantial corrections.
 

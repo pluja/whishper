@@ -43,7 +43,7 @@ Deleting a transcript removes its cues and the source run, including the worker 
 
 ## Advanced options
 
-The worker defaults to CPU `int8` compute and a conservative batch size of 4. The project form exposes batch size under **Advanced options**. Reduce it if the worker is killed or reports an out-of-memory error. Raising it may improve throughput but also raises peak memory use.
+The worker defaults to `int8` compute on CPU and a conservative batch size of 4. The project form exposes batch size under **Advanced options**. Reduce it if the worker is killed or reports an out-of-memory error. Raising it may improve throughput but also raises peak memory use.
 
 Administrators can set these worker environment variables in a Compose override:
 
@@ -55,7 +55,7 @@ services:
       ANYSUB_COMPUTE_TYPE: int8
 ```
 
-The worker dependency lock also contains the CUDA 12.8 PyTorch variant. A CUDA image can be built with `ANYSUB_ACCELERATOR=cuda`, but the supported NVIDIA Compose overlay and hardware validation are still roadmap work; the default Compose file intentionally remains CPU-only.
+The worker dependency lock also contains the CUDA 12.8 PyTorch variant. The NVIDIA Compose overlay `compose.cuda.yaml` builds the CUDA image; see [CONFIGURATION.md](CONFIGURATION.md). It has not been verified on real hardware, and the default Compose file stays CPU-only.
 
 The development Compose override also synchronizes the `speech` and `cpu` extras before starting the worker. This repairs existing `worker-venv` volumes created before those dependencies were included. After changing worker dependencies, rebuild and recreate the development worker with:
 
@@ -70,6 +70,6 @@ docker compose ps
 docker compose logs -f worker
 ```
 
-During a run, the project page shows the current stage and progress. On failure it shows the adapter error and allows another run. The worker retries errors marked transient up to the job’s configured attempt limit.
+During a run, the project page shows the current stage and progress. On failure it shows the adapter error and allows another run. The worker retries errors marked transient up to the job’s attempt limit, which is three. Errors that a retry cannot fix fail at once: FFmpeg timeouts, CUDA out-of-memory, and rejected requests. A worker that receives SIGTERM returns its job to the queue before exiting.
 
-If the project says it is waiting for a speech worker, confirm the worker is running and that its logs list the `whisperx` adapter. If a first model download fails, verify outbound access to Hugging Face and retry the transcription.
+If the project says it is waiting for a speech worker, confirm the worker is running and that its logs list the `whisperx` adapter. If forced alignment cannot run for a language, Anysub keeps the unaligned cues and records the reason in the run metadata. If a first model download fails, verify outbound access to Hugging Face and retry the transcription.
