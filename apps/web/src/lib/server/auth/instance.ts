@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
 
 import { pool } from "$lib/server/db";
+import { lockForTransaction, lockKeys } from "$lib/server/db/locks";
 import { withTransaction } from "$lib/server/db/transaction";
 
 type Queryable = Pick<PoolClient, "query">;
@@ -45,9 +46,7 @@ export async function createInstanceOwner(
   database: Connectable = pool,
 ): Promise<OwnerSetupOutcome> {
   return withTransaction(async (client) => {
-    await client.query(
-      "select pg_advisory_xact_lock(hashtext('anysub:instance-setup'))",
-    );
+    await lockForTransaction(client, lockKeys.instanceSetup);
     if (await isInstanceInitialized(client)) return "already-initialized";
 
     const user = await client.query<{ id: string }>(

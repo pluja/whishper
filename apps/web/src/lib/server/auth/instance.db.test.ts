@@ -17,7 +17,7 @@ function owner(name: string): InstanceOwner {
 
 async function countRows(table: "auth_users" | "auth_accounts") {
   const result = await pool.query<{ count: number }>(
-    `select count(*)::int as count from ${table}`,
+    `select count(*) as count from ${table}`,
   );
   return result.rows[0].count;
 }

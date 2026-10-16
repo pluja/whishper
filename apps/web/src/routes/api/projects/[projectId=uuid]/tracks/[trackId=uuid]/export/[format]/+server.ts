@@ -58,8 +58,8 @@ export const GET: RequestHandler = async ({ locals, params }) => {
   ).rows.map<SubtitleCueSnapshot>((cue) => ({
     id: cue.id,
     position: cue.position,
-    startUs: Number(cue.start_us),
-    endUs: Number(cue.end_us),
+    startUs: cue.start_us,
+    endUs: cue.end_us,
     text: cue.text,
     words: cue.words,
   }));
@@ -105,7 +105,7 @@ function exportBody(
           id: track.track_id,
           name: track.track_name,
           language: track.language,
-          revision: Number(track.revision),
+          revision: track.revision,
           metadata: track.metadata,
         },
         cues,

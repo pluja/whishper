@@ -154,28 +154,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   );
 
   return {
-    project: {
-      ...project.rows[0],
-      media_duration_us:
-        project.rows[0].media_duration_us === null
-          ? null
-          : Number(project.rows[0].media_duration_us),
-    },
+    project: project.rows[0],
     run: run.rows[0] ?? null,
     preparation: preparation.rows[0] ?? null,
     derivatives: derivatives.rows.map((derivative) => ({
       ...derivative,
-      size_bytes: Number(derivative.size_bytes),
       url: `/api/projects/${params.projectId}/derivatives/${derivative.kind}`,
     })),
-    track: track.rows[0]
-      ? { ...track.rows[0], revision: Number(track.rows[0].revision) }
-      : null,
-    cues: cues.map((cue) => ({
-      ...cue,
-      start_us: Number(cue.start_us),
-      end_us: Number(cue.end_us),
-    })),
+    track: track.rows[0] ?? null,
+    cues,
     transcriptionModels: availableTranscriptionModels(
       activeWorkers.rows.map((worker) => worker.manifest),
     ),

@@ -1,5 +1,6 @@
 import { building, dev } from "$app/environment";
 import { auth } from "$lib/server/auth/auth";
+import { pool } from "$lib/server/db";
 import { assertSecureRuntimeConfiguration, privateEnv } from "$lib/server/env";
 import {
   handleUploadRequest,
@@ -11,7 +12,9 @@ import type { Handle, ServerInit } from "@sveltejs/kit";
 
 export const init: ServerInit = () => {
   assertSecureRuntimeConfiguration({ dev });
-  if (!building) startUploadCleanup();
+  if (building) return;
+  startUploadCleanup();
+  process.once("sveltekit:shutdown", () => void pool.end());
 };
 
 export const handle: Handle = async ({ event, resolve }) => {

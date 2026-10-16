@@ -49,9 +49,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   }>(
     `select w.id,
             w.name,
-            count(distinct p.id)::integer as project_count,
+            count(distinct p.id) as project_count,
             count(distinct p.id)
-              filter (where upload.status = 'completed')::integer
+              filter (where upload.status = 'completed')
               as ready_source_count
        from workspaces w
        join memberships m on m.workspace_id = w.id
@@ -74,7 +74,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
               p.updated_at,
               coalesce(subtitle_summary.updated_at, p.updated_at)
             ) as activity_at,
-            p.media_duration_us::double precision as media_duration_us,
+            p.media_duration_us as media_duration_us,
             p.media_preparation_status,
             latest_run.status as run_status,
             latest_job.state as job_state,
@@ -83,8 +83,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             upload.status as upload_status,
             upload.original_filename,
             upload.media_type,
-            upload.size_bytes::double precision as size_bytes,
-            upload.received_bytes::double precision as received_bytes,
+            upload.size_bytes as size_bytes,
+            upload.received_bytes as received_bytes,
             exists (
               select 1
                 from media_derivatives derivative
@@ -101,8 +101,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
        from projects p
        left join media_uploads upload on upload.project_id = p.id
        left join lateral (
-         select count(distinct track.id)::integer as track_count,
-                count(cue.id)::integer as cue_count,
+         select count(distinct track.id) as track_count,
+                count(cue.id) as cue_count,
                 coalesce(
                   array_agg(distinct track.language order by track.language)
                     filter (where track.language <> ''),

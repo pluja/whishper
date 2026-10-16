@@ -2,7 +2,7 @@ import { rm } from "node:fs/promises";
 import { posix } from "node:path";
 
 import { withTransaction } from "$lib/server/db/transaction";
-import { lockMediaPreparationProject } from "$lib/server/media/preparation";
+import { lockForTransaction, lockKeys } from "$lib/server/db/locks";
 import { resolveDataPath } from "$lib/server/storage/paths";
 
 export async function deleteProjectForUser(
@@ -10,7 +10,7 @@ export async function deleteProjectForUser(
   userId: string,
 ): Promise<boolean> {
   const deleted = await withTransaction(async (client) => {
-    await lockMediaPreparationProject(client, projectId);
+    await lockForTransaction(client, lockKeys.projectMedia(projectId));
     const jobIds = (
       await client.query<{ id: string }>(
         `select id

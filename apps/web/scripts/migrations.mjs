@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
+// The application's advisory lock keys live in src/lib/server/db/locks.ts.
+// This script runs outside the application bundle, so it keeps its own key.
 const MIGRATION_LOCK_KEY = 719_602_124;
 
 export const migrationsDirectory = resolve(

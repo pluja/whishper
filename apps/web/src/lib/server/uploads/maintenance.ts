@@ -2,13 +2,17 @@ import { stat } from "node:fs/promises";
 import { posix } from "node:path";
 
 import { pool } from "$lib/server/db";
+import {
+  lockKeys,
+  tryLockForSession,
+  unlockForSession,
+} from "$lib/server/db/locks";
 import { resolveDataPath } from "$lib/server/storage/paths";
 
 export const UPLOAD_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1_000;
 const SWEEP_INTERVAL_MS = 15 * 60 * 1_000;
 const IDLE_BEFORE_RETRY_MS = 10 * 60 * 1_000;
 const FINALIZE_RETRY_WINDOW_MS = 24 * 60 * 60 * 1_000;
-const SWEEP_LOCK_KEY = 0x616e7973;
 
 export type SweepCandidate = {
   id: string;
@@ -110,7 +114,7 @@ function databasePorts(options: UploadMaintenanceOptions): SweepPorts {
     async listCandidates() {
       const result = await pool.query<SweepCandidate>(
         `select u.id, u.project_id as "projectId", u.created_by as "createdBy",
-                u.status, u.size_bytes::float8 as "sizeBytes",
+                u.status, u.size_bytes as "sizeBytes",
                 u.first_finalize_attempt_at as "firstFinalizeAttemptAt",
                 u.created_at as "createdAt", u.updated_at as "updatedAt"
            from media_uploads u
@@ -155,11 +159,7 @@ export async function runUploadSweep(
   // A connection that may still hold the session lock must not return to the pool.
   let lockMayBeHeld = true;
   try {
-    const lock = await client.query<{ locked: boolean }>(
-      `select pg_try_advisory_lock($1) as locked`,
-      [SWEEP_LOCK_KEY],
-    );
-    if (!lock.rows[0]?.locked) {
+    if (!(await tryLockForSession(client, lockKeys.uploadSweep))) {
       lockMayBeHeld = false;
       return;
     }
@@ -168,7 +168,7 @@ export async function runUploadSweep(
       console.info("Upload sweep finished", summary);
     } finally {
       try {
-        await client.query(`select pg_advisory_unlock($1)`, [SWEEP_LOCK_KEY]);
+        await unlockForSession(client, lockKeys.uploadSweep);
         lockMayBeHeld = false;
       } catch (cause) {
         console.error("Could not release the upload sweep lock", cause);

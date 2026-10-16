@@ -4,10 +4,8 @@ import { basename, dirname, extname, posix } from "node:path";
 import { pool } from "$lib/server/db";
 import { withTransaction } from "$lib/server/db/transaction";
 import { StatusError } from "$lib/server/http/errors";
-import {
-  enqueueMediaPreparation,
-  lockMediaPreparationProject,
-} from "$lib/server/media/preparation";
+import { lockForTransaction, lockKeys } from "$lib/server/db/locks";
+import { enqueueMediaPreparation } from "$lib/server/media/preparation";
 import { normalizeProjectTitle } from "$lib/server/projects/library";
 import { linkIdempotent } from "$lib/server/storage/files";
 import { originalStorageKey, resolveDataPath } from "$lib/server/storage/paths";
@@ -159,7 +157,7 @@ export async function completeUpload(
     linked = await linkIdempotent(stagingPath, canonicalPath);
 
     await withTransaction(async (client) => {
-      await lockMediaPreparationProject(client, upload.projectId);
+      await lockForTransaction(client, lockKeys.projectMedia(upload.projectId));
       await client.query(
         `update projects
             set media_original_key = $2, media_filename = $3, updated_at = now()

@@ -103,13 +103,10 @@ export async function updateTrackForUser(
       [trackId, projectId, userId],
     );
     if (!track.rows[0]) return null;
-    if (Number(track.rows[0].revision) !== update.revision) {
-      throw new TrackRevisionConflict(Number(track.rows[0].revision));
+    if (track.rows[0].revision !== update.revision) {
+      throw new TrackRevisionConflict(track.rows[0].revision);
     }
-    const durationUs =
-      track.rows[0].duration_us === null
-        ? null
-        : Number(track.rows[0].duration_us);
+    const durationUs = track.rows[0].duration_us;
     if (
       durationUs !== null &&
       update.cues.some((cue) => cue.endUs > durationUs)
@@ -142,6 +139,6 @@ export async function updateTrackForUser(
         returning revision`,
       [trackId],
     );
-    return Number(updated.rows[0].revision);
+    return updated.rows[0].revision;
   });
 }

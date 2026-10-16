@@ -32,8 +32,8 @@ export const GET: RequestHandler = async ({ locals, params }) => {
     cues.rows.map((cue) => ({
       id: cue.id,
       position: cue.position,
-      startUs: Number(cue.start_us),
-      endUs: Number(cue.end_us),
+      startUs: cue.start_us,
+      endUs: cue.end_us,
       text: cue.text,
     })),
   );

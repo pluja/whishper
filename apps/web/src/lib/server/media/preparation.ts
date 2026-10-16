@@ -1,17 +1,9 @@
 import type { MediaPreparationJobPayload } from "@anysub/contracts";
 import type { PoolClient } from "pg";
 
+import { lockForTransaction, lockKeys } from "$lib/server/db/locks";
 import { withTransaction } from "$lib/server/db/transaction";
 import { cleanupStagedMediaArtifacts } from "$lib/server/media/artifact-staging";
-
-export async function lockMediaPreparationProject(
-  client: PoolClient,
-  projectId: string,
-): Promise<void> {
-  await client.query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [
-    projectId,
-  ]);
-}
 
 export async function enqueueMediaPreparation(
   client: PoolClient,
@@ -23,7 +15,7 @@ export async function enqueueMediaPreparation(
     sourceMediaType: string | null;
   },
 ): Promise<string> {
-  await lockMediaPreparationProject(client, input.projectId);
+  await lockForTransaction(client, lockKeys.projectMedia(input.projectId));
   const project = await client.query<{ media_original_key: string | null }>(
     "select media_original_key from projects where id = $1 for update",
     [input.projectId],
