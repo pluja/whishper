@@ -2,6 +2,7 @@ import { json, type Handle, type HandleServerError } from "@sveltejs/kit";
 
 import { auth } from "$lib/server/auth/auth";
 import { privateEnv } from "$lib/server/env";
+import { ServerFailure } from "$lib/server/http/errors";
 import {
   handleUploadRequest,
   isUploadPath,
@@ -70,5 +71,5 @@ export const logServerErrors: HandleServerError = ({
       error,
     );
   }
-  return { message };
+  return { message: error instanceof ServerFailure ? error.message : message };
 };

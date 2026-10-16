@@ -63,10 +63,14 @@ describe("track update route", () => {
     });
   });
 
-  it("leaves unexpected failures to the error hook", async () => {
+  it("hands unexpected failures to the error hook with a safe message", async () => {
     const failure = new Error("password=hunter2");
     updateTrackForUser.mockRejectedValue(failure);
 
-    await expect(callPut({ revision: 1, cues: [] })).rejects.toBe(failure);
+    await expect(callPut({ revision: 1, cues: [] })).rejects.toMatchObject({
+      name: "ServerFailure",
+      message: "The subtitle track could not be saved.",
+      cause: failure,
+    });
   });
 });

@@ -64,14 +64,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const project = access && (await studioProject(pool, access.id));
   if (!access || !project) error(404, "Project not found");
 
-  const [run, preparation, derivatives, track, workerManifests] =
-    await Promise.all([
-      latestRun(pool, project.id),
-      latestMediaPreparation(pool, project.id),
-      readyDerivatives(pool, project.id),
-      latestTrackForProject(pool, project.id),
-      activeWorkerManifests(pool),
-    ]);
+  const run = await latestRun(pool, project.id);
+  const preparation = await latestMediaPreparation(pool, project.id);
+  const derivatives = await readyDerivatives(pool, project.id);
+  const track = await latestTrackForProject(pool, project.id);
+  const workerManifests = await activeWorkerManifests(pool);
   const cues = track ? await listTrackCues(pool, track.id) : [];
 
   return {

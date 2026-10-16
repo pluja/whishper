@@ -101,7 +101,7 @@ export async function listLibraryProjects(
               p.updated_at,
               coalesce(subtitle_summary.updated_at, p.updated_at)
             ) as activity_at,
-            p.media_duration_us as media_duration_us,
+            p.media_duration_us,
             p.media_preparation_status,
             latest_run.status as run_status,
             latest_job.state as job_state,
@@ -110,8 +110,8 @@ export async function listLibraryProjects(
             upload.status as upload_status,
             upload.original_filename,
             upload.media_type,
-            upload.size_bytes as size_bytes,
-            upload.received_bytes as received_bytes,
+            upload.size_bytes,
+            upload.received_bytes,
             exists (
               select 1
                 from media_derivatives derivative

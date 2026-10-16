@@ -176,7 +176,11 @@ async function createServer(): Promise<Server> {
         upload.id,
         requireUserId(request),
       ).catch((cause) => {
-        throw tusError(cause, "Upload finalization failed.");
+        throw tusError(
+          cause,
+          "Upload finalization failed.",
+          `Could not finalize upload ${upload.id}`,
+        );
       });
       return {
         headers: { "Upload-Project": completed.projectId },
@@ -216,10 +220,11 @@ export function tusReject(status: number, message: string): TusRejection {
 export function tusError(
   cause: unknown,
   fallbackMessage: string,
+  logMessage: string = fallbackMessage,
 ): TusRejection {
   const failure = clientFailure(cause);
   if (failure) return tusReject(failure.status, failure.message);
-  console.error(fallbackMessage, cause);
+  console.error(logMessage, cause);
   return tusReject(500, fallbackMessage);
 }
 

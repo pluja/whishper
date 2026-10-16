@@ -17,6 +17,19 @@ async function rowExists(table: "projects" | "jobs", id: string) {
   return result.rowCount === 1;
 }
 
+// Polls until another session queues behind an advisory lock, which proves
+// the deletion has passed its unlocked authorization.
+async function waitForAdvisoryLockWaiter(): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const waiting = await pool.query(
+      `select 1 from pg_locks where locktype = 'advisory' and not granted`,
+    );
+    if (waiting.rowCount) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error("The deletion never waited for the advisory lock.");
+}
+
 describe("deleteProjectForUser", () => {
   it("refuses a user outside the workspace and keeps the project", async () => {
     const project = await seedProject();
@@ -52,6 +65,30 @@ describe("deleteProjectForUser", () => {
       await holder.query("rollback");
       holder.release();
     }
+  });
+
+  it("refuses a user whose access is revoked while waiting for the lock", async () => {
+    const project = await seedProject();
+    const holder = await pool.connect();
+    let deletion: Promise<boolean> | undefined;
+    try {
+      await holder.query("begin");
+      await lockForTransaction(
+        holder,
+        lockKeys.projectMedia(project.projectId),
+      );
+      deletion = deleteProjectForUser(project.projectId, project.userId);
+      await waitForAdvisoryLockWaiter();
+      await holder.query(`delete from memberships where user_id = $1`, [
+        project.userId,
+      ]);
+      await holder.query("commit");
+    } finally {
+      holder.release();
+    }
+
+    await expect(deletion).resolves.toBe(false);
+    expect(await rowExists("projects", project.projectId)).toBe(true);
   });
 
   it("deletes the project together with its active jobs", async () => {

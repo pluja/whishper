@@ -10,6 +10,15 @@ export class StatusError extends Error {
   }
 }
 
+// A server failure whose message is safe to show. The handleError hook logs
+// the cause and answers with this message instead of a generic one.
+export class ServerFailure extends Error {
+  constructor(publicMessage: string, options: { cause: unknown }) {
+    super(publicMessage, options);
+    this.name = "ServerFailure";
+  }
+}
+
 export function badRequest(message: string): StatusError {
   return new StatusError(400, message);
 }

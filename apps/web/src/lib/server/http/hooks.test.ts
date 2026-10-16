@@ -18,6 +18,7 @@ vi.mock("$lib/server/uploads/tus-server", () => ({
   isUploadPath: (pathname: string) => pathname.startsWith("/api/uploads"),
 }));
 
+import { ServerFailure } from "./errors";
 import {
   authenticateWorkers,
   handleUploads,
@@ -175,6 +176,21 @@ describe("logServerErrors", () => {
       "GET /api/projects/1/tracks/2 failed",
       cause,
     );
+  });
+
+  it("shows the public message of a server failure", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const body = logServerErrors({
+      error: new ServerFailure("The track could not be saved.", {
+        cause: new Error("password=hunter2"),
+      }),
+      event: eventFor("/api/projects/1/tracks/2"),
+      status: 500,
+      message: "Internal Error",
+    });
+
+    expect(body).toEqual({ message: "The track could not be saved." });
   });
 
   it("does not log a 404", () => {

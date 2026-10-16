@@ -51,6 +51,18 @@ describe("tusError", () => {
   );
 });
 
+describe("tusError logging", () => {
+  it("logs a server failure under the given log message", () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const cause = new Error("disk full");
+
+    expect(
+      tusError(cause, "Upload finalization failed.", "Could not finalize u1"),
+    ).toEqual({ status_code: 500, body: "Upload finalization failed.\n" });
+    expect(log).toHaveBeenCalledWith("Could not finalize u1", cause);
+  });
+});
+
 describe("removeStoredUpload", () => {
   let directory: string;
   beforeEach(async () => {

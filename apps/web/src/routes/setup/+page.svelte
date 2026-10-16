@@ -72,7 +72,8 @@
           class:error={form?.message}
           role="alert"
         >
-          {form?.message ?? "Use at least ten characters."}
+          {form?.message ??
+            `Use at least ${data.minPasswordLength} characters.`}
         </p>
       </div>
 

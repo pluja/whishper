@@ -5,7 +5,8 @@ import {
   TrackValidationError,
   updateTrackForUser,
 } from "$lib/server/subtitles/track-editor";
-import { error, json } from "@sveltejs/kit";
+import { ServerFailure } from "$lib/server/http/errors";
+import { error, isHttpError, json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
 async function readTrackUpdate(request: Request) {
@@ -40,6 +41,9 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
     if (cause instanceof TrackValidationError) {
       return json({ message: cause.message }, { status: 400 });
     }
-    throw cause;
+    if (isHttpError(cause)) throw cause;
+    throw new ServerFailure("The subtitle track could not be saved.", {
+      cause,
+    });
   }
 };
