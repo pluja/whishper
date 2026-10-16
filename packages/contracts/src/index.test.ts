@@ -71,7 +71,7 @@ describe("parseProtocolMessage", () => {
   it("rejects fields the worker never sends", () => {
     const result = parseProtocolMessage(validateJobFailureReport, {
       leaseToken: "token",
-      error: { code: "boom", message: "Failed", retryable: false },
+      error: { code: "adapter_error", message: "Failed", retryable: false },
       extra: true,
     });
 
