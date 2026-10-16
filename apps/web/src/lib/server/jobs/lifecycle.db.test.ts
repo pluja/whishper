@@ -14,7 +14,7 @@ import {
 import { completeJob } from "$lib/server/jobs/completion";
 import { failJob } from "$lib/server/jobs/failure";
 import { leaseJob } from "$lib/server/jobs/lease";
-import { isUuid } from "$lib/uuid";
+import { isUuid } from "$lib/shared/uuid";
 
 const ACTIVE_LEASE = { attempts: 1, maxAttempts: 3, expiresInSeconds: 60 };
 

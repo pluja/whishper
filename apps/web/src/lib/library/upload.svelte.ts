@@ -1,5 +1,5 @@
 import { goto, invalidateAll } from "$app/navigation";
-import { formatBytes } from "$lib/format";
+import { formatBytes } from "$lib/shared/format";
 import { Upload } from "tus-js-client";
 
 export type UploadStatus = "idle" | "uploading" | "error" | "success";

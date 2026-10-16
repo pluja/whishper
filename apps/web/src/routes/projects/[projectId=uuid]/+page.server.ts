@@ -2,7 +2,7 @@ import type { MediaDerivativeKind } from "@anysub/contracts";
 import { projectForUser } from "$lib/server/projects/access";
 import { requireUserOrLogin } from "$lib/server/auth/session";
 import { pool } from "$lib/server/db";
-import { isUuid } from "$lib/uuid";
+import { isUuid } from "$lib/shared/uuid";
 import { withTransaction } from "$lib/server/db/transaction";
 import {
   availableTranscriptionModels,

@@ -1,4 +1,4 @@
-import { formatClock } from "$lib/format";
+import { formatClock } from "$lib/shared/format";
 
 import { clampInteger } from "./math";
 import type { DecodedWaveformLevel } from "./waveform";

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatEditorTime } from "$lib/subtitles";
+  import { formatEditorTime } from "$lib/shared/subtitles";
 
   type Props = {
     playbackUs: number;

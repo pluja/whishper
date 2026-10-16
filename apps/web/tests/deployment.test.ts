@@ -7,7 +7,10 @@ describe("production upload deployment", () => {
   it("accepts a complete 32 MiB tus chunk at the SvelteKit server boundary", async () => {
     const [compose, uploadSource] = await Promise.all([
       readFile(resolve(process.cwd(), "../../compose.yaml"), "utf8"),
-      readFile(resolve(process.cwd(), "src/lib/upload.svelte.ts"), "utf8"),
+      readFile(
+        resolve(process.cwd(), "src/lib/library/upload.svelte.ts"),
+        "utf8",
+      ),
     ]);
     const bodyLimit = /ANYSUB_BODY_SIZE_LIMIT:-(\d+)M/.exec(compose);
     const chunkSize = /chunkSize:\s*(\d+)\s*\*\s*1024\s*\*\s*1024/.exec(

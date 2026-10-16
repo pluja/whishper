@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
-  import { formatBytes } from "$lib/format";
-  import { ProjectUpload } from "$lib/upload.svelte";
+  import { formatBytes } from "$lib/shared/format";
+  import { ProjectUpload } from "$lib/library/upload.svelte";
 
   let { workspaceId }: { workspaceId: string } = $props();
 

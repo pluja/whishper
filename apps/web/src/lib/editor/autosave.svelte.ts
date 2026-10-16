@@ -1,6 +1,10 @@
 import { copyCues, type EditorCue } from "./cues";
 import { parseCueJournal } from "./journal";
-import { readStorage, removeStorage, writeStorage } from "$lib/safe-storage";
+import {
+  readStorage,
+  removeStorage,
+  writeStorage,
+} from "$lib/browser/safe-storage";
 
 export type SaveState = "saved" | "unsaved" | "saving" | "error" | "conflict";
 

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import CreateProjectDialog from "$lib/components/library/CreateProjectDialog.svelte";
-  import ProjectCard from "$lib/components/library/ProjectCard.svelte";
+  import CreateProjectDialog from "$lib/library/CreateProjectDialog.svelte";
+  import ProjectCard from "$lib/library/ProjectCard.svelte";
   import Icon from "$lib/components/Icon.svelte";
-  import { pollWhileActive } from "$lib/polling.svelte";
-  import { isProjectActive } from "$lib/projectStatus";
+  import { pollWhileActive } from "$lib/browser/polling.svelte";
+  import { isProjectActive } from "$lib/shared/project-status";
 
   let { data, form } = $props();
   let createDialog = $state<CreateProjectDialog>();

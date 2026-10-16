@@ -7,7 +7,7 @@ import {
   normalizeProjectTitle,
   parseProjectLibrarySearch,
 } from "$lib/server/projects/library";
-import { isUuid } from "$lib/uuid";
+import { isUuid } from "$lib/shared/uuid";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 

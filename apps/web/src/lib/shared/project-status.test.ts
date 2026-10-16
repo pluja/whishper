@@ -10,7 +10,7 @@ import {
   projectMessage,
   projectSourceFallback,
   stateLabel,
-} from "./projectStatus";
+} from "./project-status";
 
 const idle = {
   run_status: null,

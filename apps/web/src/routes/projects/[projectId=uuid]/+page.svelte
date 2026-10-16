@@ -2,13 +2,13 @@
   import { onMount, untrack } from "svelte";
   import { beforeNavigate } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
-  import CueList from "$lib/components/studio/CueList.svelte";
-  import EditorToolbar from "$lib/components/studio/EditorToolbar.svelte";
-  import ProcessingStatus from "$lib/components/studio/ProcessingStatus.svelte";
-  import ShortcutGuide from "$lib/components/studio/ShortcutGuide.svelte";
-  import StudioTitlebar from "$lib/components/studio/StudioTitlebar.svelte";
-  import Timeline from "$lib/components/studio/Timeline.svelte";
-  import TranscribePanel from "$lib/components/studio/TranscribePanel.svelte";
+  import CueList from "$lib/studio/CueList.svelte";
+  import EditorToolbar from "$lib/studio/EditorToolbar.svelte";
+  import ProcessingStatus from "$lib/studio/ProcessingStatus.svelte";
+  import ShortcutGuide from "$lib/studio/ShortcutGuide.svelte";
+  import StudioTitlebar from "$lib/studio/StudioTitlebar.svelte";
+  import Timeline from "$lib/timeline/Timeline.svelte";
+  import TranscribePanel from "$lib/studio/TranscribePanel.svelte";
   import type { EditorCue } from "$lib/editor/cues";
   import { CueEditor } from "$lib/editor/editor.svelte";
   import { PaneWidth } from "$lib/editor/pane-width.svelte";
@@ -17,8 +17,8 @@
     type StudioCommands,
   } from "$lib/editor/shortcuts";
   import { frameDurationUs } from "$lib/editor/transport.svelte";
-  import { pollWhileActive } from "$lib/polling.svelte";
-  import { isRunActive, isStudioActive } from "$lib/projectStatus";
+  import { pollWhileActive } from "$lib/browser/polling.svelte";
+  import { isRunActive, isStudioActive } from "$lib/shared/project-status";
 
   let { data, form } = $props();
 

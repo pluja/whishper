@@ -5,7 +5,7 @@ import {
   parseEditorTime,
   renderSrt,
   renderWebVtt,
-} from "$lib/subtitles";
+} from "$lib/shared/subtitles";
 
 const cues = [
   {

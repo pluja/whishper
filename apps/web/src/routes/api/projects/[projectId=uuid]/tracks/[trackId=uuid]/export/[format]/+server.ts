@@ -5,7 +5,7 @@ import {
   renderSrt,
   renderWebVtt,
   type SubtitleCueSnapshot,
-} from "$lib/subtitles";
+} from "$lib/shared/subtitles";
 import { error } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 

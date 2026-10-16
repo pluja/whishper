@@ -1,8 +1,8 @@
 import { insertCues } from "$lib/server/subtitles/cues";
 import { withTransaction } from "$lib/server/db/transaction";
 import { isRecord } from "$lib/shared/is-record";
-import type { SubtitleCueSnapshot } from "$lib/subtitles";
-import { isUuid } from "$lib/uuid";
+import type { SubtitleCueSnapshot } from "$lib/shared/subtitles";
+import { isUuid } from "$lib/shared/uuid";
 
 const MAX_CUES = 25_000;
 const MAX_CUE_TEXT = 20_000;

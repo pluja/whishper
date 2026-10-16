@@ -1,10 +1,10 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
-  import { formatBytes } from "$lib/format";
+  import { formatBytes } from "$lib/shared/format";
   import type {
     AvailableTranscriptionModel,
     DetectedWorkerHardware,
-  } from "$lib/transcription-models";
+  } from "$lib/shared/transcription-models";
 
   type Props = {
     models: AvailableTranscriptionModel[];

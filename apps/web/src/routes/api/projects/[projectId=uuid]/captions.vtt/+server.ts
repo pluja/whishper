@@ -1,7 +1,7 @@
 import { pool } from "$lib/server/db";
 import { projectForUser } from "$lib/server/projects/access";
 import { requireUser } from "$lib/server/auth/session";
-import { renderWebVtt } from "$lib/subtitles";
+import { renderWebVtt } from "$lib/shared/subtitles";
 import { error } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 

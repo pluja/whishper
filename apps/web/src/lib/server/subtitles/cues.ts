@@ -1,6 +1,6 @@
 import type { PoolClient } from "pg";
 
-import { isUuid } from "$lib/uuid";
+import { isUuid } from "$lib/shared/uuid";
 
 export type CueContent = {
   startUs: number;

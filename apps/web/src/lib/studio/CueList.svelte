@@ -1,7 +1,7 @@
 <script lang="ts">
   import { charactersPerSecond, cueTimeError } from "$lib/editor/cues";
   import type { CueEditor } from "$lib/editor/editor.svelte";
-  import { formatEditorTime, parseEditorTime } from "$lib/subtitles";
+  import { formatEditorTime, parseEditorTime } from "$lib/shared/subtitles";
 
   type Props = {
     editor: CueEditor;

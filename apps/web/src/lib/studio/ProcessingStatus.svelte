@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
-  import { isPreparationActive, isRunActive } from "$lib/projectStatus";
+  import { isPreparationActive, isRunActive } from "$lib/shared/project-status";
 
   type JobProgress = {
     progress: number | null;

@@ -18,7 +18,7 @@ import {
   UPLOAD_EXPIRATION_MS,
 } from "$lib/server/uploads/maintenance";
 import { isNodeError } from "$lib/server/guards";
-import { isUuid } from "$lib/uuid";
+import { isUuid } from "$lib/shared/uuid";
 
 const TUS_PATH = "/api/uploads";
 const USER_HEADER = "x-anysub-authenticated-user";

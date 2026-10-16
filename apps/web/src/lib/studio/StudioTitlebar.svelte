@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
   import type { Autosave } from "$lib/editor/autosave.svelte";
-  import { formatBytes } from "$lib/format";
+  import { formatBytes } from "$lib/shared/format";
 
   type Props = {
     project: {

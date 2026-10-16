@@ -1,15 +1,15 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
   import Icon from "$lib/components/Icon.svelte";
-  import { formatBytes, formatDuration } from "$lib/format";
+  import { formatBytes, formatDuration } from "$lib/shared/format";
   import {
     displayState,
     mediaPlaceholder,
     projectSourceFallback,
     stateLabel,
-  } from "$lib/projectStatus";
+  } from "$lib/shared/project-status";
   import type { SubmitFunction } from "@sveltejs/kit";
-  import type { PageData } from "../../../routes/$types";
+  import type { PageData } from "../../routes/$types";
 
   type RenameForm = { renameProjectId?: string; renameError?: string } | null;
 

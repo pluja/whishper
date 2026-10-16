@@ -1,4 +1,4 @@
-import { readStorage, writeStorage } from "$lib/safe-storage";
+import { readStorage, writeStorage } from "$lib/browser/safe-storage";
 
 const STORAGE_KEY = "anysub:editor-pane-width";
 const STACKED_LAYOUT_MAX_WIDTH_PX = 928;

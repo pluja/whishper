@@ -4,13 +4,13 @@ import type {
   WorkerHardware,
 } from "@anysub/contracts";
 
-import { formatBytes } from "$lib/format";
+import { formatBytes } from "$lib/shared/format";
 import { isRecord } from "$lib/shared/is-record";
 import type {
   AvailableTranscriptionModel,
   DetectedWorkerHardware,
   ModelFit,
-} from "$lib/transcription-models";
+} from "$lib/shared/transcription-models";
 
 const FIT_RANK: Record<ModelFit, number> = {
   poor: 0,
