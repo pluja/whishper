@@ -30,13 +30,5 @@ models/
 .vscode/
 *.swp
 
-# Markdown is ignored by default. Documentation that ships with the project
-# needs an explicit entry below.
-*.md
-!README.md
-!CHANGELOG.md
-!CONTRIBUTING.md
-!SECURITY.md
-!CODE_OF_CONDUCT.md
-!docs/**/*.md
-!.github/**/*.md
+# direnv
+.envrc

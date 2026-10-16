@@ -6,6 +6,12 @@ const config = {
   preprocess: vitePreprocess(),
   kit: {
     adapter: adapter({ precompress: true }),
+    typescript: {
+      config: (config) => ({
+        ...config,
+        include: [...config.include, "../scripts/**/*.mjs"],
+      }),
+    },
   },
 };
 
