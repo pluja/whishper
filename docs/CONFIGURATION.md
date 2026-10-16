@@ -14,29 +14,29 @@ Changing `ANYSUB_ACCELERATOR` also rebuilds the worker image, so add `--build` f
 
 Anysub refuses to start when any of these is missing or still holds a placeholder from `.env.example`.
 
-| Variable              | Purpose                                                            |
-| --------------------- | ------------------------------------------------------------------ |
-| `POSTGRES_PASSWORD`   | Database password. Read once at first start, when the volume is created. |
+| Variable              | Purpose                                                                        |
+| --------------------- | ------------------------------------------------------------------------------ |
+| `POSTGRES_PASSWORD`   | Database password. Read once at first start, when the volume is created.       |
 | `BETTER_AUTH_SECRET`  | Signs session cookies. At least 32 characters. Rotating it signs everyone out. |
-| `ANYSUB_WORKER_TOKEN` | Authenticates workers against the job API. At least 24 characters.  |
+| `ANYSUB_WORKER_TOKEN` | Authenticates workers against the job API. At least 24 characters.             |
 
 `POSTGRES_DB` and `POSTGRES_USER` default to `anysub` and only matter at first start.
 
 ## Network
 
-| Variable          | Default                 | Notes                                              |
-| ----------------- | ----------------------- | -------------------------------------------------- |
-| `ANYSUB_PORT`     | `5173`                  | Port published on the host.                        |
-| `BETTER_AUTH_URL` | `http://localhost:5173` | The address people type in the browser.            |
+| Variable          | Default                 | Notes                                   |
+| ----------------- | ----------------------- | --------------------------------------- |
+| `ANYSUB_PORT`     | `5173`                  | Port published on the host.             |
+| `BETTER_AUTH_URL` | `http://localhost:5173` | The address people type in the browser. |
 
 Set `BETTER_AUTH_URL` to the public origin when Anysub sits behind a reverse proxy, including a non-default port. Anysub rejects sign-ins and uploads whose origin does not match, so a wrong value here looks like a broken login.
 
 ## Uploads
 
-| Variable                  | Default        | Notes                                      |
-| ------------------------- | -------------- | ------------------------------------------- |
-| `ANYSUB_MAX_UPLOAD_BYTES` | 500 GiB        | Largest single upload.                      |
-| `ANYSUB_BODY_SIZE_LIMIT`  | `64M`          | Per-request limit. Keep above the 32 MiB upload chunk. |
+| Variable                  | Default | Notes                                                  |
+| ------------------------- | ------- | ------------------------------------------------------ |
+| `ANYSUB_MAX_UPLOAD_BYTES` | 500 GiB | Largest single upload.                                 |
+| `ANYSUB_BODY_SIZE_LIMIT`  | `64M`   | Per-request limit. Keep above the 32 MiB upload chunk. |
 
 Uploads arrive in 32 MiB chunks and resume after an interruption, so a large file over a poor connection is fine. If you shrink `ANYSUB_BODY_SIZE_LIMIT` below 32 MiB, every upload fails.
 

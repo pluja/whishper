@@ -1,0 +1,4 @@
+# Packages with their own Prettier setup run it through `pnpm --recursive format:check`.
+apps
+packages
+pnpm-lock.yaml

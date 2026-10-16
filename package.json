@@ -2,10 +2,16 @@
   "name": "anysub",
   "private": true,
   "packageManager": "pnpm@11.15.0",
+  "engines": {
+    "node": ">=24.6.0"
+  },
   "scripts": {
     "build": "pnpm --recursive build",
     "check": "pnpm --recursive check",
     "test": "pnpm --recursive test",
-    "format:check": "pnpm --recursive format:check"
+    "format:check": "prettier --check . && pnpm --recursive format:check"
+  },
+  "devDependencies": {
+    "prettier": "catalog:"
   }
 }
