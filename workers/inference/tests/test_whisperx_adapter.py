@@ -1,18 +1,25 @@
+import asyncio
 import sys
+import threading
+from collections.abc import Callable
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
 from anysub_worker.adapter import AdapterExecutionError
 from anysub_worker.adapters.whisperx import WhisperXAdapter
+from anysub_worker.adapters.whisperx import adapter as adapter_module
 from anysub_worker.config import WorkerSettings
 from anysub_worker.models import TranscriptionRequest
+
+type InstallStub = Callable[[object], tuple[WhisperXAdapter, TranscriptionRequest]]
 
 
 def test_manifest_exposes_accurate_models_without_importing_ml_dependencies(
     settings: WorkerSettings,
 ) -> None:
-    manifest = WhisperXAdapter(settings).manifest
+    manifest = WhisperXAdapter(settings.runtime).manifest
 
     assert manifest.id == "whisperx"
     assert {model.id for model in manifest.models} >= {"small", "large-v3-turbo"}
@@ -24,11 +31,20 @@ def test_manifest_exposes_accurate_models_without_importing_ml_dependencies(
     assert small.recommended_ram_bytes == 4 * 1024**3
     assert small.downloaded is False
     turbo = next(model for model in manifest.models if model.id == "large-v3-turbo")
+    assert turbo.display_name == "Large v3 Turbo"
     assert turbo.required_vram_bytes == 3 * 1024**3
 
 
+def test_manifest_options_schemas_are_independent(settings: WorkerSettings) -> None:
+    first, second = WhisperXAdapter(settings.runtime).manifest.models[:2]
+
+    first.options_schema["properties"]["alignment"]["default"] = False
+
+    assert second.options_schema["properties"]["alignment"]["default"] is True
+
+
 def test_manifest_detects_complete_cached_models(settings: WorkerSettings) -> None:
-    model_cache = settings.model_root / "whisperx"
+    model_cache = settings.runtime.model_root / "whisperx"
     snapshot = model_cache / "models--Systran--faster-whisper-small" / "snapshots" / "revision"
     snapshot.mkdir(parents=True)
     for filename in ("config.json", "model.bin", "tokenizer.json"):
@@ -37,7 +53,7 @@ def test_manifest_detects_complete_cached_models(settings: WorkerSettings) -> No
     incomplete.mkdir(parents=True)
     (incomplete / "config.json").touch()
 
-    manifest = WhisperXAdapter(settings).manifest
+    manifest = WhisperXAdapter(settings.runtime).manifest
 
     downloaded = {model.id: model.downloaded for model in manifest.models}
     assert downloaded["small"] is True
@@ -51,12 +67,12 @@ async def test_explicit_language_is_part_of_the_cached_model_key(
         def __init__(self) -> None:
             self.languages: list[str | None] = []
 
-        def load_model(self, model_id, device, **kwargs):  # type: ignore[no-untyped-def]
+        def load_model(self, model_id: str, device: str, **kwargs: Any) -> object:
             self.languages.append(kwargs.get("language"))
             return object()
 
     whisperx = RecordingWhisperX()
-    adapter = WhisperXAdapter(settings)
+    adapter = WhisperXAdapter(settings.runtime)
 
     english = await adapter._load_model(whisperx, "small", "en")
     assert await adapter._load_model(whisperx, "small", "en") is english
@@ -72,41 +88,51 @@ class StubWhisperX:
         align_error: Exception | None = None,
         asr_error: Exception | None = None,
         load_error: Exception | None = None,
-    ):
+    ) -> None:
         self.load_error = load_error
         self.align_error = align_error
         self.asr_error = asr_error
         self.aligned = False
 
-    def load_audio(self, path):  # type: ignore[no-untyped-def]
+    def load_audio(self, path: str) -> list[float]:
         return [0.0] * 16_000
 
-    def load_model(self, model_id, device, **kwargs):  # type: ignore[no-untyped-def]
+    def load_model(self, model_id: str, device: str, **kwargs: Any) -> object:
         if self.load_error:
             raise self.load_error
         outer = self
 
         class Model:
-            def transcribe(self, audio, batch_size):  # type: ignore[no-untyped-def]
+            def transcribe(self, audio: list[float], batch_size: int) -> dict[str, Any]:
                 if outer.asr_error:
                     raise outer.asr_error
                 return {"language": "en", "segments": [{"start": 0.0, "end": 1.0, "text": "Hi"}]}
 
         return Model()
 
-    def load_align_model(self, language_code, device, model_dir):  # type: ignore[no-untyped-def]
+    def load_align_model(
+        self, language_code: str, device: str, model_dir: str
+    ) -> tuple[object, dict[str, Any]]:
         if self.align_error:
             raise self.align_error
         return object(), {}
 
-    def align(self, segments, model, metadata, audio, device, return_char_alignments):  # type: ignore[no-untyped-def]
+    def align(
+        self,
+        segments: list[dict[str, Any]],
+        model: object,
+        metadata: dict[str, Any],
+        audio: list[float],
+        device: str,
+        return_char_alignments: bool,
+    ) -> dict[str, Any]:
         self.aligned = True
         return {"segments": segments}
 
 
 @pytest.fixture
-def transcribe_setup(settings: WorkerSettings, monkeypatch):  # type: ignore[no-untyped-def]
-    media = settings.data_root / "audio.wav"
+def transcribe_setup(settings: WorkerSettings, monkeypatch: pytest.MonkeyPatch) -> InstallStub:
+    media = settings.runtime.data_root / "audio.wav"
     media.touch()
     monkeypatch.setitem(
         sys.modules,
@@ -119,7 +145,7 @@ def transcribe_setup(settings: WorkerSettings, monkeypatch):  # type: ignore[no-
             )
         ),
     )
-    adapter = WhisperXAdapter(settings)
+    adapter = WhisperXAdapter(settings.runtime)
     request = TranscriptionRequest(
         jobId="job",
         projectId="project",
@@ -130,42 +156,18 @@ def transcribe_setup(settings: WorkerSettings, monkeypatch):  # type: ignore[no-
         options={},
     )
 
-    def install(stub):  # type: ignore[no-untyped-def]
+    def install(stub: object) -> tuple[WhisperXAdapter, TranscriptionRequest]:
         monkeypatch.setitem(sys.modules, "whisperx", stub)
         return adapter, request
 
     return install
 
 
-async def noop_progress(fraction, message):  # type: ignore[no-untyped-def]
+async def noop_progress(fraction: float, message: str) -> None:
     return None
 
 
-async def test_alignment_failure_falls_back_to_unaligned_segments(transcribe_setup) -> None:  # type: ignore[no-untyped-def]
-    adapter, request = transcribe_setup(StubWhisperX(align_error=ValueError("no aligner for xx")))
-
-    artifact = await adapter.transcribe(request, noop_progress)
-
-    assert [cue.text for cue in artifact.cues] == ["Hi"]
-    assert artifact.metadata["alignment"] is False
-    assert "no aligner for xx" in artifact.metadata["alignmentFallback"]
-    assert adapter._align_model is None
-
-
-async def test_successful_alignment_records_no_fallback(transcribe_setup) -> None:  # type: ignore[no-untyped-def]
-    stub = StubWhisperX()
-    adapter, request = transcribe_setup(stub)
-
-    artifact = await adapter.transcribe(request, noop_progress)
-
-    assert stub.aligned is True
-    assert artifact.metadata["alignment"] is True
-    assert "alignmentFallback" not in artifact.metadata
-
-
-async def test_cuda_out_of_memory_is_terminal_and_releases_models(  # type: ignore[no-untyped-def]
-    transcribe_setup, monkeypatch
-) -> None:
+def install_fake_torch(monkeypatch: pytest.MonkeyPatch) -> type[RuntimeError]:
     class FakeOutOfMemoryError(RuntimeError):
         pass
 
@@ -176,7 +178,38 @@ async def test_cuda_out_of_memory_is_terminal_and_releases_models(  # type: igno
             cuda=SimpleNamespace(OutOfMemoryError=FakeOutOfMemoryError, is_available=lambda: False)
         ),
     )
-    adapter, request = transcribe_setup(StubWhisperX(asr_error=FakeOutOfMemoryError("CUDA OOM")))
+    return FakeOutOfMemoryError
+
+
+async def test_alignment_failure_falls_back_to_unaligned_segments(
+    transcribe_setup: InstallStub,
+) -> None:
+    adapter, request = transcribe_setup(StubWhisperX(align_error=ValueError("no aligner for xx")))
+
+    artifact = await adapter.transcribe(request, noop_progress)
+
+    assert [cue.text for cue in artifact.cues] == ["Hi"]
+    assert artifact.metadata["alignment"] is False
+    assert "no aligner for xx" in artifact.metadata["alignmentFallback"]
+    assert adapter._aligner is None
+
+
+async def test_successful_alignment_records_no_fallback(transcribe_setup: InstallStub) -> None:
+    stub = StubWhisperX()
+    adapter, request = transcribe_setup(stub)
+
+    artifact = await adapter.transcribe(request, noop_progress)
+
+    assert stub.aligned is True
+    assert artifact.metadata["alignment"] is True
+    assert "alignmentFallback" not in artifact.metadata
+
+
+async def test_cuda_out_of_memory_is_terminal_and_releases_models(
+    transcribe_setup: InstallStub, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    out_of_memory = install_fake_torch(monkeypatch)
+    adapter, request = transcribe_setup(StubWhisperX(asr_error=out_of_memory("CUDA OOM")))
 
     with pytest.raises(AdapterExecutionError) as raised:
         await adapter.transcribe(request, noop_progress)
@@ -184,10 +217,10 @@ async def test_cuda_out_of_memory_is_terminal_and_releases_models(  # type: igno
     assert raised.value.retryable is False
     assert "smaller model" in str(raised.value)
     assert adapter._model is None
-    assert adapter._align_model is None
+    assert adapter._aligner is None
 
 
-async def test_other_failures_release_models_and_propagate(transcribe_setup) -> None:  # type: ignore[no-untyped-def]
+async def test_other_failures_release_models_and_propagate(transcribe_setup: InstallStub) -> None:
     adapter, request = transcribe_setup(StubWhisperX(asr_error=RuntimeError("boom")))
 
     with pytest.raises(RuntimeError, match="boom"):
@@ -196,12 +229,9 @@ async def test_other_failures_release_models_and_propagate(transcribe_setup) -> 
     assert adapter._model is None
 
 
-async def test_cancelled_inference_flushes_memory_when_the_thread_finishes(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    import asyncio
-    import threading
-
-    from anysub_worker.adapters.whisperx import adapter as adapter_module
-
+async def test_cancelled_inference_flushes_memory_when_the_thread_finishes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     flushed = asyncio.Event()
     loop = asyncio.get_running_loop()
     monkeypatch.setattr(
@@ -225,22 +255,8 @@ async def test_cancelled_inference_flushes_memory_when_the_thread_finishes(monke
     await asyncio.wait_for(flushed.wait(), timeout=5)
 
 
-def install_fake_torch(monkeypatch):  # type: ignore[no-untyped-def]
-    class FakeOutOfMemoryError(RuntimeError):
-        pass
-
-    monkeypatch.setitem(
-        sys.modules,
-        "torch",
-        SimpleNamespace(
-            cuda=SimpleNamespace(OutOfMemoryError=FakeOutOfMemoryError, is_available=lambda: False)
-        ),
-    )
-    return FakeOutOfMemoryError
-
-
-async def test_out_of_memory_during_alignment_is_terminal_not_a_fallback(  # type: ignore[no-untyped-def]
-    transcribe_setup, monkeypatch
+async def test_out_of_memory_during_alignment_is_terminal_not_a_fallback(
+    transcribe_setup: InstallStub, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     out_of_memory = install_fake_torch(monkeypatch)
     adapter, request = transcribe_setup(StubWhisperX(align_error=out_of_memory("CUDA OOM")))
@@ -251,10 +267,12 @@ async def test_out_of_memory_during_alignment_is_terminal_not_a_fallback(  # typ
     assert raised.value.retryable is False
     assert "smaller model" in str(raised.value)
     assert adapter._model is None
-    assert adapter._align_model is None
+    assert adapter._aligner is None
 
 
-async def test_validation_failure_keeps_the_warm_cached_model(transcribe_setup) -> None:  # type: ignore[no-untyped-def]
+async def test_validation_failure_keeps_the_warm_cached_model(
+    transcribe_setup: InstallStub,
+) -> None:
     adapter, request = transcribe_setup(StubWhisperX())
     await adapter.transcribe(request, noop_progress)
     warm_model = adapter._model
@@ -267,7 +285,9 @@ async def test_validation_failure_keeps_the_warm_cached_model(transcribe_setup) 
     assert adapter._model is warm_model
 
 
-async def test_invalid_compute_type_on_model_load_is_not_retryable(transcribe_setup) -> None:  # type: ignore[no-untyped-def]
+async def test_invalid_compute_type_on_model_load_is_not_retryable(
+    transcribe_setup: InstallStub,
+) -> None:
     ct2_message = "Requested float16 compute type, but the target device does not support it"
     adapter, request = transcribe_setup(StubWhisperX(load_error=ValueError(ct2_message)))
 
@@ -279,7 +299,7 @@ async def test_invalid_compute_type_on_model_load_is_not_retryable(transcribe_se
     assert "ANYSUB_COMPUTE_TYPE" in str(raised.value)
 
 
-async def test_download_errors_on_model_load_stay_retryable(transcribe_setup) -> None:  # type: ignore[no-untyped-def]
+async def test_download_errors_on_model_load_stay_retryable(transcribe_setup: InstallStub) -> None:
     adapter, request = transcribe_setup(StubWhisperX(load_error=ConnectionError("offline")))
 
     with pytest.raises(ConnectionError):

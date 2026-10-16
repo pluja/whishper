@@ -1036,6 +1036,13 @@
       "title": "WorkerCpu",
       "type": "object"
     },
+    "WorkerDevice": {
+      "enum": [
+        "cpu",
+        "cuda"
+      ],
+      "type": "string"
+    },
     "WorkerGpu": {
       "additionalProperties": false,
       "properties": {
@@ -1068,11 +1075,7 @@
       "additionalProperties": false,
       "properties": {
         "device": {
-          "enum": [
-            "cpu",
-            "cuda"
-          ],
-          "type": "string"
+          "$ref": "#/$defs/WorkerDevice"
         },
         "computeType": {
           "minLength": 1,

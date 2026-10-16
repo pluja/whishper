@@ -1,8 +1,9 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from anysub_worker.config import WorkerSettings
+from anysub_worker.config import AdapterRuntimeSettings
 from anysub_worker.hardware import detect_hardware
+from anysub_worker.models import WorkerDevice
 
 GIB = 1024**3
 
@@ -20,11 +21,9 @@ def write_host_files(root: Path, *, total_gib: int = 32, available_gib: int = 20
     )
 
 
-def worker_settings(*, device: str = "cpu") -> WorkerSettings:
-    return WorkerSettings(
-        worker_token="test-worker-token-0123456789",
-        device=device,
-        compute_type="int8" if device == "cpu" else "float16",
+def runtime_settings(*, device: WorkerDevice = "cpu") -> AdapterRuntimeSettings:
+    return AdapterRuntimeSettings(
+        device=device, compute_type="int8" if device == "cpu" else "float16"
     )
 
 
@@ -40,7 +39,7 @@ def test_detect_hardware_respects_container_memory_limit(tmp_path: Path) -> None
         version=SimpleNamespace(cuda=None, hip=None),
     )
     hardware = detect_hardware(
-        worker_settings(),
+        runtime_settings(),
         proc_root=tmp_path / "proc",
         cgroup_root=cgroup,
         torch_module=torch,
@@ -70,7 +69,7 @@ def test_detect_hardware_reports_usable_cuda_memory(tmp_path: Path) -> None:
         version=SimpleNamespace(cuda="12.8", hip=None),
     )
     hardware = detect_hardware(
-        worker_settings(device="cuda"),
+        runtime_settings(device="cuda"),
         proc_root=tmp_path / "proc",
         cgroup_root=cgroup,
         torch_module=torch,

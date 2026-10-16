@@ -5,13 +5,15 @@ from fakes import RecordedSleeps
 
 from anysub_worker import client as client_module
 from anysub_worker.client import FINAL_REPORT_ATTEMPTS, ApplicationClient
-from anysub_worker.config import WorkerSettings
+from anysub_worker.config import AdapterRuntimeSettings, WorkerSettings
 from anysub_worker.errors import LeaseLostError
 from anysub_worker.models import (
     MediaGenerator,
     MediaPreparationJobCompletion,
     MediaProbeArtifact,
+    WorkerHardware,
     WorkerLease,
+    WorkerMemory,
 )
 from anysub_worker.registry import AdapterRegistry
 
@@ -117,9 +119,9 @@ async def test_hardware_is_detected_once_and_memory_refreshed_per_poll(
     real_detect_hardware = client_module.detect_hardware
     detections: list[None] = []
 
-    def counting_detect_hardware(settings: WorkerSettings):  # type: ignore[no-untyped-def]
+    def counting_detect_hardware(runtime: AdapterRuntimeSettings) -> WorkerHardware:
         detections.append(None)
-        return real_detect_hardware(settings)
+        return real_detect_hardware(runtime)
 
     monkeypatch.setattr(client_module, "detect_hardware", counting_detect_hardware)
     client = make_client(settings, RecordedSleeps())
@@ -129,7 +131,7 @@ async def test_hardware_is_detected_once_and_memory_refreshed_per_poll(
     memory_reads: list[None] = []
     real_detect_memory = client_module.detect_memory
 
-    def counting_detect_memory():  # type: ignore[no-untyped-def]
+    def counting_detect_memory() -> WorkerMemory:
         memory_reads.append(None)
         return real_detect_memory()
 

@@ -10,6 +10,7 @@ export type ProtocolMessage =
   | LeaseResponse;
 export type MediaPreparationVersion = "1.0";
 export type AdapterCapability = "transcribe" | "align";
+export type WorkerDevice = "cpu" | "cuda";
 export type JobFailureCode =
   "adapter_error" | "adapter_unavailable" | "media_preparation_error";
 export type JobCompletion =
@@ -57,7 +58,7 @@ export interface AdapterModel {
   };
 }
 export interface WorkerHardware {
-  device: "cpu" | "cuda";
+  device: WorkerDevice;
   computeType: string;
   cpu: WorkerCpu;
   memory: WorkerMemory;

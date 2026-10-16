@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import asyncio
 import gc
 import logging
 from collections.abc import Callable
 from importlib import import_module
+from importlib.metadata import version
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from anysub_worker.adapter import AdapterExecutionError, ProgressReporter
-from anysub_worker.config import WorkerSettings
+from anysub_worker.config import AdapterRuntimeSettings
+from anysub_worker.errors import describe_error
 from anysub_worker.models import (
     AdapterCapability,
     AdapterManifest,
@@ -19,75 +22,77 @@ from anysub_worker.models import (
 from anysub_worker.threads import run_in_thread
 from anysub_worker.timing import MICROSECONDS_PER_SECOND
 
-from .normalize import normalize_result
-from .options import OPTIONS_SCHEMA, parse_options
-from .profiles import (
-    MODEL_PROFILES,
-    configured_model_root,
-    display_model_name,
-    model_is_downloaded,
-)
+from .normalize import normalize_segments
+from .options import TranscriptionOptions, options_schema, parse_options
+from .profiles import MODEL_PROFILES
+from .result import WhisperSegment
 from .subtitles import split_subtitle_segments
 
 SAMPLE_RATE = 16_000
 LOGGER = logging.getLogger(__name__)
 
 
+class _ModelKey(NamedTuple):
+    model_id: str
+    language: str | None
+
+
+class _Aligner(NamedTuple):
+    language: str
+    model: Any
+    metadata: Any
+
+
 class WhisperXAdapter:
     """WhisperX ASR plus optional forced alignment behind the adapter v1 contract."""
 
-    def __init__(self, settings: WorkerSettings | None = None) -> None:
-        self._settings_override = settings
+    def __init__(self, runtime: AdapterRuntimeSettings | None = None) -> None:
+        self._runtime = runtime if runtime is not None else AdapterRuntimeSettings()
         self._model: Any | None = None
-        self._model_key: tuple[str, str, str, str | None] | None = None
-        self._align_model: Any | None = None
-        self._align_metadata: Any | None = None
-        self._align_key: tuple[str, str] | None = None
-        self._model_loading_started = False
+        self._model_key: _ModelKey | None = None
+        self._aligner: _Aligner | None = None
 
     @property
     def manifest(self) -> AdapterManifest:
         return AdapterManifest(
             id="whisperx",
             displayName="WhisperX",
-            version="0.1.0",
+            version=version("anysub-worker"),
             description="Local Whisper transcription with accurate forced alignment.",
             models=tuple(
                 AdapterModel(
-                    id=model_id,
-                    displayName=display_model_name(model_id),
+                    id=profile.id,
+                    displayName=profile.display_name,
                     capabilities=(AdapterCapability.TRANSCRIBE, AdapterCapability.ALIGN),
                     languages="all",
-                    description=description,
-                    parameterCount=parameter_count,
-                    requiredVramBytes=required_vram_bytes,
-                    recommendedRamBytes=recommended_ram_bytes,
-                    downloaded=model_is_downloaded(
-                        configured_model_root(self._settings_override) / "whisperx",
-                        model_id,
-                    ),
-                    optionsSchema=OPTIONS_SCHEMA,
+                    description=profile.description,
+                    parameterCount=profile.parameter_count,
+                    requiredVramBytes=profile.required_vram_bytes,
+                    recommendedRamBytes=profile.recommended_ram_bytes,
+                    downloaded=profile.is_downloaded(self._model_root),
+                    optionsSchema=options_schema(),
                 )
-                for model_id, (
-                    description,
-                    parameter_count,
-                    required_vram_bytes,
-                    recommended_ram_bytes,
-                ) in MODEL_PROFILES.items()
+                for profile in MODEL_PROFILES
             ),
         )
 
     async def transcribe(
         self, request: TranscriptionRequest, report_progress: ProgressReporter
     ) -> TranscriptArtifact:
-        self._model_loading_started = False
+        whisperx = _import_whisperx()
+        media_path = self._media_path(request.media_path)
+        options = parse_options(request.options, device=self._runtime.device)
+
+        await report_progress(0.02, "Loading source audio")
+        audio = await _run_in_thread(whisperx.load_audio, str(media_path))
         try:
-            return await self._transcribe(request, report_progress)
-        except BaseException as error:
-            out_of_memory = isinstance(error, Exception) and is_cuda_out_of_memory(error)
-            if self._model_loading_started or out_of_memory:
-                self._release_all_models()
-            if out_of_memory:
+            return await self._transcribe_audio(whisperx, audio, request, options, report_progress)
+        except asyncio.CancelledError:
+            self._release_all_models()
+            raise
+        except Exception as error:
+            self._release_all_models()
+            if is_cuda_out_of_memory(error):
                 raise AdapterExecutionError(
                     "The graphics card ran out of memory. Choose a smaller model or lower "
                     "the batch size.",
@@ -95,90 +100,91 @@ class WhisperXAdapter:
                 ) from error
             raise
 
-    async def _transcribe(
-        self, request: TranscriptionRequest, report_progress: ProgressReporter
+    async def _transcribe_audio(
+        self,
+        whisperx: Any,
+        audio: Any,
+        request: TranscriptionRequest,
+        options: TranscriptionOptions,
+        report_progress: ProgressReporter,
     ) -> TranscriptArtifact:
-        whisperx = _import_whisperx()
-        media_path = self._media_path(request.media_path)
-        options = parse_options(request.options, device=self._settings.device)
-
-        await report_progress(0.02, "Loading source audio")
-        audio = await _run_in_thread(whisperx.load_audio, str(media_path))
         duration_us = max(0, int(len(audio) / SAMPLE_RATE * MICROSECONDS_PER_SECOND))
 
         await report_progress(0.08, f"Loading {request.model_id} model")
-        self._model_loading_started = True
         model = await self._load_model(whisperx, request.model_id, request.language)
 
         await report_progress(0.16, "Transcribing speech")
         result = await _run_in_thread(model.transcribe, audio, batch_size=options.batch_size)
         language = str(result.get("language") or request.language or "und")
+        segments: list[WhisperSegment] = result.get("segments") or []
 
         alignment_fallback: str | None = None
-        if options.alignment and result.get("segments"):
+        if options.alignment and segments:
             await report_progress(0.72, f"Aligning {language} word timestamps")
-            try:
-                align_model, align_metadata = await self._load_align_model(whisperx, language)
-                result = await _run_in_thread(
-                    whisperx.align,
-                    result["segments"],
-                    align_model,
-                    align_metadata,
-                    audio,
-                    self._settings.device,
-                    return_char_alignments=False,
-                )
-            except Exception as error:
-                if is_cuda_out_of_memory(error):
-                    raise
-                self._release_align_model()
-                alignment_fallback = f"{type(error).__name__}: {error}"
-                LOGGER.warning(
-                    "Forced alignment unavailable for %s, keeping unaligned segments: %s",
-                    language,
-                    alignment_fallback,
-                )
+            segments, alignment_fallback = await self._align(whisperx, segments, audio, language)
 
-        if result.get("segments"):
+        if segments:
             await report_progress(0.88, "Splitting readable subtitle cues")
-            result = {
-                **result,
-                "segments": split_subtitle_segments(
-                    result["segments"],
-                    language=language,
-                    max_line_length=options.max_line_length,
-                ),
-            }
+            segments = split_subtitle_segments(
+                segments, language=language, max_line_length=options.max_line_length
+            )
 
         await report_progress(0.94, "Building subtitle cues")
         metadata: dict[str, Any] = {
             "adapter": "whisperx",
             "model": request.model_id,
             "alignment": options.alignment and alignment_fallback is None,
-            "device": self._settings.device,
-            "computeType": self._settings.compute_type,
+            "device": self._runtime.device,
+            "computeType": self._runtime.compute_type,
             "batchSize": options.batch_size,
             "maxLineLength": options.max_line_length,
         }
         if alignment_fallback is not None:
             metadata["alignmentFallback"] = alignment_fallback
-        artifact = normalize_result(
-            result, language=language, duration_us=duration_us, metadata=metadata
+        artifact = normalize_segments(
+            segments, language=language, duration_us=duration_us, metadata=metadata
         )
         await report_progress(0.99, "Saving aligned transcript")
         return artifact
 
+    async def _align(
+        self, whisperx: Any, segments: list[WhisperSegment], audio: Any, language: str
+    ) -> tuple[list[WhisperSegment], str | None]:
+        """Returns word-aligned segments, or the unaligned ones and why alignment failed."""
+        try:
+            aligner = await self._load_aligner(whisperx, language)
+            aligned = await _run_in_thread(
+                whisperx.align,
+                segments,
+                aligner.model,
+                aligner.metadata,
+                audio,
+                self._runtime.device,
+                return_char_alignments=False,
+            )
+        except Exception as error:
+            if is_cuda_out_of_memory(error):
+                raise
+            self._release_align_model()
+            fallback = describe_error(error)
+            LOGGER.warning(
+                "Forced alignment unavailable for %s, keeping unaligned segments: %s",
+                language,
+                fallback,
+            )
+            return segments, fallback
+        return aligned["segments"], None
+
     async def _load_model(self, whisperx: Any, model_id: str, language: str | None) -> Any:
-        key = (model_id, self._settings.device, self._settings.compute_type, language)
+        key = _ModelKey(model_id, language)
         if self._model is not None and self._model_key == key:
             return self._model
 
         self._release_asr_model()
-        model_root = self._settings.model_root / "whisperx"
-        model_root.mkdir(parents=True, exist_ok=True)
+        self._model_root.mkdir(parents=True, exist_ok=True)
         kwargs: dict[str, Any] = {
-            "compute_type": self._settings.compute_type,
-            "download_root": str(model_root),
+            "compute_type": self._runtime.compute_type,
+            "download_root": str(self._model_root),
         }
         if language:
             kwargs["language"] = language
@@ -186,45 +192,42 @@ class WhisperXAdapter:
             self._model = await _run_in_thread(
                 whisperx.load_model,
                 model_id,
-                self._settings.device,
+                self._runtime.device,
                 **kwargs,
             )
         except ValueError as error:
             raise AdapterExecutionError(
                 f"The {model_id} model could not be loaded: {error}. Check ANYSUB_COMPUTE_TYPE "
-                f"({self._settings.compute_type}) and ANYSUB_DEVICE ({self._settings.device}).",
+                f"({self._runtime.compute_type}) and ANYSUB_DEVICE ({self._runtime.device}).",
                 retryable=False,
             ) from error
         self._model_key = key
         return self._model
 
-    @property
-    def _settings(self) -> WorkerSettings:
-        if self._settings_override is None:
-            self._settings_override = WorkerSettings()  # type: ignore[call-arg]
-        return self._settings_override
-
-    async def _load_align_model(self, whisperx: Any, language: str) -> tuple[Any, Any]:
-        key = (language, self._settings.device)
-        if self._align_model is not None and self._align_key == key:
-            return self._align_model, self._align_metadata
+    async def _load_aligner(self, whisperx: Any, language: str) -> _Aligner:
+        if self._aligner is not None and self._aligner.language == language:
+            return self._aligner
 
         self._release_align_model()
-        align_root = self._settings.model_root / "whisperx-align"
+        align_root = self._runtime.model_root / "whisperx-align"
         align_root.mkdir(parents=True, exist_ok=True)
-        self._align_model, self._align_metadata = await _run_in_thread(
+        model, metadata = await _run_in_thread(
             whisperx.load_align_model,
             language_code=language,
-            device=self._settings.device,
+            device=self._runtime.device,
             model_dir=str(align_root),
         )
-        self._align_key = key
-        return self._align_model, self._align_metadata
+        self._aligner = _Aligner(language, model, metadata)
+        return self._aligner
+
+    @property
+    def _model_root(self) -> Path:
+        return self._runtime.model_root / "whisperx"
 
     def _media_path(self, value: str | None) -> Path:
         if not value:
             raise AdapterExecutionError("The transcription job has no media path.", retryable=False)
-        root = self._settings.data_root.resolve()
+        root = self._runtime.data_root.resolve()
         path = Path(value).resolve()
         if not path.is_relative_to(root):
             raise AdapterExecutionError(
@@ -241,19 +244,13 @@ class WhisperXAdapter:
         self._model_key = None
         _release_memory()
 
-    def _release_all_models(self) -> None:
-        self._model = None
-        self._model_key = None
-        self._align_model = None
-        self._align_metadata = None
-        self._align_key = None
+    def _release_align_model(self) -> None:
+        self._aligner = None
         _release_memory()
 
-    def _release_align_model(self) -> None:
-        self._align_model = None
-        self._align_metadata = None
-        self._align_key = None
-        _release_memory()
+    def _release_all_models(self) -> None:
+        self._release_asr_model()
+        self._release_align_model()
 
 
 def _import_whisperx() -> Any:

@@ -1,12 +1,19 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
-from anysub_worker.config import MINIMUM_WORKER_TOKEN_LENGTH, WorkerSettings
+from anysub_worker.config import (
+    MINIMUM_WORKER_TOKEN_LENGTH,
+    AdapterRuntimeSettings,
+    WorkerSettings,
+)
+from anysub_worker.models import WorkerDevice
 
 TOKEN = "t" * MINIMUM_WORKER_TOKEN_LENGTH
 
 
-def test_worker_name_defaults_to_local_worker(monkeypatch) -> None:
+def test_worker_name_defaults_to_local_worker(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ANYSUB_WORKER_NAME", raising=False)
 
     settings = WorkerSettings(worker_token=TOKEN)
@@ -19,10 +26,26 @@ def test_short_worker_token_fails_at_startup_with_the_variable_name() -> None:
         WorkerSettings(worker_token="t" * (MINIMUM_WORKER_TOKEN_LENGTH - 1))
 
 
-@pytest.mark.parametrize(("device", "compute_type"), [("cpu", "float16"), ("cpu", "int8_float16")])
-def test_half_precision_on_cpu_fails_at_startup(device, compute_type) -> None:  # type: ignore[no-untyped-def]
+def test_runtime_settings_read_the_same_environment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("ANYSUB_DEVICE", "cuda")
+    monkeypatch.setenv("ANYSUB_COMPUTE_TYPE", "float16")
+    monkeypatch.setenv("ANYSUB_MODEL_ROOT", str(tmp_path))
+
+    runtime = WorkerSettings(worker_token=TOKEN).runtime
+
+    assert (runtime.device, runtime.compute_type, runtime.model_root) == (
+        "cuda",
+        "float16",
+        tmp_path,
+    )
+
+
+@pytest.mark.parametrize("compute_type", ["float16", "int8_float16"])
+def test_half_precision_on_cpu_fails_at_startup(compute_type: str) -> None:
     with pytest.raises(ValidationError, match="ANYSUB_COMPUTE_TYPE"):
-        WorkerSettings(worker_token=TOKEN, device=device, compute_type=compute_type)
+        AdapterRuntimeSettings(device="cpu", compute_type=compute_type)
 
 
 @pytest.mark.parametrize(
@@ -59,7 +82,9 @@ def test_half_precision_on_cpu_fails_at_startup(device, compute_type) -> None:  
         ],
     ],
 )
-def test_other_compute_types_are_left_to_ctranslate2(device, compute_type) -> None:  # type: ignore[no-untyped-def]
-    settings = WorkerSettings(worker_token=TOKEN, device=device, compute_type=compute_type)
+def test_other_compute_types_are_left_to_ctranslate2(
+    device: WorkerDevice, compute_type: str
+) -> None:
+    runtime = AdapterRuntimeSettings(device=device, compute_type=compute_type)
 
-    assert settings.compute_type == compute_type
+    assert runtime.compute_type == compute_type

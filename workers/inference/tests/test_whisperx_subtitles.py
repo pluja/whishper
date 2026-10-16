@@ -1,26 +1,34 @@
 import sys
 from types import SimpleNamespace
+from typing import Any
 
+import pytest
+
+from anysub_worker.adapters.whisperx.result import WhisperWord
 from anysub_worker.adapters.whisperx.subtitles import split_subtitle_segments
 
 
-def test_subtitle_splitting_preserves_words_in_their_new_cues(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def install_processor(monkeypatch: pytest.MonkeyPatch, processor: type) -> None:
+    monkeypatch.setitem(
+        sys.modules, "whisperx.SubtitlesProcessor", SimpleNamespace(SubtitlesProcessor=processor)
+    )
+
+
+def test_subtitle_splitting_preserves_words_in_their_new_cues(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class FakeProcessor:
-        def __init__(self, segments, lang, max_line_length):  # type: ignore[no-untyped-def]
+        def __init__(self, segments: list[dict[str, Any]], lang: str, max_line_length: int):
             assert lang == "en"
             assert max_line_length == 10
 
-        def process_segments(self, advanced_splitting):  # type: ignore[no-untyped-def]
+        def process_segments(self, advanced_splitting: bool) -> list[dict[str, Any]]:
             assert advanced_splitting is True
             return [
                 {"start": 0.0, "end": 2.0, "text": " A  short second cue. "},
             ]
 
-    monkeypatch.setitem(
-        sys.modules,
-        "whisperx.SubtitlesProcessor",
-        SimpleNamespace(SubtitlesProcessor=FakeProcessor),
-    )
+    install_processor(monkeypatch, FakeProcessor)
     result = split_subtitle_segments(
         [
             {
@@ -40,43 +48,66 @@ def test_subtitle_splitting_preserves_words_in_their_new_cues(monkeypatch) -> No
     )
 
     assert [cue["text"] for cue in result] == ["A short", "second", "cue."]
-    assert [[word["word"] for word in cue["words"]] for cue in result] == [
+    assert [[word["word"] for word in cue.get("words", [])] for cue in result] == [
         ["A", "short"],
         ["second"],
         ["cue."],
     ]
 
 
-def reference_word_assignment(timed_words, subtitles):  # type: ignore[no-untyped-def]
+def test_cues_without_words_split_their_text_by_length(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeProcessor:
+        def __init__(self, segments: list[dict[str, Any]], lang: str, max_line_length: int):
+            assert "words" not in segments[0]
+
+        def process_segments(self, advanced_splitting: bool) -> list[dict[str, Any]]:
+            return [{"start": 0.0, "end": 4.0, "text": "one two three four"}]
+
+    install_processor(monkeypatch, FakeProcessor)
+    result = split_subtitle_segments(
+        [{"start": 0.0, "end": 4.0, "text": "one two three four", "words": []}],
+        language="en",
+        max_line_length=9,
+    )
+
+    assert [(cue["text"], cue["start"], cue["end"]) for cue in result] == [
+        ("one two", 0.0, 1.75),
+        ("three", 1.75, 3.0),
+        ("four", 3.0, 4.0),
+    ]
+    assert all("words" not in cue for cue in result)
+
+
+def reference_word_assignment(
+    timed_words: list[WhisperWord], subtitles: list[tuple[float, float]]
+) -> list[list[str]]:
     return [
         [
             word["word"]
             for word in timed_words
-            if float(word["start"]) >= start - 1e-6 and float(word["end"]) <= end + 1e-6
+            if word.get("start", -1) >= start - 1e-6 and word.get("end", -1) <= end + 1e-6
         ]
         for start, end in subtitles
     ]
 
 
-def test_word_assignment_matches_the_previous_quadratic_behaviour(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    words = [
+def test_word_assignment_matches_the_previous_quadratic_behaviour(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    words: list[WhisperWord] = [
         {"word": f"w{index}", "start": index * 0.5, "end": index * 0.5 + 0.4} for index in range(40)
     ]
     words.insert(5, {"word": "untimed"})
     subtitles = [(0.0, 2.4), (2.5, 2.5), (2.4999999, 7.9), (8.0, 20.0), (19.5, 30.0)]
 
     class FixtureProcessor:
-        def __init__(self, segments, lang, max_line_length):  # type: ignore[no-untyped-def]
+        def __init__(self, segments: list[dict[str, Any]], lang: str, max_line_length: int):
             pass
 
-        def process_segments(self, advanced_splitting):  # type: ignore[no-untyped-def]
+        def process_segments(self, advanced_splitting: bool) -> list[dict[str, Any]]:
             return [{"start": start, "end": end, "text": "x"} for start, end in subtitles]
 
-    monkeypatch.setitem(
-        sys.modules,
-        "whisperx.SubtitlesProcessor",
-        SimpleNamespace(SubtitlesProcessor=FixtureProcessor),
-    )
+    install_processor(monkeypatch, FixtureProcessor)
     result = split_subtitle_segments(
         [{"start": 0.0, "end": 30.0, "text": "x", "words": words}],
         language="en",

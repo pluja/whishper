@@ -2,8 +2,9 @@ from pathlib import Path
 
 import pytest
 from fakes import RecordingClient
+from pydantic import AnyHttpUrl
 
-from anysub_worker.config import WorkerSettings
+from anysub_worker.config import AdapterRuntimeSettings, WorkerSettings
 from anysub_worker.models import (
     MediaPreparationJobPayload,
     TranscriptionJobPayload,
@@ -14,11 +15,10 @@ from anysub_worker.models import (
 @pytest.fixture
 def settings(tmp_path: Path) -> WorkerSettings:
     return WorkerSettings(
-        app_url="http://app.test",
+        app_url=AnyHttpUrl("http://app.test"),
         worker_token="test-worker-token-0123456789",
-        data_root=tmp_path,
-        model_root=tmp_path / "models",
         worker_id_file=tmp_path / "worker-id",
+        runtime=AdapterRuntimeSettings(data_root=tmp_path, model_root=tmp_path / "models"),
     )
 
 

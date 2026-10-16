@@ -45,7 +45,7 @@ class ApplicationClient:
         self._settings = settings
         self._registry = registry
         self._sleep = sleep
-        self._hardware = detect_hardware(settings)
+        self._hardware = detect_hardware(settings.runtime)
         self.worker_id = _load_or_create_worker_id(settings.worker_id_file)
         self._client = httpx.AsyncClient(
             base_url=str(settings.app_url).rstrip("/"),

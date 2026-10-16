@@ -108,8 +108,11 @@ class WorkerGpu(StrictModel):
     total_memory_bytes: PositiveWireInt = Field(alias="totalMemoryBytes")
 
 
+type WorkerDevice = Literal["cpu", "cuda"]
+
+
 class WorkerHardware(StrictModel):
-    device: Literal["cpu", "cuda"]
+    device: WorkerDevice
     compute_type: str = Field(alias="computeType", min_length=1)
     cpu: WorkerCpu
     memory: WorkerMemory

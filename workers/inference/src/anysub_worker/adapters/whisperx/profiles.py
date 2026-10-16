@@ -1,85 +1,92 @@
 from __future__ import annotations
 
-import os
+from dataclasses import dataclass
 from pathlib import Path
 
-from anysub_worker.config import WorkerSettings
-
 GIB = 1024**3
-MODEL_PROFILES = {
-    "tiny": ("Fastest. Best for quick drafts.", 39_000_000, 1 * GIB, 2 * GIB),
-    "base": (
-        "Fast, with a little more accuracy than Tiny.",
-        74_000_000,
-        1 * GIB,
-        2 * GIB,
+
+
+@dataclass(frozen=True)
+class ModelProfile:
+    id: str
+    display_name: str
+    description: str
+    parameter_count: int
+    required_vram_bytes: int
+    recommended_ram_bytes: int
+    repository: str
+
+    def is_downloaded(self, model_root: Path) -> bool:
+        snapshots = model_root / f"models--{self.repository.replace('/', '--')}" / "snapshots"
+        try:
+            revisions = tuple(snapshots.iterdir())
+        except OSError:
+            return False
+        return any(_is_complete_snapshot(revision) for revision in revisions)
+
+
+def _is_complete_snapshot(revision: Path) -> bool:
+    return (
+        revision.is_dir()
+        and (revision / "config.json").is_file()
+        and (revision / "model.bin").is_file()
+        and ((revision / "tokenizer.json").is_file() or any(revision.glob("vocabulary.*")))
+    )
+
+
+MODEL_PROFILES = (
+    ModelProfile(
+        id="tiny",
+        display_name="Tiny",
+        description="Fastest. Best for quick drafts.",
+        parameter_count=39_000_000,
+        required_vram_bytes=1 * GIB,
+        recommended_ram_bytes=2 * GIB,
+        repository="Systran/faster-whisper-tiny",
     ),
-    "small": (
-        "Best balance of speed and accuracy.",
-        244_000_000,
-        2 * GIB,
-        4 * GIB,
+    ModelProfile(
+        id="base",
+        display_name="Base",
+        description="Fast, with a little more accuracy than Tiny.",
+        parameter_count=74_000_000,
+        required_vram_bytes=1 * GIB,
+        recommended_ram_bytes=2 * GIB,
+        repository="Systran/faster-whisper-base",
     ),
-    "medium": (
-        "More accurate, but much slower on this computer.",
-        769_000_000,
-        5 * GIB,
-        8 * GIB,
+    ModelProfile(
+        id="small",
+        display_name="Small",
+        description="Best balance of speed and accuracy.",
+        parameter_count=244_000_000,
+        required_vram_bytes=2 * GIB,
+        recommended_ram_bytes=4 * GIB,
+        repository="Systran/faster-whisper-small",
     ),
-    "large-v3": (
-        "Highest accuracy. Slowest and most demanding.",
-        1_550_000_000,
-        10 * GIB,
-        16 * GIB,
+    ModelProfile(
+        id="medium",
+        display_name="Medium",
+        description="More accurate, but much slower on this computer.",
+        parameter_count=769_000_000,
+        required_vram_bytes=5 * GIB,
+        recommended_ram_bytes=8 * GIB,
+        repository="Systran/faster-whisper-medium",
     ),
-    "large-v3-turbo": (
-        "High accuracy. Faster with a supported graphics card.",
-        809_000_000,
-        3 * GIB,
-        12 * GIB,
+    ModelProfile(
+        id="large-v3",
+        display_name="Large v3",
+        description="Highest accuracy. Slowest and most demanding.",
+        parameter_count=1_550_000_000,
+        required_vram_bytes=10 * GIB,
+        recommended_ram_bytes=16 * GIB,
+        repository="Systran/faster-whisper-large-v3",
     ),
-}
-
-MODEL_REPOSITORIES = {
-    "tiny": "Systran/faster-whisper-tiny",
-    "base": "Systran/faster-whisper-base",
-    "small": "Systran/faster-whisper-small",
-    "medium": "Systran/faster-whisper-medium",
-    "large-v3": "Systran/faster-whisper-large-v3",
-    "large-v3-turbo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
-}
-
-
-def model_is_downloaded(model_root: Path, model_id: str) -> bool:
-    repository = MODEL_REPOSITORIES.get(model_id)
-    if repository is None:
-        return False
-    snapshots = model_root / f"models--{repository.replace('/', '--')}" / "snapshots"
-    try:
-        revisions = tuple(snapshots.iterdir())
-    except OSError:
-        return False
-    for revision in revisions:
-        if not revision.is_dir():
-            continue
-        if not (revision / "config.json").is_file():
-            continue
-        if not (revision / "model.bin").is_file():
-            continue
-        if (revision / "tokenizer.json").is_file() or any(revision.glob("vocabulary.*")):
-            return True
-    return False
-
-
-def configured_model_root(settings: WorkerSettings | None) -> Path:
-    if settings is not None:
-        return settings.model_root
-    return Path(os.environ.get("ANYSUB_MODEL_ROOT", "/models"))
-
-
-def display_model_name(model_id: str) -> str:
-    if model_id == "large-v3-turbo":
-        return "Large v3 Turbo"
-    if model_id == "large-v3":
-        return "Large v3"
-    return model_id.capitalize()
+    ModelProfile(
+        id="large-v3-turbo",
+        display_name="Large v3 Turbo",
+        description="High accuracy. Faster with a supported graphics card.",
+        parameter_count=809_000_000,
+        required_vram_bytes=3 * GIB,
+        recommended_ram_bytes=12 * GIB,
+        repository="mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+    ),
+)

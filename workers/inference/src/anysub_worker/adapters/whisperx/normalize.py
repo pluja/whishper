@@ -5,11 +5,13 @@ from typing import Any
 from anysub_worker.models import TranscriptArtifact, TranscriptCue, WordToken
 from anysub_worker.timing import seconds_to_us
 
-TimedWord = tuple[dict[str, Any], int, int]
+from .result import WhisperSegment, WhisperWord
+
+type TimedWord = tuple[WhisperWord, int, int]
 
 
-def normalize_result(
-    result: dict[str, Any],
+def normalize_segments(
+    segments: list[WhisperSegment],
     *,
     language: str,
     duration_us: int,
@@ -17,7 +19,7 @@ def normalize_result(
 ) -> TranscriptArtifact:
     # The server rejects cues whose starts go backwards, so order them before assigning ids.
     bounded_segments = sorted(
-        (_segment_bounds(segment) for segment in result.get("segments") or []),
+        (_segment_bounds(segment) for segment in segments),
         key=lambda bounded: bounded[0],
     )
 
@@ -54,7 +56,7 @@ def normalize_result(
     )
 
 
-def _segment_bounds(segment: dict[str, Any]) -> tuple[int, int, dict[str, Any], list[TimedWord]]:
+def _segment_bounds(segment: WhisperSegment) -> tuple[int, int, WhisperSegment, list[TimedWord]]:
     timed_words: list[TimedWord] = []
     for source_word in segment.get("words") or []:
         start = clamped_seconds_to_us(source_word.get("start"))

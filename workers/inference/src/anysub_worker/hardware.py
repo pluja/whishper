@@ -5,14 +5,14 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any
 
-from .config import WorkerSettings
+from .config import AdapterRuntimeSettings
 from .models import WorkerCpu, WorkerGpu, WorkerHardware, WorkerMemory
 
 KIB = 1024
 
 
 def detect_hardware(
-    settings: WorkerSettings,
+    runtime: AdapterRuntimeSettings,
     *,
     proc_root: Path = Path("/proc"),
     cgroup_root: Path = Path("/sys/fs/cgroup"),
@@ -20,8 +20,8 @@ def detect_hardware(
 ) -> WorkerHardware:
     torch = torch_module if torch_module is not None else _optional_torch()
     return WorkerHardware(
-        device=settings.device,
-        computeType=settings.compute_type,
+        device=runtime.device,
+        computeType=runtime.compute_type,
         cpu=WorkerCpu(
             model=_cpu_model(proc_root),
             logicalCores=_logical_cores(),
@@ -36,11 +36,6 @@ def detect_memory(
     proc_root: Path = Path("/proc"),
     cgroup_root: Path = Path("/sys/fs/cgroup"),
 ) -> WorkerMemory:
-    total_bytes, available_bytes = _detect_memory(proc_root, cgroup_root)
-    return WorkerMemory(totalBytes=total_bytes, availableBytes=available_bytes)
-
-
-def _detect_memory(proc_root: Path, cgroup_root: Path) -> tuple[int, int]:
     values: dict[str, int] = {}
     try:
         for line in (proc_root / "meminfo").read_text(encoding="utf-8").splitlines():
@@ -60,27 +55,25 @@ def _detect_memory(proc_root: Path, cgroup_root: Path) -> tuple[int, int]:
     )
     host_available = min(host_total, max(0, host_available))
 
-    limit = _positive_int_file(cgroup_root / "memory.max")
-    if limit is None:
-        return host_total, host_available
+    # cgroup v2 writes "max" when the container has no memory limit.
+    limit = _read_int_file(cgroup_root / "memory.max")
+    if not limit:
+        return WorkerMemory(totalBytes=host_total, availableBytes=host_available)
 
-    current = _positive_int_file(cgroup_root / "memory.current", allow_zero=True) or 0
-    effective_total = min(host_total, limit)
+    current = _read_int_file(cgroup_root / "memory.current") or 0
+    total = min(host_total, limit)
     cgroup_available = max(0, limit - current)
-    return effective_total, min(host_available, effective_total, cgroup_available)
+    return WorkerMemory(
+        totalBytes=total, availableBytes=min(host_available, total, cgroup_available)
+    )
 
 
-def _positive_int_file(path: Path, *, allow_zero: bool = False) -> int | None:
+def _read_int_file(path: Path) -> int | None:
     try:
         value = path.read_text(encoding="utf-8").strip()
     except OSError:
         return None
-    if not value.isdigit():
-        return None
-    parsed = int(value)
-    if parsed > 0 or (allow_zero and parsed == 0):
-        return parsed
-    return None
+    return int(value) if value.isdigit() else None
 
 
 def _cpu_model(proc_root: Path) -> str | None:
