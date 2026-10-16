@@ -16,16 +16,16 @@ from fakes import (
 )
 
 from anysub_worker import execution
+from anysub_worker.adapter import ProgressReporter
 from anysub_worker.client import ApplicationClient
 from anysub_worker.config import WorkerSettings
 from anysub_worker.errors import LeaseLostError
 from anysub_worker.media import PreparedMedia
+from anysub_worker.media.derivatives import prepared_derivative
 from anysub_worker.models import (
     JobCompletion,
     JobFailure,
-    MediaDerivativeUpload,
     MediaGenerator,
-    MediaPreparationJobCompletion,
     MediaProbeArtifact,
     WorkerLease,
 )
@@ -49,52 +49,51 @@ async def test_long_adapter_work_renews_its_lease(
 
 
 async def test_media_job_uploads_derivatives_before_completion(
-    monkeypatch, recording_client: RecordingClient, media_lease: WorkerLease
-) -> None:  # type: ignore[no-untyped-def]
-    completion = MediaPreparationJobCompletion(
-        probe=MediaProbeArtifact(
-            durationUs=2_000_000,
-            formatNames=("wav",),
-            seekable=True,
-            frameRateMode="unknown",
-            proxyRecommended=False,
-            proxyReasons=(),
-            streams=(),
-        ),
-        artifacts=(
-            MediaDerivativeUpload(
-                kind="waveform",
-                mediaType="application/vnd.anysub.waveform+json",
-                sizeBytes=8,
-            ),
-        ),
-        generator=MediaGenerator(version="7.1.1"),
+    monkeypatch: pytest.MonkeyPatch, recording_client: RecordingClient, media_lease: WorkerLease
+) -> None:
+    probe = MediaProbeArtifact(
+        durationUs=2_000_000,
+        formatNames=("wav",),
+        seekable=True,
+        frameRateMode="unknown",
+        proxyRecommended=False,
+        proxyReasons=(),
+        streams=(),
     )
 
     async def fake_prepare_media(
-        _source_path: Path,
-        _source_filename: str,
+        source_path: Path,
+        source_filename: str,
         output_directory: Path,
-        report_progress,
-    ) -> PreparedMedia:  # type: ignore[no-untyped-def]
+        report_progress: ProgressReporter,
+    ) -> PreparedMedia:
         output_directory.mkdir()
         waveform = output_directory / "waveform.json"
         waveform.write_bytes(b"waveform")
-        await report_progress(0.86, "Built waveform")
+        await report_progress(0.5, "Building waveform")
+        await report_progress(1.0, "Preparing derivatives for upload")
         return PreparedMedia(
-            completion=completion,
-            artifacts={"waveform": waveform},
+            probe=probe,
+            derivatives=(
+                prepared_derivative(
+                    "waveform", "application/vnd.anysub.waveform+json", waveform, {}
+                ),
+            ),
+            generator=MediaGenerator(version="7.1.1"),
         )
 
     monkeypatch.setattr(execution, "prepare_media", fake_prepare_media)
 
-    await execution.execute_job(recording_client, AdapterRegistry(()), media_lease)  # type: ignore[arg-type]
+    await execution.execute_job(recording_client, AdapterRegistry(()), media_lease)
 
     assert recording_client.downloads == 1
     assert recording_client.uploads == [("waveform", b"waveform")]
     assert recording_client.media_completions == 1
     assert recording_client.transcription_completions == 0
     assert recording_client.failures == []
+    progress = [fraction for fraction, _message in recording_client.progress_updates]
+    assert progress == sorted(progress)
+    assert progress[0] >= 0 and progress[-1] < 1
 
 
 async def test_heartbeat_recovers_after_network_error(

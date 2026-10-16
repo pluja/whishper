@@ -26,12 +26,16 @@ from .models import (
     WorkerJobPayload,
     WorkerLease,
 )
+from .progress import progress_span
 from .registry import AdapterLoadError, AdapterRegistry
 
 LOGGER = logging.getLogger(__name__)
 LEASE_HEARTBEAT_SECONDS = 20
 # Compose stops containers after 10s, so the shutdown failure report must finish well before.
 SHUTDOWN_REPORT_SECONDS = 5
+MEDIA_DOWNLOAD_PROGRESS = 0.02
+MEDIA_PREPARATION_SPAN = (0.1, 0.86)
+MEDIA_UPLOAD_SPAN = (0.86, 0.98)
 
 
 class _LeasedJob:
@@ -158,20 +162,20 @@ async def _run_media_preparation(
     with TemporaryDirectory(prefix="anysub-media-") as temporary:
         root = Path(temporary)
         source_path = root / f"source{Path(payload.source_filename).suffix.lower()}"
-        await report(0.02, "Downloading source media")
+        await report(MEDIA_DOWNLOAD_PROGRESS, "Downloading source media")
         await client.download_source(lease, source_path)
         prepared = await prepare_media(
             source_path,
             payload.source_filename,
             root / "artifacts",
-            report,
+            progress_span(report, *MEDIA_PREPARATION_SPAN),
         )
-        artifact_count = len(prepared.artifacts)
-        for index, (kind, artifact_path) in enumerate(prepared.artifacts.items()):
-            progress = 0.88 + (0.09 * index / max(1, artifact_count))
-            await report(progress, f"Uploading {kind} derivative")
-            await client.upload_artifact(lease, kind, artifact_path)
-        await report(0.98, "Finalizing media metadata")
+        report_upload = progress_span(report, *MEDIA_UPLOAD_SPAN)
+        for index, derivative in enumerate(prepared.derivatives):
+            kind = derivative.upload.kind
+            await report_upload(index / len(prepared.derivatives), f"Uploading {kind} derivative")
+            await client.upload_artifact(lease, kind, derivative.path)
+        await report(MEDIA_UPLOAD_SPAN[1], "Finalizing media metadata")
         await client.complete(lease, prepared.completion)
 
 

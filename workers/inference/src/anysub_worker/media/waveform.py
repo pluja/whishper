@@ -7,8 +7,14 @@ from pathlib import Path
 from typing import Any
 
 from ..models import MEDIA_PREPARATION_VERSION
+from .derivatives import PreparedDerivative, prepared_derivative
 from .errors import MediaPreparationError
-from .process import WAVEFORM_TIMEOUT_SECONDS, run_media_tool
+from .process import run_media_tool
+
+WAVEFORM_MEDIA_TYPE = "application/vnd.anysub.waveform+json"
+WAVEFORM_CHANNEL_MIX = "mono"
+WAVEFORM_ENCODING = "signed-int8-min-max-base64"
+WAVEFORM_TIMEOUT_SECONDS = 900
 
 WAVEFORM_SAMPLE_RATE = 4_000
 WAVEFORM_PEAKS_PER_SECOND = 50
@@ -85,7 +91,7 @@ def build_levels(peaks: list[Peak]) -> list[dict[str, Any]]:
 
 async def generate_waveform(
     source_path: Path, output_directory: Path, duration_us: int
-) -> tuple[Path, dict[str, Any]]:
+) -> PreparedDerivative:
     accumulator = PeakAccumulator()
     await run_media_tool(
         [
@@ -112,21 +118,18 @@ async def generate_waveform(
         raise MediaPreparationError("FFmpeg produced no waveform samples.")
 
     levels = build_levels(peaks)
-    artifact = {
-        "schemaVersion": MEDIA_PREPARATION_VERSION,
+    description = {
         "durationUs": duration_us,
         "sampleRate": WAVEFORM_SAMPLE_RATE,
-        "channelMix": "mono",
-        "encoding": "signed-int8-min-max-base64",
-        "levels": levels,
+        "channelMix": WAVEFORM_CHANNEL_MIX,
+        "encoding": WAVEFORM_ENCODING,
     }
+    artifact = {"schemaVersion": MEDIA_PREPARATION_VERSION, **description, "levels": levels}
     path = output_directory / "waveform.json"
     path.write_text(json.dumps(artifact, separators=(",", ":")), encoding="utf-8")
-    return path, {
-        "durationUs": duration_us,
-        "sampleRate": WAVEFORM_SAMPLE_RATE,
-        "basePeaksPerSecond": WAVEFORM_PEAKS_PER_SECOND,
-        "levels": len(levels),
-        "channelMix": "mono",
-        "encoding": "signed-int8-min-max-base64",
-    }
+    return prepared_derivative(
+        "waveform",
+        WAVEFORM_MEDIA_TYPE,
+        path,
+        {**description, "basePeaksPerSecond": WAVEFORM_PEAKS_PER_SECOND, "levels": len(levels)},
+    )

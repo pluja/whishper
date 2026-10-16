@@ -200,6 +200,14 @@
       "title": "AdapterReference",
       "type": "object"
     },
+    "FrameRateMode": {
+      "enum": [
+        "constant",
+        "variable",
+        "unknown"
+      ],
+      "type": "string"
+    },
     "JobCompletion": {
       "anyOf": [
         {
@@ -372,16 +380,19 @@
       "title": "MediaAudioDetails",
       "type": "object"
     },
+    "MediaDerivativeKind": {
+      "enum": [
+        "waveform",
+        "thumbnail",
+        "proxy"
+      ],
+      "type": "string"
+    },
     "MediaDerivativeUpload": {
       "additionalProperties": false,
       "properties": {
         "kind": {
-          "enum": [
-            "waveform",
-            "thumbnail",
-            "proxy"
-          ],
-          "type": "string"
+          "$ref": "#/$defs/MediaDerivativeKind"
         },
         "mediaType": {
           "type": "string"
@@ -563,12 +574,7 @@
           "type": "boolean"
         },
         "frameRateMode": {
-          "enum": [
-            "constant",
-            "variable",
-            "unknown"
-          ],
-          "type": "string"
+          "$ref": "#/$defs/FrameRateMode"
         },
         "proxyRecommended": {
           "type": "boolean"
@@ -611,15 +617,7 @@
           "type": "integer"
         },
         "type": {
-          "enum": [
-            "audio",
-            "video",
-            "subtitle",
-            "data",
-            "attachment",
-            "unknown"
-          ],
-          "type": "string"
+          "$ref": "#/$defs/MediaStreamType"
         },
         "codec": {
           "type": "string"
@@ -705,6 +703,17 @@
       ],
       "title": "MediaRational",
       "type": "object"
+    },
+    "MediaStreamType": {
+      "enum": [
+        "audio",
+        "video",
+        "subtitle",
+        "data",
+        "attachment",
+        "unknown"
+      ],
+      "type": "string"
     },
     "MediaVideoDetails": {
       "additionalProperties": false,

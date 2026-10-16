@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..models import MediaProbeArtifact, MediaProbeStream
+from ..models import FrameRateMode, MediaProbeArtifact, MediaProbeStream
 
 
 def apply_preview_policy(
-    probe: MediaProbeArtifact, source_filename: str, frame_rate_mode: str
+    probe: MediaProbeArtifact, source_filename: str, frame_rate_mode: FrameRateMode
 ) -> MediaProbeArtifact:
     extension = Path(source_filename).suffix.lower()
     video = primary_video(probe)

@@ -212,14 +212,20 @@ class MediaVideoDetails(StrictModel):
     attached_picture: bool = Field(default=False, alias="attachedPicture")
 
 
+type MediaStreamType = Literal["audio", "video", "subtitle", "data", "attachment", "unknown"]
+
+
 class MediaProbeStream(StrictModel):
     index: NonNegativeWireInt
-    type: Literal["audio", "video", "subtitle", "data", "attachment", "unknown"]
+    type: MediaStreamType
     codec: str
     duration_us: NonNegativeWireInt | None = Field(default=None, alias="durationUs")
     bit_rate: NonNegativeWireInt | None = Field(default=None, alias="bitRate")
     audio: MediaAudioDetails | None = None
     video: MediaVideoDetails | None = None
+
+
+type FrameRateMode = Literal["constant", "variable", "unknown"]
 
 
 class MediaProbeArtifact(StrictModel):
@@ -232,14 +238,17 @@ class MediaProbeArtifact(StrictModel):
     format_long_name: str | None = Field(default=None, alias="formatLongName")
     bit_rate: NonNegativeWireInt | None = Field(default=None, alias="bitRate")
     seekable: bool
-    frame_rate_mode: Literal["constant", "variable", "unknown"] = Field(alias="frameRateMode")
+    frame_rate_mode: FrameRateMode = Field(alias="frameRateMode")
     proxy_recommended: bool = Field(alias="proxyRecommended")
     proxy_reasons: tuple[str, ...] = Field(alias="proxyReasons")
     streams: tuple[MediaProbeStream, ...]
 
 
+type MediaDerivativeKind = Literal["waveform", "thumbnail", "proxy"]
+
+
 class MediaDerivativeUpload(StrictModel):
-    kind: Literal["waveform", "thumbnail", "proxy"]
+    kind: MediaDerivativeKind
     media_type: str = Field(alias="mediaType")
     size_bytes: PositiveWireInt = Field(alias="sizeBytes")
     schema_version: MediaPreparationVersion = Field(

@@ -14,6 +14,10 @@ export type JobFailureCode =
   "adapter_error" | "adapter_unavailable" | "media_preparation_error";
 export type JobCompletion =
   TranscriptionJobCompletion | MediaPreparationJobCompletion;
+export type FrameRateMode = "constant" | "variable" | "unknown";
+export type MediaStreamType =
+  "audio" | "video" | "subtitle" | "data" | "attachment" | "unknown";
+export type MediaDerivativeKind = "waveform" | "thumbnail" | "proxy";
 export type WorkerJobPayload =
   TranscriptionJobPayload | MediaPreparationJobPayload;
 
@@ -138,14 +142,14 @@ export interface MediaProbeArtifact {
   formatLongName: string | null;
   bitRate: number | null;
   seekable: boolean;
-  frameRateMode: "constant" | "variable" | "unknown";
+  frameRateMode: FrameRateMode;
   proxyRecommended: boolean;
   proxyReasons: string[];
   streams: MediaProbeStream[];
 }
 export interface MediaProbeStream {
   index: number;
-  type: "audio" | "video" | "subtitle" | "data" | "attachment" | "unknown";
+  type: MediaStreamType;
   codec: string;
   durationUs: number | null;
   bitRate: number | null;
@@ -170,7 +174,7 @@ export interface MediaRational {
   denominator: number;
 }
 export interface MediaDerivativeUpload {
-  kind: "waveform" | "thumbnail" | "proxy";
+  kind: MediaDerivativeKind;
   mediaType: string;
   sizeBytes: number;
   schemaVersion: "1.0";

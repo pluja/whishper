@@ -2,7 +2,7 @@
 // schema/protocol.schema.json, which the worker exports from its Pydantic models.
 // Do not edit. Run `pnpm --filter @anysub/contracts generate` instead.
 "use strict";
-export const validateWorkerManifest = validate131;
+export const validateWorkerManifest = validate137;
 const schema20 = {
   additionalProperties: false,
   properties: {
@@ -2764,7 +2764,7 @@ const pattern3 = new RegExp(
   "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
   "u",
 );
-function validate131(
+function validate137(
   data,
   {
     instancePath = "",
@@ -2776,7 +2776,7 @@ function validate131(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate131.evaluated;
+  const evaluated0 = validate137.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -3206,15 +3206,15 @@ function validate131(
     }
     errors++;
   }
-  validate131.errors = vErrors;
+  validate137.errors = vErrors;
   return errors === 0;
 }
-validate131.evaluated = {
+validate137.evaluated = {
   props: true,
   dynamicProps: false,
   dynamicItems: false,
 };
-export const validateJobProgressReport = validate136;
+export const validateJobProgressReport = validate142;
 const schema32 = {
   additionalProperties: false,
   properties: {
@@ -3226,7 +3226,7 @@ const schema32 = {
   title: "JobProgressReport",
   type: "object",
 };
-function validate136(
+function validate142(
   data,
   {
     instancePath = "",
@@ -3238,7 +3238,7 @@ function validate136(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate136.evaluated;
+  const evaluated0 = validate142.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -3427,15 +3427,15 @@ function validate136(
     }
     errors++;
   }
-  validate136.errors = vErrors;
+  validate142.errors = vErrors;
   return errors === 0;
 }
-validate136.evaluated = {
+validate142.evaluated = {
   props: true,
   dynamicProps: false,
   dynamicItems: false,
 };
-export const validateJobFailureReport = validate137;
+export const validateJobFailureReport = validate143;
 const schema33 = {
   additionalProperties: false,
   properties: {
@@ -3674,7 +3674,7 @@ validate80.evaluated = {
   dynamicProps: false,
   dynamicItems: false,
 };
-function validate137(
+function validate143(
   data,
   {
     instancePath = "",
@@ -3686,7 +3686,7 @@ function validate137(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate137.evaluated;
+  const evaluated0 = validate143.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -3807,15 +3807,15 @@ function validate137(
     }
     errors++;
   }
-  validate137.errors = vErrors;
+  validate143.errors = vErrors;
   return errors === 0;
 }
-validate137.evaluated = {
+validate143.evaluated = {
   props: true,
   dynamicProps: false,
   dynamicItems: false,
 };
-export const validateJobCompletionReport = validate139;
+export const validateJobCompletionReport = validate145;
 const schema36 = {
   additionalProperties: false,
   properties: {
@@ -5461,10 +5461,7 @@ const schema45 = {
       default: null,
     },
     seekable: { type: "boolean" },
-    frameRateMode: {
-      enum: ["constant", "variable", "unknown"],
-      type: "string",
-    },
+    frameRateMode: { $ref: "#/$defs/FrameRateMode" },
     proxyRecommended: { type: "boolean" },
     proxyReasons: { items: { type: "string" }, type: "array" },
     streams: { items: { $ref: "#/$defs/MediaProbeStream" }, type: "array" },
@@ -5485,14 +5482,65 @@ const schema45 = {
   title: "MediaProbeArtifact",
   type: "object",
 };
-const schema46 = {
+const schema46 = { enum: ["constant", "variable", "unknown"], type: "string" };
+function validate102(
+  data,
+  {
+    instancePath = "",
+    parentData,
+    parentDataProperty,
+    rootData = data,
+    dynamicAnchors = {},
+  } = {},
+) {
+  let vErrors = null;
+  let errors = 0;
+  const evaluated0 = validate102.evaluated;
+  if (evaluated0.dynamicProps) {
+    evaluated0.props = undefined;
+  }
+  if (evaluated0.dynamicItems) {
+    evaluated0.items = undefined;
+  }
+  if (typeof data !== "string") {
+    const err0 = {
+      instancePath,
+      schemaPath: "#/type",
+      keyword: "type",
+      params: { type: "string" },
+      message: "must be string",
+    };
+    if (vErrors === null) {
+      vErrors = [err0];
+    } else {
+      vErrors.push(err0);
+    }
+    errors++;
+  }
+  if (!(data === "constant" || data === "variable" || data === "unknown")) {
+    const err1 = {
+      instancePath,
+      schemaPath: "#/enum",
+      keyword: "enum",
+      params: { allowedValues: schema46.enum },
+      message: "must be equal to one of the allowed values",
+    };
+    if (vErrors === null) {
+      vErrors = [err1];
+    } else {
+      vErrors.push(err1);
+    }
+    errors++;
+  }
+  validate102.errors = vErrors;
+  return errors === 0;
+}
+validate102.evaluated = { dynamicProps: false, dynamicItems: false };
+const schema47 = {
   additionalProperties: false,
   properties: {
     index: { maximum: 9007199254740991, minimum: 0, type: "integer" },
-    type: {
-      enum: ["audio", "video", "subtitle", "data", "attachment", "unknown"],
-      type: "string",
-    },
+    type: { $ref: "#/$defs/MediaStreamType" },
     codec: { type: "string" },
     durationUs: {
       anyOf: [
@@ -5529,7 +5577,71 @@ const schema46 = {
   title: "MediaProbeStream",
   type: "object",
 };
-const schema47 = {
+const schema48 = {
+  enum: ["audio", "video", "subtitle", "data", "attachment", "unknown"],
+  type: "string",
+};
+function validate105(
+  data,
+  {
+    instancePath = "",
+    parentData,
+    parentDataProperty,
+    rootData = data,
+    dynamicAnchors = {},
+  } = {},
+) {
+  let vErrors = null;
+  let errors = 0;
+  const evaluated0 = validate105.evaluated;
+  if (evaluated0.dynamicProps) {
+    evaluated0.props = undefined;
+  }
+  if (evaluated0.dynamicItems) {
+    evaluated0.items = undefined;
+  }
+  if (typeof data !== "string") {
+    const err0 = {
+      instancePath,
+      schemaPath: "#/type",
+      keyword: "type",
+      params: { type: "string" },
+      message: "must be string",
+    };
+    if (vErrors === null) {
+      vErrors = [err0];
+    } else {
+      vErrors.push(err0);
+    }
+    errors++;
+  }
+  if (!(
+    data === "audio" ||
+    data === "video" ||
+    data === "subtitle" ||
+    data === "data" ||
+    data === "attachment" ||
+    data === "unknown"
+  )) {
+    const err1 = {
+      instancePath,
+      schemaPath: "#/enum",
+      keyword: "enum",
+      params: { allowedValues: schema48.enum },
+      message: "must be equal to one of the allowed values",
+    };
+    if (vErrors === null) {
+      vErrors = [err1];
+    } else {
+      vErrors.push(err1);
+    }
+    errors++;
+  }
+  validate105.errors = vErrors;
+  return errors === 0;
+}
+validate105.evaluated = { dynamicProps: false, dynamicItems: false };
+const schema49 = {
   additionalProperties: false,
   properties: {
     sampleRate: {
@@ -5555,7 +5667,7 @@ const schema47 = {
   title: "MediaAudioDetails",
   type: "object",
 };
-function validate103(
+function validate107(
   data,
   {
     instancePath = "",
@@ -5567,7 +5679,7 @@ function validate103(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate103.evaluated;
+  const evaluated0 = validate107.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -5925,15 +6037,15 @@ function validate103(
     }
     errors++;
   }
-  validate103.errors = vErrors;
+  validate107.errors = vErrors;
   return errors === 0;
 }
-validate103.evaluated = {
+validate107.evaluated = {
   props: true,
   dynamicProps: false,
   dynamicItems: false,
 };
-const schema48 = {
+const schema50 = {
   additionalProperties: false,
   properties: {
     width: { exclusiveMinimum: 0, maximum: 9007199254740991, type: "integer" },
@@ -5963,7 +6075,7 @@ const schema48 = {
   title: "MediaVideoDetails",
   type: "object",
 };
-const schema49 = {
+const schema51 = {
   additionalProperties: false,
   properties: {
     numerator: {
@@ -5981,7 +6093,7 @@ const schema49 = {
   title: "MediaRational",
   type: "object",
 };
-function validate106(
+function validate110(
   data,
   {
     instancePath = "",
@@ -5993,7 +6105,7 @@ function validate106(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate106.evaluated;
+  const evaluated0 = validate110.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -6173,15 +6285,15 @@ function validate106(
     }
     errors++;
   }
-  validate106.errors = vErrors;
+  validate110.errors = vErrors;
   return errors === 0;
 }
-validate106.evaluated = {
+validate110.evaluated = {
   props: true,
   dynamicProps: false,
   dynamicItems: false,
 };
-function validate105(
+function validate109(
   data,
   {
     instancePath = "",
@@ -6193,7 +6305,7 @@ function validate105(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate105.evaluated;
+  const evaluated0 = validate109.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -6496,7 +6608,7 @@ function validate105(
       let valid2 = false;
       const _errs14 = errors;
       if (
-        !validate106(data3, {
+        !validate110(data3, {
           instancePath: instancePath + "/frameRate",
           parentData: data,
           parentDataProperty: "frameRate",
@@ -6506,8 +6618,8 @@ function validate105(
       ) {
         vErrors =
           vErrors === null
-            ? validate106.errors
-            : vErrors.concat(validate106.errors);
+            ? validate110.errors
+            : vErrors.concat(validate110.errors);
         errors = vErrors.length;
       }
       var _valid1 = _errs14 === errors;
@@ -6561,7 +6673,7 @@ function validate105(
       let valid3 = false;
       const _errs19 = errors;
       if (
-        !validate106(data4, {
+        !validate110(data4, {
           instancePath: instancePath + "/averageFrameRate",
           parentData: data,
           parentDataProperty: "averageFrameRate",
@@ -6571,8 +6683,8 @@ function validate105(
       ) {
         vErrors =
           vErrors === null
-            ? validate106.errors
-            : vErrors.concat(validate106.errors);
+            ? validate110.errors
+            : vErrors.concat(validate110.errors);
         errors = vErrors.length;
       }
       var _valid2 = _errs19 === errors;
@@ -6652,15 +6764,15 @@ function validate105(
     }
     errors++;
   }
-  validate105.errors = vErrors;
+  validate109.errors = vErrors;
   return errors === 0;
 }
-validate105.evaluated = {
+validate109.evaluated = {
   props: true,
   dynamicProps: false,
   dynamicItems: false,
 };
-function validate102(
+function validate104(
   data,
   {
     instancePath = "",
@@ -6672,7 +6784,7 @@ function validate102(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate102.evaluated;
+  const evaluated0 = validate104.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -6866,11 +6978,27 @@ function validate102(
       }
     }
     if (data.type !== undefined) {
-      let data1 = data.type;
-      if (typeof data1 !== "string") {
-        const err11 = {
+      if (
+        !validate105(data.type, {
           instancePath: instancePath + "/type",
-          schemaPath: "#/properties/type/type",
+          parentData: data,
+          parentDataProperty: "type",
+          rootData,
+          dynamicAnchors,
+        })
+      ) {
+        vErrors =
+          vErrors === null
+            ? validate105.errors
+            : vErrors.concat(validate105.errors);
+        errors = vErrors.length;
+      }
+    }
+    if (data.codec !== undefined) {
+      if (typeof data.codec !== "string") {
+        const err11 = {
+          instancePath: instancePath + "/codec",
+          schemaPath: "#/properties/codec/type",
           keyword: "type",
           params: { type: "string" },
           message: "must be string",
@@ -6882,20 +7010,24 @@ function validate102(
         }
         errors++;
       }
+    }
+    if (data.durationUs !== undefined) {
+      let data3 = data.durationUs;
+      const _errs8 = errors;
+      let valid1 = false;
+      const _errs9 = errors;
       if (!(
-        data1 === "audio" ||
-        data1 === "video" ||
-        data1 === "subtitle" ||
-        data1 === "data" ||
-        data1 === "attachment" ||
-        data1 === "unknown"
+        typeof data3 == "number" &&
+        !(data3 % 1) &&
+        !isNaN(data3) &&
+        isFinite(data3)
       )) {
         const err12 = {
-          instancePath: instancePath + "/type",
-          schemaPath: "#/properties/type/enum",
-          keyword: "enum",
-          params: { allowedValues: schema46.properties.type.enum },
-          message: "must be equal to one of the allowed values",
+          instancePath: instancePath + "/durationUs",
+          schemaPath: "#/properties/durationUs/anyOf/0/type",
+          keyword: "type",
+          params: { type: "integer" },
+          message: "must be integer",
         };
         if (vErrors === null) {
           vErrors = [err12];
@@ -6904,52 +7036,9 @@ function validate102(
         }
         errors++;
       }
-    }
-    if (data.codec !== undefined) {
-      if (typeof data.codec !== "string") {
-        const err13 = {
-          instancePath: instancePath + "/codec",
-          schemaPath: "#/properties/codec/type",
-          keyword: "type",
-          params: { type: "string" },
-          message: "must be string",
-        };
-        if (vErrors === null) {
-          vErrors = [err13];
-        } else {
-          vErrors.push(err13);
-        }
-        errors++;
-      }
-    }
-    if (data.durationUs !== undefined) {
-      let data3 = data.durationUs;
-      const _errs9 = errors;
-      let valid1 = false;
-      const _errs10 = errors;
-      if (!(
-        typeof data3 == "number" &&
-        !(data3 % 1) &&
-        !isNaN(data3) &&
-        isFinite(data3)
-      )) {
-        const err14 = {
-          instancePath: instancePath + "/durationUs",
-          schemaPath: "#/properties/durationUs/anyOf/0/type",
-          keyword: "type",
-          params: { type: "integer" },
-          message: "must be integer",
-        };
-        if (vErrors === null) {
-          vErrors = [err14];
-        } else {
-          vErrors.push(err14);
-        }
-        errors++;
-      }
       if (typeof data3 == "number" && isFinite(data3)) {
         if (data3 > 9007199254740991 || isNaN(data3)) {
-          const err15 = {
+          const err13 = {
             instancePath: instancePath + "/durationUs",
             schemaPath: "#/properties/durationUs/anyOf/0/maximum",
             keyword: "maximum",
@@ -6957,14 +7046,14 @@ function validate102(
             message: "must be <= 9007199254740991",
           };
           if (vErrors === null) {
-            vErrors = [err15];
+            vErrors = [err13];
           } else {
-            vErrors.push(err15);
+            vErrors.push(err13);
           }
           errors++;
         }
         if (data3 < 0 || isNaN(data3)) {
-          const err16 = {
+          const err14 = {
             instancePath: instancePath + "/durationUs",
             schemaPath: "#/properties/durationUs/anyOf/0/minimum",
             keyword: "minimum",
@@ -6972,18 +7061,18 @@ function validate102(
             message: "must be >= 0",
           };
           if (vErrors === null) {
-            vErrors = [err16];
+            vErrors = [err14];
           } else {
-            vErrors.push(err16);
+            vErrors.push(err14);
           }
           errors++;
         }
       }
-      var _valid0 = _errs10 === errors;
+      var _valid0 = _errs9 === errors;
       valid1 = valid1 || _valid0;
-      const _errs12 = errors;
+      const _errs11 = errors;
       if (data3 !== null) {
-        const err17 = {
+        const err15 = {
           instancePath: instancePath + "/durationUs",
           schemaPath: "#/properties/durationUs/anyOf/1/type",
           keyword: "type",
@@ -6991,16 +7080,16 @@ function validate102(
           message: "must be null",
         };
         if (vErrors === null) {
-          vErrors = [err17];
+          vErrors = [err15];
         } else {
-          vErrors.push(err17);
+          vErrors.push(err15);
         }
         errors++;
       }
-      var _valid0 = _errs12 === errors;
+      var _valid0 = _errs11 === errors;
       valid1 = valid1 || _valid0;
       if (!valid1) {
-        const err18 = {
+        const err16 = {
           instancePath: instancePath + "/durationUs",
           schemaPath: "#/properties/durationUs/anyOf",
           keyword: "anyOf",
@@ -7008,16 +7097,16 @@ function validate102(
           message: "must match a schema in anyOf",
         };
         if (vErrors === null) {
-          vErrors = [err18];
+          vErrors = [err16];
         } else {
-          vErrors.push(err18);
+          vErrors.push(err16);
         }
         errors++;
       } else {
-        errors = _errs9;
+        errors = _errs8;
         if (vErrors !== null) {
-          if (_errs9) {
-            vErrors.length = _errs9;
+          if (_errs8) {
+            vErrors.length = _errs8;
           } else {
             vErrors = null;
           }
@@ -7026,16 +7115,16 @@ function validate102(
     }
     if (data.bitRate !== undefined) {
       let data4 = data.bitRate;
-      const _errs15 = errors;
+      const _errs14 = errors;
       let valid2 = false;
-      const _errs16 = errors;
+      const _errs15 = errors;
       if (!(
         typeof data4 == "number" &&
         !(data4 % 1) &&
         !isNaN(data4) &&
         isFinite(data4)
       )) {
-        const err19 = {
+        const err17 = {
           instancePath: instancePath + "/bitRate",
           schemaPath: "#/properties/bitRate/anyOf/0/type",
           keyword: "type",
@@ -7043,15 +7132,15 @@ function validate102(
           message: "must be integer",
         };
         if (vErrors === null) {
-          vErrors = [err19];
+          vErrors = [err17];
         } else {
-          vErrors.push(err19);
+          vErrors.push(err17);
         }
         errors++;
       }
       if (typeof data4 == "number" && isFinite(data4)) {
         if (data4 > 9007199254740991 || isNaN(data4)) {
-          const err20 = {
+          const err18 = {
             instancePath: instancePath + "/bitRate",
             schemaPath: "#/properties/bitRate/anyOf/0/maximum",
             keyword: "maximum",
@@ -7059,14 +7148,14 @@ function validate102(
             message: "must be <= 9007199254740991",
           };
           if (vErrors === null) {
-            vErrors = [err20];
+            vErrors = [err18];
           } else {
-            vErrors.push(err20);
+            vErrors.push(err18);
           }
           errors++;
         }
         if (data4 < 0 || isNaN(data4)) {
-          const err21 = {
+          const err19 = {
             instancePath: instancePath + "/bitRate",
             schemaPath: "#/properties/bitRate/anyOf/0/minimum",
             keyword: "minimum",
@@ -7074,20 +7163,85 @@ function validate102(
             message: "must be >= 0",
           };
           if (vErrors === null) {
-            vErrors = [err21];
+            vErrors = [err19];
           } else {
-            vErrors.push(err21);
+            vErrors.push(err19);
           }
           errors++;
         }
       }
-      var _valid1 = _errs16 === errors;
+      var _valid1 = _errs15 === errors;
       valid2 = valid2 || _valid1;
-      const _errs18 = errors;
+      const _errs17 = errors;
       if (data4 !== null) {
-        const err22 = {
+        const err20 = {
           instancePath: instancePath + "/bitRate",
           schemaPath: "#/properties/bitRate/anyOf/1/type",
+          keyword: "type",
+          params: { type: "null" },
+          message: "must be null",
+        };
+        if (vErrors === null) {
+          vErrors = [err20];
+        } else {
+          vErrors.push(err20);
+        }
+        errors++;
+      }
+      var _valid1 = _errs17 === errors;
+      valid2 = valid2 || _valid1;
+      if (!valid2) {
+        const err21 = {
+          instancePath: instancePath + "/bitRate",
+          schemaPath: "#/properties/bitRate/anyOf",
+          keyword: "anyOf",
+          params: {},
+          message: "must match a schema in anyOf",
+        };
+        if (vErrors === null) {
+          vErrors = [err21];
+        } else {
+          vErrors.push(err21);
+        }
+        errors++;
+      } else {
+        errors = _errs14;
+        if (vErrors !== null) {
+          if (_errs14) {
+            vErrors.length = _errs14;
+          } else {
+            vErrors = null;
+          }
+        }
+      }
+    }
+    if (data.audio !== undefined) {
+      let data5 = data.audio;
+      const _errs20 = errors;
+      let valid3 = false;
+      const _errs21 = errors;
+      if (
+        !validate107(data5, {
+          instancePath: instancePath + "/audio",
+          parentData: data,
+          parentDataProperty: "audio",
+          rootData,
+          dynamicAnchors,
+        })
+      ) {
+        vErrors =
+          vErrors === null
+            ? validate107.errors
+            : vErrors.concat(validate107.errors);
+        errors = vErrors.length;
+      }
+      var _valid2 = _errs21 === errors;
+      valid3 = valid3 || _valid2;
+      const _errs22 = errors;
+      if (data5 !== null) {
+        const err22 = {
+          instancePath: instancePath + "/audio",
+          schemaPath: "#/properties/audio/anyOf/1/type",
           keyword: "type",
           params: { type: "null" },
           message: "must be null",
@@ -7099,12 +7253,12 @@ function validate102(
         }
         errors++;
       }
-      var _valid1 = _errs18 === errors;
-      valid2 = valid2 || _valid1;
-      if (!valid2) {
+      var _valid2 = _errs22 === errors;
+      valid3 = valid3 || _valid2;
+      if (!valid3) {
         const err23 = {
-          instancePath: instancePath + "/bitRate",
-          schemaPath: "#/properties/bitRate/anyOf",
+          instancePath: instancePath + "/audio",
+          schemaPath: "#/properties/audio/anyOf",
           keyword: "anyOf",
           params: {},
           message: "must match a schema in anyOf",
@@ -7116,43 +7270,43 @@ function validate102(
         }
         errors++;
       } else {
-        errors = _errs15;
+        errors = _errs20;
         if (vErrors !== null) {
-          if (_errs15) {
-            vErrors.length = _errs15;
+          if (_errs20) {
+            vErrors.length = _errs20;
           } else {
             vErrors = null;
           }
         }
       }
     }
-    if (data.audio !== undefined) {
-      let data5 = data.audio;
-      const _errs21 = errors;
-      let valid3 = false;
-      const _errs22 = errors;
+    if (data.video !== undefined) {
+      let data6 = data.video;
+      const _errs25 = errors;
+      let valid4 = false;
+      const _errs26 = errors;
       if (
-        !validate103(data5, {
-          instancePath: instancePath + "/audio",
+        !validate109(data6, {
+          instancePath: instancePath + "/video",
           parentData: data,
-          parentDataProperty: "audio",
+          parentDataProperty: "video",
           rootData,
           dynamicAnchors,
         })
       ) {
         vErrors =
           vErrors === null
-            ? validate103.errors
-            : vErrors.concat(validate103.errors);
+            ? validate109.errors
+            : vErrors.concat(validate109.errors);
         errors = vErrors.length;
       }
-      var _valid2 = _errs22 === errors;
-      valid3 = valid3 || _valid2;
-      const _errs23 = errors;
-      if (data5 !== null) {
+      var _valid3 = _errs26 === errors;
+      valid4 = valid4 || _valid3;
+      const _errs27 = errors;
+      if (data6 !== null) {
         const err24 = {
-          instancePath: instancePath + "/audio",
-          schemaPath: "#/properties/audio/anyOf/1/type",
+          instancePath: instancePath + "/video",
+          schemaPath: "#/properties/video/anyOf/1/type",
           keyword: "type",
           params: { type: "null" },
           message: "must be null",
@@ -7164,12 +7318,12 @@ function validate102(
         }
         errors++;
       }
-      var _valid2 = _errs23 === errors;
-      valid3 = valid3 || _valid2;
-      if (!valid3) {
+      var _valid3 = _errs27 === errors;
+      valid4 = valid4 || _valid3;
+      if (!valid4) {
         const err25 = {
-          instancePath: instancePath + "/audio",
-          schemaPath: "#/properties/audio/anyOf",
+          instancePath: instancePath + "/video",
+          schemaPath: "#/properties/video/anyOf",
           keyword: "anyOf",
           params: {},
           message: "must match a schema in anyOf",
@@ -7181,75 +7335,10 @@ function validate102(
         }
         errors++;
       } else {
-        errors = _errs21;
+        errors = _errs25;
         if (vErrors !== null) {
-          if (_errs21) {
-            vErrors.length = _errs21;
-          } else {
-            vErrors = null;
-          }
-        }
-      }
-    }
-    if (data.video !== undefined) {
-      let data6 = data.video;
-      const _errs26 = errors;
-      let valid4 = false;
-      const _errs27 = errors;
-      if (
-        !validate105(data6, {
-          instancePath: instancePath + "/video",
-          parentData: data,
-          parentDataProperty: "video",
-          rootData,
-          dynamicAnchors,
-        })
-      ) {
-        vErrors =
-          vErrors === null
-            ? validate105.errors
-            : vErrors.concat(validate105.errors);
-        errors = vErrors.length;
-      }
-      var _valid3 = _errs27 === errors;
-      valid4 = valid4 || _valid3;
-      const _errs28 = errors;
-      if (data6 !== null) {
-        const err26 = {
-          instancePath: instancePath + "/video",
-          schemaPath: "#/properties/video/anyOf/1/type",
-          keyword: "type",
-          params: { type: "null" },
-          message: "must be null",
-        };
-        if (vErrors === null) {
-          vErrors = [err26];
-        } else {
-          vErrors.push(err26);
-        }
-        errors++;
-      }
-      var _valid3 = _errs28 === errors;
-      valid4 = valid4 || _valid3;
-      if (!valid4) {
-        const err27 = {
-          instancePath: instancePath + "/video",
-          schemaPath: "#/properties/video/anyOf",
-          keyword: "anyOf",
-          params: {},
-          message: "must match a schema in anyOf",
-        };
-        if (vErrors === null) {
-          vErrors = [err27];
-        } else {
-          vErrors.push(err27);
-        }
-        errors++;
-      } else {
-        errors = _errs26;
-        if (vErrors !== null) {
-          if (_errs26) {
-            vErrors.length = _errs26;
+          if (_errs25) {
+            vErrors.length = _errs25;
           } else {
             vErrors = null;
           }
@@ -7257,7 +7346,7 @@ function validate102(
       }
     }
   } else {
-    const err28 = {
+    const err26 = {
       instancePath,
       schemaPath: "#/type",
       keyword: "type",
@@ -7265,16 +7354,16 @@ function validate102(
       message: "must be object",
     };
     if (vErrors === null) {
-      vErrors = [err28];
+      vErrors = [err26];
     } else {
-      vErrors.push(err28);
+      vErrors.push(err26);
     }
     errors++;
   }
-  validate102.errors = vErrors;
+  validate104.errors = vErrors;
   return errors === 0;
 }
-validate102.evaluated = {
+validate104.evaluated = {
   props: true,
   dynamicProps: false,
   dynamicItems: false,
@@ -7877,45 +7966,25 @@ function validate100(
       }
     }
     if (data.frameRateMode !== undefined) {
-      let data8 = data.frameRateMode;
-      if (typeof data8 !== "string") {
-        const err31 = {
+      if (
+        !validate102(data.frameRateMode, {
           instancePath: instancePath + "/frameRateMode",
-          schemaPath: "#/properties/frameRateMode/type",
-          keyword: "type",
-          params: { type: "string" },
-          message: "must be string",
-        };
-        if (vErrors === null) {
-          vErrors = [err31];
-        } else {
-          vErrors.push(err31);
-        }
-        errors++;
-      }
-      if (!(
-        data8 === "constant" ||
-        data8 === "variable" ||
-        data8 === "unknown"
-      )) {
-        const err32 = {
-          instancePath: instancePath + "/frameRateMode",
-          schemaPath: "#/properties/frameRateMode/enum",
-          keyword: "enum",
-          params: { allowedValues: schema45.properties.frameRateMode.enum },
-          message: "must be equal to one of the allowed values",
-        };
-        if (vErrors === null) {
-          vErrors = [err32];
-        } else {
-          vErrors.push(err32);
-        }
-        errors++;
+          parentData: data,
+          parentDataProperty: "frameRateMode",
+          rootData,
+          dynamicAnchors,
+        })
+      ) {
+        vErrors =
+          vErrors === null
+            ? validate102.errors
+            : vErrors.concat(validate102.errors);
+        errors = vErrors.length;
       }
     }
     if (data.proxyRecommended !== undefined) {
       if (typeof data.proxyRecommended !== "boolean") {
-        const err33 = {
+        const err31 = {
           instancePath: instancePath + "/proxyRecommended",
           schemaPath: "#/properties/proxyRecommended/type",
           keyword: "type",
@@ -7923,9 +7992,9 @@ function validate100(
           message: "must be boolean",
         };
         if (vErrors === null) {
-          vErrors = [err33];
+          vErrors = [err31];
         } else {
-          vErrors.push(err33);
+          vErrors.push(err31);
         }
         errors++;
       }
@@ -7936,7 +8005,7 @@ function validate100(
         const len1 = data10.length;
         for (let i1 = 0; i1 < len1; i1++) {
           if (typeof data10[i1] !== "string") {
-            const err34 = {
+            const err32 = {
               instancePath: instancePath + "/proxyReasons/" + i1,
               schemaPath: "#/properties/proxyReasons/items/type",
               keyword: "type",
@@ -7944,15 +8013,15 @@ function validate100(
               message: "must be string",
             };
             if (vErrors === null) {
-              vErrors = [err34];
+              vErrors = [err32];
             } else {
-              vErrors.push(err34);
+              vErrors.push(err32);
             }
             errors++;
           }
         }
       } else {
-        const err35 = {
+        const err33 = {
           instancePath: instancePath + "/proxyReasons",
           schemaPath: "#/properties/proxyReasons/type",
           keyword: "type",
@@ -7960,9 +8029,9 @@ function validate100(
           message: "must be array",
         };
         if (vErrors === null) {
-          vErrors = [err35];
+          vErrors = [err33];
         } else {
-          vErrors.push(err35);
+          vErrors.push(err33);
         }
         errors++;
       }
@@ -7973,7 +8042,7 @@ function validate100(
         const len2 = data12.length;
         for (let i2 = 0; i2 < len2; i2++) {
           if (
-            !validate102(data12[i2], {
+            !validate104(data12[i2], {
               instancePath: instancePath + "/streams/" + i2,
               parentData: data12,
               parentDataProperty: i2,
@@ -7983,13 +8052,13 @@ function validate100(
           ) {
             vErrors =
               vErrors === null
-                ? validate102.errors
-                : vErrors.concat(validate102.errors);
+                ? validate104.errors
+                : vErrors.concat(validate104.errors);
             errors = vErrors.length;
           }
         }
       } else {
-        const err36 = {
+        const err34 = {
           instancePath: instancePath + "/streams",
           schemaPath: "#/properties/streams/type",
           keyword: "type",
@@ -7997,15 +8066,15 @@ function validate100(
           message: "must be array",
         };
         if (vErrors === null) {
-          vErrors = [err36];
+          vErrors = [err34];
         } else {
-          vErrors.push(err36);
+          vErrors.push(err34);
         }
         errors++;
       }
     }
   } else {
-    const err37 = {
+    const err35 = {
       instancePath,
       schemaPath: "#/type",
       keyword: "type",
@@ -8013,9 +8082,9 @@ function validate100(
       message: "must be object",
     };
     if (vErrors === null) {
-      vErrors = [err37];
+      vErrors = [err35];
     } else {
-      vErrors.push(err37);
+      vErrors.push(err35);
     }
     errors++;
   }
@@ -8027,10 +8096,10 @@ validate100.evaluated = {
   dynamicProps: false,
   dynamicItems: false,
 };
-const schema50 = {
+const schema52 = {
   additionalProperties: false,
   properties: {
-    kind: { enum: ["waveform", "thumbnail", "proxy"], type: "string" },
+    kind: { $ref: "#/$defs/MediaDerivativeKind" },
     mediaType: { type: "string" },
     sizeBytes: {
       exclusiveMinimum: 0,
@@ -8055,7 +8124,8 @@ const schema50 = {
   title: "MediaDerivativeUpload",
   type: "object",
 };
-function validate112(
+const schema53 = { enum: ["waveform", "thumbnail", "proxy"], type: "string" };
+function validate117(
   data,
   {
     instancePath = "",
@@ -8067,7 +8137,60 @@ function validate112(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate112.evaluated;
+  const evaluated0 = validate117.evaluated;
+  if (evaluated0.dynamicProps) {
+    evaluated0.props = undefined;
+  }
+  if (evaluated0.dynamicItems) {
+    evaluated0.items = undefined;
+  }
+  if (typeof data !== "string") {
+    const err0 = {
+      instancePath,
+      schemaPath: "#/type",
+      keyword: "type",
+      params: { type: "string" },
+      message: "must be string",
+    };
+    if (vErrors === null) {
+      vErrors = [err0];
+    } else {
+      vErrors.push(err0);
+    }
+    errors++;
+  }
+  if (!(data === "waveform" || data === "thumbnail" || data === "proxy")) {
+    const err1 = {
+      instancePath,
+      schemaPath: "#/enum",
+      keyword: "enum",
+      params: { allowedValues: schema53.enum },
+      message: "must be equal to one of the allowed values",
+    };
+    if (vErrors === null) {
+      vErrors = [err1];
+    } else {
+      vErrors.push(err1);
+    }
+    errors++;
+  }
+  validate117.errors = vErrors;
+  return errors === 0;
+}
+validate117.evaluated = { dynamicProps: false, dynamicItems: false };
+function validate116(
+  data,
+  {
+    instancePath = "",
+    parentData,
+    parentDataProperty,
+    rootData = data,
+    dynamicAnchors = {},
+  } = {},
+) {
+  let vErrors = null;
+  let errors = 0;
+  const evaluated0 = validate116.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -8190,11 +8313,27 @@ function validate112(
       }
     }
     if (data.kind !== undefined) {
-      let data0 = data.kind;
-      if (typeof data0 !== "string") {
-        const err7 = {
+      if (
+        !validate117(data.kind, {
           instancePath: instancePath + "/kind",
-          schemaPath: "#/properties/kind/type",
+          parentData: data,
+          parentDataProperty: "kind",
+          rootData,
+          dynamicAnchors,
+        })
+      ) {
+        vErrors =
+          vErrors === null
+            ? validate117.errors
+            : vErrors.concat(validate117.errors);
+        errors = vErrors.length;
+      }
+    }
+    if (data.mediaType !== undefined) {
+      if (typeof data.mediaType !== "string") {
+        const err7 = {
+          instancePath: instancePath + "/mediaType",
+          schemaPath: "#/properties/mediaType/type",
           keyword: "type",
           params: { type: "string" },
           message: "must be string",
@@ -8203,42 +8342,6 @@ function validate112(
           vErrors = [err7];
         } else {
           vErrors.push(err7);
-        }
-        errors++;
-      }
-      if (!(
-        data0 === "waveform" ||
-        data0 === "thumbnail" ||
-        data0 === "proxy"
-      )) {
-        const err8 = {
-          instancePath: instancePath + "/kind",
-          schemaPath: "#/properties/kind/enum",
-          keyword: "enum",
-          params: { allowedValues: schema50.properties.kind.enum },
-          message: "must be equal to one of the allowed values",
-        };
-        if (vErrors === null) {
-          vErrors = [err8];
-        } else {
-          vErrors.push(err8);
-        }
-        errors++;
-      }
-    }
-    if (data.mediaType !== undefined) {
-      if (typeof data.mediaType !== "string") {
-        const err9 = {
-          instancePath: instancePath + "/mediaType",
-          schemaPath: "#/properties/mediaType/type",
-          keyword: "type",
-          params: { type: "string" },
-          message: "must be string",
-        };
-        if (vErrors === null) {
-          vErrors = [err9];
-        } else {
-          vErrors.push(err9);
         }
         errors++;
       }
@@ -8251,7 +8354,7 @@ function validate112(
         !isNaN(data2) &&
         isFinite(data2)
       )) {
-        const err10 = {
+        const err8 = {
           instancePath: instancePath + "/sizeBytes",
           schemaPath: "#/properties/sizeBytes/type",
           keyword: "type",
@@ -8259,15 +8362,15 @@ function validate112(
           message: "must be integer",
         };
         if (vErrors === null) {
-          vErrors = [err10];
+          vErrors = [err8];
         } else {
-          vErrors.push(err10);
+          vErrors.push(err8);
         }
         errors++;
       }
       if (typeof data2 == "number" && isFinite(data2)) {
         if (data2 > 9007199254740991 || isNaN(data2)) {
-          const err11 = {
+          const err9 = {
             instancePath: instancePath + "/sizeBytes",
             schemaPath: "#/properties/sizeBytes/maximum",
             keyword: "maximum",
@@ -8275,14 +8378,14 @@ function validate112(
             message: "must be <= 9007199254740991",
           };
           if (vErrors === null) {
-            vErrors = [err11];
+            vErrors = [err9];
           } else {
-            vErrors.push(err11);
+            vErrors.push(err9);
           }
           errors++;
         }
         if (data2 <= 0 || isNaN(data2)) {
-          const err12 = {
+          const err10 = {
             instancePath: instancePath + "/sizeBytes",
             schemaPath: "#/properties/sizeBytes/exclusiveMinimum",
             keyword: "exclusiveMinimum",
@@ -8290,9 +8393,9 @@ function validate112(
             message: "must be > 0",
           };
           if (vErrors === null) {
-            vErrors = [err12];
+            vErrors = [err10];
           } else {
-            vErrors.push(err12);
+            vErrors.push(err10);
           }
           errors++;
         }
@@ -8336,7 +8439,7 @@ function validate112(
       let data5 = data.metadata;
       if (data5 && typeof data5 == "object" && !Array.isArray(data5)) {
       } else {
-        const err13 = {
+        const err11 = {
           instancePath: instancePath + "/metadata",
           schemaPath: "#/properties/metadata/type",
           keyword: "type",
@@ -8344,15 +8447,15 @@ function validate112(
           message: "must be object",
         };
         if (vErrors === null) {
-          vErrors = [err13];
+          vErrors = [err11];
         } else {
-          vErrors.push(err13);
+          vErrors.push(err11);
         }
         errors++;
       }
     }
   } else {
-    const err14 = {
+    const err12 = {
       instancePath,
       schemaPath: "#/type",
       keyword: "type",
@@ -8360,21 +8463,21 @@ function validate112(
       message: "must be object",
     };
     if (vErrors === null) {
-      vErrors = [err14];
+      vErrors = [err12];
     } else {
-      vErrors.push(err14);
+      vErrors.push(err12);
     }
     errors++;
   }
-  validate112.errors = vErrors;
+  validate116.errors = vErrors;
   return errors === 0;
 }
-validate112.evaluated = {
+validate116.evaluated = {
   props: true,
   dynamicProps: false,
   dynamicItems: false,
 };
-const schema51 = {
+const schema54 = {
   additionalProperties: false,
   properties: {
     id: { const: "ffmpeg", default: "ffmpeg", type: "string" },
@@ -8384,7 +8487,7 @@ const schema51 = {
   title: "MediaGenerator",
   type: "object",
 };
-function validate116(
+function validate122(
   data,
   {
     instancePath = "",
@@ -8396,7 +8499,7 @@ function validate116(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate116.evaluated;
+  const evaluated0 = validate122.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -8516,10 +8619,10 @@ function validate116(
     }
     errors++;
   }
-  validate116.errors = vErrors;
+  validate122.errors = vErrors;
   return errors === 0;
 }
-validate116.evaluated = {
+validate122.evaluated = {
   props: true,
   dynamicProps: false,
   dynamicItems: false,
@@ -8682,7 +8785,7 @@ function validate99(
         const len0 = data2.length;
         for (let i0 = 0; i0 < len0; i0++) {
           if (
-            !validate112(data2[i0], {
+            !validate116(data2[i0], {
               instancePath: instancePath + "/artifacts/" + i0,
               parentData: data2,
               parentDataProperty: i0,
@@ -8692,8 +8795,8 @@ function validate99(
           ) {
             vErrors =
               vErrors === null
-                ? validate112.errors
-                : vErrors.concat(validate112.errors);
+                ? validate116.errors
+                : vErrors.concat(validate116.errors);
             errors = vErrors.length;
           }
         }
@@ -8715,7 +8818,7 @@ function validate99(
     }
     if (data.generator !== undefined) {
       if (
-        !validate116(data.generator, {
+        !validate122(data.generator, {
           instancePath: instancePath + "/generator",
           parentData: data,
           parentDataProperty: "generator",
@@ -8725,8 +8828,8 @@ function validate99(
       ) {
         vErrors =
           vErrors === null
-            ? validate116.errors
-            : vErrors.concat(validate116.errors);
+            ? validate122.errors
+            : vErrors.concat(validate122.errors);
         errors = vErrors.length;
       }
     }
@@ -8843,7 +8946,7 @@ function validate86(
   return errors === 0;
 }
 validate86.evaluated = { dynamicProps: true, dynamicItems: false };
-function validate139(
+function validate145(
   data,
   {
     instancePath = "",
@@ -8855,7 +8958,7 @@ function validate139(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate139.evaluated;
+  const evaluated0 = validate145.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -8976,16 +9079,16 @@ function validate139(
     }
     errors++;
   }
-  validate139.errors = vErrors;
+  validate145.errors = vErrors;
   return errors === 0;
 }
-validate139.evaluated = {
+validate145.evaluated = {
   props: true,
   dynamicProps: false,
   dynamicItems: false,
 };
-export const validateLeaseResponse = validate141;
-const schema52 = {
+export const validateLeaseResponse = validate147;
+const schema55 = {
   properties: {
     lease: { anyOf: [{ $ref: "#/$defs/WorkerLease" }, { type: "null" }] },
     pollAfterMs: { default: 2000, minimum: 100, type: "integer" },
@@ -8994,7 +9097,7 @@ const schema52 = {
   title: "LeaseResponse",
   type: "object",
 };
-const schema53 = {
+const schema56 = {
   properties: {
     jobId: { type: "string" },
     attempt: { minimum: 1, type: "integer" },
@@ -9006,13 +9109,13 @@ const schema53 = {
   title: "WorkerLease",
   type: "object",
 };
-const schema54 = {
+const schema57 = {
   anyOf: [
     { $ref: "#/$defs/TranscriptionJobPayload" },
     { $ref: "#/$defs/MediaPreparationJobPayload" },
   ],
 };
-const schema55 = {
+const schema58 = {
   properties: {
     kind: { const: "transcribe", type: "string" },
     adapterId: { type: "string" },
@@ -9027,7 +9130,7 @@ const schema55 = {
   title: "TranscriptionJobPayload",
   type: "object",
 };
-function validate124(
+function validate130(
   data,
   {
     instancePath = "",
@@ -9039,7 +9142,7 @@ function validate124(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate124.evaluated;
+  const evaluated0 = validate130.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -9387,10 +9490,10 @@ function validate124(
     }
     errors++;
   }
-  validate124.errors = vErrors;
+  validate130.errors = vErrors;
   return errors === 0;
 }
-validate124.evaluated = {
+validate130.evaluated = {
   props: {
     kind: true,
     adapterId: true,
@@ -9404,7 +9507,7 @@ validate124.evaluated = {
   dynamicProps: false,
   dynamicItems: false,
 };
-const schema56 = {
+const schema59 = {
   properties: {
     kind: { const: "media_prepare", type: "string" },
     projectId: { type: "string" },
@@ -9419,7 +9522,7 @@ const schema56 = {
   title: "MediaPreparationJobPayload",
   type: "object",
 };
-function validate126(
+function validate132(
   data,
   {
     instancePath = "",
@@ -9431,7 +9534,7 @@ function validate126(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate126.evaluated;
+  const evaluated0 = validate132.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -9663,10 +9766,10 @@ function validate126(
     }
     errors++;
   }
-  validate126.errors = vErrors;
+  validate132.errors = vErrors;
   return errors === 0;
 }
-validate126.evaluated = {
+validate132.evaluated = {
   props: {
     kind: true,
     projectId: true,
@@ -9677,7 +9780,7 @@ validate126.evaluated = {
   dynamicProps: false,
   dynamicItems: false,
 };
-function validate123(
+function validate129(
   data,
   {
     instancePath = "",
@@ -9689,7 +9792,7 @@ function validate123(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate123.evaluated;
+  const evaluated0 = validate129.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -9700,7 +9803,7 @@ function validate123(
   let valid0 = false;
   const _errs1 = errors;
   if (
-    !validate124(data, {
+    !validate130(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -9710,8 +9813,8 @@ function validate123(
   ) {
     vErrors =
       vErrors === null
-        ? validate124.errors
-        : vErrors.concat(validate124.errors);
+        ? validate130.errors
+        : vErrors.concat(validate130.errors);
     errors = vErrors.length;
   }
   var _valid0 = _errs1 === errors;
@@ -9729,7 +9832,7 @@ function validate123(
   }
   const _errs2 = errors;
   if (
-    !validate126(data, {
+    !validate132(data, {
       instancePath,
       parentData,
       parentDataProperty,
@@ -9739,8 +9842,8 @@ function validate123(
   ) {
     vErrors =
       vErrors === null
-        ? validate126.errors
-        : vErrors.concat(validate126.errors);
+        ? validate132.errors
+        : vErrors.concat(validate132.errors);
     errors = vErrors.length;
   }
   var _valid0 = _errs2 === errors;
@@ -9779,12 +9882,12 @@ function validate123(
       }
     }
   }
-  validate123.errors = vErrors;
+  validate129.errors = vErrors;
   evaluated0.props = props0;
   return errors === 0;
 }
-validate123.evaluated = { dynamicProps: true, dynamicItems: false };
-function validate122(
+validate129.evaluated = { dynamicProps: true, dynamicItems: false };
+function validate128(
   data,
   {
     instancePath = "",
@@ -9796,7 +9899,7 @@ function validate122(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate122.evaluated;
+  const evaluated0 = validate128.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -9972,7 +10075,7 @@ function validate122(
     }
     if (data.payload !== undefined) {
       if (
-        !validate123(data.payload, {
+        !validate129(data.payload, {
           instancePath: instancePath + "/payload",
           parentData: data,
           parentDataProperty: "payload",
@@ -9982,8 +10085,8 @@ function validate122(
       ) {
         vErrors =
           vErrors === null
-            ? validate123.errors
-            : vErrors.concat(validate123.errors);
+            ? validate129.errors
+            : vErrors.concat(validate129.errors);
         errors = vErrors.length;
       }
     }
@@ -10002,10 +10105,10 @@ function validate122(
     }
     errors++;
   }
-  validate122.errors = vErrors;
+  validate128.errors = vErrors;
   return errors === 0;
 }
-validate122.evaluated = {
+validate128.evaluated = {
   props: {
     jobId: true,
     attempt: true,
@@ -10016,7 +10119,7 @@ validate122.evaluated = {
   dynamicProps: false,
   dynamicItems: false,
 };
-function validate141(
+function validate147(
   data,
   {
     instancePath = "",
@@ -10028,7 +10131,7 @@ function validate141(
 ) {
   let vErrors = null;
   let errors = 0;
-  const evaluated0 = validate141.evaluated;
+  const evaluated0 = validate147.evaluated;
   if (evaluated0.dynamicProps) {
     evaluated0.props = undefined;
   }
@@ -10057,7 +10160,7 @@ function validate141(
       let valid1 = false;
       const _errs3 = errors;
       if (
-        !validate122(data0, {
+        !validate128(data0, {
           instancePath: instancePath + "/lease",
           parentData: data,
           parentDataProperty: "lease",
@@ -10067,8 +10170,8 @@ function validate141(
       ) {
         vErrors =
           vErrors === null
-            ? validate122.errors
-            : vErrors.concat(validate122.errors);
+            ? validate128.errors
+            : vErrors.concat(validate128.errors);
         errors = vErrors.length;
       }
       var _valid0 = _errs3 === errors;
@@ -10179,10 +10282,10 @@ function validate141(
     }
     errors++;
   }
-  validate141.errors = vErrors;
+  validate147.errors = vErrors;
   return errors === 0;
 }
-validate141.evaluated = {
+validate147.evaluated = {
   props: { lease: true, pollAfterMs: true },
   dynamicProps: false,
   dynamicItems: false,

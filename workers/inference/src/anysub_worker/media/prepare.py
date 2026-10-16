@@ -5,11 +5,12 @@ from pathlib import Path
 
 from ..adapter import ProgressReporter
 from ..models import (
-    MediaDerivativeUpload,
+    FrameRateMode,
     MediaGenerator,
     MediaPreparationJobCompletion,
+    MediaProbeArtifact,
 )
-from .derivatives import generate_proxy, generate_thumbnail
+from .derivatives import PreparedDerivative, generate_proxy, generate_thumbnail
 from .errors import MediaPreparationError
 from .frame_rate import detect_frame_rate_mode
 from .playback import apply_preview_policy, primary_audio, primary_video
@@ -20,8 +21,17 @@ from .waveform import generate_waveform
 
 @dataclass(frozen=True)
 class PreparedMedia:
-    completion: MediaPreparationJobCompletion
-    artifacts: dict[str, Path]
+    probe: MediaProbeArtifact
+    derivatives: tuple[PreparedDerivative, ...]
+    generator: MediaGenerator
+
+    @property
+    def completion(self) -> MediaPreparationJobCompletion:
+        return MediaPreparationJobCompletion(
+            probe=self.probe,
+            artifacts=tuple(derivative.upload for derivative in self.derivatives),
+            generator=self.generator,
+        )
 
 
 async def prepare_media(
@@ -31,74 +41,41 @@ async def prepare_media(
     report_progress: ProgressReporter,
 ) -> PreparedMedia:
     output_directory.mkdir(parents=True, exist_ok=True)
-    await report_progress(0.12, "Probing media")
-    raw_probe = await probe_source(source_path)
-    probe = normalize_probe(raw_probe)
+    await report_progress(0.0, "Probing media")
+    probe = normalize_probe(await probe_source(source_path))
 
     video = primary_video(probe)
     audio = primary_audio(probe)
     if video is None and audio is None:
         raise MediaPreparationError("The source does not contain usable audio or video.")
 
+    frame_rate_mode: FrameRateMode = "unknown"
     if video is not None:
-        await report_progress(0.22, "Inspecting frame cadence")
+        await report_progress(0.15, "Inspecting frame cadence")
         frame_rate_mode = await detect_frame_rate_mode(source_path, video, probe.duration_us)
-    else:
-        frame_rate_mode = "unknown"
 
     probe = apply_preview_policy(probe, source_filename, frame_rate_mode)
-    artifacts: dict[str, Path] = {}
-    uploads: list[MediaDerivativeUpload] = []
+    derivatives: list[PreparedDerivative] = []
 
     if audio is not None:
-        await report_progress(0.34, "Building waveform")
-        waveform_path, waveform_metadata = await generate_waveform(
-            source_path, output_directory, probe.duration_us
-        )
-        artifacts["waveform"] = waveform_path
-        uploads.append(
-            MediaDerivativeUpload(
-                kind="waveform",
-                mediaType="application/vnd.anysub.waveform+json",
-                sizeBytes=waveform_path.stat().st_size,
-                metadata=waveform_metadata,
-            )
+        await report_progress(0.3, "Building waveform")
+        derivatives.append(
+            await generate_waveform(source_path, output_directory, probe.duration_us)
         )
 
     if video is not None:
-        await report_progress(0.52, "Capturing thumbnail")
-        thumbnail_path = await generate_thumbnail(source_path, output_directory, probe.duration_us)
-        artifacts["thumbnail"] = thumbnail_path
-        uploads.append(
-            MediaDerivativeUpload(
-                kind="thumbnail",
-                mediaType="image/jpeg",
-                sizeBytes=thumbnail_path.stat().st_size,
-                metadata={"widthLimit": 640},
-            )
+        await report_progress(0.55, "Capturing thumbnail")
+        derivatives.append(
+            await generate_thumbnail(source_path, output_directory, probe.duration_us)
         )
 
     if probe.proxy_recommended:
-        await report_progress(0.64, "Building browser preview")
-        proxy_path, media_type, proxy_metadata = await generate_proxy(
-            source_path, output_directory, probe
-        )
-        artifacts["proxy"] = proxy_path
-        uploads.append(
-            MediaDerivativeUpload(
-                kind="proxy",
-                mediaType=media_type,
-                sizeBytes=proxy_path.stat().st_size,
-                metadata=proxy_metadata,
-            )
-        )
+        await report_progress(0.7, "Building browser preview")
+        derivatives.append(await generate_proxy(source_path, output_directory, probe))
 
-    await report_progress(0.86, "Preparing derivatives for upload")
+    await report_progress(1.0, "Preparing derivatives for upload")
     return PreparedMedia(
-        completion=MediaPreparationJobCompletion(
-            probe=probe,
-            artifacts=tuple(uploads),
-            generator=MediaGenerator(version=await ffmpeg_version()),
-        ),
-        artifacts=artifacts,
+        probe=probe,
+        derivatives=tuple(derivatives),
+        generator=MediaGenerator(version=await ffmpeg_version()),
     )

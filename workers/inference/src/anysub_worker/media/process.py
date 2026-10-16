@@ -7,15 +7,7 @@ from dataclasses import dataclass
 from ..timing import us_to_seconds
 from .errors import MediaPreparationError, MediaToolTimeoutError
 
-PROBE_TIMEOUT_SECONDS = 30
 VERSION_TIMEOUT_SECONDS = 10
-THUMBNAIL_TIMEOUT_SECONDS = 300
-WAVEFORM_TIMEOUT_SECONDS = 900
-FRAME_RATE_DETECTION_FLOOR_SECONDS = 120
-FRAME_RATE_DETECTION_SECONDS_PER_MEDIA_SECOND = 1
-PROXY_FLOOR_SECONDS = 900
-PROXY_SECONDS_PER_MEDIA_SECOND = 3
-
 STDERR_TAIL_LINES = 20
 STDERR_TAIL_BYTES = 16 * 1024
 READ_CHUNK_BYTES = 64 * 1024
@@ -60,10 +52,10 @@ async def run_media_tool(
     stderr = _StderrTail()
     consume = on_stdout if on_stdout is not None else retained.extend
     try:
-        async with asyncio.timeout(timeout):
-            await asyncio.gather(
-                _drain_stdout(process, consume), _drain_stderr(process, stderr), process.wait()
-            )
+        async with asyncio.timeout(timeout), asyncio.TaskGroup() as tasks:
+            tasks.create_task(_drain_stdout(process, consume))
+            tasks.create_task(_drain_stderr(process, stderr))
+            tasks.create_task(process.wait())
     except TimeoutError as cause:
         raise MediaToolTimeoutError(
             f"{program} timed out after {timeout:g}s: {stderr.tail()}"

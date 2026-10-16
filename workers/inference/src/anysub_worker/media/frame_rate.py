@@ -5,21 +5,18 @@ import re
 from decimal import Decimal
 from pathlib import Path
 
-from ..models import MediaProbeStream
+from ..models import FrameRateMode, MediaProbeStream
 from .errors import MediaPreparationError
-from .process import (
-    FRAME_RATE_DETECTION_FLOOR_SECONDS,
-    FRAME_RATE_DETECTION_SECONDS_PER_MEDIA_SECOND,
-    run_media_tool,
-    scaled_timeout_seconds,
-)
+from .process import run_media_tool, scaled_timeout_seconds
 
 LOGGER = logging.getLogger(__name__)
+FRAME_RATE_DETECTION_TIMEOUT_FLOOR_SECONDS = 120
+FRAME_RATE_DETECTION_TIMEOUT_SECONDS_PER_MEDIA_SECOND = 1
 
 
 async def detect_frame_rate_mode(
     source_path: Path, video: MediaProbeStream, duration_us: int
-) -> str:
+) -> FrameRateMode:
     try:
         result = await run_media_tool(
             [
@@ -38,8 +35,8 @@ async def detect_frame_rate_mode(
             ],
             scaled_timeout_seconds(
                 duration_us,
-                FRAME_RATE_DETECTION_SECONDS_PER_MEDIA_SECOND,
-                FRAME_RATE_DETECTION_FLOOR_SECONDS,
+                FRAME_RATE_DETECTION_TIMEOUT_SECONDS_PER_MEDIA_SECOND,
+                FRAME_RATE_DETECTION_TIMEOUT_FLOOR_SECONDS,
             ),
         )
     except MediaPreparationError as error:

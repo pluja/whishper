@@ -11,11 +11,14 @@ from ..models import (
     MediaProbeArtifact,
     MediaProbeStream,
     MediaRational,
+    MediaStreamType,
     MediaVideoDetails,
 )
 from ..timing import MICROSECONDS_PER_SECOND
 from .errors import MediaPreparationError
-from .process import PROBE_TIMEOUT_SECONDS, run_media_tool
+from .process import run_media_tool
+
+PROBE_TIMEOUT_SECONDS = 30
 
 
 async def probe_source(source_path: Path) -> dict[str, Any]:
@@ -48,15 +51,17 @@ async def probe_source(source_path: Path) -> dict[str, Any]:
 
 
 def normalize_probe(raw: dict[str, Any]) -> MediaProbeArtifact:
-    raw_format = raw.get("format") if isinstance(raw.get("format"), dict) else {}
-    raw_streams = raw.get("streams") if isinstance(raw.get("streams"), list) else []
-    streams = tuple(
-        stream
-        for value in raw_streams
-        if isinstance(value, dict)
-        for stream in [_normalize_stream(value)]
-        if stream is not None
-    )
+    raw_format = raw.get("format")
+    if not isinstance(raw_format, dict):
+        raw_format = {}
+    raw_streams = raw.get("streams")
+    streams: list[MediaProbeStream] = []
+    for raw_stream in raw_streams if isinstance(raw_streams, list) else []:
+        if not isinstance(raw_stream, dict):
+            continue
+        stream = _normalize_stream(raw_stream)
+        if stream is not None:
+            streams.append(stream)
 
     duration_us = ffprobe_seconds_to_us(raw_format.get("duration"))
     if duration_us is None:
@@ -75,7 +80,7 @@ def normalize_probe(raw: dict[str, Any]) -> MediaProbeArtifact:
         frameRateMode="unknown",
         proxyRecommended=False,
         proxyReasons=(),
-        streams=streams,
+        streams=tuple(streams),
     )
 
 
@@ -83,10 +88,7 @@ def _normalize_stream(raw: dict[str, Any]) -> MediaProbeStream | None:
     index = _nonnegative_int(raw.get("index"))
     if index is None:
         return None
-    raw_type = str(raw.get("codec_type") or "unknown")
-    stream_type = (
-        raw_type if raw_type in {"audio", "video", "subtitle", "data", "attachment"} else "unknown"
-    )
+    stream_type = _stream_type(str(raw.get("codec_type")))
     codec = str(raw.get("codec_name") or "unknown")
 
     audio = None
@@ -124,6 +126,14 @@ def _normalize_stream(raw: dict[str, Any]) -> MediaProbeStream | None:
         audio=audio,
         video=video,
     )
+
+
+def _stream_type(codec_type: str) -> MediaStreamType:
+    match codec_type:
+        case "audio" | "video" | "subtitle" | "data" | "attachment":
+            return codec_type
+        case _:
+            return "unknown"
 
 
 def _rational(value: object) -> MediaRational | None:
