@@ -8,7 +8,9 @@ Apply a change by recreating the services:
 docker compose up -d
 ```
 
-Changing `ANYSUB_ACCELERATOR` also rebuilds the worker image, so add `--build` for that one.
+Changing `ANYSUB_ACCELERATOR` also rebuilds the worker image, so add `--build` for that one. With Podman, replace `docker compose` with `podman compose` throughout.
+
+This page is the only place that lists settings. Other documents link here.
 
 ## Secrets
 
@@ -28,8 +30,9 @@ Anysub refuses to start when any of these is missing or still holds a placeholde
 | ----------------- | ----------------------- | --------------------------------------- |
 | `ANYSUB_PORT`     | `5173`                  | Port published on the host.             |
 | `BETTER_AUTH_URL` | `http://localhost:5173` | The address people type in the browser. |
+| `ANYSUB_DEV_PORT` | `5174`                  | Port of the development stack only.     |
 
-Set `BETTER_AUTH_URL` to the public origin when Anysub sits behind a reverse proxy, including a non-default port. Anysub rejects sign-ins and uploads whose origin does not match, so a wrong value here looks like a broken login.
+Set `BETTER_AUTH_URL` to the public origin when Anysub sits behind a reverse proxy, including a non-default port. Anysub rejects sign-ins and uploads whose origin does not match, so a wrong value here looks like a broken login. [INSTALL.md](INSTALL.md#reverse-proxy) covers the proxy side.
 
 ## Uploads
 
@@ -41,6 +44,8 @@ Set `BETTER_AUTH_URL` to the public origin when Anysub sits behind a reverse pro
 Uploads arrive in 32 MiB chunks and resume after an interruption, so a large file over a poor connection is fine. If you shrink `ANYSUB_BODY_SIZE_LIMIT` below 32 MiB, every upload fails.
 
 Your reverse proxy needs matching limits. Nginx defaults to a 1 MiB request body, which rejects chunks long before Anysub sees them.
+
+Uploads accept audio and video types only (`audio/*`, `video/*`, `application/ogg`, `application/mp4`) and must declare their length up front.
 
 ## Worker
 
@@ -76,7 +81,23 @@ If a run fails with a message about an unsupported compute type, your device doe
 
 Pick the model per transcription run in the interface, not here. The picker reports each model's size and memory needs against the workers you have connected, and marks the ones already downloaded. `Small` is the recommended starting point on a CPU.
 
-See [TRANSCRIPTION.md](TRANSCRIPTION.md) for what each model is good at.
+The [user guide](USER-GUIDE.md#choosing-a-model) describes what each model is good at.
+
+### Set by Compose
+
+Compose derives these from the settings above. Change them only for a custom deployment.
+
+| Variable                | Value in Compose                   | Notes                                                                                    |
+| ----------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------- |
+| `ANYSUB_DEVICE`         | Same as `ANYSUB_ACCELERATOR`       | Worker device. The image and the device cannot disagree.                                 |
+| `ANYSUB_APP_URL`        | `http://web:3000`                  | How the worker reaches the application.                                                  |
+| `ANYSUB_DATA_ROOT`      | `/data`                            | Worker side of the media mount. See [Data root](#data-root).                             |
+| `DATA_ROOT`             | `/data`                            | Application side of the media mount. See [Data root](#data-root).                        |
+| `ANYSUB_MODEL_ROOT`     | `/models`                          | Model cache location in the worker.                                                      |
+| `ANYSUB_WORKER_ID_FILE` | `/models/.worker-id`               | Where the worker stores its generated ID, so it keeps the same identity across restarts. |
+| `DATABASE_URL`          | Built from the `POSTGRES_*` values | Connection string for the application and the migration job.                             |
+| `ORIGIN`                | Same as `BETTER_AUTH_URL`          | Read by the SvelteKit Node server.                                                       |
+| `BODY_SIZE_LIMIT`       | Same as `ANYSUB_BODY_SIZE_LIMIT`   | The name SvelteKit's Node adapter reads.                                                 |
 
 ## NVIDIA GPUs
 
@@ -130,7 +151,7 @@ Not supported. The dependency stack targets CUDA, and the worker reports a ROCm 
 
 ## Storage
 
-Anysub keeps everything in Docker-managed volumes:
+Anysub keeps everything in Docker-managed volumes, named `anysub_<volume>` under the default project:
 
 - `app-data`: uploaded media, waveforms, and other derived files.
 - `postgres-data`: projects, transcripts, cues, and accounts.
@@ -140,6 +161,10 @@ Media and the database have to be backed up together. A transcript in PostgreSQL
 
 `docker compose down` keeps all three. `docker compose down --volumes` deletes all three, including every project you have created.
 
+### Data root
+
+The application builds the absolute media path it hands to the worker from its own `DATA_ROOT`, and the worker refuses any path outside its own `ANYSUB_DATA_ROOT`. Both must point at the same mount. Compose does this by mounting `app-data` at `/data` in both services, read-write for the application and read-only for the worker. If you change one, change the other, and mount the same storage in both.
+
 ## Workers on other machines
 
-Not supported yet. The worker reads media through a shared `/data` mount, so it has to run on the same host as the application. The job protocol was built with remote workers in mind and the artifact upload path already goes through the API, but the media path has not moved to downloads yet.
+Not supported yet. The worker reads media through the shared data mount described under [Data root](#data-root), so it has to run on the same host as the application. The job protocol was built with remote workers in mind and the artifact upload path already goes through the API, but the media path has not moved to downloads yet.

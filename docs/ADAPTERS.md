@@ -81,29 +81,40 @@ class MyAdapter:
 
 The worker validates that entry points implement the adapter protocol, rejects duplicate adapter IDs, and advertises installed manifests to the application. The application leases a job only to a worker that reports the requested adapter.
 
-The built-in `whisperx` adapter is registered through this same entry-point group. It does not receive special scheduling or persistence behavior. Its implementation is therefore also a working reference for third-party ASR adapters.
+The built-in `whisperx` adapter is registered through this same entry-point group. It does not receive special scheduling or persistence behavior, so it also serves as a working reference for third-party ASR adapters. It wraps WhisperX 3.8.6 with models `tiny`, `base`, `small`, `medium`, `large-v3`, and `large-v3-turbo`, and runs heavy model work off the async I/O loop while a generic heartbeat renews the job lease.
 
 ## Installation
 
-Build a worker image. Do not install the adapter on the Docker host:
+Build a worker image. Do not install the adapter on the Docker host. First build the stock worker image from the repository root:
+
+```sh
+docker build -f workers/inference/Dockerfile --target runtime -t anysub-worker:local .
+```
+
+Then derive an image that installs your wheel. The runtime image does not ship `uv`, so copy it in for the install step only:
 
 ```dockerfile
-FROM ghcr.io/anysub/worker:0.1.0
+FROM ghcr.io/astral-sh/uv:0.11.25 AS uv
+FROM anysub-worker:local
 
 USER root
+COPY --from=uv /uv /usr/local/bin/uv
 COPY dist/my_anysub_adapter-0.1.0-py3-none-any.whl /tmp/adapter.whl
 RUN uv pip install --python /app/.venv/bin/python /tmp/adapter.whl \
-    && rm /tmp/adapter.whl
+    && rm /tmp/adapter.whl /usr/local/bin/uv
 USER anysub
 ```
 
-Reference it from a Compose override:
+Build and tag the derived image, then reference it from a Compose override. The override drops the stock `build` section so `docker compose up --build` cannot replace your image:
 
 ```yaml
 services:
   worker:
     image: local/anysub-worker-my-model:0.1.0
+    build: !reset null
 ```
+
+Save it as `compose.override.yaml` next to `compose.yaml`. Compose reads that file automatically when you run `docker compose up -d` without `-f`.
 
 Large model weights belong in `/models`, which is a persistent Docker volume. Media is available under the read-only `/data` mount for a local worker. An adapter must not modify canonical media.
 

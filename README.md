@@ -1,32 +1,26 @@
 # Anysub
 
-Anysub turns audio and video into subtitles you can actually ship. It transcribes your media, lines the words up with the sound, and gives you a real editor to fix what the model got wrong. Everything runs on your own machine, and your recordings never leave it.
+Anysub turns audio and video into subtitles you can ship. It transcribes your media with Whisper, aligns the words to the sound, and gives you a waveform editor to fix what the model got wrong. Everything runs on your own machine, and your recordings never leave it.
 
-Anysub is a ground-up rewrite of [Whishper](https://github.com/pluja/whishper). The version 3 branch still runs for anyone using it today. New work happens here.
+Anysub is a ground-up rewrite of [Whishper](https://github.com/pluja/whishper). The version 3 branch is unmaintained.
 
-## What you can do
+## Features
 
-- Transcribe audio and video in the languages Whisper supports.
-- Pick your own balance of speed and accuracy, from a small model up to `large-v3-turbo`.
-- Get timings for individual words, not just blocks of text.
-- Edit cues against a waveform while the media plays in sync.
-- Split, merge, retime, and rewrite cues, with undo, redo, and autosave.
-- Spot cues that run too fast, too long, or overlap, before anyone else does.
+- Transcription in the languages Whisper supports, with models from `tiny` to `large-v3-turbo`.
+- Word-level timings from forced alignment.
+- A cue editor with a waveform timeline, playback in sync, split, merge, retime, undo, redo, and autosave.
+- Warnings for cues that run too fast, too long, or overlap.
 - Export to SRT, WebVTT, or JSON.
-- Upload hours-long files over a shaky connection and resume where it dropped.
-- Find old projects again in a searchable library.
+- Resumable uploads for hours-long files.
+- A searchable project library.
 
-## What you need
+## Requirements
 
-- A machine running Linux with Docker Engine or Podman, and Docker Compose.
+- Linux with Docker Engine or Podman, and Docker Compose.
 - Disk space for your media, plus a few gigabytes for the speech models.
-- Patience on the first run. Anysub downloads the model you choose, then keeps it.
+- A CPU is enough. An NVIDIA GPU is several times faster, but that path is untested on real hardware. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#nvidia-gpus).
 
-A normal desktop or home server CPU is enough. Smaller models transcribe faster and cost you some accuracy.
-
-An NVIDIA GPU makes transcription several times faster. That path is written but nobody has confirmed it on real hardware yet, so [docs/CONFIGURATION.md](docs/CONFIGURATION.md) walks you through it and tells you what to check when it breaks. Reports from anyone with a card are welcome.
-
-## Getting started
+## Quickstart
 
 ```sh
 git clone -b v4 https://github.com/pluja/whishper.git anysub
@@ -35,129 +29,39 @@ cd anysub
 docker compose up --build
 ```
 
-The setup script writes a `.env` file with passwords unique to your installation. Anysub refuses to start without it, which keeps anyone from reaching a server that still uses the examples from this repository.
+`init-env.sh` writes a `.env` file with secrets unique to your installation. Anysub refuses to start with the placeholder values from `.env.example`.
 
-Open `http://localhost:5173` and create the owner account on the setup page. That is the only account. Public sign-up is disabled, and Anysub has no way to add more users yet.
+Open `http://localhost:5173` and create the owner account on the setup page. It is the only account: public sign-up is disabled and there is no way to add users yet.
 
-### Fedora with Podman
+On Fedora or another Podman host, install `podman` and `docker-compose`, then run `podman compose up --build -d` with `PODMAN_COMPOSE_PROVIDER` set. [docs/INSTALL.md](docs/INSTALL.md) has the details, plus reverse proxy setup, upgrades, and removal.
 
-Use rootless Podman with Docker Compose as its provider:
+## Status
 
-```sh
-sudo dnf install podman docker-compose
-systemctl --user enable --now podman.socket
-export PODMAN_COMPOSE_PROVIDER=/usr/libexec/docker/cli-plugins/docker-compose
-./scripts/init-env.sh # skip if .env already exists
-podman compose up --build -d
-```
+Anysub is in beta. Upload, transcription with word alignment, the editor, autosave and recovery, quality warnings, search, and export work end to end.
 
-Open `http://localhost:5173`. Use `podman compose logs -f` to follow logs and
-`podman compose down` to stop the stack while keeping its data. To start it
-again after a reboot, run `podman compose up -d`.
+Not built yet:
 
-The Compose files use fully qualified image names, and the development
-overlay labels its source bind mounts for SELinux. Keep SELinux enabled. Docker
-Compose is required as the provider for the development overlay's `!override`
-tag and migration completion dependency.
+- Translation.
+- Speaker labels.
+- Watched folders.
+- Import from a URL or an existing subtitle file.
+- More users, or workers with their own credentials.
+- Model management from the interface.
+- Named revisions.
+- Workers on other machines.
 
-For development, run `make COMPOSE_ENGINE='podman compose' dev`. The same
-setting works with `check`, `test`, `lint`, `verify`, and `down`. The NVIDIA
-overlay in `compose.cuda.yaml` uses Docker GPU reservations and is intended
-for Docker Engine; the Podman commands above run the CPU worker. The make
-targets use the separate `anysub-dev` project, so development never touches the
-database or volumes of the `anysub` stack above.
+## Documentation
 
-Running Anysub behind a reverse proxy or on another machine? Set `BETTER_AUTH_URL` in `.env` to the address people will type in their browser, including the port.
+- [Install](docs/INSTALL.md): Docker and Podman, reverse proxy, upgrades, removal.
+- [Configuration](docs/CONFIGURATION.md): every setting, GPU setup, storage.
+- [User guide](docs/USER-GUIDE.md): uploading, transcribing, editing, exporting.
+- [Adapters](docs/ADAPTERS.md): build a worker image with your own speech model.
+- [Architecture](docs/ARCHITECTURE.md) and [Uploads and media](docs/UPLOADS.md): how the system works.
+- [Contributing](CONTRIBUTING.md) and [Security](SECURITY.md).
 
-## Your first subtitles
+## AI disclosure
 
-Upload a file from the project library. Anysub reads the media, draws its waveform, and hands you a model picker. `Small` is a sensible starting point on a CPU. Larger models read difficult audio better and take longer.
-
-The first transcription with a given model downloads it. After that the model stays cached, and Anysub works without an internet connection.
-
-When the transcript lands, the editor opens with the media, the waveform, and the cue list side by side. Click a cue to jump to it. Drag a cue on the timeline to move it, or drag its edge to trim. Play the media and the current cue follows along. Press `?` for the full list of keyboard shortcuts.
-
-Your edits save on their own. If the browser crashes mid-sentence, Anysub offers the unsaved work back when you return.
-
-## Where this release stands
-
-Anysub is in beta. The path from upload to export works end to end, and the pieces below are done: resumable uploads, transcription with word alignment, the waveform editor, autosave and recovery, quality warnings, project search, and export.
-
-These are not built yet:
-
-- Translating subtitles into other languages.
-- Labelling who is speaking.
-- Watching a folder for new media.
-- Importing from a URL or an existing subtitle file.
-- Adding more users or workers with their own credentials.
-- Managing downloaded models from the interface.
-- Named revisions you can roll back to.
-
-One rough edge worth knowing. Editing a cue's text drops that cue's word timings, because the old timings no longer describe the new words. Anysub deletes uploads that never finished after seven days.
-
-## Stopping and removing
-
-Stop the services and keep everything:
-
-```sh
-docker compose down
-```
-
-Delete every project, upload, and cached model:
-
-```sh
-docker compose down --volumes
-```
-
-## Technical reference
-
-### How it fits together
-
-A SvelteKit application handles the browser, storage, and the job queue. A Python worker leases jobs from PostgreSQL and runs the speech models. PostgreSQL is the only database, and the only search engine. There is no message broker.
-
-Transcription runs on Faster-Whisper through WhisperX, followed by forced alignment for word-level timings. Speech models live behind an adapter contract, so a new model becomes a package rather than a fork.
-
-The worker mounts your media read only. It writes waveforms and other derived files back through the application, which means a worker never touches your original recordings.
-
-### Repository map
-
-- `apps/web`: SvelteKit application, authentication, queue API, PostgreSQL schema, and migrations.
-- `workers/inference`: Python worker, adapter types, discovery, and the WhisperX adapter.
-- `packages/contracts`: the worker protocol as JSON Schema, with TypeScript types and validators generated from it. The Pydantic models in `workers/inference` are the source.
-- `docs/CONFIGURATION.md`: every setting, GPU setup, precision tuning, and storage.
-- `docs/ADAPTERS.md`: adapter contract and how to build an image with your own.
-- `docs/UPLOADS.md`: upload lifecycle, storage layout, and reverse-proxy notes.
-- `docs/TRANSCRIPTION.md`: model choices, first-run behaviour, and troubleshooting.
-- `docs/EDITOR.md`: cue editing, autosave, recovery, quality warnings, and exports.
-- `docs/ARCHITECTURE.md`: system boundaries and the reasoning behind them.
-
-### Configuration
-
-`scripts/init-env.sh` generates every secret Anysub needs. `.env.example` documents what each variable does, and Anysub rejects its placeholder values on startup, so read it but do not copy it into place. Rotating `BETTER_AUTH_SECRET` signs every account out.
-
-[docs/CONFIGURATION.md](docs/CONFIGURATION.md) covers the rest: upload limits, reverse-proxy settings, model precision, GPU setup, and what lives in each volume.
-
-### Development
-
-Node, pnpm, Python, uv, PostgreSQL, and FFmpeg all run in containers. None of them need to be on your host.
-
-The Makefile wraps the development commands:
-
-```sh
-make          # list the targets
-make dev      # start the development stack, source mounted
-make generate # regenerate the protocol contracts after changing the worker models
-make test-db  # run the database tests in a throwaway database
-make verify   # run the web and worker checks CI runs, before you push
-```
-
-The development stack serves on `http://localhost:5174`, so it can run next to the production stack on 5173. Set `ANYSUB_DEV_PORT` in `.env` to use another port; sign-in follows it automatically.
-
-Each target runs `docker compose` commands against the development overlay, which mounts the source and keeps dependencies in named volumes. It runs as the separate `anysub-dev` project with its own database, app data and model cache, so development never touches your production data. `make test-db` runs against a database named `anysub_test`; if you run the database tests yourself, `ANYSUB_TEST_DATABASE_URL` must name a database that starts with `anysub_test`. Nothing is hidden: `make -n verify` prints the commands it would run without running them.
-
-## Development disclosure
-
-Large language models assisted in writing this project, covering application code, worker code, and documentation. A human always reviews, tests and accepts the LLM changes before shipping.
+Large language models helped write this project, including application code, worker code, and documentation. A human reviews, tests, and accepts every change before it ships.
 
 ## License
 

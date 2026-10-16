@@ -1,6 +1,6 @@
 # Anysub architecture
 
-Status: accepted direction after the initial architecture interview. Implementation may refine details through ADRs and measured prototypes.
+Contributor reference for the v4 beta. It describes the system as built and marks everything else as Planned. For the repository layout, conventions, and checks see [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Goals
 
@@ -10,7 +10,7 @@ The architecture favors explicit boundaries, durable state, inspectable storage,
 
 ## System overview
 
-The default installation runs three containers:
+The default installation runs three long-lived containers, plus a migration job that exits after it applies pending migrations:
 
 ```text
 Browser
@@ -55,15 +55,14 @@ The default stack does not include Redis, MongoDB, a search service, a reverse p
 - Planned: yt-dlp for URL imports. It is not a dependency yet.
 - CPU and NVIDIA CUDA worker images.
 
-### Repository and documentation
+### Repository
 
-- pnpm workspace for TypeScript packages.
-- `uv.lock` for the Python worker.
-- JSON Schema for language-neutral worker contracts. The Pydantic models in `workers/inference` are the source. Run `make generate` after changing them to refresh `packages/contracts/schema/protocol.schema.json` and the TypeScript types and validators in `packages/contracts/src/generated`. Tests fail when the committed files drift from the models.
+- pnpm workspace for the TypeScript packages and `uv.lock` for the Python worker.
+- JSON Schema for the worker contracts, generated from the Pydantic models. See [CONTRIBUTING.md](../CONTRIBUTING.md#contracts).
+- AGPL-3.0-only license for the application and worker.
+- Planned: Developer Certificate of Origin sign-off for contributions.
 - Planned: Astro Starlight for public documentation. Today the documentation is Markdown in `docs/`.
 - Planned: ADRs under `docs/adr/` for later decisions that change this direction.
-- AGPL-3.0-only license for the application and worker.
-- Developer Certificate of Origin sign-off for contributions.
 
 ## Application boundary
 
@@ -280,7 +279,7 @@ Media metadata records detected frame rates and variable-frame-rate behavior. Th
 
 ## Search and organization
 
-Planned, not built. PostgreSQL provides workspace-scoped search over projects, cues, speakers, languages, and tags. Full-text indexes handle supported languages. Language-neutral tokenization and trigram indexes provide a multilingual fallback.
+Built: the library does a case-insensitive substring match over project names and, when the subtitle scope is chosen, over cue text. Planned: PostgreSQL provides workspace-scoped search over projects, cues, speakers, languages, and tags. Full-text indexes handle supported languages. Language-neutral tokenization and trigram indexes provide a multilingual fallback.
 
 Results include context and media timestamps. Filters cover project, owner, date, language, speaker, track type, tag, and run state.
 
@@ -326,28 +325,13 @@ Anysub does not claim rollback after an incompatible database migration. Adminis
 
 Backup tooling starts as a CLI enhancement after the core workflow. A supported backup pairs a PostgreSQL dump with a storage manifest and optionally canonical media. Model caches, proxies, thumbnails, and staging remain excluded by default.
 
-## Testing
-
-Every pull request runs without a GPU or large model download:
-
-- Vitest for TypeScript domain and server tests.
-- pytest for worker logic and protocol tests, including checks that the generated contracts match the worker models.
-- Real PostgreSQL for integration tests.
-- A deterministic fake inference adapter.
-
-Planned: Svelte component tests, Playwright for browser workflows and failure traces, end-to-end tests on the fake adapter, versioned contract fixtures shared across languages, small redistributable media and subtitle fixtures, scheduled and release jobs that run a tiny real model on CPU, and GPU tests when suitable hardware is available.
-
-## Documentation
-
-Documentation lives as Markdown in `docs/`. Planned: Astro Starlight builds a documentation site from the monorepo. User-facing changes update documentation in the same pull request.
-
-The documentation prioritizes task guides, deployment examples, troubleshooting, and copyable diagnostics. Contributor documentation explains domain language, module ownership, contracts, and ADRs.
+## Localization
 
 V1 ships the UI and documentation in English. Planned: an internationalization message system. Subtitle content supports Unicode, BCP 47 language tags, RTL text, and mixed-direction cues.
 
-## Managed-service compatibility
+## Roadmap: managed-service compatibility
 
-The initial build does not implement managed-service infrastructure. These boundaries keep that path open:
+Not built. The initial build does not implement managed-service infrastructure. These boundaries keep that path open:
 
 - Every project belongs to a workspace.
 - Workers use an authenticated protocol and never access the database.
@@ -358,7 +342,9 @@ The initial build does not implement managed-service infrastructure. These bound
 
 A managed deployment can add object storage, autoscaling, tenant quotas, billing, regional placement, and isolated worker pools around the same product core.
 
-## Deferred decisions
+## Roadmap: deferred decisions
+
+Not decided and not built.
 
 - External and OpenAI-compatible translation providers.
 - Language-neutral out-of-process adapter protocol.
