@@ -1,32 +1,6 @@
-<script module lang="ts">
-  export type IconName =
-    | "projects"
-    | "file"
-    | "check"
-    | "edit"
-    | "close"
-    | "search"
-    | "activity"
-    | "cpu"
-    | "lock"
-    | "arrow-left"
-    | "plus"
-    | "logout"
-    | "subtitles"
-    | "chevron-down"
-    | "play"
-    | "audio"
-    | "undo"
-    | "redo"
-    | "scissors"
-    | "merge"
-    | "trash"
-    | "download"
-    | "more";
-</script>
-
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import type { IconName } from "./icon-names";
 
   let {
     name,

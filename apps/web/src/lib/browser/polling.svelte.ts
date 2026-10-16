@@ -1,17 +1,12 @@
 import { invalidateAll } from "$app/navigation";
 
+import { singleFlight } from "./single-flight";
+
 export function pollWhileActive(isActive: () => boolean, intervalMs: number) {
   let tabVisible = $state(true);
-  let refreshing = false;
 
   // A slow load must not stack another refresh behind it.
-  function refresh(): void {
-    if (refreshing) return;
-    refreshing = true;
-    void invalidateAll().finally(() => {
-      refreshing = false;
-    });
-  }
+  const refresh = singleFlight(invalidateAll);
 
   $effect(() => {
     tabVisible = document.visibilityState === "visible";

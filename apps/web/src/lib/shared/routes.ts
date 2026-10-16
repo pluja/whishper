@@ -1,3 +1,5 @@
+import type { MediaDerivativeKind } from "@anysub/contracts";
+
 export type TrackExportFormat = "srt" | "vtt" | "json";
 
 function projectApiUrl(projectId: string): string {
@@ -12,7 +14,10 @@ export function projectCaptionsUrl(projectId: string): string {
   return `${projectApiUrl(projectId)}/captions.vtt`;
 }
 
-export function projectDerivativeUrl(projectId: string, kind: string): string {
+export function projectDerivativeUrl(
+  projectId: string,
+  kind: MediaDerivativeKind,
+): string {
   return `${projectApiUrl(projectId)}/derivatives/${kind}`;
 }
 

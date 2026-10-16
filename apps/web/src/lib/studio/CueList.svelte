@@ -13,14 +13,28 @@
 
   let { editor, activeCueId, onseek }: Props = $props();
 
-  // Playback must not scroll the list away from a cue being edited.
-  function revealWhenActive(active: boolean): Attachment<HTMLElement> {
+  const rows = new Map<string, HTMLElement>();
+
+  function registerRow(cueId: string): Attachment<HTMLElement> {
     return (element) => {
-      if (active && !untrack(() => editor.editing)) {
-        element.scrollIntoView({ block: "nearest" });
-      }
+      rows.set(cueId, element);
+      return () => rows.delete(cueId);
     };
   }
+
+  // Playback and cue jumps move the selection to the playhead's cue, so the
+  // selection is revealed when the active cue changes or a seek lands, never
+  // on edits and never away from a cue being edited.
+  $effect(() => {
+    void activeCueId;
+    void editor.transport.seekRevision;
+    untrack(() => {
+      const cueId = editor.selectedCueId;
+      if (cueId && !editor.editing) {
+        rows.get(cueId)?.scrollIntoView({ block: "nearest" });
+      }
+    });
+  });
 
   function updateTime(
     index: number,
@@ -56,7 +70,7 @@
     {@const issues = editor.issues[index]}
     {@const cps = charactersPerSecond(cue)}
     <article
-      {@attach revealWhenActive(activeCueId === cue.id)}
+      {@attach registerRow(cue.id)}
       class:active={activeCueId === cue.id}
       class:selected={editor.selectedCueId === cue.id}
       class:invalid={issues.length > 0}

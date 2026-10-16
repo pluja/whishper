@@ -84,13 +84,16 @@
 
   beforeNavigate((navigation) => {
     const canSave = editor.autosave.leave();
-    const stay = navigation.willUnload
-      ? editor.autosave.hasUnsavedChanges
-      : !canSave &&
-        !window.confirm(
-          "Your latest edits could not be saved. They stay in this browser until you return. Leave anyway?",
-        );
-    if (stay) {
+    if (navigation.willUnload) {
+      if (editor.autosave.hasUnsavedChanges) navigation.cancel();
+      return;
+    }
+    if (
+      !canSave &&
+      !window.confirm(
+        "Your latest edits could not be saved. They stay in this browser until you return. Leave anyway?",
+      )
+    ) {
       navigation.cancel();
       editor.autosave.stay();
     }

@@ -1,4 +1,4 @@
-import type { IconName } from "$lib/components/Icon.svelte";
+import type { IconName } from "$lib/components/icon-names";
 
 export type ProjectStatusFields = {
   runStatus: string | null;
