@@ -17,8 +17,17 @@ describe("project media byte ranges", () => {
     expect(parseByteRange("bytes=-10", 100)).toEqual({ start: 90, end: 99 });
   });
 
-  it("flags a single range past the end as unsatisfiable", () => {
+  it("flags a single range that selects no bytes as unsatisfiable", () => {
     expect(parseByteRange("bytes=100-", 100)).toBe("unsatisfiable");
+    expect(parseByteRange("bytes=-0", 100)).toBe("unsatisfiable");
+    expect(parseByteRange("bytes=99999999999999999999-", 100)).toBe(
+      "unsatisfiable",
+    );
+  });
+
+  it("clamps an end past the file and a suffix longer than the file", () => {
+    expect(parseByteRange("bytes=90-500", 100)).toEqual({ start: 90, end: 99 });
+    expect(parseByteRange("bytes=-500", 100)).toEqual({ start: 0, end: 99 });
   });
 
   it("ignores multi-range, malformed and unsupported headers", () => {
@@ -108,6 +117,20 @@ describe("streamMediaFile", () => {
 
     expect(response?.status).toBe(200);
     expect(await response?.text()).toBe("0123456789");
+  });
+
+  it("answers a zero-length suffix range with 416", async () => {
+    const response = await streamMediaFile(
+      path,
+      "video/mp4",
+      request("bytes=-0"),
+    );
+
+    expect(response?.status).toBe(416);
+  });
+
+  it("returns null for a directory", async () => {
+    expect(await streamMediaFile(directory, "video/mp4", request())).toBeNull();
   });
 
   it("returns null for a missing file", async () => {

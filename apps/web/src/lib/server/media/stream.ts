@@ -17,7 +17,8 @@ export function safeMediaType(value: string | null | undefined): string {
 
 /**
  * Returns null when the header must be ignored (absent, multi-range or
- * malformed, per RFC 9110) and "unsatisfiable" for a single range past the end.
+ * malformed, per RFC 9110) and "unsatisfiable" for a single range that selects
+ * no bytes: a zero-length suffix or a start past the end.
  */
 export function parseByteRange(
   value: string | null,
@@ -29,22 +30,15 @@ export function parseByteRange(
 
   if (!match[1]) {
     const suffixLength = Number(match[2]);
-    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) return null;
+    if (suffixLength === 0) return "unsatisfiable";
     return { start: Math.max(0, size - suffixLength), end: size - 1 };
   }
 
   const start = Number(match[1]);
-  const requestedEnd = match[2] ? Number(match[2]) : Number.MAX_SAFE_INTEGER;
-  if (
-    !Number.isSafeInteger(start) ||
-    !Number.isSafeInteger(requestedEnd) ||
-    start < 0 ||
-    requestedEnd < start
-  ) {
-    return null;
-  }
-  if (start >= size) return "unsatisfiable";
-  return { start, end: Math.min(requestedEnd, size - 1) };
+  const requestedEnd = match[2] ? Number(match[2]) : null;
+  if (requestedEnd !== null && requestedEnd < start) return null;
+  if (!Number.isSafeInteger(start) || start >= size) return "unsatisfiable";
+  return { start, end: Math.min(requestedEnd ?? size - 1, size - 1) };
 }
 
 export async function streamMediaFile(
@@ -55,16 +49,14 @@ export async function streamMediaFile(
   const handle = await open(path, "r").catch(() => null);
   if (!handle) return null;
 
+  // The read stream closes the handle once it has been handed off.
+  let streaming = false;
   try {
     const file = await handle.stat();
-    if (!file.isFile()) {
-      await handle.close();
-      return null;
-    }
+    if (!file.isFile()) return null;
 
     const range = parseByteRange(request.headers.get("range"), file.size);
     if (range === "unsatisfiable") {
-      await handle.close();
       return new Response(null, {
         status: 416,
         headers: { "Content-Range": `bytes */${file.size}` },
@@ -83,19 +75,15 @@ export async function streamMediaFile(
     if (range) {
       headers.set("Content-Range", `bytes ${start}-${end}/${file.size}`);
     }
-
-    if (file.size === 0) {
-      await handle.close();
-      return new Response(null, { status: 200, headers });
-    }
+    if (file.size === 0) return new Response(null, { status: 200, headers });
 
     const stream = handle.createReadStream({ start, end });
+    streaming = true;
     return new Response(Readable.toWeb(stream) as ReadableStream<Uint8Array>, {
       status: range ? 206 : 200,
       headers,
     });
-  } catch (cause) {
-    await handle.close().catch(() => undefined);
-    throw cause;
+  } finally {
+    if (!streaming) await handle.close().catch(() => undefined);
   }
 }

@@ -37,7 +37,7 @@ test-db: ## Run the web database tests against a throwaway database in the dev p
 	$(COMPOSE) up --detach --wait postgres
 	$(call psql,drop database if exists $(TEST_DATABASE) with (force))
 	$(call psql,create database $(TEST_DATABASE))
-	$(RUN) web sh -c 'ANYSUB_TEST_DATABASE_URL="$${DATABASE_URL%/*}/$(TEST_DATABASE)" pnpm --filter @anysub/web test:db'; \
+	$(RUN) web sh -c 'server="$${DATABASE_URL%%\?*}"; ANYSUB_TEST_DATABASE_URL="$${server%/*}/$(TEST_DATABASE)" pnpm --filter @anysub/web test:db'; \
 	status=$$?; $(call psql,drop database $(TEST_DATABASE) with (force)); exit $$status
 
 lint: ## Check formatting and lint the web and worker

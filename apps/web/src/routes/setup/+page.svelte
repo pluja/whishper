@@ -1,5 +1,5 @@
 <script lang="ts">
-  let { form } = $props();
+  let { data, form } = $props();
 </script>
 
 <svelte:head>
@@ -61,8 +61,8 @@
           type="password"
           autocomplete="new-password"
           required
-          minlength="10"
-          maxlength="128"
+          minlength={data.minPasswordLength}
+          maxlength={data.maxPasswordLength}
           aria-describedby="setup-error"
           aria-invalid={form?.message ? "true" : "false"}
         />

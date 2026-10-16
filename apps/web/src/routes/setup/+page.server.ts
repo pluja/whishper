@@ -9,11 +9,14 @@ import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async () => {
   if (await isInstanceInitialized()) redirect(303, "/login");
-  return {};
+  const { minPasswordLength, maxPasswordLength } = (await auth.$context)
+    .password.config;
+  return { minPasswordLength, maxPasswordLength };
 };
 
 export const actions: Actions = {
   default: async ({ request }) => {
+    if (await isInstanceInitialized()) redirect(303, "/login");
     const form = await request.formData();
     const name = String(form.get("name") ?? "").trim();
     const email = String(form.get("email") ?? "")

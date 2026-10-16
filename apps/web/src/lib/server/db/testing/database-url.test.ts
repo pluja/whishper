@@ -21,6 +21,15 @@ describe("assertTestDatabaseUrl", () => {
     },
   );
 
+  it.each(["?host=production", "?options=-c%20search_path%3Dpublic"])(
+    "refuses the query string %j",
+    (query) => {
+      expect(() =>
+        assertTestDatabaseUrl(`${HOST}/anysub_test${query}`),
+      ).toThrow("query string");
+    },
+  );
+
   it("refuses a value that is not a URL", () => {
     expect(() => assertTestDatabaseUrl("anysub_test")).toThrow(
       "not a valid URL",
