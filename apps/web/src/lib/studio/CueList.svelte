@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { untrack } from "svelte";
+  import type { Attachment } from "svelte/attachments";
   import { charactersPerSecond, cueTimeError } from "$lib/editor/cues";
   import type { CueEditor } from "$lib/editor/editor.svelte";
   import { formatEditorTime, parseEditorTime } from "$lib/shared/subtitles";
@@ -10,6 +12,15 @@
   };
 
   let { editor, activeCueId, onseek }: Props = $props();
+
+  // Playback must not scroll the list away from a cue being edited.
+  function revealWhenActive(active: boolean): Attachment<HTMLElement> {
+    return (element) => {
+      if (active && !untrack(() => editor.editing)) {
+        element.scrollIntoView({ block: "nearest" });
+      }
+    };
+  }
 
   function updateTime(
     index: number,
@@ -45,7 +56,7 @@
     {@const issues = editor.issues[index]}
     {@const cps = charactersPerSecond(cue)}
     <article
-      id={`cue-${cue.id}`}
+      {@attach revealWhenActive(activeCueId === cue.id)}
       class:active={activeCueId === cue.id}
       class:selected={editor.selectedCueId === cue.id}
       class:invalid={issues.length > 0}

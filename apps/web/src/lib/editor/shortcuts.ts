@@ -9,7 +9,7 @@ export type ShortcutGroup = {
   shortcuts: readonly ShortcutDefinition[];
 };
 
-export type StudioTransportCommands = {
+type StudioTransportCommands = {
   togglePlayback(): boolean;
   startReverseShuttle(): boolean;
   playForwardAtNormalRate(): boolean;

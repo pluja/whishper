@@ -1,21 +1,15 @@
 <script lang="ts">
+  import { modal } from "$lib/browser/modal";
   import { shortcutGroups } from "$lib/editor/shortcuts";
 
-  let dialog = $state<HTMLDialogElement>();
-
-  export function open(): void {
-    if (dialog && !dialog.open) dialog.showModal();
-  }
-
-  export function isOpen(): boolean {
-    return dialog?.open ?? false;
-  }
+  let { open = $bindable(false) }: { open?: boolean } = $props();
 </script>
 
 <dialog
   class="shortcut-guide"
-  bind:this={dialog}
+  {@attach modal(open)}
   aria-labelledby="shortcut-guide-title"
+  onclose={() => (open = false)}
 >
   <div class="shortcut-guide-shell">
     <div class="shortcut-guide-header">

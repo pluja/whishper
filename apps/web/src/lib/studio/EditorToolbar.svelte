@@ -1,10 +1,10 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
   import type { CueEditor } from "$lib/editor/editor.svelte";
+  import { pluralize } from "$lib/shared/format";
 
   let { editor }: { editor: CueEditor } = $props();
 
-  let hasSelection = $derived(editor.selectedCueIndex >= 0);
   let saveState = $derived(editor.autosave.state);
 </script>
 
@@ -13,7 +13,7 @@
     <button
       type="button"
       onclick={() => editor.undo()}
-      disabled={!editor.history.undoStack.length}
+      disabled={!editor.canUndo}
       title="Undo (Ctrl+Z)"
     >
       <Icon name="undo" size={15} />
@@ -22,7 +22,7 @@
     <button
       type="button"
       onclick={() => editor.redo()}
-      disabled={!editor.history.redoStack.length}
+      disabled={!editor.canRedo}
       title="Redo (Ctrl+Y)"
     >
       <Icon name="redo" size={15} />
@@ -33,14 +33,14 @@
     <button
       type="button"
       onclick={() => editor.splitSelected()}
-      disabled={!hasSelection}
+      disabled={!editor.hasSelection}
     >
       <Icon name="scissors" size={15} /> Split
     </button>
     <button
       type="button"
       onclick={() => editor.mergeSelected()}
-      disabled={!hasSelection ||
+      disabled={!editor.hasSelection ||
         editor.selectedCueIndex >= editor.cues.length - 1}
     >
       <Icon name="merge" size={15} /> Merge
@@ -51,7 +51,7 @@
     <button
       type="button"
       onclick={() => editor.deleteSelected()}
-      disabled={!hasSelection}
+      disabled={!editor.hasSelection}
       title="Delete selected cue"
     >
       <Icon name="trash" size={15} />
@@ -62,14 +62,14 @@
     <button
       type="button"
       onclick={() => editor.nudgeSelected(-100)}
-      disabled={!hasSelection}
+      disabled={!editor.hasSelection}
     >
       −100 ms
     </button>
     <button
       type="button"
       onclick={() => editor.nudgeSelected(100)}
-      disabled={!hasSelection}
+      disabled={!editor.hasSelection}
     >
       +100 ms
     </button>
@@ -78,7 +78,7 @@
 <div class="editor-statusbar">
   <span class:has-issues={editor.issueCount > 0}>
     {editor.issueCount > 0
-      ? `${editor.issueCount} quality warning${editor.issueCount === 1 ? "" : "s"}`
+      ? pluralize(editor.issueCount, "quality warning")
       : "No timing or readability warnings"}
   </span>
   <span>Ctrl/⌘ S to save · Ctrl/⌘ Z to undo</span>

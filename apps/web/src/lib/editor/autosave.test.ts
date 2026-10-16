@@ -199,6 +199,18 @@ describe("Autosave", () => {
     expect(puts[0].keepalive).toBe(true);
   });
 
+  it("stops using keepalive once a cancelled navigation keeps the page", async () => {
+    const editor = editorWith("");
+    editor.type("a");
+    editor.autosave.leave();
+    editor.autosave.stay();
+    await puts[0].respond(200, { revision: 2 });
+
+    editor.type("ab");
+    await vi.advanceTimersByTimeAsync(800);
+    expect(puts[1].keepalive).toBe(false);
+  });
+
   it("uses keepalive only for leaving and only under 64 KiB", async () => {
     const editor = editorWith("");
     editor.type("a");

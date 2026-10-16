@@ -1,14 +1,8 @@
 import type { PoolClient } from "pg";
 
-type Queryable = Pick<PoolClient, "query">;
+import type { SubtitleTrack } from "$lib/shared/subtitles";
 
-export type SubtitleTrack = {
-  id: string;
-  name: string;
-  language: string;
-  metadata: Record<string, unknown>;
-  revision: number;
-};
+type Queryable = Pick<PoolClient, "query">;
 
 const TRACK_COLUMNS = "id, name, language, metadata, revision";
 

@@ -1,3 +1,11 @@
+export type SubtitleTrack = {
+  id: string;
+  name: string;
+  language: string;
+  metadata: Record<string, unknown>;
+  revision: number;
+};
+
 export type SubtitleCueSnapshot = {
   id: string;
   position: number;

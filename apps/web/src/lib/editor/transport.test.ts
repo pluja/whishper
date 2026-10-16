@@ -46,7 +46,6 @@ function newTransport(): Transport {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubGlobal("window", globalThis);
-  vi.stubGlobal("document", { getElementById: () => null });
 });
 
 afterEach(() => {
@@ -59,12 +58,12 @@ describe("Transport.playing", () => {
     const transport = newTransport();
     expect(transport.playing).toBe(false);
 
-    transport.updatePlayingState({
+    transport.mediaEvents.onplay({
       currentTarget: fakeMedia(false),
     } as unknown as Event);
     expect(transport.playing).toBe(true);
 
-    transport.updatePlayingState({
+    transport.mediaEvents.onpause({
       currentTarget: fakeMedia(true),
     } as unknown as Event);
     expect(transport.playing).toBe(false);
@@ -85,11 +84,11 @@ describe("Transport.playing", () => {
 describe("Transport stopped playback", () => {
   it("clears playing when the media ends without a pause event", () => {
     const transport = newTransport();
-    transport.updatePlayingState({
+    transport.mediaEvents.onplay({
       currentTarget: fakeMedia(false),
     } as unknown as Event);
 
-    transport.markPlaybackStopped();
+    transport.mediaEvents.onended();
 
     expect(transport.playing).toBe(false);
   });
@@ -111,7 +110,7 @@ describe("Transport.seekRevision", () => {
 
   it("ignores playback progress", () => {
     const transport = newTransport();
-    transport.updatePlayback({
+    transport.mediaEvents.ontimeupdate({
       currentTarget: fakeMedia(false),
     } as unknown as Event);
     expect(transport.playbackUs).toBe(5_000_000);
@@ -139,7 +138,7 @@ describe("Transport playback selection", () => {
       preparedDurationUs: () => 10_000_000,
       trackDurationUs: () => 0,
     });
-    transport.updatePlayback({
+    transport.mediaEvents.ontimeupdate({
       currentTarget: { ...fakeMedia(false), currentTime: 1.5 },
     } as unknown as Event);
     return selection;

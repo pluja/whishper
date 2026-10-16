@@ -39,6 +39,9 @@ export class CueEditor {
   selectedCueIndex = $derived(
     this.cues.findIndex((cue) => cue.id === this.selectedCueId),
   );
+  hasSelection = $derived(this.selectedCueIndex >= 0);
+  canUndo = $derived(this.history.undoStack.length > 0);
+  canRedo = $derived(this.history.redoStack.length > 0);
   issues = $derived.by(() =>
     cueIssues(this.cues, this.#options.maxLineLength()),
   );

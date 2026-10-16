@@ -5,14 +5,12 @@ import {
 import { requireUser } from "$lib/server/auth/session";
 import { pool } from "$lib/server/db";
 import { listTrackCues } from "$lib/server/subtitles/cues";
-import {
-  trackForProject,
-  type SubtitleTrack,
-} from "$lib/server/subtitles/tracks";
+import { trackForProject } from "$lib/server/subtitles/tracks";
 import {
   renderSrt,
   renderWebVtt,
   type SubtitleCueSnapshot,
+  type SubtitleTrack,
 } from "$lib/shared/subtitles";
 import { error } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";

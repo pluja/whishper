@@ -198,3 +198,51 @@ describe("CueEditor nudge history", () => {
     expect(editor.history.redoStack).toHaveLength(0);
   });
 });
+
+describe("CueEditor.setTime", () => {
+  it("re-sorts and renumbers cues when a typed start passes a neighbour", () => {
+    const editor = newEditor();
+    editor.loadTrack(
+      trackA,
+      [
+        { ...cue("a", "first"), end_us: 5_000_000 },
+        {
+          ...cue("b", "second"),
+          position: 1,
+          start_us: 2_000_000,
+          end_us: 3_000_000,
+        },
+      ],
+      1,
+    );
+
+    editor.setTime(0, "start_us", 4_000_000);
+
+    expect(
+      editor.cues.map((item) => [item.id, item.position, item.start_us]),
+    ).toEqual([
+      ["b", 0, 2_000_000],
+      ["a", 1, 4_000_000],
+    ]);
+    expect(editor.autosave.hasUnsavedChanges).toBe(true);
+  });
+});
+
+describe("CueEditor command availability", () => {
+  it("tracks selection, undo and redo", () => {
+    const editor = newEditor();
+    expect(editor.hasSelection).toBe(false);
+    expect(editor.canUndo).toBe(false);
+
+    editor.loadTrack(trackA, [cue("a", "first")], 1);
+    expect(editor.hasSelection).toBe(true);
+
+    editor.nudgeSelected(100);
+    expect(editor.canUndo).toBe(true);
+    expect(editor.canRedo).toBe(false);
+
+    editor.undo();
+    expect(editor.canUndo).toBe(false);
+    expect(editor.canRedo).toBe(true);
+  });
+});

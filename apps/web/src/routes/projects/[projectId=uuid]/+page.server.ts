@@ -27,6 +27,8 @@ import {
   detectedWorkerHardware,
 } from "$lib/server/transcription/models";
 import { activeWorkerManifests } from "$lib/server/workers/active";
+import { projectDerivativeUrl } from "$lib/shared/routes";
+import type { StudioData } from "$lib/studio/types";
 import { isUuid } from "$lib/shared/uuid";
 import {
   error,
@@ -58,7 +60,10 @@ async function runAction(
   }
 }
 
-export const load: PageServerLoad = async ({ locals, params }) => {
+export const load: PageServerLoad = async ({
+  locals,
+  params,
+}): Promise<StudioData> => {
   const user = requireUserOrLogin(locals);
   const access = await projectForUser(pool, params.projectId, user.id);
   const project = access && (await studioProject(pool, access.id));
@@ -77,7 +82,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     preparation,
     derivatives: derivatives.map((derivative) => ({
       ...derivative,
-      url: `/api/projects/${project.id}/derivatives/${derivative.kind}`,
+      url: projectDerivativeUrl(project.id, derivative.kind),
     })),
     track,
     cues,

@@ -5,6 +5,7 @@ import {
   removeStorage,
   writeStorage,
 } from "$lib/browser/safe-storage";
+import { trackUrl } from "$lib/shared/routes";
 
 export type SaveState = "saved" | "unsaved" | "saving" | "error" | "conflict";
 
@@ -115,19 +116,16 @@ export class Autosave {
           text: cue.text,
         })),
       });
-      const response = await fetch(
-        `/api/projects/${track.projectId}/tracks/${track.trackId}`,
-        {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body,
-          // keepalive lets the request outlive an unloading page, but browsers
-          // reject keepalive bodies above 64 KiB.
-          keepalive:
-            this.#leaving &&
-            new TextEncoder().encode(body).length <= KEEPALIVE_BODY_LIMIT_BYTES,
-        },
-      );
+      const response = await fetch(trackUrl(track.projectId, track.trackId), {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body,
+        // keepalive lets the request outlive an unloading page, but browsers
+        // reject keepalive bodies above 64 KiB.
+        keepalive:
+          this.#leaving &&
+          new TextEncoder().encode(body).length <= KEEPALIVE_BODY_LIMIT_BYTES,
+      });
       if (response.status === 409) {
         this.state = "conflict";
         this.message =
@@ -186,6 +184,12 @@ export class Autosave {
     this.#leaving = true;
     void this.flush();
     return true;
+  }
+
+  // A cancelled navigation keeps the page, so later saves no longer need to
+  // outlive it.
+  stay(): void {
+    this.#leaving = false;
   }
 
   dispose(): void {

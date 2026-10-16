@@ -17,7 +17,6 @@ export type TransportOptions = {
 
 const DEFAULT_FRAME_DURATION_US = 40_000;
 const REVERSE_SHUTTLE_INTERVAL_MS = 40;
-const CUE_SCROLL_OPTIONS: ScrollIntoViewOptions = { block: "nearest" };
 
 function nextShuttleRate(rate: number): number {
   if (rate === 1) return 2;
@@ -40,10 +39,6 @@ export function frameDurationUs(
     return DEFAULT_FRAME_DURATION_US;
   }
   return Math.round((1_000_000 * denominator) / numerator);
-}
-
-function scrollCueIntoView(cueId: string): void {
-  document.getElementById(`cue-${cueId}`)?.scrollIntoView(CUE_SCROLL_OPTIONS);
 }
 
 export class Transport {
@@ -80,7 +75,19 @@ export class Transport {
     this.#options = options;
   }
 
-  updatePlayback = (event: Event): void => {
+  readonly mediaEvents = {
+    ontimeupdate: (event: Event) => this.#updatePlayback(event),
+    ondurationchange: (event: Event) => this.#updatePlayback(event),
+    onplay: (event: Event) => this.#updatePlayingState(event),
+    onpause: (event: Event) => this.#updatePlayingState(event),
+    // The media load algorithm and playback errors can stop playback without
+    // a pause event.
+    onended: () => this.#markPlaybackStopped(),
+    onemptied: () => this.#markPlaybackStopped(),
+    onerror: () => this.#markPlaybackStopped(),
+  };
+
+  #updatePlayback(event: Event): void {
     const media = event.currentTarget as HTMLMediaElement;
     this.playbackUs = Math.round(media.currentTime * 1_000_000);
     this.mediaDurationUs = Number.isFinite(media.duration)
@@ -95,19 +102,16 @@ export class Transport {
       !this.#selection.editing
     ) {
       this.#selection.selectedCueId = current.id;
-      scrollCueIntoView(current.id);
     }
-  };
+  }
 
-  updatePlayingState = (event: Event): void => {
+  #updatePlayingState(event: Event): void {
     this.#mediaPlaying = !(event.currentTarget as HTMLMediaElement).paused;
-  };
+  }
 
-  // The media load algorithm and playback errors can stop playback without a
-  // pause event.
-  markPlaybackStopped = (): void => {
+  #markPlaybackStopped(): void {
     this.#mediaPlaying = false;
-  };
+  }
 
   seekTo = (microseconds: number): void => {
     if (!this.mediaElement) return;
@@ -272,7 +276,6 @@ export class Transport {
     if (!destination) return false;
     this.#setPausedPlayhead(destination.start_us);
     this.#selection.selectedCueId = destination.id;
-    scrollCueIntoView(destination.id);
     return true;
   }
 

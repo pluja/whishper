@@ -1,15 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import { beforeNavigate } from "$app/navigation";
-  import Icon from "$lib/components/Icon.svelte";
-  import CueList from "$lib/studio/CueList.svelte";
-  import EditorToolbar from "$lib/studio/EditorToolbar.svelte";
-  import ProcessingStatus from "$lib/studio/ProcessingStatus.svelte";
-  import ShortcutGuide from "$lib/studio/ShortcutGuide.svelte";
-  import StudioTitlebar from "$lib/studio/StudioTitlebar.svelte";
-  import Timeline from "$lib/timeline/Timeline.svelte";
-  import TranscribePanel from "$lib/studio/TranscribePanel.svelte";
-  import type { EditorCue } from "$lib/editor/cues";
+  import { pollWhileActive } from "$lib/browser/polling.svelte";
   import { CueEditor } from "$lib/editor/editor.svelte";
   import { PaneWidth } from "$lib/editor/pane-width.svelte";
   import {
@@ -17,48 +9,22 @@
     type StudioCommands,
   } from "$lib/editor/shortcuts";
   import { frameDurationUs } from "$lib/editor/transport.svelte";
-  import { pollWhileActive } from "$lib/browser/polling.svelte";
-  import { isRunActive, isStudioActive } from "$lib/shared/project-status";
+  import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/project-limits";
+  import { isStudioActive } from "$lib/shared/project-status";
+  import MediaMonitor from "$lib/studio/MediaMonitor.svelte";
+  import ProcessingStatus from "$lib/studio/ProcessingStatus.svelte";
+  import { editorCues, knownDurationUs } from "$lib/studio/project-view";
+  import ShortcutGuide from "$lib/studio/ShortcutGuide.svelte";
+  import StudioTitlebar from "$lib/studio/StudioTitlebar.svelte";
+  import TranscriptPanel from "$lib/studio/TranscriptPanel.svelte";
 
   let { data, form } = $props();
 
   pollWhileActive(() => isStudioActive(data), 1_500);
 
-  function editorCues(): EditorCue[] {
-    return data.cues.map((cue) => ({
-      id: cue.id,
-      position: cue.position,
-      start_us: cue.startUs,
-      end_us: cue.endUs,
-      text: cue.text,
-    }));
-  }
-
-  function knownDurationUs(value: unknown): number {
-    const durationUs = Number(value ?? 0);
-    return Number.isSafeInteger(durationUs) && durationUs > 0 ? durationUs : 0;
-  }
-
-  function derivativeUrl(kind: string): string | null {
-    return (
-      data.derivatives.find((derivative) => derivative.kind === kind)?.url ??
-      null
-    );
-  }
-
-  let selectedModelKey = $state(
-    untrack(
-      () =>
-        (
-          data.transcriptionModels.find((model) => model.recommended) ??
-          data.transcriptionModels.find((model) => model.modelId === "small") ??
-          data.transcriptionModels[0]
-        )?.key ?? "",
-    ),
-  );
-  let shortcutGuide = $state<ReturnType<typeof ShortcutGuide>>();
+  let shortcutGuideOpen = $state(false);
   let maxLineLength = $derived(
-    Number(data.track?.metadata?.maxLineLength ?? 42),
+    Number(data.track?.metadata?.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH),
   );
   let preparedDurationUs = $derived(
     knownDurationUs(data.project.mediaDurationUs),
@@ -66,22 +32,10 @@
   let trackDurationUs = $derived(
     knownDurationUs(data.track?.metadata?.durationUs),
   );
-  let waveformUrl = $derived(derivativeUrl("waveform"));
-  let proxyUrl = $derived(derivativeUrl("proxy"));
-  let thumbnailUrl = $derived(derivativeUrl("thumbnail"));
-  let previewUrl = $derived(
-    proxyUrl ?? `/api/projects/${data.project.id}/media`,
-  );
-  let isAudioSource = $derived(
-    data.project.mediaType?.startsWith("audio/") ||
-      /\.(mp3|wav|m4a|aac|flac|ogg|opus)$/i.test(
-        data.project.mediaFilename ?? "",
-      ),
-  );
 
   const paneWidth = new PaneWidth();
   const editor = new CueEditor({
-    cues: untrack(editorCues),
+    cues: untrack(() => editorCues(data.cues)),
     maxLineLength: () => maxLineLength,
     transport: {
       frameDurationUs: () =>
@@ -93,18 +47,17 @@
       trackDurationUs: () => trackDurationUs,
     },
   });
-  const transport = editor.transport;
   const commands: StudioCommands = {
-    transport,
-    isGuideOpen: () => shortcutGuide?.isOpen() ?? false,
-    openGuide: () => shortcutGuide?.open(),
+    transport: editor.transport,
+    isGuideOpen: () => shortcutGuideOpen,
+    openGuide: () => (shortcutGuideOpen = true),
     canSave: () => data.track !== null,
     save: () => void editor.autosave.flush(),
-    canUndo: () => editor.history.undoStack.length > 0,
+    canUndo: () => editor.canUndo,
     undo: () => editor.undo(),
-    canRedo: () => editor.history.redoStack.length > 0,
+    canRedo: () => editor.canRedo,
     redo: () => editor.redo(),
-    hasSelection: () => editor.selectedCueIndex >= 0,
+    hasSelection: () => editor.hasSelection,
     splitSelected: () => editor.splitSelected(),
     deleteSelected: () => editor.deleteSelected(),
   };
@@ -121,23 +74,25 @@
       ? { projectId: data.project.id, trackId: track.id }
       : null;
     untrack(() =>
-      editor.loadTrack(trackRef, editorCues(), Number(track?.revision ?? 0)),
+      editor.loadTrack(
+        trackRef,
+        editorCues(data.cues),
+        Number(track?.revision ?? 0),
+      ),
     );
   });
 
   beforeNavigate((navigation) => {
     const canSave = editor.autosave.leave();
-    if (navigation.willUnload) {
-      if (editor.autosave.hasUnsavedChanges) navigation.cancel();
-      return;
-    }
-    if (
-      !canSave &&
-      !window.confirm(
-        "Your latest edits could not be saved. They stay in this browser until you return. Leave anyway?",
-      )
-    ) {
+    const stay = navigation.willUnload
+      ? editor.autosave.hasUnsavedChanges
+      : !canSave &&
+        !window.confirm(
+          "Your latest edits could not be saved. They stay in this browser until you return. Leave anyway?",
+        );
+    if (stay) {
       navigation.cancel();
+      editor.autosave.stay();
     }
   });
 
@@ -146,7 +101,7 @@
     return () => {
       editor.autosave.dispose();
       paneWidth.dispose();
-      transport.resetShuttleRate();
+      editor.transport.resetShuttleRate();
     };
   });
 </script>
@@ -164,7 +119,7 @@
     derivativeKinds={data.derivatives.map((derivative) => derivative.kind)}
     cueCount={editor.cues.length}
     autosave={editor.autosave}
-    onopenshortcuts={() => shortcutGuide?.open()}
+    onopenshortcuts={() => (shortcutGuideOpen = true)}
   />
 
   {#if form?.message}
@@ -180,98 +135,13 @@
     class="editor-workspace"
     style:--editor-pane-width={`${paneWidth.width}px`}
   >
-    <section class="media-panel" aria-label="Subtitle preview">
-      <header class="panel-toolbar">
-        <div>
-          <span class="panel-kicker">Program monitor</span>
-          <strong>{data.project.mediaFilename ?? "Diagnostic source"}</strong>
-        </div>
-        <span
-          class="preview-state"
-          data-state={data.project.mediaPreparationStatus}
-        >
-          <span></span>
-          {proxyUrl
-            ? "Editing proxy"
-            : data.project.mediaPreparationStatus === "completed"
-              ? "Source prepared"
-              : editor.cues.length > 0
-                ? "Track visible"
-                : "Source stored"}
-        </span>
-      </header>
-
-      <div class="media-canvas">
-        {#if data.project.mediaOriginalKey}
-          {#if isAudioSource}
-            <div class="audio-preview">
-              <span><Icon name="audio" size={28} /></span>
-              <strong>{data.project.mediaFilename}</strong>
-              <audio
-                bind:this={transport.mediaElement}
-                controls
-                preload="metadata"
-                src={previewUrl}
-                onkeydowncapture={onStudioKeydown}
-                ontimeupdate={transport.updatePlayback}
-                ondurationchange={transport.updatePlayback}
-                onplay={transport.updatePlayingState}
-                onpause={transport.updatePlayingState}
-                onended={transport.markPlaybackStopped}
-                onemptied={transport.markPlaybackStopped}
-                onerror={transport.markPlaybackStopped}
-              ></audio>
-            </div>
-          {:else}
-            <video
-              bind:this={transport.mediaElement}
-              class="media-player"
-              controls
-              preload="metadata"
-              src={previewUrl}
-              poster={thumbnailUrl ?? undefined}
-              onkeydowncapture={onStudioKeydown}
-              ontimeupdate={transport.updatePlayback}
-              ondurationchange={transport.updatePlayback}
-              onplay={transport.updatePlayingState}
-              onpause={transport.updatePlayingState}
-              onended={transport.markPlaybackStopped}
-              onemptied={transport.markPlaybackStopped}
-              onerror={transport.markPlaybackStopped}
-            >
-              <track
-                kind="captions"
-                srclang={data.track?.language ?? "und"}
-                label={`${data.track?.language ?? "Source"} captions`}
-                src={`/api/projects/${data.project.id}/captions.vtt`}
-              />
-            </video>
-          {/if}
-        {:else}
-          <div class="canvas-center" aria-hidden="true">
-            <span><Icon name="play" size={24} /></span>
-            <p>No source media is attached</p>
-          </div>
-        {/if}
-        {#if transport.activeCue}
-          <p class="subtitle-overlay">{transport.activeCue.text}</p>
-        {/if}
-      </div>
-
-      <Timeline
-        durationUs={transport.sourceDurationUs}
-        probeState={data.project.mediaPreparationStatus}
-        {waveformUrl}
-        cues={editor.cues}
-        selectedCueId={editor.selectedCueId}
-        playbackUs={transport.playbackUs}
-        playing={transport.playing}
-        seekRevision={transport.seekRevision}
-        onseek={transport.seekTo}
-        onselect={(cueId) => editor.select(cueId)}
-        oncommittiming={(timing, gesture) => editor.retime(timing, gesture)}
-      />
-    </section>
+    <MediaMonitor
+      project={data.project}
+      track={data.track}
+      derivatives={data.derivatives}
+      {editor}
+      onmediakeydown={onStudioKeydown}
+    />
 
     <button
       class="studio-divider"
@@ -283,58 +153,14 @@
       <span></span>
     </button>
 
-    <section class="transcript-panel" aria-label="Subtitle cues">
-      <header class="panel-toolbar transcript-toolbar">
-        <div>
-          <span class="panel-kicker">Text</span>
-          <strong>{data.track?.name ?? "Transcript"}</strong>
-        </div>
-        {#if data.track}
-          <div class="track-summary">
-            <span class="track-meta">
-              {data.track.language} · {editor.cues.length} cue{editor.cues
-                .length === 1
-                ? ""
-                : "s"}
-            </span>
-          </div>
-        {/if}
-      </header>
-
-      {#if data.track}
-        <EditorToolbar {editor} />
-        <CueList
-          {editor}
-          activeCueId={transport.activeCue?.id}
-          onseek={transport.seekTo}
-        />
-      {:else}
-        <div class="transcript-empty">
-          <span class="empty-illustration"
-            ><Icon name="subtitles" size={28} /></span
-          >
-          {#if isRunActive(data.run)}
-            <h2>Preparing the first track</h2>
-            <p>
-              The worker will place normalized subtitle cues here when
-              processing finishes.
-            </p>
-          {:else if data.project.mediaOriginalKey}
-            <h2>Ready to transcribe</h2>
-            <TranscribePanel
-              models={data.transcriptionModels}
-              hardware={data.detectedHardware}
-              bind:selectedModelKey
-            />
-          {:else}
-            <h2>No subtitle track</h2>
-            <p>
-              This project does not have source media or a transcription run.
-            </p>
-          {/if}
-        </div>
-      {/if}
-    </section>
+    <TranscriptPanel
+      {editor}
+      track={data.track}
+      run={data.run}
+      hasSourceMedia={Boolean(data.project.mediaOriginalKey)}
+      transcriptionModels={data.transcriptionModels}
+      detectedHardware={data.detectedHardware}
+    />
   </div>
-  <ShortcutGuide bind:this={shortcutGuide} />
+  <ShortcutGuide bind:open={shortcutGuideOpen} />
 </div>

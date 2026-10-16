@@ -1,20 +1,25 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
   import { formatBytes } from "$lib/shared/format";
-  import type {
-    AvailableTranscriptionModel,
-    DetectedWorkerHardware,
+  import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/project-limits";
+  import {
+    defaultModelKey,
+    type AvailableTranscriptionModel,
+    type DetectedWorkerHardware,
   } from "$lib/shared/transcription-models";
 
   type Props = {
     models: AvailableTranscriptionModel[];
     hardware: DetectedWorkerHardware[];
-    selectedModelKey: string;
   };
 
-  let { models, hardware, selectedModelKey = $bindable() }: Props = $props();
+  let { models, hardware }: Props = $props();
 
+  const uid = $props.id();
+  let modelPicker = $state<HTMLElement>();
   let modelPickerOpen = $state(false);
+  let pickedModelKey = $state<string>();
+  let selectedModelKey = $derived(pickedModelKey ?? defaultModelKey(models));
   let recommendedModel = $derived(models.find((model) => model.recommended));
   let selectedModel = $derived(
     models.find((model) => model.key === selectedModelKey),
@@ -40,8 +45,8 @@
   }
 
   function selectTranscriptionModel(modelKey: string): void {
-    selectedModelKey = modelKey;
-    document.getElementById("transcription-model-options")?.hidePopover();
+    pickedModelKey = modelKey;
+    modelPicker?.hidePopover();
   }
 </script>
 
@@ -52,26 +57,27 @@
   </p>
   <form class="transcription-setup" method="POST" action="?/transcribe">
     <div class="model-picker-field">
+      <!-- app.css styles this id until the Tailwind redesign. -->
       <span id="transcription-model-label">Model</span>
       <input type="hidden" name="model" value={selectedModelKey} />
       <button
         class="model-picker-trigger"
         type="button"
-        popovertarget="transcription-model-options"
+        popovertarget={`${uid}-options`}
         aria-haspopup="dialog"
         aria-expanded={modelPickerOpen}
-        aria-controls="transcription-model-options"
-        aria-labelledby="transcription-model-label transcription-model-selection"
-        aria-describedby="transcription-model-selection-fit transcription-model-selection-description"
+        aria-controls={`${uid}-options`}
+        aria-labelledby={`transcription-model-label ${uid}-selection`}
+        aria-describedby={`${uid}-selection-fit ${uid}-selection-description`}
       >
         <span class="model-picker-selection">
           <span class="model-picker-primary">
-            <strong id="transcription-model-selection">
+            <strong id={`${uid}-selection`}>
               {selectedModel?.displayName ?? "Choose a model"}
             </strong>
             <span
               class="model-picker-fit"
-              id="transcription-model-selection-fit"
+              id={`${uid}-selection-fit`}
               data-fit={selectedModel?.fit ?? "unknown"}
             >
               <span class="model-fit-icon" aria-hidden="true">
@@ -86,7 +92,7 @@
           </span>
           <span
             class="model-picker-description"
-            id="transcription-model-selection-description"
+            id={`${uid}-selection-description`}
           >
             {selectedModel?.description ?? "Description unavailable."}
           </span>
@@ -135,18 +141,17 @@
       </ul>
       <div
         class="model-picker-popover"
-        id="transcription-model-options"
+        id={`${uid}-options`}
+        bind:this={modelPicker}
         popover
         role="dialog"
-        aria-labelledby="transcription-model-dialog-title"
-        aria-describedby="transcription-model-dialog-subtitle"
+        aria-labelledby={`${uid}-dialog-title`}
+        aria-describedby={`${uid}-dialog-subtitle`}
         ontoggle={handleModelPickerToggle}
       >
         <div class="model-picker-header">
-          <strong id="transcription-model-dialog-title">
-            Choose a model
-          </strong>
-          <span id="transcription-model-dialog-subtitle">
+          <strong id={`${uid}-dialog-title`}> Choose a model </strong>
+          <span id={`${uid}-dialog-subtitle`}>
             {#if recommendedModel}
               {recommendedModel.displayName} is the best fit for your connected hardware.
             {:else}
@@ -157,7 +162,7 @@
         <div
           class="model-picker-options"
           role="listbox"
-          aria-labelledby="transcription-model-dialog-title"
+          aria-labelledby={`${uid}-dialog-title`}
         >
           {#each models as model (model.key)}
             {@const downloadLabel =
@@ -253,13 +258,13 @@
           type="number"
           min="20"
           max="120"
-          value="42"
+          value={DEFAULT_MAX_LINE_LENGTH}
           required
         />
       </label>
       <small
-        >42 characters is a readable subtitle default. Splits preserve whole
-        words.</small
+        >{DEFAULT_MAX_LINE_LENGTH} characters is a readable subtitle default. Splits
+        preserve whole words.</small
       >
       <label>
         <span>Batch size</span>

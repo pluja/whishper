@@ -1,21 +1,32 @@
+<script module lang="ts">
+  import type { TrackExportFormat } from "$lib/shared/routes";
+
+  const EXPORTS: {
+    format: TrackExportFormat;
+    name: string;
+    description: string;
+  }[] = [
+    { format: "srt", name: "SRT", description: "Universal subtitle file" },
+    { format: "vtt", name: "WebVTT", description: "Web video captions" },
+    {
+      format: "json",
+      name: "Anysub JSON",
+      description: "Cues, words, and metadata",
+    },
+  ];
+</script>
+
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
+  import { confirmSubmit } from "$lib/browser/confirm-submit";
   import type { Autosave } from "$lib/editor/autosave.svelte";
-  import { formatBytes } from "$lib/shared/format";
+  import { formatBytes, pluralize } from "$lib/shared/format";
+  import { trackExportUrl } from "$lib/shared/routes";
+  import type { StudioData } from "./types";
 
   type Props = {
-    project: {
-      id: string;
-      name: string;
-      mediaFilename: string | null;
-      workspaceName: string;
-      sizeBytes: number | null;
-      mediaFrameRateNum: number | null;
-      mediaFrameRateDen: number | null;
-      mediaPreparationStatus: string;
-      canManage: boolean;
-    };
-    track: { id: string; language: string } | null;
+    project: StudioData["project"];
+    track: StudioData["track"];
     derivativeKinds: string[];
     cueCount: number;
     autosave: Autosave;
@@ -46,7 +57,7 @@
       <span>{formatBytes(project.sizeBytes)}</span>
     {/if}
     {#if track}
-      <span>{track.language.toUpperCase()} · {cueCount} cues</span>
+      <span>{track.language.toUpperCase()} · {pluralize(cueCount, "cue")}</span>
     {/if}
     {#if project.mediaFrameRateNum && project.mediaFrameRateDen}
       <span
@@ -71,24 +82,11 @@
       <details class="export-menu studio-export">
         <summary><Icon name="download" size={15} /> Export</summary>
         <div>
-          <a
-            href={`/api/projects/${project.id}/tracks/${track.id}/export/srt`}
-            download
-          >
-            <strong>SRT</strong><span>Universal subtitle file</span>
-          </a>
-          <a
-            href={`/api/projects/${project.id}/tracks/${track.id}/export/vtt`}
-            download
-          >
-            <strong>WebVTT</strong><span>Web video captions</span>
-          </a>
-          <a
-            href={`/api/projects/${project.id}/tracks/${track.id}/export/json`}
-            download
-          >
-            <strong>Anysub JSON</strong><span>Cues, words, and metadata</span>
-          </a>
+          {#each EXPORTS as { format, name, description } (format)}
+            <a href={trackExportUrl(project.id, track.id, format)} download>
+              <strong>{name}</strong><span>{description}</span>
+            </a>
+          {/each}
         </div>
       </details>
     {/if}
@@ -102,14 +100,9 @@
             <form
               method="POST"
               action="?/deleteTranscript"
-              onsubmit={(event) => {
-                if (
-                  !confirm(
-                    "Delete this transcript, its cues, and processing record? The source media will remain.",
-                  )
-                )
-                  event.preventDefault();
-              }}
+              onsubmit={confirmSubmit(
+                "Delete this transcript, its cues, and processing record? The source media will remain.",
+              )}
             >
               <input type="hidden" name="trackId" value={track.id} />
               <button type="submit">Delete transcript</button>
@@ -126,14 +119,9 @@
             <form
               method="POST"
               action="?/deleteDerivative"
-              onsubmit={(event) => {
-                if (
-                  !confirm(
-                    `Delete the ${kind} derivative? The source media will remain.`,
-                  )
-                )
-                  event.preventDefault();
-              }}
+              onsubmit={confirmSubmit(
+                `Delete the ${kind} derivative? The source media will remain.`,
+              )}
             >
               <input type="hidden" name="kind" value={kind} />
               <button type="submit">Delete {kind} derivative</button>
@@ -142,14 +130,9 @@
           <form
             method="POST"
             action="?/deleteProject"
-            onsubmit={(event) => {
-              if (
-                !confirm(
-                  "Delete this project, its source media, and every transcript? This cannot be undone.",
-                )
-              )
-                event.preventDefault();
-            }}
+            onsubmit={confirmSubmit(
+              "Delete this project, its source media, and every transcript? This cannot be undone.",
+            )}
           >
             <button type="submit">Delete project</button>
           </form>

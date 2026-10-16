@@ -11,7 +11,7 @@ export type CueEdit = {
   selectedCueId?: string | null; // undefined keeps the current selection
 };
 
-export type CueEditFailure = { message: string };
+type CueEditFailure = { message: string };
 
 const MIN_SPLIT_DURATION_US = 200_000;
 const SPLIT_EDGE_MARGIN_US = 100_000;

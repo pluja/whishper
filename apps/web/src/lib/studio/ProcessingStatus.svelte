@@ -1,17 +1,12 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
   import { isPreparationActive, isRunActive } from "$lib/shared/project-status";
-
-  type JobProgress = {
-    progress: number | null;
-    progressMessage: string | null;
-    error: Record<string, unknown> | null;
-  };
+  import type { StudioData } from "./types";
 
   type Props = {
-    run: (JobProgress & { status: string }) | null;
-    preparation: (JobProgress & { state: string }) | null;
-    mediaPreparationStatus: string;
+    run: StudioData["run"];
+    preparation: StudioData["preparation"];
+    mediaPreparationStatus: StudioData["project"]["mediaPreparationStatus"];
   };
 
   let { run, preparation, mediaPreparationStatus }: Props = $props();
