@@ -5,20 +5,45 @@ import threading
 
 import httpx
 import pytest
-from fakes import FakeAdapter, ScriptedProgressClient, StopPolling
+import respx
+from fakes import FakeAdapter, RecordingClient, ScriptedProgressClient, StopPolling, wait_until
 
 from anysub_worker import execution, runner
+from anysub_worker.adapter import ProgressReporter
 from anysub_worker.client import ApplicationClient
 from anysub_worker.config import WorkerSettings
 from anysub_worker.errors import LeaseLostError
-from anysub_worker.models import LeaseResponse, WorkerLease
+from anysub_worker.models import (
+    LeaseResponse,
+    TranscriptArtifact,
+    TranscriptionRequest,
+    WorkerLease,
+)
 from anysub_worker.registry import AdapterRegistry
 from anysub_worker.threads import run_in_thread
 
 
+class LeaseOnceClient(RecordingClient):
+    def __init__(self, lease: WorkerLease, *, polls_before_stop: int | None = None) -> None:
+        super().__init__()
+        self._lease = lease
+        self._polls_before_stop = polls_before_stop
+        self.polls = 0
+
+    async def lease(self) -> LeaseResponse:
+        self.polls += 1
+        if self._polls_before_stop is not None and self.polls > self._polls_before_stop:
+            raise StopPolling
+        return LeaseResponse(lease=self._lease, pollAfterMs=100)
+
+
+async def crash(*_args: object) -> None:
+    raise httpx.InvalidURL("bad url")
+
+
 async def test_invalid_lease_response_backs_off_instead_of_crashing(
-    settings: WorkerSettings, respx_mock
-) -> None:  # type: ignore[no-untyped-def]
+    settings: WorkerSettings, respx_mock: respx.MockRouter
+) -> None:
     client = ApplicationClient(settings, AdapterRegistry(()))
     respx_mock.post("http://app.test/api/internal/workers/lease").mock(
         side_effect=[
@@ -46,17 +71,18 @@ async def test_invalid_lease_response_backs_off_instead_of_crashing(
 
 
 async def test_sigterm_stops_the_worker_and_closes_the_client(
-    settings: WorkerSettings, monkeypatch
-) -> None:  # type: ignore[no-untyped-def]
+    settings: WorkerSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
     class IdleClient:
         worker_id = "worker-1"
         closed = False
 
-        def __init__(self, *_args) -> None:  # type: ignore[no-untyped-def]
+        def __init__(self, *_args: object) -> None:
             pass
 
-        async def lease(self):  # type: ignore[no-untyped-def]
+        async def lease(self) -> LeaseResponse:
             await asyncio.Event().wait()
+            raise AssertionError("the idle lease never returns")
 
         async def close(self) -> None:
             IdleClient.closed = True
@@ -70,47 +96,31 @@ async def test_sigterm_stops_the_worker_and_closes_the_client(
 
 
 async def test_unexpected_execute_errors_do_not_kill_the_poll_loop(
-    monkeypatch, caplog, transcription_lease: WorkerLease
-) -> None:  # type: ignore[no-untyped-def]
-    polls = 0
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    transcription_lease: WorkerLease,
+) -> None:
+    client = LeaseOnceClient(transcription_lease, polls_before_stop=1)
     delays: list[float] = []
-
-    class ScriptedClient:
-        async def lease(self) -> LeaseResponse:
-            nonlocal polls
-            polls += 1
-            if polls > 1:
-                raise StopPolling
-            return LeaseResponse(lease=transcription_lease, pollAfterMs=100)
-
-    async def crash(*_args) -> None:  # type: ignore[no-untyped-def]
-        raise httpx.InvalidURL("bad url")
-
-    monkeypatch.setattr(runner, "execute_job", crash)
 
     async def record_sleep(seconds: float) -> None:
         delays.append(seconds)
 
+    monkeypatch.setattr(runner, "execute_job", crash)
+
     with pytest.raises(StopPolling):
-        await runner.poll_forever(  # type: ignore[arg-type]
-            ScriptedClient(), AdapterRegistry(()), sleep=record_sleep, jitter=lambda: 1.0
+        await runner.poll_forever(
+            client, AdapterRegistry(()), sleep=record_sleep, jitter=lambda: 1.0
         )
 
-    assert polls == 2
+    assert client.polls == 2
     assert delays == [1]
     assert "job execution crashed" in caplog.text
 
 
 async def test_repeated_execute_crashes_back_off_exponentially(
-    monkeypatch, transcription_lease: WorkerLease
-) -> None:  # type: ignore[no-untyped-def]
-    class ScriptedClient:
-        async def lease(self) -> LeaseResponse:
-            return LeaseResponse(lease=transcription_lease, pollAfterMs=100)
-
-    async def crash(*_args) -> None:  # type: ignore[no-untyped-def]
-        raise httpx.InvalidURL("bad url")
-
+    monkeypatch: pytest.MonkeyPatch, transcription_lease: WorkerLease
+) -> None:
     delays: list[float] = []
 
     async def record_sleep(seconds: float) -> None:
@@ -121,16 +131,21 @@ async def test_repeated_execute_crashes_back_off_exponentially(
     monkeypatch.setattr(runner, "execute_job", crash)
 
     with pytest.raises(StopPolling):
-        await runner.poll_forever(  # type: ignore[arg-type]
-            ScriptedClient(), AdapterRegistry(()), sleep=record_sleep, jitter=lambda: 1.0
+        await runner.poll_forever(
+            LeaseOnceClient(transcription_lease),
+            AdapterRegistry(()),
+            sleep=record_sleep,
+            jitter=lambda: 1.0,
         )
 
     assert delays == [1, 2, 4]
 
 
 async def test_an_abandoned_inference_thread_finishes_before_the_next_lease(
-    monkeypatch, transcription_lease: WorkerLease
-) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    transcription_lease: WorkerLease,
+) -> None:
     monkeypatch.setattr(execution, "LEASE_HEARTBEAT_SECONDS", 0.01)
     started = threading.Event()
     release_thread = threading.Event()
@@ -142,7 +157,9 @@ async def test_an_abandoned_inference_thread_finishes_before_the_next_lease(
         thread_finished.set()
 
     class ThreadedAdapter(FakeAdapter):
-        async def transcribe(self, request, report_progress):  # type: ignore[no-untyped-def]
+        async def transcribe(
+            self, request: TranscriptionRequest, report_progress: ProgressReporter
+        ) -> TranscriptArtifact:
             await run_in_thread(blocking_inference)
             return await super().transcribe(request, report_progress)
 
@@ -161,11 +178,10 @@ async def test_an_abandoned_inference_thread_finishes_before_the_next_lease(
 
     client = LosingClient()
     polling = asyncio.create_task(
-        runner.poll_forever(client, AdapterRegistry((ThreadedAdapter(),)))  # type: ignore[arg-type]
+        runner.poll_forever(client, AdapterRegistry((ThreadedAdapter(),)))
     )
     await asyncio.to_thread(started.wait, 5)
-    for _ in range(100):
-        await asyncio.sleep(0.01)
+    await wait_until(lambda: "waiting for 1 abandoned inference call" in caplog.text)
     assert client.leases == 1
     assert not polling.done()
 

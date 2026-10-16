@@ -67,8 +67,8 @@ async def test_completion_is_retried_on_server_and_network_errors(
 
 
 async def test_completion_gives_up_after_the_retry_budget(
-    settings: WorkerSettings, media_lease: WorkerLease, respx_mock
-) -> None:  # type: ignore[no-untyped-def]
+    settings: WorkerSettings, media_lease: WorkerLease, respx_mock: respx.MockRouter
+) -> None:
     sleeps = RecordedSleeps()
     client = make_client(settings, sleeps)
     route = respx_mock.post(COMPLETE_URL).mock(return_value=httpx.Response(502))
@@ -84,8 +84,8 @@ async def test_completion_gives_up_after_the_retry_budget(
 
 
 async def test_rejected_completion_is_not_retried(
-    settings: WorkerSettings, media_lease: WorkerLease, respx_mock
-) -> None:  # type: ignore[no-untyped-def]
+    settings: WorkerSettings, media_lease: WorkerLease, respx_mock: respx.MockRouter
+) -> None:
     client = make_client(settings, RecordedSleeps())
     route = respx_mock.post(COMPLETE_URL).mock(return_value=httpx.Response(400))
 
@@ -99,8 +99,8 @@ async def test_rejected_completion_is_not_retried(
 
 
 async def test_lease_conflict_raises_lease_lost(
-    settings: WorkerSettings, media_lease: WorkerLease, respx_mock
-) -> None:  # type: ignore[no-untyped-def]
+    settings: WorkerSettings, media_lease: WorkerLease, respx_mock: respx.MockRouter
+) -> None:
     client = make_client(settings, RecordedSleeps())
     route = respx_mock.post(COMPLETE_URL).mock(return_value=httpx.Response(409))
 
@@ -114,8 +114,8 @@ async def test_lease_conflict_raises_lease_lost(
 
 
 async def test_hardware_is_detected_once_and_memory_refreshed_per_poll(
-    settings: WorkerSettings, respx_mock, monkeypatch
-) -> None:  # type: ignore[no-untyped-def]
+    settings: WorkerSettings, respx_mock: respx.MockRouter, monkeypatch: pytest.MonkeyPatch
+) -> None:
     real_detect_hardware = client_module.detect_hardware
     detections: list[None] = []
 

@@ -20,6 +20,7 @@ from .models import (
     JobFailureReport,
     JobProgressReport,
     LeaseResponse,
+    MediaDerivativeKind,
     StrictModel,
     WorkerCapabilities,
     WorkerLease,
@@ -90,7 +91,9 @@ class ApplicationClient:
                 async for chunk in response.aiter_bytes(1024 * 1024):
                     output.write(chunk)
 
-    async def upload_artifact(self, lease: WorkerLease, kind: str, artifact_path: Path) -> None:
+    async def upload_artifact(
+        self, lease: WorkerLease, kind: MediaDerivativeKind, artifact_path: Path
+    ) -> None:
         await upload_artifact(self._client, lease, kind, artifact_path, sleep=self._sleep)
 
     async def complete(self, lease: WorkerLease, completion: JobCompletion) -> None:

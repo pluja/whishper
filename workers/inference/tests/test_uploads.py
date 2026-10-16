@@ -3,6 +3,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+import respx
 from fakes import RecordedSleeps
 
 from anysub_worker.errors import LeaseLostError
@@ -36,7 +37,9 @@ def staged_offset(offset: int) -> httpx.Response:
     return httpx.Response(200, headers={"Upload-Offset": str(offset)})
 
 
-async def test_artifact_upload_declares_binary_content_type(upload, respx_mock) -> None:  # type: ignore[no-untyped-def]
+async def test_artifact_upload_declares_binary_content_type(
+    upload: Upload, respx_mock: respx.MockRouter
+) -> None:
     respx_mock.head(ARTIFACT_URL).mock(return_value=staged_offset(0))
     patch = respx_mock.patch(ARTIFACT_URL).mock(
         return_value=httpx.Response(204, headers={"Upload-Offset": "8"})
@@ -50,8 +53,8 @@ async def test_artifact_upload_declares_binary_content_type(upload, respx_mock) 
 
 
 async def test_artifact_upload_retries_server_errors_from_the_staged_offset(
-    upload, respx_mock
-) -> None:  # type: ignore[no-untyped-def]
+    upload: Upload, respx_mock: respx.MockRouter
+) -> None:
     sleeps = RecordedSleeps()
     respx_mock.head(ARTIFACT_URL).mock(side_effect=[staged_offset(0), staged_offset(4)])
     patch = respx_mock.patch(ARTIFACT_URL).mock(
@@ -67,7 +70,9 @@ async def test_artifact_upload_retries_server_errors_from_the_staged_offset(
     assert patch.calls.last.request.content == b"form"
 
 
-async def test_artifact_upload_resumes_after_an_offset_conflict(upload, respx_mock) -> None:  # type: ignore[no-untyped-def]
+async def test_artifact_upload_resumes_after_an_offset_conflict(
+    upload: Upload, respx_mock: respx.MockRouter
+) -> None:
     respx_mock.head(ARTIFACT_URL).mock(side_effect=[staged_offset(0), staged_offset(8)])
     patch = respx_mock.patch(ARTIFACT_URL).mock(
         return_value=httpx.Response(409, headers={"Upload-Offset": "8"})
@@ -78,7 +83,9 @@ async def test_artifact_upload_resumes_after_an_offset_conflict(upload, respx_mo
     assert patch.call_count == 1
 
 
-async def test_rejected_artifact_upload_is_raised_without_retrying(upload, respx_mock) -> None:  # type: ignore[no-untyped-def]
+async def test_rejected_artifact_upload_is_raised_without_retrying(
+    upload: Upload, respx_mock: respx.MockRouter
+) -> None:
     respx_mock.head(ARTIFACT_URL).mock(return_value=staged_offset(0))
     patch = respx_mock.patch(ARTIFACT_URL).mock(
         return_value=httpx.Response(400, json={"message": "Invalid artifact upload size."})
@@ -91,7 +98,9 @@ async def test_rejected_artifact_upload_is_raised_without_retrying(upload, respx
     assert raised.value.response.status_code == 400
 
 
-async def test_artifact_upload_gives_up_with_the_last_server_error(upload, respx_mock) -> None:  # type: ignore[no-untyped-def]
+async def test_artifact_upload_gives_up_with_the_last_server_error(
+    upload: Upload, respx_mock: respx.MockRouter
+) -> None:
     respx_mock.head(ARTIFACT_URL).mock(return_value=staged_offset(0))
     patch = respx_mock.patch(ARTIFACT_URL).mock(return_value=httpx.Response(502))
 
@@ -102,7 +111,9 @@ async def test_artifact_upload_gives_up_with_the_last_server_error(upload, respx
 
 
 @pytest.mark.parametrize("method", ["head", "patch"])
-async def test_artifact_lease_conflict_raises_lease_lost(upload, respx_mock, method: str) -> None:  # type: ignore[no-untyped-def]
+async def test_artifact_lease_conflict_raises_lease_lost(
+    upload: Upload, respx_mock: respx.MockRouter, method: str
+) -> None:
     conflict = httpx.Response(409, json={"message": "Media preparation lease is no longer active."})
     respx_mock.head(ARTIFACT_URL).mock(
         return_value=conflict if method == "head" else staged_offset(0)
@@ -115,16 +126,34 @@ async def test_artifact_lease_conflict_raises_lease_lost(upload, respx_mock, met
 
 @pytest.mark.parametrize("headers", [{}, {"Upload-Offset": "eight"}, {"Upload-Offset": "-1"}])
 async def test_malformed_upload_offset_is_reported_clearly(
-    upload, respx_mock, headers: dict[str, str]
-) -> None:  # type: ignore[no-untyped-def]
+    upload: Upload, respx_mock: respx.MockRouter, headers: dict[str, str]
+) -> None:
     respx_mock.head(ARTIFACT_URL).mock(return_value=httpx.Response(200, headers=headers))
 
     with pytest.raises(ArtifactUploadError, match="Upload-Offset"):
         await upload()
 
 
-async def test_upload_offset_beyond_the_file_is_rejected(upload, respx_mock) -> None:  # type: ignore[no-untyped-def]
+async def test_upload_offset_beyond_the_file_is_rejected(
+    upload: Upload, respx_mock: respx.MockRouter
+) -> None:
     respx_mock.head(ARTIFACT_URL).mock(return_value=staged_offset(99))
 
     with pytest.raises(ArtifactUploadError, match="beyond"):
         await upload()
+
+
+async def test_failed_offset_resyncs_count_toward_the_upload_attempts(
+    upload: Upload, respx_mock: respx.MockRouter
+) -> None:
+    sleeps = RecordedSleeps()
+    head = respx_mock.head(ARTIFACT_URL).mock(
+        side_effect=[staged_offset(0), httpx.Response(503), httpx.Response(503)]
+    )
+    patch = respx_mock.patch(ARTIFACT_URL).mock(return_value=httpx.Response(503))
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await upload(sleeps)
+
+    assert (patch.call_count, head.call_count) == (1, 3)
+    assert len(sleeps) == ARTIFACT_UPLOAD_ATTEMPTS - 1

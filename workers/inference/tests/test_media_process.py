@@ -75,8 +75,10 @@ async def test_stdout_streams_to_the_consumer_without_being_retained() -> None:
 
 
 @pytest.mark.parametrize("output", ["", "\n"])
-async def test_ffmpeg_version_handles_empty_output(monkeypatch, output: str) -> None:  # type: ignore[no-untyped-def]
-    async def fake_run(*_args, **_kwargs) -> process.MediaToolResult:  # type: ignore[no-untyped-def]
+async def test_ffmpeg_version_handles_empty_output(
+    monkeypatch: pytest.MonkeyPatch, output: str
+) -> None:
+    async def fake_run(*_args: object, **_kwargs: object) -> process.MediaToolResult:
         return process.MediaToolResult(stdout=output.encode(), stderr="")
 
     monkeypatch.setattr(process, "run_media_tool", fake_run)
@@ -84,8 +86,8 @@ async def test_ffmpeg_version_handles_empty_output(monkeypatch, output: str) -> 
     assert await process.ffmpeg_version() == "unknown"
 
 
-async def test_ffmpeg_version_parses_the_banner(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    async def fake_run(*_args, **_kwargs) -> process.MediaToolResult:  # type: ignore[no-untyped-def]
+async def test_ffmpeg_version_parses_the_banner(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake_run(*_args: object, **_kwargs: object) -> process.MediaToolResult:
         return process.MediaToolResult(stdout=b"ffmpeg version 7.1.1 Copyright\nbuilt", stderr="")
 
     monkeypatch.setattr(process, "run_media_tool", fake_run)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from pathlib import Path
 
 import httpx
@@ -183,6 +184,12 @@ def status_error(status_code: int, body: str) -> httpx.HTTPStatusError:
 
 class StopPolling(Exception):
     pass
+
+
+async def wait_until(condition: Callable[[], bool], timeout: float = 5) -> None:
+    async with asyncio.timeout(timeout):
+        while not condition():
+            await asyncio.sleep(0.01)
 
 
 class RecordedSleeps(list[float]):

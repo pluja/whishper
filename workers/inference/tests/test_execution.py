@@ -4,6 +4,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+import respx
 from fakes import (
     FailingAdapter,
     FakeAdapter,
@@ -33,11 +34,13 @@ from anysub_worker.registry import AdapterRegistry
 
 
 async def test_long_adapter_work_renews_its_lease(
-    monkeypatch, recording_client: RecordingClient, transcription_lease: WorkerLease
-) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch: pytest.MonkeyPatch,
+    recording_client: RecordingClient,
+    transcription_lease: WorkerLease,
+) -> None:
     monkeypatch.setattr(execution, "LEASE_HEARTBEAT_SECONDS", 0.01)
 
-    await execution.execute_job(  # type: ignore[arg-type]
+    await execution.execute_job(
         recording_client,
         AdapterRegistry((SlowFakeAdapter(),)),
         transcription_lease,
@@ -97,8 +100,8 @@ async def test_media_job_uploads_derivatives_before_completion(
 
 
 async def test_heartbeat_recovers_after_network_error(
-    monkeypatch, transcription_lease: WorkerLease
-) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch: pytest.MonkeyPatch, transcription_lease: WorkerLease
+) -> None:
     monkeypatch.setattr(execution, "LEASE_HEARTBEAT_SECONDS", 0.01)
     client = ScriptedProgressClient([None, network_error(), network_error()])
     adapter = GatedAdapter()
@@ -109,7 +112,7 @@ async def test_heartbeat_recovers_after_network_error(
 
     releaser = asyncio.create_task(release_after_recovery())
     await asyncio.wait_for(
-        execution.execute_job(client, AdapterRegistry((adapter,)), transcription_lease),  # type: ignore[arg-type]
+        execution.execute_job(client, AdapterRegistry((adapter,)), transcription_lease),
         timeout=2,
     )
     await releaser
@@ -119,13 +122,13 @@ async def test_heartbeat_recovers_after_network_error(
 
 
 async def test_heartbeat_lease_conflict_abandons_the_job(
-    monkeypatch, transcription_lease: WorkerLease
-) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch: pytest.MonkeyPatch, transcription_lease: WorkerLease
+) -> None:
     monkeypatch.setattr(execution, "LEASE_HEARTBEAT_SECONDS", 0.01)
     client = ScriptedProgressClient([None, LeaseLostError("job-1")])
 
     await asyncio.wait_for(
-        execution.execute_job(client, AdapterRegistry((GatedAdapter(),)), transcription_lease),  # type: ignore[arg-type]
+        execution.execute_job(client, AdapterRegistry((GatedAdapter(),)), transcription_lease),
         timeout=2,
     )
 
@@ -136,9 +139,7 @@ async def test_heartbeat_lease_conflict_abandons_the_job(
 async def test_progress_errors_do_not_fail_the_job(transcription_lease: WorkerLease) -> None:
     client = ScriptedProgressClient([network_error()] * 10)
 
-    await execution.execute_job(  # type: ignore[arg-type]
-        client, AdapterRegistry((FakeAdapter(),)), transcription_lease
-    )
+    await execution.execute_job(client, AdapterRegistry((FakeAdapter(),)), transcription_lease)
 
     assert client.transcription_completions == 1
     assert client.failures == []
@@ -153,9 +154,7 @@ async def test_lease_conflict_on_completion_is_not_reported_as_failure(
 
     client = LostOnCompleteClient()
 
-    await execution.execute_job(  # type: ignore[arg-type]
-        client, AdapterRegistry((FakeAdapter(),)), transcription_lease
-    )
+    await execution.execute_job(client, AdapterRegistry((FakeAdapter(),)), transcription_lease)
 
     assert client.failures == []
 
@@ -164,7 +163,7 @@ async def test_shutdown_cancels_the_job_and_reports_retryable_failure(
     recording_client: RecordingClient, transcription_lease: WorkerLease
 ) -> None:
     running = asyncio.create_task(
-        execution.execute_job(  # type: ignore[arg-type]
+        execution.execute_job(
             recording_client, AdapterRegistry((GatedAdapter(),)), transcription_lease
         )
     )
@@ -186,9 +185,7 @@ async def test_rejected_request_fails_the_job_permanently_with_response_detail(
 ) -> None:
     adapter = FailingAdapter(status_error(400, "invalid artifact"))
 
-    await execution.execute_job(  # type: ignore[arg-type]
-        recording_client, AdapterRegistry((adapter,)), transcription_lease
-    )
+    await execution.execute_job(recording_client, AdapterRegistry((adapter,)), transcription_lease)
 
     assert recording_client.failures == [
         JobFailure(
@@ -200,8 +197,8 @@ async def test_rejected_request_fails_the_job_permanently_with_response_detail(
 
 
 async def test_unprocessable_completion_fails_the_job_permanently_with_its_reason(
-    settings: WorkerSettings, transcription_lease: WorkerLease, respx_mock
-) -> None:  # type: ignore[no-untyped-def]
+    settings: WorkerSettings, transcription_lease: WorkerLease, respx_mock: respx.MockRouter
+) -> None:
     client = ApplicationClient(settings, AdapterRegistry(()))
     respx_mock.post("http://app.test/api/internal/jobs/job-1/progress").mock(
         return_value=httpx.Response(200, json={"accepted": True})

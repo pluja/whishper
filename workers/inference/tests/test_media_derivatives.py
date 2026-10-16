@@ -6,10 +6,12 @@ from anysub_worker.media import derivatives, process
 from anysub_worker.media.errors import MediaToolTimeoutError
 
 
-async def test_thumbnail_does_not_retry_after_a_timeout(monkeypatch, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+async def test_thumbnail_does_not_retry_after_a_timeout(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     calls = 0
 
-    async def timing_out(*_args, **_kwargs) -> process.MediaToolResult:  # type: ignore[no-untyped-def]
+    async def timing_out(*_args: object, **_kwargs: object) -> process.MediaToolResult:
         nonlocal calls
         calls += 1
         raise MediaToolTimeoutError("ffmpeg timed out")

@@ -7,7 +7,7 @@ from typing import BinaryIO
 import httpx
 
 from .errors import LeaseLostError
-from .models import WorkerLease
+from .models import MediaDerivativeKind, WorkerLease
 from .retry import Sleep, is_transient, retry
 
 ARTIFACT_CHUNK_BYTES = 16 * 1024 * 1024
@@ -22,7 +22,7 @@ class ArtifactUploadError(RuntimeError):
 async def upload_artifact(
     http: httpx.AsyncClient,
     lease: WorkerLease,
-    kind: str,
+    kind: MediaDerivativeKind,
     artifact_path: Path,
     *,
     sleep: Sleep,
@@ -40,7 +40,11 @@ async def upload_artifact(
 
 class _StagedUpload:
     def __init__(
-        self, http: httpx.AsyncClient, lease: WorkerLease, kind: str, size_bytes: int
+        self,
+        http: httpx.AsyncClient,
+        lease: WorkerLease,
+        kind: MediaDerivativeKind,
+        size_bytes: int,
     ) -> None:
         self._http = http
         self._lease = lease

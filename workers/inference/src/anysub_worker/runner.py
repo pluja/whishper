@@ -6,6 +6,7 @@ import logging
 import random
 import signal
 from collections.abc import Callable
+from typing import Protocol
 
 import httpx
 from pydantic import ValidationError
@@ -13,7 +14,8 @@ from pydantic import ValidationError
 from .client import ApplicationClient
 from .config import WorkerSettings
 from .errors import describe_error
-from .execution import execute_job
+from .execution import JobClient, execute_job
+from .models import LeaseResponse
 from .registry import AdapterRegistry
 from .retry import APPLICATION_BACKOFF, Sleep
 from .threads import wait_for_abandoned_threads
@@ -57,8 +59,12 @@ async def run_forever(settings: WorkerSettings, registry: AdapterRegistry) -> No
         await client.close()
 
 
+class LeasingClient(JobClient, Protocol):
+    async def lease(self) -> LeaseResponse: ...
+
+
 async def poll_forever(
-    client: ApplicationClient,
+    client: LeasingClient,
     registry: AdapterRegistry,
     *,
     sleep: Sleep = asyncio.sleep,

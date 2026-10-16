@@ -5,20 +5,21 @@ import logging
 from collections.abc import Coroutine
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any
+from typing import Any, Protocol
 
 import httpx
 
 from .adapter import AdapterExecutionError, ProgressReporter, TranscriptionAdapter
-from .client import ApplicationClient
 from .errors import LeaseLostError, describe_error, failure_for
 from .media import prepare_media
 from .media.errors import MediaPreparationError
 from .models import (
     AdapterCapability,
     AdapterReference,
+    JobCompletion,
     JobFailure,
     JobFailureCode,
+    MediaDerivativeKind,
     MediaPreparationJobPayload,
     TranscriptionJobCompletion,
     TranscriptionJobPayload,
@@ -37,8 +38,22 @@ MEDIA_PREPARATION_SPAN = (0.1, 0.86)
 MEDIA_UPLOAD_SPAN = (0.86, 0.98)
 
 
+class JobClient(Protocol):
+    async def progress(self, lease: WorkerLease, progress: float, message: str) -> None: ...
+
+    async def download_source(self, lease: WorkerLease, destination: Path) -> None: ...
+
+    async def upload_artifact(
+        self, lease: WorkerLease, kind: MediaDerivativeKind, artifact_path: Path
+    ) -> None: ...
+
+    async def complete(self, lease: WorkerLease, completion: JobCompletion) -> None: ...
+
+    async def fail(self, lease: WorkerLease, failure: JobFailure) -> None: ...
+
+
 class _LeasedJob:
-    def __init__(self, client: ApplicationClient, lease: WorkerLease) -> None:
+    def __init__(self, client: JobClient, lease: WorkerLease) -> None:
         self._client = client
         self._lease = lease
         self._progress = 0.0
@@ -75,9 +90,7 @@ class _LeasedJob:
             )
 
 
-async def execute_job(
-    client: ApplicationClient, registry: AdapterRegistry, lease: WorkerLease
-) -> None:
+async def execute_job(client: JobClient, registry: AdapterRegistry, lease: WorkerLease) -> None:
     fallback_code = _fallback_failure_code(lease.payload)
     job = _LeasedJob(client, lease)
     work = job.start(_run(client, registry, lease, job.report))
@@ -115,7 +128,7 @@ def _shutting_down() -> bool:
 
 
 async def _report_failure(
-    client: ApplicationClient,
+    client: JobClient,
     lease: WorkerLease,
     failure: JobFailure,
     *,
@@ -139,7 +152,7 @@ def _fallback_failure_code(payload: WorkerJobPayload) -> JobFailureCode:
 
 
 async def _run(
-    client: ApplicationClient,
+    client: JobClient,
     registry: AdapterRegistry,
     lease: WorkerLease,
     report: ProgressReporter,
@@ -152,7 +165,7 @@ async def _run(
 
 
 async def _run_media_preparation(
-    client: ApplicationClient,
+    client: JobClient,
     lease: WorkerLease,
     payload: MediaPreparationJobPayload,
     report: ProgressReporter,
@@ -179,7 +192,7 @@ async def _run_media_preparation(
 
 
 async def _run_transcription(
-    client: ApplicationClient,
+    client: JobClient,
     registry: AdapterRegistry,
     lease: WorkerLease,
     payload: TranscriptionJobPayload,
