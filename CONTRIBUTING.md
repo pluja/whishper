@@ -24,13 +24,15 @@ compose.cuda.yaml         NVIDIA overlay
 
 Server domain folders in `apps/web/src/lib/server/`: `auth`, `db`, `http`, `jobs`, `media`, `projects`, `storage`, `subtitles`, `transcription`, `uploads`, `workers`.
 
+Worker routes under `/api/internal` check the worker token twice on purpose: once in the `handle` hook and again in each route. Keep both, so a route stays protected if the hook's path match ever changes.
+
 Client folders in `apps/web/src/lib/`: `shared` (code used by server and client), `browser`, `library`, `studio`, `editor`, `timeline`, `components`.
 
 Worker modules in `anysub_worker`: `models` (the Pydantic protocol), `config`, `cli`, `adapter`, `registry`, `hardware`, `threads`, `protocol_schema`, `errors`, `retry`, `timing`, `progress`, `execution`, `runner`, `client`, `uploads`, `media/` for FFmpeg-based preparation, and `adapters/whisperx/` for the built-in adapter.
 
 ## Naming and structure
 
-- Files and folders are kebab-case. Svelte components are `PascalCase.svelte` and rune modules are `*.svelte.ts`.
+- In the web package, files and folders are kebab-case. Svelte components are `PascalCase.svelte` and rune modules are `*.svelte.ts`. Python modules in the worker are snake_case.
 - Do not repeat the folder name in the file name: `media/finalize.ts`, not `media/media-finalize.ts`.
 - No barrel files. Import from the module that defines the symbol.
 - Web tests sit next to their module. Use `*.test.ts` for unit tests and `*.db.test.ts` for tests that need real PostgreSQL. Worker tests live in `workers/inference/tests/` as `test_*.py`, and the test-only fake adapter is `tests/fakes.py`.
@@ -45,7 +47,7 @@ Keep files under 500 lines and split a module before it gets there. Keep depende
 
 ## Toolchain
 
-Everything runs in containers, so none of these need to be on your host. Each version is declared once:
+Everything runs in containers, so none of these need to be on your host. Each version has one source file. Where image tags or CI settings repeat it, a test keeps the copies equal:
 
 | Tool       | Version | Declared in                                                          |
 | ---------- | ------- | -------------------------------------------------------------------- |
@@ -55,7 +57,7 @@ Everything runs in containers, so none of these need to be on your host. Each ve
 | uv         | 0.11.25 | `FROM ghcr.io/astral-sh/uv` in the worker Dockerfile, `ci.yml`       |
 | PostgreSQL | 17.5    | `compose.yaml`, `ci.yml`                                             |
 
-Image tags stay literal in the Dockerfiles and Compose files so Dependabot can update them. A test fails when they drift from the version files.
+Image tags stay literal in the Dockerfiles and Compose files so Dependabot can update them. A test fails when they drift from the version files. Dependabot bumps only the image tag, so finish an image bump PR by updating the paired file the failing version test names.
 
 ## Development stack
 

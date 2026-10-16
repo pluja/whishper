@@ -22,14 +22,25 @@ updates:
       minor-and-patch:
         update-types: [minor, patch]
 
+  # The wildcards match the image whether or not Dependabot keeps the
+  # docker.io/library prefix in the dependency name.
   - package-ecosystem: docker
     directories:
       - /apps/web
       - /workers/inference
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*node"
+        update-types: [version-update:semver-major]
+      - dependency-name: "*python"
+        update-types: [version-update:semver-minor]
 
+  # A new PostgreSQL major version cannot read the existing data directory.
   - package-ecosystem: docker-compose
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*postgres"
+        update-types: [version-update:semver-major]

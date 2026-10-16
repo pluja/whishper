@@ -100,12 +100,23 @@ The [user guide](USER-GUIDE.md#choosing-a-model) describes what each model is go
 
 ### Worker defaults
 
-Compose does not set these. The worker reads them from its environment and falls back to the defaults below.
+Compose does not forward these from `.env`, so setting them there has no effect. The worker reads them from its own environment and falls back to the defaults below.
 
 | Variable                         | Default              | Notes                                                                          |
 | -------------------------------- | -------------------- | ------------------------------------------------------------------------------ |
 | `ANYSUB_WORKER_ID_FILE`          | `/models/.worker-id` | Where the worker stores its generated ID, so it keeps its identity on restart. |
 | `ANYSUB_REQUEST_TIMEOUT_SECONDS` | `30`                 | Timeout for requests from the worker to the application.                       |
+
+To change one, add it to the worker's environment in a `compose.override.yaml` next to `compose.yaml`:
+
+```yaml
+services:
+  worker:
+    environment:
+      ANYSUB_REQUEST_TIMEOUT_SECONDS: "60"
+```
+
+Compose reads the override automatically when you run it without `-f`. If you pass files explicitly, add `-f compose.override.yaml` as the last one.
 
 ## NVIDIA GPUs
 

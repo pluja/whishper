@@ -25,7 +25,7 @@ The Pydantic models in `anysub_worker.models` define the manifest and every mess
 
 ## Minimal package
 
-The package metadata registers a class or instance:
+The package metadata registers a class or instance. The worker instantiates a class with no arguments, so an adapter reads its own settings, for example from environment variables.
 
 ```toml
 [project]
@@ -122,7 +122,7 @@ services:
     build: !reset null
 ```
 
-Save it as `compose.override.yaml` next to `compose.yaml`. Compose reads that file automatically only when you run `docker compose up -d` without `-f`. If you pass explicit files, for example with `compose.cuda.yaml`, add `-f compose.override.yaml` yourself.
+Save it as `compose.override.yaml` next to `compose.yaml`. Compose reads that file automatically only when you run `docker compose up -d` without `-f`. If you pass explicit files, for example with `compose.cuda.yaml`, add `-f compose.override.yaml` yourself as the last `-f` file, because later files override earlier ones.
 
 After a `git pull`, rebuild both the base image and the derived image, in that order. Otherwise the worker keeps running the old code.
 
@@ -133,6 +133,7 @@ Large model weights belong in `/models`, which is a persistent Docker volume. Me
 - Protocol versions use `major.minor` numbers.
 - A different major version is incompatible.
 - New optional fields may be added in a minor version.
+- A new enum value on the wire, such as a `JobFailureCode`, needs a protocol version bump, because older web builds reject values they do not know.
 - Adapter IDs are stable, lowercase identifiers owned by the package author.
 - Model IDs are stable within an adapter.
 - Stored runs record adapter ID, adapter version, model ID, and resolved options.
