@@ -273,6 +273,17 @@ class TranscriptionJobPayload(InboundModel):
     language: str | None = None
     options: dict[str, Any] = Field(default_factory=dict)
 
+    def to_request(self, job_id: str) -> TranscriptionRequest:
+        return TranscriptionRequest(
+            jobId=job_id,
+            projectId=self.project_id,
+            runId=self.run_id,
+            modelId=self.model_id,
+            mediaPath=self.media_path,
+            language=self.language,
+            options=self.options,
+        )
+
 
 class MediaPreparationJobPayload(InboundModel):
     kind: Literal["media_prepare"]

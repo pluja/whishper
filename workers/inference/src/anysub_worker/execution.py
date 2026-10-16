@@ -22,7 +22,6 @@ from .models import (
     MediaPreparationJobPayload,
     TranscriptionJobCompletion,
     TranscriptionJobPayload,
-    TranscriptionRequest,
     WorkerJobPayload,
     WorkerLease,
 )
@@ -193,18 +192,7 @@ async def _run_transcription(
             f"adapter {payload.adapter_id} declares transcription support but does not implement it"
         )
 
-    artifact = await adapter.transcribe(
-        TranscriptionRequest(
-            jobId=lease.job_id,
-            projectId=payload.project_id,
-            runId=payload.run_id,
-            modelId=payload.model_id,
-            mediaPath=payload.media_path,
-            language=payload.language,
-            options=payload.options,
-        ),
-        report,
-    )
+    artifact = await adapter.transcribe(payload.to_request(lease.job_id), report)
     manifest = adapter.manifest
     await client.complete(
         lease,

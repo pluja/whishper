@@ -15,11 +15,6 @@ from .models import (
     WorkerManifest,
 )
 
-# The worker source tree sits at workers/inference in the repository.
-PROTOCOL_SCHEMA_PATH = (
-    Path(__file__).resolve().parents[2] / "../../packages/contracts/schema/protocol.schema.json"
-)
-
 # The top-level messages exchanged with the application. Validation mode describes
 # what the worker accepts, serialization mode what it emits.
 PROTOCOL_MESSAGES: tuple[tuple[type[BaseModel], JsonSchemaMode], ...] = (
@@ -55,8 +50,6 @@ def render_protocol_schema() -> str:
     return json.dumps(build_protocol_schema(), indent=2) + "\n"
 
 
-def write_protocol_schema() -> Path:
-    target = PROTOCOL_SCHEMA_PATH.resolve()
+def write_protocol_schema(target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(render_protocol_schema(), encoding="utf-8")
-    return target

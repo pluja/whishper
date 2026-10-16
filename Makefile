@@ -23,7 +23,7 @@ down: ## Stop the stack, keeping all data
 	$(COMPOSE) down
 
 generate: ## Regenerate the protocol schema and TypeScript contracts from the worker models
-	$(RUN) worker uv run anysub-protocol-schema
+	$(RUN) worker uv run anysub-protocol-schema ../../packages/contracts/schema/protocol.schema.json
 	$(RUN) web pnpm --filter @anysub/contracts generate
 
 check: ## Type-check the web application

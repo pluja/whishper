@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 LOGGER = logging.getLogger(__name__)
+ABANDONED_WAIT_LOG_SECONDS = 60
 
 # Threads cannot be cancelled, so a cancelled job leaves its inference running and holding
 # memory. They are process-wide because every adapter shares the same RAM and VRAM.
@@ -36,11 +37,16 @@ def _forget_abandoned_call(call: asyncio.Future[Any]) -> None:
 
 
 async def wait_for_abandoned_threads() -> None:
-    if not _abandoned_calls:
+    pending = set(_abandoned_calls)
+    if not pending:
         return
     LOGGER.warning(
         "waiting for %d abandoned inference call(s) to finish before taking new work",
-        len(_abandoned_calls),
+        len(pending),
     )
-    await asyncio.wait(set(_abandoned_calls))
+    while True:
+        _, pending = await asyncio.wait(pending, timeout=ABANDONED_WAIT_LOG_SECONDS)
+        if not pending:
+            break
+        LOGGER.warning("still waiting for %d abandoned inference call(s)", len(pending))
     LOGGER.info("abandoned inference finished")

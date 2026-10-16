@@ -1,18 +1,32 @@
+from pathlib import Path
+
 from anysub_worker.models import WORKER_PROTOCOL_VERSION, AdapterCapability
 from anysub_worker.protocol_schema import (
-    PROTOCOL_SCHEMA_PATH,
     build_protocol_schema,
     render_protocol_schema,
+    write_protocol_schema,
 )
+
+# The worker sits at workers/inference, and the dev container mounts the schema to match.
+COMMITTED_SCHEMA = (
+    Path(__file__).parents[1] / "../../packages/contracts/schema/protocol.schema.json"
+).resolve()
 
 
 def test_committed_protocol_schema_matches_the_models() -> None:
-    committed = PROTOCOL_SCHEMA_PATH.read_text(encoding="utf-8")
+    committed = COMMITTED_SCHEMA.read_text(encoding="utf-8")
 
     assert committed == render_protocol_schema(), (
-        "packages/contracts/schema/protocol.schema.json is stale. "
-        "Run `uv run anysub-protocol-schema` in workers/inference."
+        "packages/contracts/schema/protocol.schema.json is stale. Run `make generate`."
     )
+
+
+def test_schema_export_creates_the_target_directory(tmp_path: Path) -> None:
+    target = tmp_path / "schema" / "protocol.schema.json"
+
+    write_protocol_schema(target)
+
+    assert target.read_text(encoding="utf-8") == render_protocol_schema()
 
 
 def test_protocol_schema_publishes_version_constants() -> None:
