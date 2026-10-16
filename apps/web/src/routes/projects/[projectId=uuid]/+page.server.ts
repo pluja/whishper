@@ -1,8 +1,10 @@
 import { requireUserOrLogin } from "$lib/server/auth/session";
 import { pool } from "$lib/server/db";
 import { clientFailure } from "$lib/server/http/errors";
-import { isMediaDerivativeKind } from "$lib/server/media/derivatives";
-import { deleteDerivativeForUser } from "$lib/server/media/finalize";
+import {
+  deleteDerivativeForUser,
+  isMediaDerivativeKind,
+} from "$lib/server/media/derivatives";
 import {
   cancelMediaPreparationForUser,
   requestMediaPreparationForUser,
@@ -14,7 +16,7 @@ import {
   latestRun,
   readyDerivatives,
   studioProject,
-} from "$lib/server/projects/queries";
+} from "$lib/server/projects/studio";
 import { listTrackCues } from "$lib/server/subtitles/cues";
 import { latestTrackForProject } from "$lib/server/subtitles/tracks";
 import { deleteTranscriptForUser } from "$lib/server/subtitles/transcripts";

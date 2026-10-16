@@ -1,5 +1,4 @@
-import type { PoolClient } from "pg";
-
+import type { Queryable } from "$lib/server/db/types";
 import { IS_MEDIA_PREPARE_JOB } from "$lib/server/jobs/predicates";
 import type {
   StudioDerivative,
@@ -7,8 +6,6 @@ import type {
   StudioProject,
   StudioRun,
 } from "$lib/shared/studio-data";
-
-type Queryable = Pick<PoolClient, "query">;
 
 export async function studioProject(
   executor: Queryable,

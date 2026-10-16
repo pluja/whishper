@@ -211,7 +211,7 @@ function requireUserId(request: Request): string {
 
 type TusRejection = { status_code: number; body: string };
 
-export function tusReject(status: number, message: string): TusRejection {
+function tusReject(status: number, message: string): TusRejection {
   return { status_code: status, body: `${message}\n` };
 }
 

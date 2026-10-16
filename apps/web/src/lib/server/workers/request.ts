@@ -4,7 +4,7 @@ import { error, type RequestEvent } from "@sveltejs/kit";
 
 import { authenticateWorker } from "$lib/server/workers/auth";
 
-export const LEASE_TOKEN_HEADER = "x-anysub-lease-token";
+const LEASE_TOKEN_HEADER = "x-anysub-lease-token";
 
 export async function authenticateWorkerReport<T>(
   event: RequestEvent,

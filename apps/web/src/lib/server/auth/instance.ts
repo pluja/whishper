@@ -1,12 +1,9 @@
-import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
 
 import { pool } from "$lib/server/db";
 import { lockForTransaction, lockKeys } from "$lib/server/db/locks";
 import { withTransaction } from "$lib/server/db/transaction";
-
-type Queryable = Pick<PoolClient, "query">;
-type Connectable = Pick<Pool, "connect">;
+import type { Connectable, Queryable } from "$lib/server/db/types";
 
 export type InstanceOwner = {
   name: string;

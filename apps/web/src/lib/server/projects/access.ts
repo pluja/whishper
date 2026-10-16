@@ -1,6 +1,4 @@
-import type { PoolClient } from "pg";
-
-type Queryable = Pick<PoolClient, "query">;
+import type { Queryable } from "$lib/server/db/types";
 
 export type MemberProject = {
   id: string;

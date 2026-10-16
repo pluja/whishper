@@ -17,6 +17,7 @@ vi.mock("$lib/server/env", () => ({
 
 import {
   appendArtifactChunk,
+  openMediaPreparationSource,
   parseUploadInteger,
   stagedArtifactOffset,
   stagedArtifactPath,
@@ -126,6 +127,17 @@ describe("parseUploadInteger", () => {
     },
   );
 });
+describe("openMediaPreparationSource", () => {
+  it("answers 404 when the source file is missing", async () => {
+    await expect(
+      openMediaPreparationSource({
+        ...lease,
+        payload: { sourceStorageKey: "originals/missing.mp4" },
+      } as MediaPreparationLease),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
 describe("withKeyedLock", () => {
   it("runs same-key work one at a time and keeps going after a failure", async () => {
     const order: string[] = [];

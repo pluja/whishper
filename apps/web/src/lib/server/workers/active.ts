@@ -1,6 +1,4 @@
-import type { PoolClient } from "pg";
-
-type Queryable = Pick<PoolClient, "query">;
+import type { Queryable } from "$lib/server/db/types";
 
 // Workers poll every few seconds, so one silent for this long is gone.
 const LIVENESS_WINDOW = "15 seconds";

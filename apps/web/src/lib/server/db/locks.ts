@@ -1,6 +1,4 @@
-import type { PoolClient } from "pg";
-
-type Queryable = Pick<PoolClient, "query">;
+import type { Queryable } from "./types";
 
 // Every key is hashed with hashtextextended into Postgres' 64-bit advisory
 // lock space. scripts/migrations.mjs holds a fixed numeric key of its own

@@ -10,6 +10,7 @@ import type {
 } from "@anysub/contracts";
 
 import { pool } from "$lib/server/db";
+import { isNodeError } from "$lib/server/guards";
 import { badRequest, conflict, notFound } from "$lib/server/http/errors";
 import { hashToken } from "$lib/server/jobs/lease-token";
 import { IS_MEDIA_PREPARE_JOB } from "$lib/server/jobs/predicates";
@@ -174,8 +175,11 @@ export async function openMediaPreparationSource(
   mediaType: string;
 }> {
   const path = resolveDataPath(lease.payload.sourceStorageKey);
-  const file = await stat(path);
-  if (!file.isFile()) {
+  const file = await stat(path).catch((cause: unknown) => {
+    if (isNodeError(cause, "ENOENT")) return null;
+    throw cause;
+  });
+  if (!file?.isFile()) {
     throw notFound("Source media was not found.");
   }
   return {

@@ -46,6 +46,7 @@ describe("deleteProjectForUser", () => {
   it("refuses a non-member without waiting on the project's locks", async () => {
     const project = await seedProject();
     const holder = await pool.connect();
+    let blockedTimer: ReturnType<typeof setTimeout> | undefined;
     try {
       await holder.query("begin");
       await lockForTransaction(
@@ -58,10 +59,13 @@ describe("deleteProjectForUser", () => {
 
       const outcome = await Promise.race([
         deleteProjectForUser(project.projectId, randomUUID()),
-        new Promise((resolve) => setTimeout(resolve, 2_000, "blocked")),
+        new Promise((resolve) => {
+          blockedTimer = setTimeout(resolve, 2_000, "blocked");
+        }),
       ]);
       expect(outcome).toBe(false);
     } finally {
+      clearTimeout(blockedTimer);
       await holder.query("rollback");
       holder.release();
     }

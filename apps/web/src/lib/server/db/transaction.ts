@@ -1,8 +1,7 @@
-import type { Pool, PoolClient } from "pg";
+import type { PoolClient } from "pg";
 
 import { pool } from "./index";
-
-type Connectable = Pick<Pool, "connect">;
+import type { Connectable } from "./types";
 
 // A failed rollback leaves the connection in an unknown state, so it is
 // destroyed instead of returned to the pool. The original error always wins.

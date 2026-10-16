@@ -9,7 +9,7 @@ import {
   latestRun,
   readyDerivatives,
   studioProject,
-} from "$lib/server/projects/queries";
+} from "$lib/server/projects/studio";
 
 describe("studio queries", () => {
   it("maps the project and its upload to camelCase with numeric sizes", async () => {

@@ -1,8 +1,6 @@
-import type { PoolClient } from "pg";
+import type { Queryable } from "$lib/server/db/types";
 
 import type { SubtitleTrack } from "$lib/shared/subtitles";
-
-type Queryable = Pick<PoolClient, "query">;
 
 const TRACK_COLUMNS = "id, name, language, metadata, revision";
 

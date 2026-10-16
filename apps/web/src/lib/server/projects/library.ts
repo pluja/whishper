@@ -1,5 +1,4 @@
-import type { PoolClient } from "pg";
-
+import type { Queryable } from "$lib/server/db/types";
 import type {
   LibrarySearch,
   ProjectSummary,
@@ -9,8 +8,6 @@ import {
   PROJECT_SEARCH_MAX_LENGTH,
   PROJECT_TITLE_MAX_LENGTH,
 } from "$lib/shared/limits";
-
-type Queryable = Pick<PoolClient, "query">;
 
 export function parseProjectLibrarySearch(
   searchParams: URLSearchParams,

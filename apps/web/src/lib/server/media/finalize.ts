@@ -22,7 +22,6 @@ import {
   primaryFrameRate,
   requiredArtifactKinds,
 } from "$lib/server/media/probe";
-import { projectForUser } from "$lib/server/projects/access";
 import { linkIdempotent } from "$lib/server/storage/files";
 import {
   derivativeStorageKey,
@@ -213,26 +212,6 @@ export async function rollbackMediaFinalization(
   await Promise.all(
     plan.createdPaths.map((path) => unlink(path).catch(() => undefined)),
   );
-}
-
-export async function deleteDerivativeForUser(
-  projectId: string,
-  kind: MediaDerivativeKind,
-  userId: string,
-): Promise<boolean> {
-  const storageKey = await withTransaction(async (client) => {
-    if (!(await projectForUser(client, projectId, userId))) return null;
-    const derivative = await client.query<{ storage_key: string }>(
-      `delete from media_derivatives
-        where project_id = $1 and kind = $2
-        returning storage_key`,
-      [projectId, kind],
-    );
-    return derivative.rows[0]?.storage_key ?? null;
-  });
-  if (!storageKey) return false;
-  await unlink(resolveDataPath(storageKey)).catch(() => undefined);
-  return true;
 }
 
 function artifactStorageKey(

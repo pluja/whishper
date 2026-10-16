@@ -1,9 +1,9 @@
 import type { PoolClient } from "pg";
 
+import type { Queryable } from "$lib/server/db/types";
+
 import type { SubtitleCueSnapshot } from "$lib/shared/subtitles";
 import { isUuid } from "$lib/shared/uuid";
-
-type Queryable = Pick<PoolClient, "query">;
 
 export type CueContent = {
   startUs: number;

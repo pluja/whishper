@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("$lib/server/db", () => ({ pool: { query: vi.fn() } }));
-vi.mock("$lib/server/db/transaction", () => ({ withTransaction: vi.fn() }));
 
 import {
   decideUploadAction,

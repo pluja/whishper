@@ -1,6 +1,12 @@
+import { unlink } from "node:fs/promises";
+
 import type { MediaDerivativeKind } from "@anysub/contracts";
 
+import { pool } from "$lib/server/db";
+import { withTransaction } from "$lib/server/db/transaction";
 import { privateEnv } from "$lib/server/env";
+import { projectForUser } from "$lib/server/projects/access";
+import { resolveDataPath } from "$lib/server/storage/paths";
 
 export const ARTIFACT_LIMITS: Record<MediaDerivativeKind, number> = {
   waveform: 64 * 1024 * 1024,
@@ -44,4 +50,37 @@ export function isMediaDerivativeKind(
   value: string,
 ): value is MediaDerivativeKind {
   return value === "waveform" || value === "thumbnail" || value === "proxy";
+}
+
+export async function readyDerivativeFile(
+  projectId: string,
+  kind: MediaDerivativeKind,
+): Promise<{ storageKey: string; mediaType: string } | null> {
+  const result = await pool.query<{ storageKey: string; mediaType: string }>(
+    `select storage_key as "storageKey", media_type as "mediaType"
+       from media_derivatives
+      where project_id = $1 and kind = $2 and status = 'ready'`,
+    [projectId, kind],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function deleteDerivativeForUser(
+  projectId: string,
+  kind: MediaDerivativeKind,
+  userId: string,
+): Promise<boolean> {
+  const storageKey = await withTransaction(async (client) => {
+    if (!(await projectForUser(client, projectId, userId))) return null;
+    const derivative = await client.query<{ storage_key: string }>(
+      `delete from media_derivatives
+        where project_id = $1 and kind = $2
+        returning storage_key`,
+      [projectId, kind],
+    );
+    return derivative.rows[0]?.storage_key ?? null;
+  });
+  if (!storageKey) return false;
+  await unlink(resolveDataPath(storageKey)).catch(() => undefined);
+  return true;
 }

@@ -10,24 +10,32 @@ import {
 import { cleanupStagedMediaArtifacts } from "$lib/server/media/artifact-staging";
 import { projectForUser } from "$lib/server/projects/access";
 
+// The payload is built from the locked project row, so it always describes
+// the source the job will read.
 export async function enqueueMediaPreparation(
   client: PoolClient,
-  input: {
-    workspaceId: string;
-    projectId: string;
-    sourceStorageKey: string;
-    sourceFilename: string;
-    sourceMediaType: string | null;
-  },
+  input: { workspaceId: string; projectId: string; sourceStorageKey: string },
 ): Promise<string> {
   await lockForTransaction(client, lockKeys.projectMedia(input.projectId));
-  const project = await client.query<{ media_original_key: string | null }>(
-    "select media_original_key from projects where id = $1 for update",
+  const project = await client.query<{
+    storageKey: string | null;
+    filename: string | null;
+    mediaType: string | null;
+  }>(
+    `select p.media_original_key as "storageKey",
+            p.media_filename as filename,
+            upload.media_type as "mediaType"
+       from projects p
+       left join media_uploads upload on upload.project_id = p.id
+      where p.id = $1
+      for update of p`,
     [input.projectId],
   );
+  const source = project.rows[0];
   if (
-    !project.rows[0] ||
-    project.rows[0].media_original_key !== input.sourceStorageKey
+    !source ||
+    source.storageKey !== input.sourceStorageKey ||
+    source.filename === null
   ) {
     throw new Error("Project source changed before media preparation queued.");
   }
@@ -47,10 +55,8 @@ export async function enqueueMediaPreparation(
     kind: "media_prepare",
     projectId: input.projectId,
     sourceStorageKey: input.sourceStorageKey,
-    sourceFilename: input.sourceFilename,
-    ...(input.sourceMediaType
-      ? { sourceMediaType: input.sourceMediaType }
-      : {}),
+    sourceFilename: source.filename,
+    ...(source.mediaType ? { sourceMediaType: source.mediaType } : {}),
   };
   const job = await client.query<{ id: string }>(
     `insert into jobs (workspace_id, project_id, kind, payload)
@@ -74,24 +80,10 @@ export async function requestMediaPreparationForUser(
   return withTransaction(async (client) => {
     const project = await projectForUser(client, projectId, userId);
     if (!project?.mediaOriginalKey) return false;
-    const source = await client.query<{
-      media_filename: string;
-      media_type: string | null;
-    }>(
-      `select p.media_filename, upload.media_type
-         from projects p
-         left join media_uploads upload on upload.project_id = p.id
-        where p.id = $1`,
-      [projectId],
-    );
-    const row = source.rows[0];
-    if (!row) return false;
     await enqueueMediaPreparation(client, {
       workspaceId: project.workspaceId,
       projectId,
       sourceStorageKey: project.mediaOriginalKey,
-      sourceFilename: row.media_filename,
-      sourceMediaType: row.media_type,
     });
     return true;
   });

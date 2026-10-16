@@ -5,6 +5,7 @@ import { streamMediaFile } from "$lib/server/media/stream";
 import {
   derivativeMediaType,
   isMediaDerivativeKind,
+  readyDerivativeFile,
 } from "$lib/server/media/derivatives";
 import { resolveDataPath } from "$lib/server/storage/paths";
 import { error } from "@sveltejs/kit";
@@ -18,23 +19,12 @@ export const GET: RequestHandler = async ({ locals, params, request }) => {
   const project = await projectForUser(pool, params.projectId, user.id);
   if (!project) error(404, "Derivative not found");
 
-  const result = await pool.query<{
-    storage_key: string;
-    media_type: string;
-  }>(
-    `select derivative.storage_key, derivative.media_type
-       from media_derivatives derivative
-      where derivative.project_id = $1
-        and derivative.kind = $2
-        and derivative.status = 'ready'`,
-    [project.id, kind],
-  );
-  const derivative = result.rows[0];
+  const derivative = await readyDerivativeFile(project.id, kind);
   if (!derivative) error(404, "Derivative not found");
 
   const response = await streamMediaFile(
-    resolveDataPath(derivative.storage_key),
-    derivativeMediaType(kind, derivative.media_type),
+    resolveDataPath(derivative.storageKey),
+    derivativeMediaType(kind, derivative.mediaType),
     request,
   );
   if (!response) error(404, "Derivative not found");

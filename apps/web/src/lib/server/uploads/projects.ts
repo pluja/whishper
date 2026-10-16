@@ -117,6 +117,16 @@ export async function requireOwnedUpload(
   return upload;
 }
 
+export async function uploadMediaType(
+  projectId: string,
+): Promise<string | null> {
+  const result = await pool.query<{ mediaType: string | null }>(
+    `select media_type as "mediaType" from media_uploads where project_id = $1`,
+    [projectId],
+  );
+  return result.rows[0]?.mediaType ?? null;
+}
+
 export async function updateUploadProgress(
   uploadId: string,
   receivedBytes: number,
@@ -177,8 +187,6 @@ export async function completeUpload(
         workspaceId: upload.workspaceId,
         projectId: upload.projectId,
         sourceStorageKey: storageKey,
-        sourceFilename: upload.originalFilename,
-        sourceMediaType: upload.mediaType,
       });
     });
   } catch (cause) {

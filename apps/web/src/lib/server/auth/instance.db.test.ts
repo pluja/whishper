@@ -1,7 +1,8 @@
-import type { Pool, PoolClient } from "pg";
+import type { PoolClient } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { pool } from "$lib/server/db";
+import type { Connectable } from "$lib/server/db/types";
 import {
   createInstanceOwner,
   type InstanceOwner,
@@ -23,7 +24,7 @@ async function countRows(table: "auth_users" | "auth_accounts") {
 }
 
 // Wraps a real pooled connection so every other statement still runs in Postgres.
-function failingOn(statement: string): Pick<Pool, "connect"> {
+function failingOn(statement: string): Connectable {
   return {
     connect: async () => {
       const client = await pool.connect();
@@ -37,7 +38,7 @@ function failingOn(statement: string): Pick<Pool, "connect"> {
         release: (destroy?: boolean) => client.release(destroy),
       } as unknown as PoolClient;
     },
-  } as Pick<Pool, "connect">;
+  } as Connectable;
 }
 
 beforeEach(async () => {
