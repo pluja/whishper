@@ -16,6 +16,7 @@ jobs:
   web:
     name: Web checks
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # A fresh container per run, so the database tests need no cleanup.
     services:
       postgres:
@@ -39,7 +40,7 @@ jobs:
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24.6.0 # Matches apps/web/Dockerfile.
+          node-version-file: .node-version
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -55,11 +56,12 @@ jobs:
 
       - run: pnpm format:check
 
-      - run: pnpm --filter @anysub/web build
+      - run: pnpm build
 
   worker:
     name: Worker checks
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: workers/inference
@@ -68,11 +70,11 @@ jobs:
 
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          version: 0.11.25 # Matches workers/inference/Dockerfile.
-          python-version: 3.12.11
+          version: 0.11.25 # Matches UV_VERSION in workers/inference/Dockerfile.
           enable-cache: true
           cache-dependency-glob: workers/inference/uv.lock
 
+      # uv installs the Python version from workers/inference/.python-version.
       # The speech and accelerator extras stay out of CI. Adapters import their
       # model libraries lazily, so the suite runs without PyTorch or WhisperX.
       - run: uv sync --locked
@@ -92,6 +94,7 @@ jobs:
   images:
     name: Container images
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
