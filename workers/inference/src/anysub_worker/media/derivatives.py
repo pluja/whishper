@@ -4,23 +4,24 @@ from pathlib import Path
 from typing import Any
 
 from ..models import MediaProbeArtifact, MediaRational
+from ..timing import MICROSECONDS_PER_SECOND
 from .errors import MediaPreparationError, MediaToolTimeoutError
-from .ffmpeg import (
+from .playback import primary_video
+from .process import (
     PROXY_FLOOR_SECONDS,
     PROXY_SECONDS_PER_MEDIA_SECOND,
     THUMBNAIL_TIMEOUT_SECONDS,
-    run_ffmpeg,
+    run_media_tool,
     scaled_timeout_seconds,
 )
-from .probe import primary_video
 
 
 async def generate_thumbnail(source_path: Path, output_directory: Path, duration_us: int) -> Path:
     path = output_directory / "thumbnail.jpg"
-    seek_seconds = min(60, max(0, duration_us // 10 // 1_000_000))
+    seek_seconds = min(60, max(0, duration_us // (10 * MICROSECONDS_PER_SECOND)))
     for seek in dict.fromkeys((seek_seconds, 0)):
         try:
-            await run_ffmpeg(
+            await run_media_tool(
                 [
                     "-v",
                     "error",
@@ -115,7 +116,7 @@ async def generate_proxy(
             "maximumHeight": 720,
         }
 
-    await run_ffmpeg(
+    await run_media_tool(
         ["-v", "error", "-nostdin", "-y", "-i", str(source_path), *arguments],
         scaled_timeout_seconds(
             probe.duration_us, PROXY_SECONDS_PER_MEDIA_SECOND, PROXY_FLOOR_SECONDS

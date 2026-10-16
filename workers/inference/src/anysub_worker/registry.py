@@ -4,13 +4,17 @@ from importlib.metadata import EntryPoint, entry_points
 from typing import Any
 
 from .adapter import Adapter
+from .errors import JobError
 from .models import AdapterCapability
 
 ENTRYPOINT_GROUP = "anysub.adapters"
 
 
-class AdapterLoadError(RuntimeError):
-    pass
+class AdapterLoadError(JobError):
+    code = "adapter_unavailable"
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, retryable=False)
 
 
 class AdapterRegistry:

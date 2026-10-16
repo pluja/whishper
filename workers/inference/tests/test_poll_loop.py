@@ -2,29 +2,24 @@ import asyncio
 import os
 import signal
 import threading
-from pathlib import Path
 
 import httpx
 import pytest
-from support import (
-    ScriptedProgressClient,
-    StopPolling,
-    transcription_lease,
-    worker_settings,
-)
+from fakes import FakeAdapter, ScriptedProgressClient, StopPolling
 
-from anysub_worker import runner
-from anysub_worker.adapters.fake import FakeAdapter
-from anysub_worker.client import ApplicationClient, LeaseLostError
-from anysub_worker.models import LeaseResponse
+from anysub_worker import execution, runner
+from anysub_worker.client import ApplicationClient
+from anysub_worker.config import WorkerSettings
+from anysub_worker.errors import LeaseLostError
+from anysub_worker.models import LeaseResponse, WorkerLease
 from anysub_worker.registry import AdapterRegistry
 from anysub_worker.threads import run_in_thread
 
 
 async def test_invalid_lease_response_backs_off_instead_of_crashing(
-    tmp_path: Path, respx_mock
+    settings: WorkerSettings, respx_mock
 ) -> None:  # type: ignore[no-untyped-def]
-    client = ApplicationClient(worker_settings(tmp_path), AdapterRegistry(()))
+    client = ApplicationClient(settings, AdapterRegistry(()))
     respx_mock.post("http://app.test/api/internal/workers/lease").mock(
         side_effect=[
             httpx.Response(200, json={"lease": {"jobId": "job-1"}}),
@@ -60,7 +55,9 @@ def test_poll_backoff_grows_exponentially_up_to_the_cap(
     assert runner.poll_backoff_seconds(consecutive_failures, jitter) == expected
 
 
-async def test_sigterm_stops_the_worker_and_closes_the_client(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+async def test_sigterm_stops_the_worker_and_closes_the_client(
+    settings: WorkerSettings, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
     class IdleClient:
         worker_id = "worker-1"
         closed = False
@@ -77,14 +74,14 @@ async def test_sigterm_stops_the_worker_and_closes_the_client(tmp_path: Path, mo
     monkeypatch.setattr(runner, "ApplicationClient", IdleClient)
     asyncio.get_running_loop().call_later(0.05, os.kill, os.getpid(), signal.SIGTERM)
 
-    await asyncio.wait_for(
-        runner.run_forever(worker_settings(tmp_path), AdapterRegistry(())), timeout=2
-    )
+    await asyncio.wait_for(runner.run_forever(settings, AdapterRegistry(())), timeout=2)
 
     assert IdleClient.closed
 
 
-async def test_unexpected_execute_errors_do_not_kill_the_poll_loop(monkeypatch, caplog) -> None:  # type: ignore[no-untyped-def]
+async def test_unexpected_execute_errors_do_not_kill_the_poll_loop(
+    monkeypatch, caplog, transcription_lease: WorkerLease
+) -> None:  # type: ignore[no-untyped-def]
     polls = 0
     delays: list[float] = []
 
@@ -94,12 +91,12 @@ async def test_unexpected_execute_errors_do_not_kill_the_poll_loop(monkeypatch, 
             polls += 1
             if polls > 1:
                 raise StopPolling
-            return LeaseResponse(lease=transcription_lease(), pollAfterMs=100)
+            return LeaseResponse(lease=transcription_lease, pollAfterMs=100)
 
     async def crash(*_args) -> None:  # type: ignore[no-untyped-def]
         raise httpx.InvalidURL("bad url")
 
-    monkeypatch.setattr(runner, "_execute", crash)
+    monkeypatch.setattr(runner, "execute_job", crash)
 
     async def record_sleep(seconds: float) -> None:
         delays.append(seconds)
@@ -114,10 +111,12 @@ async def test_unexpected_execute_errors_do_not_kill_the_poll_loop(monkeypatch, 
     assert "job execution crashed" in caplog.text
 
 
-async def test_repeated_execute_crashes_back_off_exponentially(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+async def test_repeated_execute_crashes_back_off_exponentially(
+    monkeypatch, transcription_lease: WorkerLease
+) -> None:  # type: ignore[no-untyped-def]
     class ScriptedClient:
         async def lease(self) -> LeaseResponse:
-            return LeaseResponse(lease=transcription_lease(), pollAfterMs=100)
+            return LeaseResponse(lease=transcription_lease, pollAfterMs=100)
 
     async def crash(*_args) -> None:  # type: ignore[no-untyped-def]
         raise httpx.InvalidURL("bad url")
@@ -129,7 +128,7 @@ async def test_repeated_execute_crashes_back_off_exponentially(monkeypatch) -> N
         if len(delays) == 3:
             raise StopPolling
 
-    monkeypatch.setattr(runner, "_execute", crash)
+    monkeypatch.setattr(runner, "execute_job", crash)
 
     with pytest.raises(StopPolling):
         await runner.poll_forever(  # type: ignore[arg-type]
@@ -139,8 +138,10 @@ async def test_repeated_execute_crashes_back_off_exponentially(monkeypatch) -> N
     assert delays == [1, 2, 4]
 
 
-async def test_an_abandoned_inference_thread_finishes_before_the_next_lease(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    monkeypatch.setattr(runner, "LEASE_HEARTBEAT_SECONDS", 0.01)
+async def test_an_abandoned_inference_thread_finishes_before_the_next_lease(
+    monkeypatch, transcription_lease: WorkerLease
+) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(execution, "LEASE_HEARTBEAT_SECONDS", 0.01)
     started = threading.Event()
     release_thread = threading.Event()
     thread_finished = threading.Event()
@@ -164,7 +165,7 @@ async def test_an_abandoned_inference_thread_finishes_before_the_next_lease(monk
         async def lease(self) -> LeaseResponse:
             self.leases += 1
             if self.leases == 1:
-                return LeaseResponse(lease=transcription_lease(), pollAfterMs=100)
+                return LeaseResponse(lease=transcription_lease, pollAfterMs=100)
             self.thread_finished_at_second_lease = thread_finished.is_set()
             raise StopPolling
 

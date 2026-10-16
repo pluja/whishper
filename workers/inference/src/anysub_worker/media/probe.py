@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import re
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
@@ -14,20 +13,13 @@ from ..models import (
     MediaRational,
     MediaVideoDetails,
 )
+from ..timing import MICROSECONDS_PER_SECOND
 from .errors import MediaPreparationError
-from .ffmpeg import (
-    FRAME_RATE_DETECTION_FLOOR_SECONDS,
-    FRAME_RATE_DETECTION_SECONDS_PER_MEDIA_SECOND,
-    PROBE_TIMEOUT_SECONDS,
-    run_ffmpeg,
-    scaled_timeout_seconds,
-)
-
-LOGGER = logging.getLogger(__name__)
+from .process import PROBE_TIMEOUT_SECONDS, run_media_tool
 
 
 async def probe_source(source_path: Path) -> dict[str, Any]:
-    result = await run_ffmpeg(
+    result = await run_media_tool(
         [
             "-v",
             "error",
@@ -134,124 +126,6 @@ def _normalize_stream(raw: dict[str, Any]) -> MediaProbeStream | None:
     )
 
 
-async def detect_frame_rate_mode(
-    source_path: Path, video: MediaProbeStream, duration_us: int
-) -> str:
-    try:
-        result = await run_ffmpeg(
-            [
-                "-hide_banner",
-                "-nostdin",
-                "-i",
-                str(source_path),
-                "-map",
-                "0:V:0",
-                "-vf",
-                "vfrdet",
-                "-an",
-                "-f",
-                "null",
-                "-",
-            ],
-            scaled_timeout_seconds(
-                duration_us,
-                FRAME_RATE_DETECTION_SECONDS_PER_MEDIA_SECOND,
-                FRAME_RATE_DETECTION_FLOOR_SECONDS,
-            ),
-        )
-    except MediaPreparationError as error:
-        LOGGER.warning("frame rate detection failed: %s", error)
-        return "unknown"
-    match = re.search(
-        r"VFR:([0-9.]+)(?: \(\d+/\d+\) min: (\d+) max: (\d+) avg: \d+)?",
-        result.stderr,
-    )
-    if not match:
-        return "unknown"
-    ratio = Decimal(match.group(1))
-    if ratio <= Decimal("0.0001"):
-        return "constant"
-
-    details = video.video
-    if (
-        details is not None
-        and details.frame_rate is not None
-        and details.frame_rate == details.average_frame_rate
-        and match.group(2) is not None
-        and match.group(3) is not None
-        and int(match.group(3)) - int(match.group(2)) <= 1
-    ):
-        return "constant"
-    return "variable"
-
-
-def apply_preview_policy(
-    probe: MediaProbeArtifact, source_filename: str, frame_rate_mode: str
-) -> MediaProbeArtifact:
-    extension = Path(source_filename).suffix.lower()
-    video = primary_video(probe)
-    audio = primary_audio(probe)
-    reasons: list[str] = []
-
-    if video is not None:
-        video_codec = video.codec
-        audio_codec = audio.codec if audio is not None else None
-        directly_playable = (
-            extension in {".mp4", ".m4v"}
-            and video_codec == "h264"
-            and audio_codec in {None, "aac", "mp3"}
-        ) or (
-            extension == ".webm"
-            and video_codec in {"vp8", "vp9", "av1"}
-            and audio_codec in {None, "opus", "vorbis"}
-        )
-    elif audio is not None:
-        codec = audio.codec
-        directly_playable = (
-            (extension == ".mp3" and codec == "mp3")
-            or (extension == ".wav" and codec.startswith("pcm_"))
-            or (extension == ".flac" and codec == "flac")
-            or (extension in {".ogg", ".oga", ".opus"} and codec in {"opus", "vorbis"})
-            or (extension in {".m4a", ".mp4"} and codec == "aac")
-            or (extension == ".webm" and codec in {"opus", "vorbis"})
-        )
-    else:
-        directly_playable = False
-
-    if not directly_playable:
-        reasons.append("browser_codec_or_container")
-    if probe.duration_us <= 0:
-        reasons.append("unreliable_seeking")
-    if video is not None and frame_rate_mode == "variable":
-        reasons.append("variable_frame_rate")
-
-    return probe.model_copy(
-        update={
-            "seekable": probe.duration_us > 0 and directly_playable,
-            "frame_rate_mode": frame_rate_mode,
-            "proxy_recommended": bool(reasons),
-            "proxy_reasons": tuple(reasons),
-        }
-    )
-
-
-def primary_video(probe: MediaProbeArtifact) -> MediaProbeStream | None:
-    return next(
-        (
-            stream
-            for stream in probe.streams
-            if stream.type == "video"
-            and stream.video is not None
-            and not stream.video.attached_picture
-        ),
-        None,
-    )
-
-
-def primary_audio(probe: MediaProbeArtifact) -> MediaProbeStream | None:
-    return next((stream for stream in probe.streams if stream.type == "audio"), None)
-
-
 def _rational(value: object) -> MediaRational | None:
     if not isinstance(value, str):
         return None
@@ -273,7 +147,7 @@ def ffprobe_seconds_to_us(value: object) -> int | None:
         return None
     if not seconds.is_finite():
         return None
-    return int((seconds * 1_000_000).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return int((seconds * MICROSECONDS_PER_SECOND).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
 def _positive_int(value: object) -> int | None:

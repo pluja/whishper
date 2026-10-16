@@ -1,6 +1,6 @@
 # Model adapters
 
-Status: protocol `1.0`. The deterministic test adapter and production WhisperX adapter are implemented.
+Status: protocol `1.0`. The production WhisperX adapter is implemented.
 
 Anysub workers are model-agnostic. An adapter owns the model library and converts its output into versioned Anysub artifacts. The worker owns application authentication, job leases, retries, progress delivery, and result upload.
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from anysub_worker.models import TranscriptArtifact, TranscriptCue, WordToken
+from anysub_worker.timing import seconds_to_us
 
 TimedWord = tuple[dict[str, Any], int, int]
 
@@ -77,7 +78,7 @@ def _segment_bounds(segment: dict[str, Any]) -> tuple[int, int, dict[str, Any], 
 def clamped_seconds_to_us(value: Any) -> int | None:
     if value is None:
         return None
-    return max(0, round(float(value) * 1_000_000))
+    return max(0, seconds_to_us(float(value)))
 
 
 def _confidence(value: Any) -> float | None:

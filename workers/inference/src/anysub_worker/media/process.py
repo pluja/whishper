@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+from ..timing import us_to_seconds
 from .errors import MediaPreparationError, MediaToolTimeoutError
 
 PROBE_TIMEOUT_SECONDS = 30
@@ -21,7 +22,7 @@ READ_CHUNK_BYTES = 64 * 1024
 
 
 @dataclass(frozen=True)
-class FfmpegResult:
+class MediaToolResult:
     stdout: bytes
     stderr: str
 
@@ -29,16 +30,16 @@ class FfmpegResult:
 def scaled_timeout_seconds(
     duration_us: int, seconds_per_media_second: float, floor: float
 ) -> float:
-    return max(floor, duration_us / 1_000_000 * seconds_per_media_second)
+    return max(floor, us_to_seconds(duration_us) * seconds_per_media_second)
 
 
-async def run_ffmpeg(
+async def run_media_tool(
     arguments: Sequence[str],
     timeout: float,
     *,
     program: str = "ffmpeg",
     on_stdout: Callable[[bytes], None] | None = None,
-) -> FfmpegResult:
+) -> MediaToolResult:
     """Runs a media tool to completion.
 
     With `on_stdout`, output is streamed to the callback and not retained, which keeps
@@ -76,11 +77,11 @@ async def run_ffmpeg(
         raise MediaPreparationError(
             f"{program} exited with code {process.returncode}: {stderr.tail()}"
         )
-    return FfmpegResult(stdout=bytes(retained), stderr=stderr.tail())
+    return MediaToolResult(stdout=bytes(retained), stderr=stderr.tail())
 
 
 async def ffmpeg_version() -> str:
-    result = await run_ffmpeg(["-version"], VERSION_TIMEOUT_SECONDS)
+    result = await run_media_tool(["-version"], VERSION_TIMEOUT_SECONDS)
     lines = result.stdout.decode("utf-8", errors="replace").splitlines()
     parts = lines[0].split() if lines else []
     return parts[2] if len(parts) >= 3 else "unknown"

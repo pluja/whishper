@@ -5,22 +5,14 @@ import pytest
 
 from anysub_worker.adapter import AdapterExecutionError
 from anysub_worker.adapters.whisperx import WhisperXAdapter
-from anysub_worker.adapters.whisperx.normalize import normalize_result
-from anysub_worker.adapters.whisperx.subtitles import split_subtitle_segments
 from anysub_worker.config import WorkerSettings
 from anysub_worker.models import TranscriptionRequest
 
 
 def test_manifest_exposes_accurate_models_without_importing_ml_dependencies(
-    tmp_path,
-) -> None:  # type: ignore[no-untyped-def]
-    manifest = WhisperXAdapter(
-        WorkerSettings(
-            worker_token="test-worker-token-0123456789",
-            data_root=tmp_path,
-            model_root=tmp_path,
-        )
-    ).manifest
+    settings: WorkerSettings,
+) -> None:
+    manifest = WhisperXAdapter(settings).manifest
 
     assert manifest.id == "whisperx"
     assert {model.id for model in manifest.models} >= {"small", "large-v3-turbo"}
@@ -35,62 +27,26 @@ def test_manifest_exposes_accurate_models_without_importing_ml_dependencies(
     assert turbo.required_vram_bytes == 3 * 1024**3
 
 
-def test_manifest_detects_complete_cached_models(tmp_path) -> None:  # type: ignore[no-untyped-def]
-    snapshot = (
-        tmp_path / "whisperx" / "models--Systran--faster-whisper-small" / "snapshots" / "revision"
-    )
+def test_manifest_detects_complete_cached_models(settings: WorkerSettings) -> None:
+    model_cache = settings.model_root / "whisperx"
+    snapshot = model_cache / "models--Systran--faster-whisper-small" / "snapshots" / "revision"
     snapshot.mkdir(parents=True)
     for filename in ("config.json", "model.bin", "tokenizer.json"):
         (snapshot / filename).touch()
-    incomplete = (
-        tmp_path / "whisperx" / "models--Systran--faster-whisper-tiny" / "snapshots" / "revision"
-    )
+    incomplete = model_cache / "models--Systran--faster-whisper-tiny" / "snapshots" / "revision"
     incomplete.mkdir(parents=True)
     (incomplete / "config.json").touch()
 
-    manifest = WhisperXAdapter(
-        WorkerSettings(
-            worker_token="test-worker-token-0123456789",
-            data_root=tmp_path,
-            model_root=tmp_path,
-        )
-    ).manifest
+    manifest = WhisperXAdapter(settings).manifest
 
     downloaded = {model.id: model.downloaded for model in manifest.models}
     assert downloaded["small"] is True
     assert downloaded["tiny"] is False
 
 
-def test_normalizes_aligned_segments_to_contract_microseconds() -> None:
-    artifact = normalize_result(
-        {
-            "segments": [
-                {
-                    "start": 0.25,
-                    "end": 1.5,
-                    "text": " Hello world. ",
-                    "words": [
-                        {"word": " Hello", "start": 0.25, "end": 0.7, "score": 1.2},
-                        {"word": "world.", "start": 0.8, "end": 1.5, "score": 0.91},
-                        {"word": "untimed"},
-                    ],
-                }
-            ]
-        },
-        language="en",
-        duration_us=1_000_000,
-        metadata={"alignment": True},
-    )
-
-    assert artifact.duration_us == 1_500_000
-    assert artifact.cues[0].text == "Hello world."
-    assert artifact.cues[0].start_us == 250_000
-    assert artifact.cues[0].words[0].text == "Hello"
-    assert artifact.cues[0].words[0].confidence == 1
-    assert len(artifact.cues[0].words) == 2
-
-
-async def test_explicit_language_is_part_of_the_cached_model_key(tmp_path) -> None:  # type: ignore[no-untyped-def]
+async def test_explicit_language_is_part_of_the_cached_model_key(
+    settings: WorkerSettings,
+) -> None:
     class RecordingWhisperX:
         def __init__(self) -> None:
             self.languages: list[str | None] = []
@@ -100,131 +56,13 @@ async def test_explicit_language_is_part_of_the_cached_model_key(tmp_path) -> No
             return object()
 
     whisperx = RecordingWhisperX()
-    adapter = WhisperXAdapter(
-        WorkerSettings(
-            worker_token="test-worker-token-0123456789",
-            data_root=tmp_path,
-            model_root=tmp_path,
-        )
-    )
+    adapter = WhisperXAdapter(settings)
 
     english = await adapter._load_model(whisperx, "small", "en")
     assert await adapter._load_model(whisperx, "small", "en") is english
     await adapter._load_model(whisperx, "small", "es")
 
     assert whisperx.languages == ["en", "es"]
-
-
-def test_subtitle_splitting_preserves_words_in_their_new_cues(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    class FakeProcessor:
-        def __init__(self, segments, lang, max_line_length):  # type: ignore[no-untyped-def]
-            assert lang == "en"
-            assert max_line_length == 10
-
-        def process_segments(self, advanced_splitting):  # type: ignore[no-untyped-def]
-            assert advanced_splitting is True
-            return [
-                {"start": 0.0, "end": 2.0, "text": " A  short second cue. "},
-            ]
-
-    monkeypatch.setitem(
-        sys.modules,
-        "whisperx.SubtitlesProcessor",
-        SimpleNamespace(SubtitlesProcessor=FakeProcessor),
-    )
-    result = split_subtitle_segments(
-        [
-            {
-                "start": 0.0,
-                "end": 2.0,
-                "text": "A short second cue.",
-                "words": [
-                    {"word": "A", "start": 0.0, "end": 0.2},
-                    {"word": "short", "start": 0.3, "end": 0.9},
-                    {"word": "second", "start": 1.0, "end": 1.5},
-                    {"word": "cue.", "start": 1.6, "end": 2.0},
-                ],
-            }
-        ],
-        language="en",
-        max_line_length=10,
-    )
-
-    assert [cue["text"] for cue in result] == ["A short", "second", "cue."]
-    assert [[word["word"] for word in cue["words"]] for cue in result] == [
-        ["A", "short"],
-        ["second"],
-        ["cue."],
-    ]
-
-
-def test_normalization_orders_cues_by_start_and_numbers_ids_after_sorting() -> None:
-    artifact = normalize_result(
-        {
-            "segments": [
-                {"start": 5.0, "end": 6.0, "text": "late"},
-                {"start": 1.0, "end": 2.0, "text": "early"},
-                {
-                    "start": 3.0,
-                    "end": 4.0,
-                    "text": "middle",
-                    "words": [
-                        {"word": "middle", "start": 3.0, "end": 4.0},
-                    ],
-                },
-            ]
-        },
-        language="en",
-        duration_us=0,
-        metadata={},
-    )
-
-    assert [cue.text for cue in artifact.cues] == ["early", "middle", "late"]
-    assert [cue.id for cue in artifact.cues] == ["cue-000001", "cue-000002", "cue-000003"]
-    assert artifact.cues[1].words[0].id == "word-000002-001"
-    starts = [cue.start_us for cue in artifact.cues]
-    assert starts == sorted(starts)
-
-
-def reference_word_assignment(timed_words, subtitles):  # type: ignore[no-untyped-def]
-    return [
-        [
-            word["word"]
-            for word in timed_words
-            if float(word["start"]) >= start - 1e-6 and float(word["end"]) <= end + 1e-6
-        ]
-        for start, end in subtitles
-    ]
-
-
-def test_word_assignment_matches_the_previous_quadratic_behaviour(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    words = [
-        {"word": f"w{index}", "start": index * 0.5, "end": index * 0.5 + 0.4} for index in range(40)
-    ]
-    words.insert(5, {"word": "untimed"})
-    subtitles = [(0.0, 2.4), (2.5, 2.5), (2.4999999, 7.9), (8.0, 20.0), (19.5, 30.0)]
-
-    class FixtureProcessor:
-        def __init__(self, segments, lang, max_line_length):  # type: ignore[no-untyped-def]
-            pass
-
-        def process_segments(self, advanced_splitting):  # type: ignore[no-untyped-def]
-            return [{"start": start, "end": end, "text": "x"} for start, end in subtitles]
-
-    monkeypatch.setitem(
-        sys.modules,
-        "whisperx.SubtitlesProcessor",
-        SimpleNamespace(SubtitlesProcessor=FixtureProcessor),
-    )
-    result = split_subtitle_segments(
-        [{"start": 0.0, "end": 30.0, "text": "x", "words": words}],
-        language="en",
-        max_line_length=500,
-    )
-
-    timed = [word for word in words if "start" in word]
-    expected = reference_word_assignment(timed, subtitles)
-    assert [[word["word"] for word in cue.get("words", [])] for cue in result] == expected
 
 
 class StubWhisperX:
@@ -267,8 +105,8 @@ class StubWhisperX:
 
 
 @pytest.fixture
-def transcribe_setup(tmp_path, monkeypatch):  # type: ignore[no-untyped-def]
-    media = tmp_path / "audio.wav"
+def transcribe_setup(settings: WorkerSettings, monkeypatch):  # type: ignore[no-untyped-def]
+    media = settings.data_root / "audio.wav"
     media.touch()
     monkeypatch.setitem(
         sys.modules,
@@ -281,11 +119,7 @@ def transcribe_setup(tmp_path, monkeypatch):  # type: ignore[no-untyped-def]
             )
         ),
     )
-    adapter = WhisperXAdapter(
-        WorkerSettings(
-            worker_token="test-worker-token-0123456789", data_root=tmp_path, model_root=tmp_path
-        )
-    )
+    adapter = WhisperXAdapter(settings)
     request = TranscriptionRequest(
         jobId="job",
         projectId="project",

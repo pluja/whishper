@@ -6,7 +6,7 @@ import {
 } from "$lib/server/transcription/models";
 
 describe("available transcription models", () => {
-  it("combines active worker manifests, hides diagnostics, and deduplicates models", () => {
+  it("combines active worker manifests and deduplicates models", () => {
     const whisperx = {
       id: "whisperx",
       displayName: "WhisperX",
@@ -24,7 +24,7 @@ describe("available transcription models", () => {
       ],
     };
     const models = availableTranscriptionModels([
-      { adapters: [whisperx, { ...whisperx, id: "builtin.fake" }] },
+      { adapters: [whisperx] },
       {
         adapters: [
           {

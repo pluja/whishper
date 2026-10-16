@@ -3,14 +3,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import platform
-import re
 import uuid
-from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import httpx
 
 from .config import WorkerSettings
+from .errors import LeaseLostError, is_transient
 from .hardware import detect_hardware, detect_memory
 from .models import (
     MEDIA_PREPARATION_VERSION,
@@ -28,55 +27,12 @@ from .models import (
     WorkerManifest,
 )
 from .registry import AdapterRegistry
+from .timing import Sleep
+from .uploads import upload_artifact
 
 LOGGER = logging.getLogger(__name__)
 WORKER_VERSION = "0.1.0"
-ARTIFACT_CHUNK_BYTES = 16 * 1024 * 1024
 FINAL_REPORT_RETRY_DELAYS_SECONDS = (1, 2, 4, 8, 15, 30)
-ARTIFACT_UPLOAD_ATTEMPTS = 3
-UPLOAD_OFFSET = re.compile(r"[0-9]{1,15}")
-
-Sleep = Callable[[float], Awaitable[None]]
-
-
-class LeaseLostError(RuntimeError):
-    def __init__(self, job_id: str) -> None:
-        super().__init__(f"lease for job {job_id} is no longer active")
-
-
-class ArtifactUploadError(RuntimeError):
-    pass
-
-
-def _is_transient(error: httpx.HTTPError) -> bool:
-    if isinstance(error, httpx.HTTPStatusError):
-        return error.response.is_server_error
-    return isinstance(error, httpx.TransportError)
-
-
-def _is_lease_conflict(response: httpx.Response) -> bool:
-    return response.status_code == httpx.codes.CONFLICT and "upload-offset" not in response.headers
-
-
-def _is_offset_conflict(error: httpx.HTTPError) -> bool:
-    return (
-        isinstance(error, httpx.HTTPStatusError)
-        and error.response.status_code == httpx.codes.CONFLICT
-    )
-
-
-def _upload_offset(response: httpx.Response, size_bytes: int) -> int:
-    header = response.headers.get("upload-offset")
-    if header is None or not UPLOAD_OFFSET.fullmatch(header):
-        raise ArtifactUploadError(
-            f"application sent a missing or malformed Upload-Offset header: {header!r}"
-        )
-    offset = int(header)
-    if offset > size_bytes:
-        raise ArtifactUploadError(
-            f"application reported artifact offset {offset} beyond its {size_bytes} bytes"
-        )
-    return offset
 
 
 class ApplicationClient:
@@ -136,58 +92,7 @@ class ApplicationClient:
                     output.write(chunk)
 
     async def upload_artifact(self, lease: WorkerLease, kind: str, artifact_path: Path) -> None:
-        size_bytes = artifact_path.stat().st_size
-        url = f"/api/internal/jobs/{lease.job_id}/artifacts/{kind}"
-        headers = {"X-Anysub-Lease-Token": lease.lease_token}
-        offset = await self._staged_artifact_offset(lease, url, headers, size_bytes)
-
-        failures = 0
-        with artifact_path.open("rb") as artifact:
-            while offset < size_bytes:
-                artifact.seek(offset)
-                chunk = artifact.read(min(ARTIFACT_CHUNK_BYTES, size_bytes - offset))
-                try:
-                    response = await self._client.patch(
-                        url,
-                        headers={
-                            **headers,
-                            "Upload-Offset": str(offset),
-                            "Upload-Length": str(size_bytes),
-                            "Content-Length": str(len(chunk)),
-                            "Content-Type": "application/offset+octet-stream",
-                        },
-                        content=chunk,
-                    )
-                    # A conflict carrying Upload-Offset only means the staged data moved on.
-                    if _is_lease_conflict(response):
-                        raise LeaseLostError(lease.job_id)
-                    response.raise_for_status()
-                except httpx.HTTPError as error:
-                    if not (_is_transient(error) or _is_offset_conflict(error)):
-                        raise
-                    failures += 1
-                    if failures >= ARTIFACT_UPLOAD_ATTEMPTS:
-                        raise
-                    await self._sleep(failures)
-                    offset = await self._staged_artifact_offset(lease, url, headers, size_bytes)
-                    continue
-                next_offset = _upload_offset(response, size_bytes)
-                if next_offset <= offset or next_offset > offset + len(chunk):
-                    raise ArtifactUploadError(
-                        f"application acknowledged artifact offset {next_offset} "
-                        f"for a chunk at {offset} of {len(chunk)} bytes"
-                    )
-                offset = next_offset
-                failures = 0
-
-    async def _staged_artifact_offset(
-        self, lease: WorkerLease, url: str, headers: dict[str, str], size_bytes: int
-    ) -> int:
-        response = await self._client.head(url, headers=headers)
-        if response.status_code == httpx.codes.CONFLICT:
-            raise LeaseLostError(lease.job_id)
-        response.raise_for_status()
-        return _upload_offset(response, size_bytes)
+        await upload_artifact(self._client, lease, kind, artifact_path, sleep=self._sleep)
 
     async def complete_transcription(
         self,
@@ -234,7 +139,7 @@ class ApplicationClient:
                 await self._post_job_report(lease, action, report)
                 return
             except httpx.HTTPError as error:
-                if not _is_transient(error):
+                if not is_transient(error):
                     raise
                 LOGGER.warning(
                     "job %s report failed job_id=%s, retrying in %ss: %s",

@@ -1,0 +1,269 @@
+import asyncio
+import json
+from pathlib import Path
+
+import httpx
+import pytest
+from fakes import (
+    FailingAdapter,
+    FakeAdapter,
+    GatedAdapter,
+    RecordingClient,
+    ScriptedProgressClient,
+    SlowFakeAdapter,
+    network_error,
+    status_error,
+)
+
+from anysub_worker import execution
+from anysub_worker.adapter import AdapterExecutionError
+from anysub_worker.client import ApplicationClient
+from anysub_worker.config import WorkerSettings
+from anysub_worker.errors import LeaseLostError
+from anysub_worker.media import PreparedMedia
+from anysub_worker.media.errors import MediaPreparationError
+from anysub_worker.models import (
+    JobFailure,
+    MediaDerivativeUpload,
+    MediaGenerator,
+    MediaPreparationJobCompletion,
+    MediaProbeArtifact,
+    WorkerLease,
+)
+from anysub_worker.registry import AdapterLoadError, AdapterRegistry
+
+
+async def test_long_adapter_work_renews_its_lease(
+    monkeypatch, recording_client: RecordingClient, transcription_lease: WorkerLease
+) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(execution, "LEASE_HEARTBEAT_SECONDS", 0.01)
+
+    await execution.execute_job(  # type: ignore[arg-type]
+        recording_client,
+        AdapterRegistry((SlowFakeAdapter(),)),
+        transcription_lease,
+    )
+
+    assert len(recording_client.progress_updates) >= 4
+    assert recording_client.transcription_completions == 1
+    assert recording_client.failures == []
+
+
+async def test_media_job_uploads_derivatives_before_completion(
+    monkeypatch, recording_client: RecordingClient, media_lease: WorkerLease
+) -> None:  # type: ignore[no-untyped-def]
+    completion = MediaPreparationJobCompletion(
+        probe=MediaProbeArtifact(
+            durationUs=2_000_000,
+            formatNames=("wav",),
+            seekable=True,
+            frameRateMode="unknown",
+            proxyRecommended=False,
+            proxyReasons=(),
+            streams=(),
+        ),
+        artifacts=(
+            MediaDerivativeUpload(
+                kind="waveform",
+                mediaType="application/vnd.anysub.waveform+json",
+                sizeBytes=8,
+            ),
+        ),
+        generator=MediaGenerator(version="7.1.1"),
+    )
+
+    async def fake_prepare_media(
+        _source_path: Path,
+        _source_filename: str,
+        output_directory: Path,
+        report_progress,
+    ) -> PreparedMedia:  # type: ignore[no-untyped-def]
+        output_directory.mkdir()
+        waveform = output_directory / "waveform.json"
+        waveform.write_bytes(b"waveform")
+        await report_progress(0.86, "Built waveform")
+        return PreparedMedia(
+            completion=completion,
+            artifacts={"waveform": waveform},
+        )
+
+    monkeypatch.setattr(execution, "prepare_media", fake_prepare_media)
+
+    await execution.execute_job(recording_client, AdapterRegistry(()), media_lease)  # type: ignore[arg-type]
+
+    assert recording_client.downloads == 1
+    assert recording_client.uploads == [("waveform", b"waveform")]
+    assert recording_client.media_completions == 1
+    assert recording_client.transcription_completions == 0
+    assert recording_client.failures == []
+
+
+async def test_heartbeat_recovers_after_network_error(
+    monkeypatch, transcription_lease: WorkerLease
+) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(execution, "LEASE_HEARTBEAT_SECONDS", 0.01)
+    client = ScriptedProgressClient([None, network_error(), network_error()])
+    adapter = GatedAdapter()
+
+    async def release_after_recovery() -> None:
+        await client.recovered.wait()
+        adapter.release.set()
+
+    releaser = asyncio.create_task(release_after_recovery())
+    await asyncio.wait_for(
+        execution.execute_job(client, AdapterRegistry((adapter,)), transcription_lease),  # type: ignore[arg-type]
+        timeout=2,
+    )
+    await releaser
+
+    assert client.transcription_completions == 1
+    assert client.failures == []
+
+
+async def test_heartbeat_lease_conflict_abandons_the_job(
+    monkeypatch, transcription_lease: WorkerLease
+) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(execution, "LEASE_HEARTBEAT_SECONDS", 0.01)
+    client = ScriptedProgressClient([None, LeaseLostError("job-1")])
+
+    await asyncio.wait_for(
+        execution.execute_job(client, AdapterRegistry((GatedAdapter(),)), transcription_lease),  # type: ignore[arg-type]
+        timeout=2,
+    )
+
+    assert client.transcription_completions == 0
+    assert client.failures == []
+
+
+async def test_progress_errors_do_not_fail_the_job(transcription_lease: WorkerLease) -> None:
+    client = ScriptedProgressClient([network_error()] * 10)
+
+    await execution.execute_job(  # type: ignore[arg-type]
+        client, AdapterRegistry((FakeAdapter(),)), transcription_lease
+    )
+
+    assert client.transcription_completions == 1
+    assert client.failures == []
+
+
+async def test_lease_conflict_on_completion_is_not_reported_as_failure(
+    transcription_lease: WorkerLease,
+) -> None:
+    class LostOnCompleteClient(RecordingClient):
+        async def complete_transcription(self, *_args) -> None:  # type: ignore[no-untyped-def]
+            raise LeaseLostError("job-1")
+
+    client = LostOnCompleteClient()
+
+    await execution.execute_job(  # type: ignore[arg-type]
+        client, AdapterRegistry((FakeAdapter(),)), transcription_lease
+    )
+
+    assert client.failures == []
+
+
+async def test_shutdown_cancels_the_job_and_reports_retryable_failure(
+    recording_client: RecordingClient, transcription_lease: WorkerLease
+) -> None:
+    running = asyncio.create_task(
+        execution.execute_job(  # type: ignore[arg-type]
+            recording_client, AdapterRegistry((GatedAdapter(),)), transcription_lease
+        )
+    )
+    while not recording_client.progress_updates:
+        await asyncio.sleep(0)
+
+    running.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await running
+
+    assert recording_client.transcription_completions == 0
+    assert [(failure.code, failure.retryable) for failure in recording_client.failures] == [
+        ("adapter_error", True)
+    ]
+
+
+async def test_rejected_request_fails_the_job_permanently_with_response_detail(
+    recording_client: RecordingClient, transcription_lease: WorkerLease
+) -> None:
+    adapter = FailingAdapter(status_error(400, "invalid artifact"))
+
+    await execution.execute_job(  # type: ignore[arg-type]
+        recording_client, AdapterRegistry((adapter,)), transcription_lease
+    )
+
+    assert recording_client.failures == [
+        JobFailure(
+            code="adapter_error",
+            message="HTTPStatusError: 400 Bad Request: invalid artifact",
+            retryable=False,
+        )
+    ]
+
+
+async def test_unprocessable_completion_fails_the_job_permanently_with_its_reason(
+    settings: WorkerSettings, transcription_lease: WorkerLease, respx_mock
+) -> None:  # type: ignore[no-untyped-def]
+    client = ApplicationClient(settings, AdapterRegistry(()))
+    respx_mock.post("http://app.test/api/internal/jobs/job-1/progress").mock(
+        return_value=httpx.Response(200, json={"accepted": True})
+    )
+    complete = respx_mock.post("http://app.test/api/internal/jobs/job-1/complete").mock(
+        return_value=httpx.Response(422, json={"message": "Adapter cues are not ordered."})
+    )
+    fail = respx_mock.post("http://app.test/api/internal/jobs/job-1/fail").mock(
+        return_value=httpx.Response(200, json={"accepted": True})
+    )
+
+    try:
+        await execution.execute_job(client, AdapterRegistry((FakeAdapter(),)), transcription_lease)
+    finally:
+        await client.close()
+
+    assert complete.call_count == 1
+    report = json.loads(fail.calls.last.request.content)
+    assert report["error"] == {
+        "code": "adapter_error",
+        "message": "HTTPStatusError: 422 Unprocessable Entity: Adapter cues are not ordered.",
+        "retryable": False,
+    }
+
+
+@pytest.mark.parametrize(
+    ("error", "message", "retryable"),
+    [
+        (RuntimeError("disk full"), "RuntimeError: disk full", True),
+        (TimeoutError(), "TimeoutError", True),
+        (status_error(503, "busy"), "HTTPStatusError: 503 Service Unavailable: busy", True),
+        (
+            status_error(422, ""),
+            f"HTTPStatusError: 422 {httpx.codes.UNPROCESSABLE_ENTITY.phrase}",
+            False,
+        ),
+        (status_error(409, "stale"), "HTTPStatusError: 409 Conflict: stale", True),
+    ],
+)
+def test_unexpected_failures_are_described_with_their_type(
+    error: Exception, message: str, retryable: bool
+) -> None:
+    failure = execution._failure_for(error, "media_prepare")
+
+    assert failure == JobFailure(
+        code="media_preparation_error", message=message, retryable=retryable
+    )
+
+
+@pytest.mark.parametrize(
+    ("error", "code", "retryable"),
+    [
+        (AdapterExecutionError("out of memory", retryable=False), "adapter_error", False),
+        (MediaPreparationError("no streams", retryable=True), "media_preparation_error", True),
+        (AdapterLoadError("adapter is not installed: x"), "adapter_unavailable", False),
+    ],
+)
+def test_job_errors_report_their_own_code_and_retry_policy(
+    error: Exception, code: str, retryable: bool
+) -> None:
+    failure = execution._failure_for(error, "transcribe")
+
+    assert failure == JobFailure(code=code, message=str(error), retryable=retryable)

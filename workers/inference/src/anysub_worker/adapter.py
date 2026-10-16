@@ -3,17 +3,16 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Protocol, runtime_checkable
 
+from .errors import JobError
 from .models import AdapterManifest, TranscriptArtifact, TranscriptionRequest
 
 ProgressReporter = Callable[[float, str], Awaitable[None]]
 
 
-class AdapterExecutionError(RuntimeError):
+class AdapterExecutionError(JobError):
     """An actionable adapter failure with an explicit queue retry policy."""
 
-    def __init__(self, message: str, *, retryable: bool) -> None:
-        super().__init__(message)
-        self.retryable = retryable
+    code = "adapter_error"
 
 
 @runtime_checkable

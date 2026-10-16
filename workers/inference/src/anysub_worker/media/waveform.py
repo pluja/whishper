@@ -8,7 +8,7 @@ from typing import Any
 
 from ..models import MEDIA_PREPARATION_VERSION
 from .errors import MediaPreparationError
-from .ffmpeg import WAVEFORM_TIMEOUT_SECONDS, run_ffmpeg
+from .process import WAVEFORM_TIMEOUT_SECONDS, run_media_tool
 
 WAVEFORM_SAMPLE_RATE = 4_000
 WAVEFORM_PEAKS_PER_SECOND = 50
@@ -87,7 +87,7 @@ async def generate_waveform(
     source_path: Path, output_directory: Path, duration_us: int
 ) -> tuple[Path, dict[str, Any]]:
     accumulator = PeakAccumulator()
-    await run_ffmpeg(
+    await run_media_tool(
         [
             "-v",
             "error",

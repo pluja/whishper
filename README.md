@@ -122,7 +122,7 @@ The worker mounts your media read only. It writes waveforms and other derived fi
 ### Repository map
 
 - `apps/web`: SvelteKit application, authentication, queue API, PostgreSQL schema, and migrations.
-- `workers/inference`: Python worker, adapter types, discovery, and the deterministic test adapter.
+- `workers/inference`: Python worker, adapter types, discovery, and the WhisperX adapter.
 - `packages/contracts`: the worker protocol as JSON Schema, with TypeScript types and validators generated from it. The Pydantic models in `workers/inference` are the source.
 - `docs/CONFIGURATION.md`: every setting, GPU setup, precision tuning, and storage.
 - `docs/ADAPTERS.md`: adapter contract and how to build an image with your own.

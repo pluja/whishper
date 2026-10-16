@@ -32,8 +32,7 @@ export function availableTranscriptionModels(
       ? workerManifest.hardware
       : null;
     for (const candidate of workerManifest.adapters) {
-      if (!isAdapterManifest(candidate) || candidate.id === "builtin.fake")
-        continue;
+      if (!isAdapterManifest(candidate)) continue;
       for (const model of candidate.models) {
         if (!model.capabilities.includes("transcribe")) continue;
         const key = `${candidate.id}:${model.id}`;

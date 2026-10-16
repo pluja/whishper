@@ -1,12 +1,10 @@
-import asyncio
+from fakes import FakeAdapter
 
 from anysub_worker.adapter import Adapter, TranscriptionAdapter
-from anysub_worker.adapters.fake import FakeAdapter
 from anysub_worker.models import (
     AdapterCapability,
     AdapterManifest,
     AdapterModel,
-    TranscriptionRequest,
 )
 from anysub_worker.registry import AdapterRegistry
 
@@ -19,26 +17,8 @@ def test_registry_resolves_adapter_by_capability() -> None:
     assert adapter.manifest.display_name == "Deterministic test adapter"
 
 
-def test_fake_adapter_is_deterministic() -> None:
-    async def run() -> str:
-        adapter = FakeAdapter()
-
-        async def progress(_: float, __: str) -> None:
-            return None
-
-        artifact = await adapter.transcribe(
-            TranscriptionRequest(
-                jobId="job-1",
-                projectId="project-1",
-                runId="run-1",
-                modelId="fake-v1",
-                options={"delayMs": 0},
-            ),
-            progress,
-        )
-        return artifact.cues[0].text
-
-    assert asyncio.run(run()) == "Private subtitles, on your machine."
+def test_discovery_registers_only_production_adapters() -> None:
+    assert [adapter.manifest.id for adapter in AdapterRegistry.discover().adapters] == ["whisperx"]
 
 
 def test_base_protocol_does_not_require_unrelated_capabilities() -> None:

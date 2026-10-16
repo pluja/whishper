@@ -17,8 +17,10 @@ from anysub_worker.models import (
     TranscriptionRequest,
 )
 from anysub_worker.threads import run_in_thread
+from anysub_worker.timing import MICROSECONDS_PER_SECOND
 
 from .normalize import normalize_result
+from .options import OPTIONS_SCHEMA, parse_options
 from .profiles import (
     MODEL_PROFILES,
     configured_model_root,
@@ -45,30 +47,6 @@ class WhisperXAdapter:
 
     @property
     def manifest(self) -> AdapterManifest:
-        option_schema = {
-            "type": "object",
-            "properties": {
-                "alignment": {
-                    "type": "boolean",
-                    "default": True,
-                    "description": "Refine segments to word-level timestamps.",
-                },
-                "batchSize": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 64,
-                    "description": "Inference batch size. Lower this if memory is limited.",
-                },
-                "maxLineLength": {
-                    "type": "integer",
-                    "minimum": 20,
-                    "maximum": 120,
-                    "default": 42,
-                    "description": "Maximum subtitle cue length in characters.",
-                },
-            },
-            "additionalProperties": False,
-        }
         return AdapterManifest(
             id="whisperx",
             displayName="WhisperX",
@@ -88,7 +66,7 @@ class WhisperXAdapter:
                         configured_model_root(self._settings_override) / "whisperx",
                         model_id,
                     ),
-                    optionsSchema=option_schema,
+                    optionsSchema=OPTIONS_SCHEMA,
                 )
                 for model_id, (
                     description,
@@ -122,36 +100,22 @@ class WhisperXAdapter:
     ) -> TranscriptArtifact:
         whisperx = _import_whisperx()
         media_path = self._media_path(request.media_path)
-        alignment = _boolean_option(request.options, "alignment", True)
-        batch_size = _integer_option(
-            request.options,
-            "batchSize",
-            default=16 if self._settings.device == "cuda" else 4,
-            minimum=1,
-            maximum=64,
-        )
-        max_line_length = _integer_option(
-            request.options,
-            "maxLineLength",
-            default=42,
-            minimum=20,
-            maximum=120,
-        )
+        options = parse_options(request.options, device=self._settings.device)
 
         await report_progress(0.02, "Loading source audio")
         audio = await _run_in_thread(whisperx.load_audio, str(media_path))
-        duration_us = max(0, int(len(audio) / SAMPLE_RATE * 1_000_000))
+        duration_us = max(0, int(len(audio) / SAMPLE_RATE * MICROSECONDS_PER_SECOND))
 
         await report_progress(0.08, f"Loading {request.model_id} model")
         self._model_loading_started = True
         model = await self._load_model(whisperx, request.model_id, request.language)
 
         await report_progress(0.16, "Transcribing speech")
-        result = await _run_in_thread(model.transcribe, audio, batch_size=batch_size)
+        result = await _run_in_thread(model.transcribe, audio, batch_size=options.batch_size)
         language = str(result.get("language") or request.language or "und")
 
         alignment_fallback: str | None = None
-        if alignment and result.get("segments"):
+        if options.alignment and result.get("segments"):
             await report_progress(0.72, f"Aligning {language} word timestamps")
             try:
                 align_model, align_metadata = await self._load_align_model(whisperx, language)
@@ -182,7 +146,7 @@ class WhisperXAdapter:
                 "segments": split_subtitle_segments(
                     result["segments"],
                     language=language,
-                    max_line_length=max_line_length,
+                    max_line_length=options.max_line_length,
                 ),
             }
 
@@ -190,11 +154,11 @@ class WhisperXAdapter:
         metadata: dict[str, Any] = {
             "adapter": "whisperx",
             "model": request.model_id,
-            "alignment": alignment and alignment_fallback is None,
+            "alignment": options.alignment and alignment_fallback is None,
             "device": self._settings.device,
             "computeType": self._settings.compute_type,
-            "batchSize": batch_size,
-            "maxLineLength": max_line_length,
+            "batchSize": options.batch_size,
+            "maxLineLength": options.max_line_length,
         }
         if alignment_fallback is not None:
             metadata["alignmentFallback"] = alignment_fallback
@@ -301,24 +265,6 @@ def _import_whisperx() -> Any:
             "with the speech and CPU or CUDA extras.",
             retryable=False,
         ) from cause
-
-
-def _boolean_option(options: dict[str, Any], name: str, default: bool) -> bool:
-    value = options.get(name, default)
-    if not isinstance(value, bool):
-        raise AdapterExecutionError(f"{name} must be a boolean.", retryable=False)
-    return value
-
-
-def _integer_option(
-    options: dict[str, Any], name: str, *, default: int, minimum: int, maximum: int
-) -> int:
-    value = options.get(name, default)
-    if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
-        raise AdapterExecutionError(
-            f"{name} must be an integer between {minimum} and {maximum}.", retryable=False
-        )
-    return value
 
 
 def _release_memory() -> None:

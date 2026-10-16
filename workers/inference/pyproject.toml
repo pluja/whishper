@@ -21,7 +21,6 @@ anysub-adapters = "anysub_worker.cli:list_adapters"
 anysub-protocol-schema = "anysub_worker.cli:export_protocol_schema"
 
 [project.entry-points."anysub.adapters"]
-fake = "anysub_worker.adapters.fake:FakeAdapter"
 whisperx = "anysub_worker.adapters.whisperx:WhisperXAdapter"
 
 [project.optional-dependencies]
