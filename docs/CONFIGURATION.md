@@ -110,11 +110,13 @@ The model picker also reports detected hardware, so a card that registers correc
 
 ### When the GPU path fails
 
-**The worker starts but transcription falls back or errors on model load.** CTranslate2 loads cuBLAS and cuDNN at runtime. They ship as PyTorch dependencies inside the virtual environment instead of on the system loader path, which is why `compose.cuda.yaml` sets `LD_LIBRARY_PATH`. If the error mentions `libcudnn` or `libcublas`, check that the paths in that file match the image:
+**The worker starts but transcription falls back or errors on model load.** CTranslate2 loads cuBLAS and cuDNN at runtime. They ship as PyTorch dependencies inside the virtual environment instead of on the system loader path, so the CUDA image build registers their directories with `ldconfig` and fails if it cannot find them. If the error mentions `libcudnn` or `libcublas`, check that the running image resolves them:
 
 ```sh
-docker compose exec worker ls /app/.venv/lib/python3.12/site-packages/nvidia
+docker compose exec worker ldconfig -p | grep -E 'libcudnn|libcublas'
 ```
+
+No output means the image was built without `ANYSUB_ACCELERATOR=cuda`. Rebuild with the overlay and `--build`.
 
 **Out of memory.** Choose a smaller model, or set `ANYSUB_COMPUTE_TYPE=int8_float16` to cut VRAM use.
 

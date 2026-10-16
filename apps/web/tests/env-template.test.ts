@@ -1,5 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -101,6 +109,23 @@ describe("scripts/init-env.sh", () => {
     for (const secret of secrets) expect(secret).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(generated.BETTER_AUTH_URL).toBe(template.BETTER_AUTH_URL);
     expect((await stat(envFile)).mode & 0o777).toBe(0o600);
+  });
+
+  it("keeps a final template line that has no trailing newline", async () => {
+    const sandbox = await createSandbox();
+    const templatePath = join(sandbox, ".env.example");
+    const template = await readFile(templatePath, "utf8");
+    await writeFile(
+      templatePath,
+      `${template.trimEnd()}\nLAST_LINE_SECRET=change-this-last-line`,
+    );
+
+    expect(runInitEnv(sandbox).status).toBe(0);
+
+    const generated = parseEnvFile(
+      await readFile(join(sandbox, ".env"), "utf8"),
+    );
+    expect(generated.LAST_LINE_SECRET).toMatch(/^[A-Za-z0-9_-]{32,}$/);
   });
 
   it("refuses to overwrite an existing .env", async () => {

@@ -1,7 +1,6 @@
-# Keep equal to /.node-version, which CI reads.
-ARG NODE_VERSION=24.6.0
-
-FROM docker.io/library/node:${NODE_VERSION}-bookworm-slim AS base
+# Dependabot reads these literal tags. Keep them equal to /.node-version, which
+# CI reads; a test fails when they drift.
+FROM docker.io/library/node:24.6.0-bookworm-slim AS base
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -28,7 +27,7 @@ COPY . .
 RUN pnpm --filter @anysub/web build \
     && pnpm --filter @anysub/web deploy --prod /opt/anysub
 
-FROM docker.io/library/node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM docker.io/library/node:24.6.0-bookworm-slim AS runtime
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \

@@ -27,10 +27,22 @@ describe("toolchain versions", () => {
   const repositoryFile = (path: string) =>
     readFile(resolve(process.cwd(), "../..", path), "utf8");
 
-  function dockerfileDefault(dockerfile: string, argument: string): string {
-    const match = new RegExp(`^ARG ${argument}=(\\S+)$`, "m").exec(dockerfile);
-    if (!match) throw new Error(`${argument} has no default in the Dockerfile`);
-    return match[1];
+  // Dependabot does not substitute build args, so the Dockerfiles carry the
+  // tags literally and this test keeps them aligned with the other files.
+  function fromTags(dockerfile: string, image: string): string[] {
+    const tags = [...dockerfile.matchAll(/^FROM (\S+):(\d[\d.]*)/gm)]
+      .filter(([, name]) => name.split("/").pop() === image)
+      .map(([, , tag]) => tag);
+    expect(tags.length, `${image} FROM lines`).toBeGreaterThan(0);
+    return tags;
+  }
+
+  function workflowStep(workflow: string, action: string): string {
+    const step = workflow
+      .split(/^ {6}- /m)
+      .find((candidate) => candidate.startsWith(`uses: ${action}@`));
+    if (!step) throw new Error(`${action} step not found in ci.yml`);
+    return step;
   }
 
   it("builds the web image with the Node version CI uses", async () => {
@@ -39,23 +51,53 @@ describe("toolchain versions", () => {
       repositoryFile("apps/web/Dockerfile"),
     ]);
 
-    expect(dockerfileDefault(dockerfile, "NODE_VERSION")).toBe(
-      nodeVersion.trim(),
-    );
+    for (const tag of fromTags(dockerfile, "node")) {
+      expect(tag).toBe(nodeVersion.trim());
+    }
   });
 
-  it("builds the worker image with the Python and uv versions the workspace uses", async () => {
-    const [pythonVersion, dockerfile, workflow] = await Promise.all([
+  it("requires at least the Node version the repository pins", async () => {
+    const [nodeVersion, packageJson] = await Promise.all([
+      repositoryFile(".node-version"),
+      repositoryFile("package.json"),
+    ]);
+    const [major, minor] = nodeVersion.trim().split(".");
+
+    expect(JSON.parse(packageJson).engines.node).toBe(`>=${major}.${minor}.0`);
+  });
+
+  it("builds the worker image with the Python version uv uses", async () => {
+    const [pythonVersion, dockerfile] = await Promise.all([
       repositoryFile("workers/inference/.python-version"),
+      repositoryFile("workers/inference/Dockerfile"),
+    ]);
+
+    for (const tag of fromTags(dockerfile, "python")) {
+      expect(tag).toBe(pythonVersion.trim());
+    }
+  });
+
+  it("copies the uv binary from the version CI installs", async () => {
+    const [dockerfile, workflow] = await Promise.all([
       repositoryFile("workers/inference/Dockerfile"),
       repositoryFile(".github/workflows/ci.yml"),
     ]);
+    const setupUvVersion = /^\s+version:\s*(\S+)/m.exec(
+      workflowStep(workflow, "astral-sh/setup-uv"),
+    )?.[1];
 
-    expect(dockerfileDefault(dockerfile, "PYTHON_VERSION")).toBe(
-      pythonVersion.trim(),
-    );
-    expect(workflow).toContain(
-      `version: ${dockerfileDefault(dockerfile, "UV_VERSION")}`,
-    );
+    expect(fromTags(dockerfile, "uv")).toEqual([setupUvVersion]);
+  });
+
+  it("tests against the PostgreSQL image Compose runs", async () => {
+    const [compose, workflow] = await Promise.all([
+      repositoryFile("compose.yaml"),
+      repositoryFile(".github/workflows/ci.yml"),
+    ]);
+    const postgresImage = (content: string) =>
+      /image:\s*(\S*postgres:\S+)/.exec(content)?.[1];
+
+    expect(postgresImage(workflow)).toBeDefined();
+    expect(postgresImage(workflow)).toBe(postgresImage(compose));
   });
 });

@@ -1,11 +1,9 @@
-# Keep equal to .python-version, which CI and uv read.
-ARG PYTHON_VERSION=3.12.11
-# CI pins the same version in the setup-uv step.
-ARG UV_VERSION=0.11.25
+# Dependabot reads these literal tags. Keep the Python tag equal to
+# .python-version and the uv tag equal to the setup-uv version in CI; a test
+# fails when they drift.
+FROM ghcr.io/astral-sh/uv:0.11.25 AS uv
 
-FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
-
-FROM docker.io/library/python:${PYTHON_VERSION}-slim-bookworm AS base
+FROM docker.io/library/python:3.12.11-slim-bookworm AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -69,10 +67,15 @@ COPY --from=builder --chown=anysub:anysub /app/.venv /app/.venv
 # CTranslate2 loads cuBLAS and cuDNN at runtime. PyTorch installs them inside
 # the virtual environment, outside the system loader path.
 RUN if [ "$ANYSUB_ACCELERATOR" = cuda ]; then \
-      site_packages=$(/app/.venv/bin/python -c 'import sysconfig; print(sysconfig.get_path("purelib"))') \
-      && printf '%s\n' "$site_packages/nvidia/cudnn/lib" "$site_packages/nvidia/cublas/lib" \
-        > /etc/ld.so.conf.d/anysub-nvidia.conf \
-      && ldconfig; \
+      set -e; \
+      site_packages=$(/app/.venv/bin/python -c 'import sysconfig; print(sysconfig.get_path("purelib"))'); \
+      for library in cudnn cublas; do \
+        test -d "$site_packages/nvidia/$library/lib"; \
+        echo "$site_packages/nvidia/$library/lib" >> /etc/ld.so.conf.d/anysub-nvidia.conf; \
+      done; \
+      ldconfig; \
+      ldconfig -p | grep -q libcudnn; \
+      ldconfig -p | grep -q libcublas; \
     fi
 
 RUN ["/app/.venv/bin/anysub-adapters"]
