@@ -1,35 +1,34 @@
-FROM docker.io/library/node:24.6.0-bookworm-slim AS base
+# Keep equal to /.node-version, which CI reads.
+ARG NODE_VERSION=24.6.0
+
+FROM docker.io/library/node:${NODE_VERSION}-bookworm-slim AS base
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 
-RUN corepack enable && corepack prepare pnpm@11.15.0 --activate
-
 WORKDIR /workspace
 
-FROM base AS development
+# corepack installs the pnpm version from the packageManager field.
+COPY package.json ./
+RUN corepack enable && corepack install
 
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+FROM base AS deps
+
+COPY pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
-COPY . .
+# Compose bind-mounts the sources and sets the command, see compose.dev.yaml.
+FROM deps AS development
 
-CMD ["pnpm", "--filter", "@anysub/web", "dev", "--host", "0.0.0.0"]
-
-FROM base AS builder
-
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY apps/web/package.json apps/web/package.json
-COPY packages/contracts/package.json packages/contracts/package.json
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+FROM deps AS builder
 
 COPY . .
 RUN pnpm --filter @anysub/web build \
     && pnpm --filter @anysub/web deploy --prod /opt/anysub
 
-FROM docker.io/library/node:24.6.0-bookworm-slim AS runtime
+FROM docker.io/library/node:${NODE_VERSION}-bookworm-slim AS runtime
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \

@@ -17,10 +17,6 @@ services:
       ANYSUB_DEVICE: cuda
       ANYSUB_COMPUTE_TYPE: ${ANYSUB_COMPUTE_TYPE:-float16}
       ANYSUB_WORKER_NAME: ${ANYSUB_WORKER_NAME:-local-cuda}
-      # CTranslate2 loads cuBLAS and cuDNN at runtime. Both arrive as PyTorch
-      # dependencies inside the virtual environment rather than on the system
-      # loader path, so the loader needs to be pointed at them.
-      LD_LIBRARY_PATH: /app/.venv/lib/python3.12/site-packages/nvidia/cudnn/lib:/app/.venv/lib/python3.12/site-packages/nvidia/cublas/lib
     deploy:
       resources:
         reservations:
