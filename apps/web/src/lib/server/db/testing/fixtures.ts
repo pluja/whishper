@@ -21,6 +21,28 @@ export async function deleteSeededRows(): Promise<void> {
   ]);
 }
 
+async function seedUser(): Promise<string> {
+  const userId = randomUUID();
+  await pool.query(
+    `insert into auth_users (id, name, email) values ($1, 'Tester', $2)`,
+    [userId, `${userId}@example.test`],
+  );
+  seededUserIds.push(userId);
+  return userId;
+}
+
+export async function seedMember(
+  workspaceId: string,
+  role: "owner" | "admin" | "member",
+): Promise<string> {
+  const userId = await seedUser();
+  await pool.query(
+    `insert into memberships (workspace_id, user_id, role) values ($1, $2, $3)`,
+    [workspaceId, userId, role],
+  );
+  return userId;
+}
+
 export type SeededProject = {
   userId: string;
   workspaceId: string;
@@ -30,12 +52,7 @@ export type SeededProject = {
 export async function seedProject(
   options: { mediaOriginalKey?: string | null } = {},
 ): Promise<SeededProject> {
-  const userId = randomUUID();
-  await pool.query(
-    `insert into auth_users (id, name, email) values ($1, 'Tester', $2)`,
-    [userId, `${userId}@example.test`],
-  );
-  seededUserIds.push(userId);
+  const userId = await seedUser();
   const workspace = await pool.query<{ id: string }>(
     `insert into workspaces (name, slug) values ('Workspace', $1) returning id`,
     [`workspace-${userId}`],
@@ -53,6 +70,15 @@ export async function seedProject(
     [workspaceId, userId, options.mediaOriginalKey ?? null],
   );
   return { userId, workspaceId, projectId: project.rows[0].id };
+}
+
+export async function seedTrack(projectId: string): Promise<string> {
+  const track = await pool.query<{ id: string }>(
+    `insert into subtitle_tracks (project_id, name, language)
+     values ($1, 'Track', 'en') returning id`,
+    [projectId],
+  );
+  return track.rows[0].id;
 }
 
 export type SeededTranscriptionJob = {

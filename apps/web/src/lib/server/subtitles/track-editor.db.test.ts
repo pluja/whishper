@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { pool } from "$lib/server/db";
-import { seedProject } from "$lib/server/db/testing/fixtures";
+import { seedProject, seedTrack } from "$lib/server/db/testing/fixtures";
 import { updateTrackForUser } from "$lib/server/subtitles/track-editor";
 
 const WORDS = [{ id: "word-1", text: "Kept" }];
@@ -11,12 +11,7 @@ const WORDS = [{ id: "word-1", text: "Kept" }];
 describe("updateTrackForUser", () => {
   it("replaces the cues with the editor's ids and keeps words of unchanged text", async () => {
     const project = await seedProject();
-    const track = await pool.query<{ id: string }>(
-      `insert into subtitle_tracks (project_id, name, language)
-       values ($1, 'Track', 'en') returning id`,
-      [project.projectId],
-    );
-    const trackId = track.rows[0].id;
+    const trackId = await seedTrack(project.projectId);
     const keptId = randomUUID();
     const editedId = randomUUID();
     await pool.query(

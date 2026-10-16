@@ -144,6 +144,27 @@ describe("completeJob", () => {
     expect((await jobRow(job.jobId)).state).toBe("leased");
   });
 
+  it("rejects a completion for an unknown job", async () => {
+    await expect(
+      completeJob(randomUUID(), randomUUID(), transcriptCompletion()),
+    ).resolves.toBe("lease-rejected");
+  });
+
+  it("reports an already completed job even though its lease is gone", async () => {
+    const project = await seedProject();
+    const job = await seedLeasedTranscriptionJob(project, ACTIVE_LEASE);
+    await completeJob(job.jobId, job.leaseToken, transcriptCompletion());
+
+    await expect(
+      completeJob(job.jobId, job.leaseToken, transcriptCompletion()),
+    ).resolves.toBe("already-completed");
+    const tracks = await pool.query(
+      `select 1 from subtitle_tracks where source_run_id = $1`,
+      [job.runId],
+    );
+    expect(tracks.rowCount).toBe(1);
+  });
+
   it("rejects a completion after the lease expired", async () => {
     const project = await seedProject();
     const job = await seedLeasedTranscriptionJob(project, {
@@ -159,14 +180,8 @@ describe("completeJob", () => {
 });
 
 describe("leaseJob reclaim", () => {
-  it("fails the job and its run once an expired lease used the last attempt", async () => {
-    const project = await seedProject();
-    const job = await seedLeasedTranscriptionJob(project, {
-      attempts: 3,
-      maxAttempts: 3,
-      expiresInSeconds: -1,
-    });
-    const manifest: WorkerManifest = {
+  function idleWorker(): WorkerManifest {
+    return {
       protocolVersion: "1.0",
       workerId: randomUUID(),
       name: "reclaimer",
@@ -176,13 +191,35 @@ describe("leaseJob reclaim", () => {
       adapters: [],
       hardware: null,
     };
+  }
 
-    await expect(leaseJob(manifest)).resolves.toBeNull();
+  it("fails the job and its run once an expired lease used the last attempt", async () => {
+    const project = await seedProject();
+    const job = await seedLeasedTranscriptionJob(project, {
+      attempts: 3,
+      maxAttempts: 3,
+      expiresInSeconds: -1,
+    });
+
+    await expect(leaseJob(idleWorker())).resolves.toBeNull();
 
     const reclaimed = await jobRow(job.jobId);
     expect(reclaimed.state).toBe("failed");
     expect(reclaimed.error).toMatchObject({ code: "lease_expired" });
     expect(await runStatus(job.runId)).toBe("failed");
+  });
+
+  it("requeues the job and its run while attempts remain", async () => {
+    const project = await seedProject();
+    const job = await seedLeasedTranscriptionJob(project, {
+      ...ACTIVE_LEASE,
+      expiresInSeconds: -1,
+    });
+
+    await expect(leaseJob(idleWorker())).resolves.toBeNull();
+
+    expect((await jobRow(job.jobId)).state).toBe("queued");
+    expect(await runStatus(job.runId)).toBe("queued");
   });
 });
 
@@ -214,6 +251,18 @@ describe("failJob", () => {
     } finally {
       await pool.query(`delete from workers where id = $1`, [workerId]);
     }
+  });
+
+  it("fails the job and its run on a terminal failure", async () => {
+    const project = await seedProject();
+    const job = await seedLeasedTranscriptionJob(project, ACTIVE_LEASE);
+
+    await expect(
+      failJob(job.jobId, job.leaseToken, { ...FAILURE, retryable: false }),
+    ).resolves.toBe(true);
+
+    expect((await jobRow(job.jobId)).state).toBe("failed");
+    expect(await runStatus(job.runId)).toBe("failed");
   });
 
   it("rejects a failure report after the lease expired", async () => {
