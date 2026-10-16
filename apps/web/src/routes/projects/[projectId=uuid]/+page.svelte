@@ -9,7 +9,7 @@
     type StudioCommands,
   } from "$lib/editor/shortcuts";
   import { frameDurationUs } from "$lib/editor/transport.svelte";
-  import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/project-limits";
+  import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
   import { isStudioActive } from "$lib/shared/project-status";
   import MediaMonitor from "$lib/studio/MediaMonitor.svelte";
   import ProcessingStatus from "$lib/studio/ProcessingStatus.svelte";
@@ -95,7 +95,6 @@
       )
     ) {
       navigation.cancel();
-      editor.autosave.stay();
     }
   });
 

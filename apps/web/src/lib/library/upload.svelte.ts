@@ -1,8 +1,9 @@
 import { goto, invalidateAll } from "$app/navigation";
 import { formatBytes } from "$lib/shared/format";
+import { projectPageUrl } from "$lib/shared/routes";
 import { Upload } from "tus-js-client";
 
-export type UploadStatus = "idle" | "uploading" | "error" | "success";
+type UploadStatus = "idle" | "uploading" | "error" | "success";
 
 export class ProjectUpload {
   status = $state<UploadStatus>("idle");
@@ -49,7 +50,7 @@ export class ProjectUpload {
         this.progress = 1;
         this.message = "Upload complete";
         const projectId = lastResponse.getHeader("Upload-Project");
-        if (projectId) void goto(`/projects/${projectId}`);
+        if (projectId) void goto(projectPageUrl(projectId));
         else void invalidateAll();
       },
     });

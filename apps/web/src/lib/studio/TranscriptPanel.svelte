@@ -6,7 +6,7 @@
   import CueList from "./CueList.svelte";
   import EditorToolbar from "./EditorToolbar.svelte";
   import TranscribePanel from "./TranscribePanel.svelte";
-  import type { StudioData } from "./types";
+  import type { StudioData } from "$lib/shared/studio-data";
 
   type Props = {
     editor: CueEditor;
@@ -44,11 +44,7 @@
 
   {#if track}
     <EditorToolbar {editor} />
-    <CueList
-      {editor}
-      activeCueId={editor.transport.activeCue?.id}
-      onseek={editor.transport.seekTo}
-    />
+    <CueList {editor} />
   {:else}
     <div class="transcript-empty">
       <span class="empty-illustration"><Icon name="subtitles" size={28} /></span

@@ -17,17 +17,18 @@
 </script>
 
 <script lang="ts">
+  import type { MediaDerivativeKind } from "@anysub/contracts";
   import Icon from "$lib/components/Icon.svelte";
   import { confirmSubmit } from "$lib/browser/confirm-submit";
   import type { Autosave } from "$lib/editor/autosave.svelte";
   import { formatBytes, pluralize } from "$lib/shared/format";
   import { trackExportUrl } from "$lib/shared/routes";
-  import type { StudioData } from "./types";
+  import type { StudioData } from "$lib/shared/studio-data";
 
   type Props = {
     project: StudioData["project"];
     track: StudioData["track"];
-    derivativeKinds: string[];
+    derivativeKinds: MediaDerivativeKind[];
     cueCount: number;
     autosave: Autosave;
     onopenshortcuts: () => void;

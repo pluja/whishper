@@ -6,7 +6,7 @@ import type {
   StudioPreparation,
   StudioProject,
   StudioRun,
-} from "$lib/studio/types";
+} from "$lib/shared/studio-data";
 
 type Queryable = Pick<PoolClient, "query">;
 

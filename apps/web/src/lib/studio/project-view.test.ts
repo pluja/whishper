@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  derivativeUrl,
-  editorCues,
-  isAudioSource,
-  knownDurationUs,
-} from "./project-view";
-import type { StudioData } from "./types";
+import { derivativeUrl, editorCues, knownDurationUs } from "./project-view";
+import type { StudioData } from "$lib/shared/studio-data";
 
 describe("editorCues", () => {
   it("maps stored cues to editor cues", () => {
@@ -49,23 +44,5 @@ describe("derivativeUrl", () => {
 
   it("is null when the derivative is missing", () => {
     expect(derivativeUrl(derivatives, "proxy")).toBeNull();
-  });
-});
-
-describe("isAudioSource", () => {
-  it("trusts an audio media type", () => {
-    expect(
-      isAudioSource({ mediaType: "audio/mpeg", mediaFilename: "clip.mp4" }),
-    ).toBe(true);
-  });
-
-  it("falls back to the filename extension", () => {
-    expect(isAudioSource({ mediaType: null, mediaFilename: "talk.FLAC" })).toBe(
-      true,
-    );
-    expect(
-      isAudioSource({ mediaType: "video/mp4", mediaFilename: "film.mp4" }),
-    ).toBe(false);
-    expect(isAudioSource({ mediaType: null, mediaFilename: null })).toBe(false);
   });
 });

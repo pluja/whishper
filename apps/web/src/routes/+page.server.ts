@@ -9,7 +9,7 @@ import {
   primaryWorkspaceForUser,
   renameProjectForUser,
 } from "$lib/server/projects/library";
-import type { LibraryData } from "$lib/library/types";
+import type { LibraryData } from "$lib/shared/library-data";
 import { isUuid } from "$lib/shared/uuid";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";

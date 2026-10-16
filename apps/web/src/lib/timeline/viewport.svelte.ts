@@ -28,7 +28,7 @@ type PanDrag = PointerCapture & {
   moved: boolean;
 };
 
-export type ViewportPlayback = {
+type ViewportPlayback = {
   durationUs: () => number;
   playbackUs: () => number;
   playing: () => boolean;

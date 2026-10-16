@@ -10,7 +10,7 @@
     type CueTiming,
     type TimingGesture,
   } from "./math";
-  import type { ProbeState } from "./types";
+  import type { ProbeState } from "$lib/shared/project-status";
   import { MAX_ZOOM, TimelineViewport } from "./viewport.svelte";
   import { chooseWaveformLevel, waveformMatchesDuration } from "./waveform";
   import { WaveformLoader } from "./waveform-loader.svelte";

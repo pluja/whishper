@@ -2,7 +2,7 @@
   import Icon from "$lib/components/Icon.svelte";
   import { modal } from "$lib/browser/modal";
   import { formatBytes } from "$lib/shared/format";
-  import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/project-limits";
+  import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/limits";
   import { ProjectUpload } from "./upload.svelte";
 
   let {

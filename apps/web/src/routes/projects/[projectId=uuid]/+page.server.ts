@@ -27,8 +27,8 @@ import {
   detectedWorkerHardware,
 } from "$lib/server/transcription/models";
 import { activeWorkerManifests } from "$lib/server/workers/active";
-import { projectDerivativeUrl } from "$lib/shared/routes";
-import type { StudioData } from "$lib/studio/types";
+import { projectDerivativeUrl, projectPageUrl } from "$lib/shared/routes";
+import type { StudioData } from "$lib/shared/studio-data";
 import { isUuid } from "$lib/shared/uuid";
 import {
   error,
@@ -104,7 +104,7 @@ export const actions: Actions = {
           user.id,
           parseTranscriptionRequest(values),
         );
-        redirect(303, `/projects/${params.projectId}`);
+        redirect(303, projectPageUrl(params.projectId));
       },
     );
   },
@@ -119,7 +119,7 @@ export const actions: Actions = {
         ) {
           return fail(404, { message: "Project media was not found." });
         }
-        redirect(303, `/projects/${params.projectId}`);
+        redirect(303, projectPageUrl(params.projectId));
       },
     );
   },
@@ -134,7 +134,7 @@ export const actions: Actions = {
             message: "Media preparation is no longer active.",
           });
         }
-        redirect(303, `/projects/${params.projectId}`);
+        redirect(303, projectPageUrl(params.projectId));
       },
     );
   },
@@ -151,7 +151,7 @@ export const actions: Actions = {
         if (!(await deleteDerivativeForUser(params.projectId, kind, user.id))) {
           return fail(404, { message: "The derivative was not found." });
         }
-        redirect(303, `/projects/${params.projectId}`);
+        redirect(303, projectPageUrl(params.projectId));
       },
     );
   },
@@ -172,7 +172,7 @@ export const actions: Actions = {
             message: "The transcript was not found or cannot be deleted.",
           });
         }
-        redirect(303, `/projects/${params.projectId}`);
+        redirect(303, projectPageUrl(params.projectId));
       },
     );
   },

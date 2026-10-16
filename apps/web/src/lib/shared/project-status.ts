@@ -1,13 +1,16 @@
-import type { IconName } from "$lib/components/icon-names";
+import { isAudioMedia } from "./media";
 
-export type ProjectStatusFields = {
+export type ProbeState =
+  "not_started" | "queued" | "running" | "completed" | "failed";
+
+type ProjectStatusFields = {
   runStatus: string | null;
   jobState: string | null;
   uploadStatus: string | null;
-  mediaPreparationStatus: string;
+  mediaPreparationStatus: ProbeState;
 };
 
-export type ProjectMessageFields = {
+type ProjectMessageFields = {
   progressMessage: string | null;
   uploadStatus: string | null;
   receivedBytes: number | null;
@@ -17,7 +20,7 @@ export type ProjectMessageFields = {
 const ACTIVE_JOB_STATES = ["queued", "leased"];
 const ACTIVE_RUN_STATUSES = ["queued", "running"];
 const ACTIVE_UPLOAD_STATUSES = ["uploading", "finalizing"];
-const ACTIVE_PREPARATION_STATUSES = ["queued", "running"];
+const ACTIVE_PREPARATION_STATUSES: ProbeState[] = ["queued", "running"];
 
 export function isProjectActive(
   project: Pick<
@@ -98,24 +101,16 @@ export function stateLabel(state: string): string {
 }
 
 export function projectSourceFallback(
-  project: ProjectMessageFields & { mediaType: string | null },
+  project: ProjectMessageFields & {
+    mediaType: string | null;
+    originalFilename: string | null;
+  },
 ): string {
   const message = projectMessage(project);
   if (message !== "Project ready") return message;
-  if (project.mediaType?.startsWith("audio/")) return "Audio source";
+  if (isAudioMedia(project.mediaType, project.originalFilename)) {
+    return "Audio source";
+  }
   if (project.mediaType?.startsWith("video/")) return "Video source";
   return "Media source";
-}
-
-export function mediaPlaceholder(project: { mediaType: string | null }): {
-  icon: IconName;
-  label: string;
-} {
-  if (project.mediaType?.startsWith("audio/")) {
-    return { icon: "audio", label: "Audio project" };
-  }
-  if (project.mediaType?.startsWith("video/")) {
-    return { icon: "play", label: "Video project" };
-  }
-  return { icon: "file", label: "Media project" };
 }

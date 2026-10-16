@@ -8,7 +8,7 @@ export type FollowContext = {
   panning: boolean;
 };
 
-export type FollowDecision = { following: boolean; reveal: boolean };
+type FollowDecision = { following: boolean; reveal: boolean };
 
 export function decideFollow(
   trigger: FollowTrigger,

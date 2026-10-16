@@ -7,7 +7,7 @@ import {
 import {
   PROJECT_SEARCH_MAX_LENGTH,
   PROJECT_TITLE_MAX_LENGTH,
-} from "$lib/shared/project-limits";
+} from "$lib/shared/limits";
 
 describe("project library inputs", () => {
   it("parses title search and optional subtitle scope", () => {

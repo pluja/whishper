@@ -15,16 +15,16 @@
     formatLanguages,
     formatSubtitleCounts,
   } from "$lib/shared/format";
-  import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/project-limits";
+  import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/limits";
   import {
     displayState,
-    mediaPlaceholder,
     projectSourceFallback,
     stateLabel,
   } from "$lib/shared/project-status";
-  import { projectDerivativeUrl } from "$lib/shared/routes";
+  import { projectDerivativeUrl, projectPageUrl } from "$lib/shared/routes";
   import type { SubmitFunction } from "@sveltejs/kit";
-  import type { ProjectSummary } from "./types";
+  import type { ProjectSummary } from "$lib/shared/library-data";
+  import { mediaPlaceholder } from "./media-placeholder";
 
   type RenameForm = { renameProjectId?: string; renameError?: string } | null;
 
@@ -90,7 +90,7 @@
   <div class="project-main">
     <a
       class="project-thumbnail-link"
-      href={`/projects/${project.id}`}
+      href={projectPageUrl(project.id)}
       aria-label={`Open ${project.name}`}
     >
       <div class="project-thumbnail">
@@ -165,7 +165,7 @@
           </form>
         {:else}
           <h3>
-            <a class="project-title-link" href={`/projects/${project.id}`}>
+            <a class="project-title-link" href={projectPageUrl(project.id)}>
               {project.name}
             </a>
           </h3>

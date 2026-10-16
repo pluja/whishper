@@ -6,7 +6,7 @@ import { projectForUser } from "$lib/server/projects/access";
 import { resolveDataPath } from "$lib/server/storage/paths";
 import { availableTranscriptionModels } from "$lib/server/transcription/models";
 import { activeWorkerManifests } from "$lib/server/workers/active";
-import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/project-limits";
+import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
 
 const LANGUAGE_TAG = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
 const MAX_BATCH_SIZE = 64;

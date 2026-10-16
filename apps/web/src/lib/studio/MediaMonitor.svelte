@@ -3,8 +3,9 @@
   import type { CueEditor } from "$lib/editor/editor.svelte";
   import { projectCaptionsUrl, projectMediaUrl } from "$lib/shared/routes";
   import Timeline from "$lib/timeline/Timeline.svelte";
-  import { derivativeUrl, isAudioSource } from "./project-view";
-  import type { StudioData } from "./types";
+  import { isAudioMedia } from "$lib/shared/media";
+  import { derivativeUrl } from "./project-view";
+  import type { StudioData } from "$lib/shared/studio-data";
 
   type Props = {
     project: StudioData["project"];
@@ -43,7 +44,7 @@
 
   <div class="media-canvas">
     {#if project.mediaOriginalKey}
-      {#if isAudioSource(project)}
+      {#if isAudioMedia(project.mediaType, project.mediaFilename)}
         <div class="audio-preview">
           <span><Icon name="audio" size={28} /></span>
           <strong>{project.mediaFilename}</strong>

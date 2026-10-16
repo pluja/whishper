@@ -13,7 +13,7 @@ import {
   resolveDataPath,
   stagedUploadPath,
 } from "$lib/server/storage/paths";
-import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/project-limits";
+import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/limits";
 
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 

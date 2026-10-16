@@ -1,11 +1,11 @@
 import type { MediaDerivativeKind } from "@anysub/contracts";
 
-import type { SubtitleCueSnapshot, SubtitleTrack } from "$lib/shared/subtitles";
+import type { SubtitleCueSnapshot, SubtitleTrack } from "./subtitles";
 import type {
   AvailableTranscriptionModel,
   DetectedWorkerHardware,
-} from "$lib/shared/transcription-models";
-import type { ProbeState } from "$lib/timeline/types";
+} from "./transcription-models";
+import type { ProbeState } from "./project-status";
 
 export type StudioProject = {
   id: string;

@@ -1,17 +1,20 @@
 import { describe, expect, it } from "vitest";
 
+import type { ProjectSummary } from "./library-data";
 import {
   displayState,
   isPreparationActive,
   isProjectActive,
   isRunActive,
   isStudioActive,
-  mediaPlaceholder,
   projectSourceFallback,
   stateLabel,
 } from "./project-status";
 
-const idle = {
+const idle: Pick<
+  ProjectSummary,
+  "runStatus" | "jobState" | "uploadStatus" | "mediaPreparationStatus"
+> = {
   runStatus: null,
   jobState: null,
   uploadStatus: "completed",
@@ -30,7 +33,7 @@ describe("isProjectActive", () => {
     { uploadStatus: "finalizing" },
     { mediaPreparationStatus: "queued" },
     { mediaPreparationStatus: "running" },
-  ])("is true for %o", (override) => {
+  ] as const)("is true for %o", (override) => {
     expect(isProjectActive({ ...idle, ...override })).toBe(true);
   });
 
@@ -129,6 +132,7 @@ describe("projectSourceFallback", () => {
     uploadStatus: null,
     receivedBytes: null,
     sizeBytes: null,
+    originalFilename: null,
   };
 
   it("names the media kind when there is no status message", () => {
@@ -183,15 +187,9 @@ describe("projectSourceFallback", () => {
   });
 });
 
-describe("stateLabel and mediaPlaceholder", () => {
+describe("stateLabel", () => {
   it("maps known states and passes unknown ones through", () => {
     expect(stateLabel("failed")).toBe("Needs attention");
     expect(stateLabel("weird")).toBe("weird");
-  });
-
-  it("picks an icon per media type", () => {
-    expect(mediaPlaceholder({ mediaType: "audio/wav" }).icon).toBe("audio");
-    expect(mediaPlaceholder({ mediaType: "video/mp4" }).icon).toBe("play");
-    expect(mediaPlaceholder({ mediaType: null }).icon).toBe("file");
   });
 });

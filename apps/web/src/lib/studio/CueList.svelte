@@ -5,13 +5,9 @@
   import type { CueEditor } from "$lib/editor/editor.svelte";
   import { formatEditorTime, parseEditorTime } from "$lib/shared/subtitles";
 
-  type Props = {
-    editor: CueEditor;
-    activeCueId: string | undefined;
-    onseek: (microseconds: number) => void;
-  };
+  let { editor }: { editor: CueEditor } = $props();
 
-  let { editor, activeCueId, onseek }: Props = $props();
+  const activeCueId = $derived(editor.transport.activeCue?.id);
 
   const rows = new Map<string, HTMLElement>();
 
@@ -22,14 +18,12 @@
     };
   }
 
-  // Playback and cue jumps move the selection to the playhead's cue, so the
-  // selection is revealed when the active cue changes or a seek lands, never
-  // on edits and never away from a cue being edited.
+  // A seek can land inside the cue that is already selected, so seekRevision
+  // reveals it again. A cue being edited is never scrolled away from.
   $effect(() => {
-    void activeCueId;
+    const cueId = editor.selectedCueId;
     void editor.transport.seekRevision;
     untrack(() => {
-      const cueId = editor.selectedCueId;
       if (cueId && !editor.editing) {
         rows.get(cueId)?.scrollIntoView({ block: "nearest" });
       }
@@ -83,7 +77,7 @@
           type="button"
           onclick={() => {
             editor.selectedCueId = cue.id;
-            onseek(cue.start_us);
+            editor.transport.seekTo(cue.start_us);
           }}
           aria-label={`Play cue ${index + 1}`}
         >

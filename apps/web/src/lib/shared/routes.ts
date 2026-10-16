@@ -2,6 +2,10 @@ import type { MediaDerivativeKind } from "@anysub/contracts";
 
 export type TrackExportFormat = "srt" | "vtt" | "json";
 
+export function projectPageUrl(projectId: string): string {
+  return `/projects/${projectId}`;
+}
+
 function projectApiUrl(projectId: string): string {
   return `/api/projects/${projectId}`;
 }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
   import { isPreparationActive, isRunActive } from "$lib/shared/project-status";
-  import type { StudioData } from "./types";
+  import type { StudioData } from "$lib/shared/studio-data";
 
   type Props = {
     run: StudioData["run"];

@@ -4,11 +4,11 @@ import type {
   LibrarySearch,
   ProjectSummary,
   WorkspaceSummary,
-} from "$lib/library/types";
+} from "$lib/shared/library-data";
 import {
   PROJECT_SEARCH_MAX_LENGTH,
   PROJECT_TITLE_MAX_LENGTH,
-} from "$lib/shared/project-limits";
+} from "$lib/shared/limits";
 
 type Queryable = Pick<PoolClient, "query">;
 

@@ -7,7 +7,7 @@ import {
 } from "$lib/browser/safe-storage";
 import { trackUrl } from "$lib/shared/routes";
 
-export type SaveState = "saved" | "unsaved" | "saving" | "error" | "conflict";
+type SaveState = "saved" | "unsaved" | "saving" | "error" | "conflict";
 
 export type TrackRef = { projectId: string; trackId: string };
 
@@ -182,14 +182,12 @@ export class Autosave {
     this.#persistJournal();
     if (this.state === "conflict" || this.state === "error") return false;
     this.#leaving = true;
-    void this.flush();
+    // The unload can still be cancelled, so only this flush has to outlive
+    // the page.
+    void this.flush().finally(() => {
+      this.#leaving = false;
+    });
     return true;
-  }
-
-  // A cancelled navigation keeps the page, so later saves no longer need to
-  // outlive it.
-  stay(): void {
-    this.#leaving = false;
   }
 
   dispose(): void {

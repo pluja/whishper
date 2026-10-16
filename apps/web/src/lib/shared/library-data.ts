@@ -1,3 +1,5 @@
+import type { ProbeState } from "./project-status";
+
 export type LibrarySearch = {
   query: string;
   includeSubtitles: boolean;
@@ -24,7 +26,7 @@ export type ProjectSummary = {
   sizeBytes: number | null;
   receivedBytes: number | null;
   mediaDurationUs: number | null;
-  mediaPreparationStatus: string;
+  mediaPreparationStatus: ProbeState;
   mediaType: string | null;
   hasThumbnail: boolean;
   trackCount: number;

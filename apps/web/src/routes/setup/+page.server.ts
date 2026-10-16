@@ -4,10 +4,7 @@ import {
   isInstanceInitialized,
   isValidOwnerEmail,
 } from "$lib/server/auth/instance";
-import {
-  PASSWORD_MAX_LENGTH,
-  PASSWORD_MIN_LENGTH,
-} from "$lib/shared/project-limits";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "$lib/shared/limits";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 

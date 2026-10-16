@@ -199,11 +199,12 @@ describe("Autosave", () => {
     expect(puts[0].keepalive).toBe(true);
   });
 
-  it("stops using keepalive once a cancelled navigation keeps the page", async () => {
+  it("stops using keepalive once a cancelled unload keeps the page", async () => {
     const editor = editorWith("");
     editor.type("a");
-    editor.autosave.leave();
-    editor.autosave.stay();
+    expect(editor.autosave.leave()).toBe(true);
+    expect(editor.autosave.hasUnsavedChanges).toBe(true);
+    expect(puts[0].keepalive).toBe(true);
     await puts[0].respond(200, { revision: 2 });
 
     editor.type("ab");

@@ -4,7 +4,7 @@
   import Icon from "$lib/components/Icon.svelte";
   import { pollWhileActive } from "$lib/browser/polling.svelte";
   import { pluralize } from "$lib/shared/format";
-  import { PROJECT_SEARCH_MAX_LENGTH } from "$lib/shared/project-limits";
+  import { PROJECT_SEARCH_MAX_LENGTH } from "$lib/shared/limits";
   import { isProjectActive } from "$lib/shared/project-status";
 
   let { data, form } = $props();
