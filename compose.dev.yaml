@@ -2,6 +2,10 @@
 # from the production stack in compose.yaml, even when -p is forgotten.
 name: anysub-dev
 
+# Its own port lets development run next to production. Sign-in and uploads
+# only accept requests from BETTER_AUTH_URL, so it follows the port.
+x-dev-url: &dev-url http://localhost:${ANYSUB_DEV_PORT:-5174}
+
 services:
   migrate:
     image: anysub-web-dev
@@ -26,12 +30,10 @@ services:
     build:
       target: development
     volumes: *web-volumes
-    # Its own port lets development run next to production. Sign-in and
-    # uploads only accept requests from BETTER_AUTH_URL, so it follows the port.
     environment:
       <<: *pnpm-non-interactive
-      BETTER_AUTH_URL: http://localhost:${ANYSUB_DEV_PORT:-5174}
-      ORIGIN: http://localhost:${ANYSUB_DEV_PORT:-5174}
+      BETTER_AUTH_URL: *dev-url
+      ORIGIN: *dev-url
     working_dir: /workspace
     command: ["pnpm", "--filter", "@anysub/web", "dev", "--host", "0.0.0.0"]
     ports: !override

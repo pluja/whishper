@@ -1,5 +1,9 @@
 name: anysub
 
+# Compose interpolates every service, even one that is not started, so a
+# required variable needs its :? check only where it first appears.
+x-app-url: &app-url ${BETTER_AUTH_URL:-http://localhost:5173}
+x-worker-token: &worker-token ${ANYSUB_WORKER_TOKEN:?not set. Run scripts/init-env.sh to generate .env}
 x-database-url: &database-url postgresql://${POSTGRES_USER:-anysub}:${POSTGRES_PASSWORD:?not set. Run scripts/init-env.sh to generate .env}@postgres:5432/${POSTGRES_DB:-anysub}
 
 services:
@@ -9,7 +13,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-anysub}
       POSTGRES_USER: ${POSTGRES_USER:-anysub}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?not set. Run scripts/init-env.sh to generate .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -41,10 +45,11 @@ services:
     environment:
       DATABASE_URL: *database-url
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?not set. Run scripts/init-env.sh to generate .env}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:5173}
-      ORIGIN: ${BETTER_AUTH_URL:-http://localhost:5173}
-      ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:?not set. Run scripts/init-env.sh to generate .env}
+      BETTER_AUTH_URL: *app-url
+      ORIGIN: *app-url
+      ANYSUB_WORKER_TOKEN: *worker-token
       DATA_ROOT: /data
+      # adapter-node reads BODY_SIZE_LIMIT. The ANYSUB_ name is the documented one.
       BODY_SIZE_LIMIT: ${ANYSUB_BODY_SIZE_LIMIT:-64M}
       ANYSUB_MAX_UPLOAD_BYTES: ${ANYSUB_MAX_UPLOAD_BYTES:-536870912000}
     depends_on:
@@ -68,13 +73,13 @@ services:
       target: runtime
       args:
         # Selects the PyTorch wheels compiled into the image. The same value
-        # becomes ANYSUB_DEVICE below, so the image and the runtime device can
-        # never disagree.
+        # becomes the worker's ANYSUB_DEVICE below, so the image and the runtime
+        # device can never disagree.
         ANYSUB_ACCELERATOR: ${ANYSUB_ACCELERATOR:-cpu}
     restart: unless-stopped
     environment:
       ANYSUB_APP_URL: http://web:3000
-      ANYSUB_WORKER_TOKEN: ${ANYSUB_WORKER_TOKEN:?not set. Run scripts/init-env.sh to generate .env}
+      ANYSUB_WORKER_TOKEN: *worker-token
       ANYSUB_WORKER_NAME: ${ANYSUB_WORKER_NAME:-local-worker}
       ANYSUB_DATA_ROOT: /data
       ANYSUB_MODEL_ROOT: /models
