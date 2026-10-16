@@ -1,5 +1,10 @@
 import type { PoolClient } from "pg";
 
+import type {
+  LibrarySearch,
+  ProjectSummary,
+  WorkspaceSummary,
+} from "$lib/library/types";
 import {
   PROJECT_SEARCH_MAX_LENGTH,
   PROJECT_TITLE_MAX_LENGTH,
@@ -7,14 +12,9 @@ import {
 
 type Queryable = Pick<PoolClient, "query">;
 
-export type ProjectLibrarySearch = {
-  query: string;
-  includeSubtitles: boolean;
-};
-
 export function parseProjectLibrarySearch(
   searchParams: URLSearchParams,
-): ProjectLibrarySearch {
+): LibrarySearch {
   return {
     query: (searchParams.get("q") ?? "")
       .trim()
@@ -34,49 +34,17 @@ export function normalizeProjectTitle(
     .slice(0, PROJECT_TITLE_MAX_LENGTH);
 }
 
-export type LibraryWorkspace = {
-  id: string;
-  name: string;
-  project_count: number;
-  ready_source_count: number;
-};
-
-export type LibraryProject = {
-  id: string;
-  name: string;
-  created_at: Date;
-  activity_at: Date;
-  run_status: string | null;
-  job_state: string | null;
-  progress: number | null;
-  progress_message: string | null;
-  upload_status: string | null;
-  original_filename: string | null;
-  size_bytes: number | null;
-  received_bytes: number | null;
-  media_duration_us: number | null;
-  media_preparation_status: string;
-  media_type: string | null;
-  has_thumbnail: boolean;
-  track_count: number;
-  cue_count: number;
-  languages: string[];
-  subtitle_match: boolean;
-  video_width: string | null;
-  video_height: string | null;
-};
-
 export async function primaryWorkspaceForUser(
   executor: Queryable,
   userId: string,
-): Promise<LibraryWorkspace | null> {
-  const result = await executor.query<LibraryWorkspace>(
+): Promise<WorkspaceSummary | null> {
+  const result = await executor.query<WorkspaceSummary>(
     `select w.id,
             w.name,
-            count(distinct p.id) as project_count,
+            count(distinct p.id) as "projectCount",
             count(distinct p.id)
               filter (where upload.status = 'completed')
-              as ready_source_count
+              as "readySourceCount"
        from workspaces w
        join memberships m on m.workspace_id = w.id
        left join projects p on p.workspace_id = w.id
@@ -93,38 +61,38 @@ export async function primaryWorkspaceForUser(
 export async function listLibraryProjects(
   executor: Queryable,
   workspaceId: string,
-  search: ProjectLibrarySearch,
-): Promise<LibraryProject[]> {
-  const result = await executor.query<LibraryProject>(
-    `select p.id, p.name, p.created_at,
+  search: LibrarySearch,
+): Promise<ProjectSummary[]> {
+  const result = await executor.query<ProjectSummary>(
+    `select p.id, p.name, p.created_at as "createdAt",
             greatest(
               p.updated_at,
               coalesce(subtitle_summary.updated_at, p.updated_at)
-            ) as activity_at,
-            p.media_duration_us,
-            p.media_preparation_status,
-            latest_run.status as run_status,
-            latest_job.state as job_state,
+            ) as "activityAt",
+            p.media_duration_us as "mediaDurationUs",
+            p.media_preparation_status as "mediaPreparationStatus",
+            latest_run.status as "runStatus",
+            latest_job.state as "jobState",
             latest_job.progress,
-            latest_job.progress_message,
-            upload.status as upload_status,
-            upload.original_filename,
-            upload.media_type,
-            upload.size_bytes,
-            upload.received_bytes,
+            latest_job.progress_message as "progressMessage",
+            upload.status as "uploadStatus",
+            upload.original_filename as "originalFilename",
+            upload.media_type as "mediaType",
+            upload.size_bytes as "sizeBytes",
+            upload.received_bytes as "receivedBytes",
             exists (
               select 1
                 from media_derivatives derivative
                where derivative.project_id = p.id
                  and derivative.kind = 'thumbnail'
                  and derivative.status = 'ready'
-            ) as has_thumbnail,
-            coalesce(subtitle_summary.track_count, 0) as track_count,
-            coalesce(subtitle_summary.cue_count, 0) as cue_count,
+            ) as "hasThumbnail",
+            coalesce(subtitle_summary.track_count, 0) as "trackCount",
+            coalesce(subtitle_summary.cue_count, 0) as "cueCount",
             coalesce(subtitle_summary.languages, array[]::text[]) as languages,
-            coalesce(subtitle_summary.subtitle_match, false) as subtitle_match,
-            video_stream.video_width,
-            video_stream.video_height
+            coalesce(subtitle_summary.subtitle_match, false) as "subtitleMatch",
+            video_stream.video_width as "videoWidth",
+            video_stream.video_height as "videoHeight"
        from projects p
        left join media_uploads upload on upload.project_id = p.id
        left join lateral (
@@ -177,7 +145,7 @@ export async function listLibraryProjects(
           or strpos(lower(p.name), lower($2)) > 0
           or ($3 and subtitle_summary.subtitle_match)
         )
-      order by activity_at desc, p.created_at desc`,
+      order by "activityAt" desc, p.created_at desc`,
     [workspaceId, search.query, search.includeSubtitles],
   );
   return result.rows;

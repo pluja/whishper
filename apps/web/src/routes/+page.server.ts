@@ -9,11 +9,15 @@ import {
   primaryWorkspaceForUser,
   renameProjectForUser,
 } from "$lib/server/projects/library";
+import type { LibraryData } from "$lib/library/types";
 import { isUuid } from "$lib/shared/uuid";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({
+  locals,
+  url,
+}): Promise<LibraryData> => {
   if (!(await isInstanceInitialized())) redirect(303, "/setup");
   const user = requireUserOrLogin(locals);
   const search = parseProjectLibrarySearch(url.searchParams);

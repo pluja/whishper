@@ -4,14 +4,15 @@ import {
   isInstanceInitialized,
   isValidOwnerEmail,
 } from "$lib/server/auth/instance";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from "$lib/shared/project-limits";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async () => {
   if (await isInstanceInitialized()) redirect(303, "/login");
-  const { minPasswordLength, maxPasswordLength } = (await auth.$context)
-    .password.config;
-  return { minPasswordLength, maxPasswordLength };
 };
 
 export const actions: Actions = {
@@ -23,9 +24,6 @@ export const actions: Actions = {
       .trim()
       .toLowerCase();
     const password = String(form.get("password") ?? "");
-    const authContext = await auth.$context;
-    const { minPasswordLength, maxPasswordLength } =
-      authContext.password.config;
 
     if (name.length < 2)
       return fail(400, {
@@ -34,14 +32,15 @@ export const actions: Actions = {
     if (!isValidOwnerEmail(email))
       return fail(400, { message: "Enter a valid email address." });
     if (
-      password.length < minPasswordLength ||
-      password.length > maxPasswordLength
+      password.length < PASSWORD_MIN_LENGTH ||
+      password.length > PASSWORD_MAX_LENGTH
     ) {
       return fail(400, {
-        message: `Use between ${minPasswordLength} and ${maxPasswordLength} characters for your password.`,
+        message: `Use between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters for your password.`,
       });
     }
 
+    const authContext = await auth.$context;
     let outcome;
     try {
       outcome = await createInstanceOwner({

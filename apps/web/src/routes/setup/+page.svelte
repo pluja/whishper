@@ -1,5 +1,10 @@
 <script lang="ts">
-  let { data, form } = $props();
+  import {
+    PASSWORD_MAX_LENGTH,
+    PASSWORD_MIN_LENGTH,
+  } from "$lib/shared/project-limits";
+
+  let { form } = $props();
 </script>
 
 <svelte:head>
@@ -61,8 +66,8 @@
           type="password"
           autocomplete="new-password"
           required
-          minlength={data.minPasswordLength}
-          maxlength={data.maxPasswordLength}
+          minlength={PASSWORD_MIN_LENGTH}
+          maxlength={PASSWORD_MAX_LENGTH}
           aria-describedby="setup-error"
           aria-invalid={form?.message ? "true" : "false"}
         />
@@ -72,8 +77,7 @@
           class:error={form?.message}
           role="alert"
         >
-          {form?.message ??
-            `Use at least ${data.minPasswordLength} characters.`}
+          {form?.message ?? `Use at least ${PASSWORD_MIN_LENGTH} characters.`}
         </p>
       </div>
 

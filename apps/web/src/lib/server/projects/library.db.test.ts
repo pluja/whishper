@@ -49,8 +49,8 @@ describe("project library", () => {
       primaryWorkspaceForUser(pool, project.userId),
     ).resolves.toMatchObject({
       id: project.workspaceId,
-      project_count: 1,
-      ready_source_count: 0,
+      projectCount: 1,
+      readySourceCount: 0,
     });
     const projects = await listLibraryProjects(pool, project.workspaceId, {
       query: "",
@@ -59,9 +59,9 @@ describe("project library", () => {
     expect(projects).toHaveLength(1);
     expect(projects[0]).toMatchObject({
       id: project.projectId,
-      media_duration_us: 7_200_000_000,
-      track_count: 0,
-      cue_count: 0,
+      mediaDurationUs: 7_200_000_000,
+      trackCount: 0,
+      cueCount: 0,
     });
   });
 });

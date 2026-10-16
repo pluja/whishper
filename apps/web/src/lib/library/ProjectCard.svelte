@@ -1,15 +1,30 @@
+<script module lang="ts">
+  const activityDateTime = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+</script>
+
 <script lang="ts">
   import { enhance } from "$app/forms";
   import Icon from "$lib/components/Icon.svelte";
-  import { formatBytes, formatDuration } from "$lib/shared/format";
+  import {
+    formatBytes,
+    formatDimensions,
+    formatDuration,
+    formatLanguages,
+    formatSubtitleCounts,
+  } from "$lib/shared/format";
+  import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/project-limits";
   import {
     displayState,
     mediaPlaceholder,
     projectSourceFallback,
     stateLabel,
   } from "$lib/shared/project-status";
+  import { projectDerivativeUrl } from "$lib/shared/routes";
   import type { SubmitFunction } from "@sveltejs/kit";
-  import type { PageData } from "../../routes/$types";
+  import type { ProjectSummary } from "./types";
 
   type RenameForm = { renameProjectId?: string; renameError?: string } | null;
 
@@ -19,7 +34,7 @@
     renameAction,
     form,
   }: {
-    project: PageData["projects"][number];
+    project: ProjectSummary;
     eagerThumbnail: boolean;
     renameAction: string;
     form: RenameForm;
@@ -32,56 +47,11 @@
   let renameSaving = $state(false);
   let projectState = $derived(displayState(project));
   let dimensions = $derived(
-    formatDimensions(project.video_width, project.video_height),
+    formatDimensions(project.videoWidth, project.videoHeight),
   );
   let renameError = $derived(
     form?.renameProjectId === project.id ? (form.renameError ?? "") : "",
   );
-
-  const languageNames = new Intl.DisplayNames(undefined, { type: "language" });
-  const activityDateTime = new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-
-  function formatDimensions(
-    width: string | null,
-    height: string | null,
-  ): string | null {
-    const numericWidth = Number(width);
-    const numericHeight = Number(height);
-    if (
-      !Number.isInteger(numericWidth) ||
-      !Number.isInteger(numericHeight) ||
-      numericWidth <= 0 ||
-      numericHeight <= 0
-    ) {
-      return null;
-    }
-    return `${numericWidth}×${numericHeight}`;
-  }
-
-  function formatLanguages(languages: string[]): string {
-    return languages
-      .map((language) => {
-        try {
-          return languageNames.of(language) ?? language;
-        } catch {
-          return language;
-        }
-      })
-      .join(", ");
-  }
-
-  function formatSubtitleCounts(trackCount: number, cueCount: number): string {
-    const tracks = `${trackCount} ${trackCount === 1 ? "track" : "tracks"}`;
-    const cues = `${cueCount} ${cueCount === 1 ? "cue" : "cues"}`;
-    return `${tracks} · ${cues}`;
-  }
-
-  function activityDate(value: Date | string): Date {
-    return value instanceof Date ? value : new Date(value);
-  }
 
   function beginRename() {
     renameDraft = project.name;
@@ -124,9 +94,9 @@
       aria-label={`Open ${project.name}`}
     >
       <div class="project-thumbnail">
-        {#if project.has_thumbnail}
+        {#if project.hasThumbnail}
           <img
-            src={`/api/projects/${project.id}/derivatives/thumbnail`}
+            src={projectDerivativeUrl(project.id, "thumbnail")}
             alt=""
             width="640"
             height="360"
@@ -161,7 +131,7 @@
                 name="name"
                 bind:value={renameDraft}
                 required
-                maxlength="160"
+                maxlength={PROJECT_TITLE_MAX_LENGTH}
                 onkeydown={handleRenameKeydown}
                 aria-invalid={renameError !== ""}
                 aria-describedby={`rename-error-${project.id}`}
@@ -214,13 +184,13 @@
         </span>
       </div>
       <p class="project-source">
-        {project.original_filename ?? projectSourceFallback(project)}
+        {project.originalFilename ?? projectSourceFallback(project)}
       </p>
       <dl class="project-metadata">
-        {#if project.media_duration_us !== null && project.media_duration_us > 0}
+        {#if project.mediaDurationUs !== null && project.mediaDurationUs > 0}
           <div>
             <dt class="visually-hidden">Duration</dt>
-            <dd>{formatDuration(project.media_duration_us)}</dd>
+            <dd>{formatDuration(project.mediaDurationUs)}</dd>
           </div>
         {/if}
         {#if dimensions}
@@ -229,10 +199,10 @@
             <dd>{dimensions}</dd>
           </div>
         {/if}
-        {#if project.size_bytes !== null}
+        {#if project.sizeBytes !== null}
           <div>
             <dt class="visually-hidden">File size</dt>
-            <dd>{formatBytes(project.size_bytes)}</dd>
+            <dd>{formatBytes(project.sizeBytes)}</dd>
           </div>
         {/if}
         {#if project.languages.length > 0}
@@ -241,24 +211,24 @@
             <dd>{formatLanguages(project.languages)}</dd>
           </div>
         {/if}
-        {#if project.track_count > 0 || project.cue_count > 0}
+        {#if project.trackCount > 0 || project.cueCount > 0}
           <div>
             <dt class="visually-hidden">Subtitles</dt>
             <dd>
-              {formatSubtitleCounts(project.track_count, project.cue_count)}
+              {formatSubtitleCounts(project.trackCount, project.cueCount)}
             </dd>
           </div>
         {/if}
       </dl>
-      {#if project.subtitle_match}
+      {#if project.subtitleMatch}
         <span class="subtitle-match">Subtitle text match</span>
       {/if}
     </div>
   </div>
 
   <div class="project-actions">
-    <time datetime={activityDate(project.activity_at).toISOString()}>
-      Updated {activityDateTime.format(activityDate(project.activity_at))}
+    <time datetime={project.activityAt.toISOString()}>
+      Updated {activityDateTime.format(project.activityAt)}
     </time>
   </div>
 </article>

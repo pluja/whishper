@@ -1,15 +1,17 @@
+import type { IconName } from "$lib/components/Icon.svelte";
+
 export type ProjectStatusFields = {
-  run_status: string | null;
-  job_state: string | null;
-  upload_status: string | null;
-  media_preparation_status: string;
+  runStatus: string | null;
+  jobState: string | null;
+  uploadStatus: string | null;
+  mediaPreparationStatus: string;
 };
 
 export type ProjectMessageFields = {
-  progress_message: string | null;
-  upload_status: string | null;
-  received_bytes: number | null;
-  size_bytes: number | null;
+  progressMessage: string | null;
+  uploadStatus: string | null;
+  receivedBytes: number | null;
+  sizeBytes: number | null;
 };
 
 const ACTIVE_JOB_STATES = ["queued", "leased"];
@@ -20,15 +22,15 @@ const ACTIVE_PREPARATION_STATUSES = ["queued", "running"];
 export function isProjectActive(
   project: Pick<
     ProjectStatusFields,
-    "job_state" | "upload_status" | "media_preparation_status"
+    "jobState" | "uploadStatus" | "mediaPreparationStatus"
   >,
 ): boolean {
   return (
-    (project.job_state !== null &&
-      ACTIVE_JOB_STATES.includes(project.job_state)) ||
-    (project.upload_status !== null &&
-      ACTIVE_UPLOAD_STATUSES.includes(project.upload_status)) ||
-    ACTIVE_PREPARATION_STATUSES.includes(project.media_preparation_status)
+    (project.jobState !== null &&
+      ACTIVE_JOB_STATES.includes(project.jobState)) ||
+    (project.uploadStatus !== null &&
+      ACTIVE_UPLOAD_STATUSES.includes(project.uploadStatus)) ||
+    ACTIVE_PREPARATION_STATUSES.includes(project.mediaPreparationStatus)
   );
 }
 
@@ -50,31 +52,31 @@ export function isStudioActive(studio: {
 }
 
 export function displayState(project: ProjectStatusFields): string {
-  const processingState = project.job_state ?? project.run_status;
+  const processingState = project.jobState ?? project.runStatus;
   if (processingState) return processingState;
-  if (ACTIVE_PREPARATION_STATUSES.includes(project.media_preparation_status)) {
+  if (ACTIVE_PREPARATION_STATUSES.includes(project.mediaPreparationStatus)) {
     return "preparing";
   }
-  if (project.media_preparation_status === "failed") return "failed";
-  return project.upload_status === "completed"
+  if (project.mediaPreparationStatus === "failed") return "failed";
+  return project.uploadStatus === "completed"
     ? "ready"
-    : (project.upload_status ?? "draft");
+    : (project.uploadStatus ?? "draft");
 }
 
-export function projectMessage(project: ProjectMessageFields): string {
-  if (project.progress_message) return project.progress_message;
+function projectMessage(project: ProjectMessageFields): string {
+  if (project.progressMessage) return project.progressMessage;
   if (
-    project.upload_status === "uploading" &&
-    project.received_bytes !== null &&
-    project.size_bytes
+    project.uploadStatus === "uploading" &&
+    project.receivedBytes !== null &&
+    project.sizeBytes
   ) {
     const progress = Math.round(
-      (project.received_bytes / project.size_bytes) * 100,
+      (project.receivedBytes / project.sizeBytes) * 100,
     );
     return `Uploading · ${progress}%`;
   }
-  if (project.upload_status === "finalizing") return "Finalizing source media";
-  if (project.upload_status === "completed") return "Source media stored";
+  if (project.uploadStatus === "finalizing") return "Finalizing source media";
+  if (project.uploadStatus === "completed") return "Source media stored";
   return "Project ready";
 }
 
@@ -96,23 +98,23 @@ export function stateLabel(state: string): string {
 }
 
 export function projectSourceFallback(
-  project: ProjectMessageFields & { media_type: string | null },
+  project: ProjectMessageFields & { mediaType: string | null },
 ): string {
   const message = projectMessage(project);
   if (message !== "Project ready") return message;
-  if (project.media_type?.startsWith("audio/")) return "Audio source";
-  if (project.media_type?.startsWith("video/")) return "Video source";
+  if (project.mediaType?.startsWith("audio/")) return "Audio source";
+  if (project.mediaType?.startsWith("video/")) return "Video source";
   return "Media source";
 }
 
-export function mediaPlaceholder(project: { media_type: string | null }): {
-  icon: string;
+export function mediaPlaceholder(project: { mediaType: string | null }): {
+  icon: IconName;
   label: string;
 } {
-  if (project.media_type?.startsWith("audio/")) {
+  if (project.mediaType?.startsWith("audio/")) {
     return { icon: "audio", label: "Audio project" };
   }
-  if (project.media_type?.startsWith("video/")) {
+  if (project.mediaType?.startsWith("video/")) {
     return { icon: "play", label: "Video project" };
   }
   return { icon: "file", label: "Media project" };

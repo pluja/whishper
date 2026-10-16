@@ -1,27 +1,27 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
+  import { modal } from "$lib/browser/modal";
   import { formatBytes } from "$lib/shared/format";
-  import { ProjectUpload } from "$lib/library/upload.svelte";
+  import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/project-limits";
+  import { ProjectUpload } from "./upload.svelte";
 
-  let { workspaceId }: { workspaceId: string } = $props();
+  let {
+    workspaceId,
+    open = $bindable(false),
+  }: { workspaceId: string; open?: boolean } = $props();
 
   const upload = new ProjectUpload();
   let selectedFile = $state<File | null>(null);
   let projectName = $state("");
   let projectNameEdited = $state(false);
-  let dialog = $state<HTMLDialogElement>();
   let fileInput = $state<HTMLInputElement>();
   let normalizedProjectName = $derived(projectName.trim());
   let canCreateProject = $derived(
     normalizedProjectName.length > 0 &&
-      normalizedProjectName.length <= 160 &&
+      normalizedProjectName.length <= PROJECT_TITLE_MAX_LENGTH &&
       selectedFile !== null &&
       !upload.uploading,
   );
-
-  export function open() {
-    if (dialog && !dialog.open) dialog.showModal();
-  }
 
   function reset() {
     selectedFile = null;
@@ -32,7 +32,7 @@
   }
 
   function close() {
-    if (!upload.uploading) dialog?.close();
+    if (!upload.uploading) open = false;
   }
 
   function handleCancel(event: Event) {
@@ -40,17 +40,18 @@
   }
 
   function handleClick(event: MouseEvent) {
-    if (event.target === dialog) close();
+    if (event.target === event.currentTarget) close();
   }
 
   function handleClose() {
+    open = false;
     if (!upload.uploading) reset();
   }
 
   function suggestedProjectName(filename: string): string {
     const finalDot = filename.lastIndexOf(".");
     const extensionless = finalDot > 0 ? filename.slice(0, finalDot) : filename;
-    return extensionless.trim().slice(0, 160);
+    return extensionless.trim().slice(0, PROJECT_TITLE_MAX_LENGTH);
   }
 
   function chooseFile(event: Event) {
@@ -70,7 +71,7 @@
 
 <dialog
   class="create-project-dialog"
-  bind:this={dialog}
+  {@attach modal(open)}
   aria-labelledby="create-project-title"
   aria-describedby="create-project-description"
   oncancel={handleCancel}
@@ -107,7 +108,7 @@
           bind:value={projectName}
           oninput={() => (projectNameEdited = true)}
           required
-          maxlength="160"
+          maxlength={PROJECT_TITLE_MAX_LENGTH}
           autocomplete="off"
           disabled={upload.uploading}
           placeholder="Untitled project"

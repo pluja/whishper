@@ -7,16 +7,15 @@ import {
   isRunActive,
   isStudioActive,
   mediaPlaceholder,
-  projectMessage,
   projectSourceFallback,
   stateLabel,
 } from "./project-status";
 
 const idle = {
-  run_status: null,
-  job_state: null,
-  upload_status: "completed",
-  media_preparation_status: "completed",
+  runStatus: null,
+  jobState: null,
+  uploadStatus: "completed",
+  mediaPreparationStatus: "completed",
 };
 
 describe("isProjectActive", () => {
@@ -25,12 +24,12 @@ describe("isProjectActive", () => {
   });
 
   it.each([
-    { job_state: "queued" },
-    { job_state: "leased" },
-    { upload_status: "uploading" },
-    { upload_status: "finalizing" },
-    { media_preparation_status: "queued" },
-    { media_preparation_status: "running" },
+    { jobState: "queued" },
+    { jobState: "leased" },
+    { uploadStatus: "uploading" },
+    { uploadStatus: "finalizing" },
+    { mediaPreparationStatus: "queued" },
+    { mediaPreparationStatus: "running" },
   ])("is true for %o", (override) => {
     expect(isProjectActive({ ...idle, ...override })).toBe(true);
   });
@@ -39,8 +38,8 @@ describe("isProjectActive", () => {
     expect(
       isProjectActive({
         ...idle,
-        job_state: "failed",
-        media_preparation_status: "failed",
+        jobState: "failed",
+        mediaPreparationStatus: "failed",
       }),
     ).toBe(false);
   });
@@ -103,93 +102,84 @@ describe("isStudioActive", () => {
 
 describe("displayState", () => {
   it("prefers the job state, then the run status", () => {
-    expect(
-      displayState({ ...idle, job_state: "leased", run_status: "x" }),
-    ).toBe("leased");
-    expect(displayState({ ...idle, run_status: "completed" })).toBe(
-      "completed",
+    expect(displayState({ ...idle, jobState: "leased", runStatus: "x" })).toBe(
+      "leased",
     );
+    expect(displayState({ ...idle, runStatus: "completed" })).toBe("completed");
   });
 
   it("falls back to preparation and upload state", () => {
-    expect(displayState({ ...idle, media_preparation_status: "running" })).toBe(
+    expect(displayState({ ...idle, mediaPreparationStatus: "running" })).toBe(
       "preparing",
     );
-    expect(displayState({ ...idle, media_preparation_status: "failed" })).toBe(
+    expect(displayState({ ...idle, mediaPreparationStatus: "failed" })).toBe(
       "failed",
     );
     expect(displayState(idle)).toBe("ready");
-    expect(displayState({ ...idle, upload_status: null })).toBe("draft");
-    expect(displayState({ ...idle, upload_status: "uploading" })).toBe(
+    expect(displayState({ ...idle, uploadStatus: null })).toBe("draft");
+    expect(displayState({ ...idle, uploadStatus: "uploading" })).toBe(
       "uploading",
     );
   });
 });
 
-describe("projectMessage", () => {
-  const base = {
-    progress_message: null,
-    upload_status: null,
-    received_bytes: null,
-    size_bytes: null,
-  };
-
-  it("uses the job progress message first", () => {
-    expect(projectMessage({ ...base, progress_message: "Working" })).toBe(
-      "Working",
-    );
-  });
-
-  it("reports upload percentage", () => {
-    expect(
-      projectMessage({
-        ...base,
-        upload_status: "uploading",
-        received_bytes: 50,
-        size_bytes: 200,
-      }),
-    ).toBe("Uploading · 25%");
-  });
-
-  it("describes finalizing, completed and default states", () => {
-    expect(projectMessage({ ...base, upload_status: "finalizing" })).toBe(
-      "Finalizing source media",
-    );
-    expect(projectMessage({ ...base, upload_status: "completed" })).toBe(
-      "Source media stored",
-    );
-    expect(projectMessage(base)).toBe("Project ready");
-  });
-});
-
 describe("projectSourceFallback", () => {
   const base = {
-    progress_message: null,
-    upload_status: null,
-    received_bytes: null,
-    size_bytes: null,
+    progressMessage: null,
+    uploadStatus: null,
+    receivedBytes: null,
+    sizeBytes: null,
   };
 
   it("names the media kind when there is no status message", () => {
-    expect(projectSourceFallback({ ...base, media_type: "audio/mpeg" })).toBe(
+    expect(projectSourceFallback({ ...base, mediaType: "audio/mpeg" })).toBe(
       "Audio source",
     );
-    expect(projectSourceFallback({ ...base, media_type: "video/mp4" })).toBe(
+    expect(projectSourceFallback({ ...base, mediaType: "video/mp4" })).toBe(
       "Video source",
     );
-    expect(projectSourceFallback({ ...base, media_type: null })).toBe(
+    expect(projectSourceFallback({ ...base, mediaType: null })).toBe(
       "Media source",
     );
   });
 
-  it("prefers a real status message", () => {
+  it("prefers the job progress message", () => {
     expect(
       projectSourceFallback({
         ...base,
-        upload_status: "finalizing",
-        media_type: "video/mp4",
+        progressMessage: "Working",
+        mediaType: "video/mp4",
+      }),
+    ).toBe("Working");
+  });
+
+  it("reports upload percentage", () => {
+    expect(
+      projectSourceFallback({
+        ...base,
+        uploadStatus: "uploading",
+        receivedBytes: 50,
+        sizeBytes: 200,
+        mediaType: "video/mp4",
+      }),
+    ).toBe("Uploading · 25%");
+  });
+
+  it("describes finalizing and stored sources", () => {
+    expect(
+      projectSourceFallback({
+        ...base,
+        uploadStatus: "finalizing",
+        mediaType: "video/mp4",
       }),
     ).toBe("Finalizing source media");
+    expect(
+      projectSourceFallback({
+        ...base,
+        uploadStatus: "completed",
+        mediaType: "video/mp4",
+      }),
+    ).toBe("Source media stored");
   });
 });
 
@@ -200,8 +190,8 @@ describe("stateLabel and mediaPlaceholder", () => {
   });
 
   it("picks an icon per media type", () => {
-    expect(mediaPlaceholder({ media_type: "audio/wav" }).icon).toBe("audio");
-    expect(mediaPlaceholder({ media_type: "video/mp4" }).icon).toBe("play");
-    expect(mediaPlaceholder({ media_type: null }).icon).toBe("file");
+    expect(mediaPlaceholder({ mediaType: "audio/wav" }).icon).toBe("audio");
+    expect(mediaPlaceholder({ mediaType: "video/mp4" }).icon).toBe("play");
+    expect(mediaPlaceholder({ mediaType: null }).icon).toBe("file");
   });
 });

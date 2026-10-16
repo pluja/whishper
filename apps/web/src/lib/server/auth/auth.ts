@@ -6,6 +6,10 @@ import { sveltekitCookies } from "better-auth/svelte-kit";
 import { db } from "$lib/server/db";
 import { account, session, user, verification } from "$lib/server/auth/schema";
 import { privateEnv } from "$lib/server/env";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from "$lib/shared/project-limits";
 
 export const auth = betterAuth({
   appName: "Anysub",
@@ -18,8 +22,8 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     disableSignUp: true,
-    minPasswordLength: 10,
-    maxPasswordLength: 128,
+    minPasswordLength: PASSWORD_MIN_LENGTH,
+    maxPasswordLength: PASSWORD_MAX_LENGTH,
   },
   trustedOrigins: [privateEnv.authUrl],
   advanced: {

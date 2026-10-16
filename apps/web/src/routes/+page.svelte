@@ -3,17 +3,17 @@
   import ProjectCard from "$lib/library/ProjectCard.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { pollWhileActive } from "$lib/browser/polling.svelte";
+  import { pluralize } from "$lib/shared/format";
+  import { PROJECT_SEARCH_MAX_LENGTH } from "$lib/shared/project-limits";
   import { isProjectActive } from "$lib/shared/project-status";
 
   let { data, form } = $props();
-  let createDialog = $state<CreateProjectDialog>();
+  let createDialogOpen = $state(false);
   let hasActiveSearch = $derived(
     data.search.query.length > 0 || data.search.includeSubtitles,
   );
   let firstThumbnailIndex = $derived(
-    data.projects.findIndex(
-      (project: { has_thumbnail: boolean }) => project.has_thumbnail,
-    ),
+    data.projects.findIndex((project) => project.hasThumbnail),
   );
   let hasActiveJob = $derived(data.projects.some(isProjectActive));
   let renameActionUrl = $derived.by(() => {
@@ -37,12 +37,8 @@
       <p class="library-context">{data.workspace?.name ?? "Workspace"}</p>
       <h1>Projects</h1>
       <p class="library-summary">
-        {data.workspace?.project_count ?? 0}
-        {(data.workspace?.project_count ?? 0) === 1 ? "project" : "projects"} ·
-        {data.workspace?.ready_source_count ?? 0}
-        {(data.workspace?.ready_source_count ?? 0) === 1
-          ? "source ready"
-          : "sources ready"}
+        {pluralize(data.workspace?.projectCount ?? 0, "project")} ·
+        {pluralize(data.workspace?.readySourceCount ?? 0, "source")} ready
       </p>
     </div>
   </header>
@@ -52,7 +48,7 @@
       <button
         class="button library-new-project"
         type="button"
-        onclick={() => createDialog?.open()}
+        onclick={() => (createDialogOpen = true)}
       >
         <Icon name="plus" size={17} />
         New project
@@ -70,7 +66,7 @@
             autocomplete="off"
             value={data.search.query}
             placeholder="Search projects"
-            maxlength="200"
+            maxlength={PROJECT_SEARCH_MAX_LENGTH}
           />
           {#if hasActiveSearch}
             <a class="search-clear" href="/" aria-label="Clear search">
@@ -99,7 +95,7 @@
 
   {#if data.workspace}
     <CreateProjectDialog
-      bind:this={createDialog}
+      bind:open={createDialogOpen}
       workspaceId={data.workspace.id}
     />
   {/if}
@@ -111,10 +107,7 @@
           {hasActiveSearch ? "Search results" : "All projects"}
         </h2>
         <p class="project-result-count">
-          <strong>
-            {data.projects.length}
-            {data.projects.length === 1 ? "project" : "projects"}
-          </strong>
+          <strong>{pluralize(data.projects.length, "project")}</strong>
           {#if data.search.query && data.search.includeSubtitles}
             matching project titles or subtitle text for “{data.search.query}”.
           {:else if data.search.query}
@@ -151,7 +144,7 @@
             <button
               class="button"
               type="button"
-              onclick={() => createDialog?.open()}
+              onclick={() => (createDialogOpen = true)}
             >
               New project
             </button>
