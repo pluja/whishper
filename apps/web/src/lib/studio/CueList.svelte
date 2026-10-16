@@ -18,10 +18,13 @@
     };
   }
 
-  // A seek can land inside the cue that is already selected, so seekRevision
-  // reveals it again. A cue being edited is never scrolled away from.
+  // The selection follows the playhead one timeupdate late, so the list
+  // reveals it when it changes, when the playhead enters another cue, and
+  // after a seek, which can land in the cue already selected. A cue being
+  // edited is never scrolled away from.
   $effect(() => {
     const cueId = editor.selectedCueId;
+    void activeCueId;
     void editor.transport.seekRevision;
     untrack(() => {
       if (cueId && !editor.editing) {

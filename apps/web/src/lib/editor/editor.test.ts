@@ -246,3 +246,25 @@ describe("CueEditor command availability", () => {
     expect(editor.canRedo).toBe(true);
   });
 });
+
+describe("CueEditor.undo", () => {
+  it("keeps the selection in place when the selected cue disappears", () => {
+    const editor = newEditor();
+    const timed = (id: string, startUs: number): EditorCue => ({
+      ...cue(id, `${id} text`),
+      start_us: startUs,
+      end_us: startUs + 1_000_000,
+    });
+    editor.loadTrack(
+      trackA,
+      [timed("a", 0), timed("b", 1_000_000), timed("c", 2_000_000)],
+      1,
+    );
+    editor.select("c");
+    editor.insertAfterSelected();
+    expect(editor.selectedCueIndex).toBe(3);
+
+    editor.undo();
+    expect(editor.selectedCueId).toBe("c");
+  });
+});

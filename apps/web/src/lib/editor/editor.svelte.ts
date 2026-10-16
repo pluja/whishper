@@ -186,11 +186,15 @@ export class CueEditor {
     this.#restore(this.history.redo(this.cues));
   }
 
+  // When the selected cue no longer exists, the selection stays at its index
+  // so the view keeps its place.
   #restore(snapshot: EditorCue[] | undefined): void {
     if (!snapshot) return;
+    const selectedIndex = Math.max(0, this.selectedCueIndex);
     this.cues = snapshot;
     if (!this.cues.some((cue) => cue.id === this.selectedCueId)) {
-      this.selectedCueId = this.cues[0]?.id ?? null;
+      this.selectedCueId =
+        this.cues[Math.min(selectedIndex, this.cues.length - 1)]?.id ?? null;
     }
     this.autosave.markChanged();
   }
