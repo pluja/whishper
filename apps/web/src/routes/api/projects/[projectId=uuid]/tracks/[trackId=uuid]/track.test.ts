@@ -3,9 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { updateTrackForUser } = vi.hoisted(() => ({
   updateTrackForUser: vi.fn(),
 }));
-vi.mock("$lib/server/access", () => ({ requireUser: () => ({ id: "user" }) }));
-vi.mock("$lib/server/subtitle-editor", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("$lib/server/subtitle-editor")>()),
+vi.mock("$lib/server/auth/session", () => ({
+  requireUser: () => ({ id: "user" }),
+}));
+vi.mock("$lib/server/subtitles/track-editor", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("$lib/server/subtitles/track-editor")
+  >()),
   updateTrackForUser,
 }));
 

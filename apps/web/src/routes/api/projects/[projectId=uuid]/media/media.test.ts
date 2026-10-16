@@ -8,7 +8,7 @@ import {
   parseByteRange,
   safeMediaType,
   streamMediaFile,
-} from "$lib/server/media-stream";
+} from "$lib/server/media/stream";
 
 describe("project media byte ranges", () => {
   it("parses bounded, open, and suffix ranges", () => {

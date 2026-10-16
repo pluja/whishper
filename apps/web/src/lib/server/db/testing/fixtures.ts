@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { TranscriptionJobPayload } from "@anysub/contracts";
 
 import { pool } from "$lib/server/db";
-import { hashToken } from "$lib/server/util";
+import { hashToken } from "$lib/server/jobs/lease-token";
 
 const seededUserIds: string[] = [];
 const seededWorkspaceIds: string[] = [];

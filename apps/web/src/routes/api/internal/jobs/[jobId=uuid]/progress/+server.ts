@@ -1,6 +1,6 @@
 import { validateJobProgressReport } from "@anysub/contracts";
-import { reportProgress } from "$lib/server/queue";
-import { readWorkerReport } from "$lib/server/worker-request";
+import { reportProgress } from "$lib/server/jobs/lease";
+import { readWorkerReport } from "$lib/server/workers/request";
 import { error, json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 

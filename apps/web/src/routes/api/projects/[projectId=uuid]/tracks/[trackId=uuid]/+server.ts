@@ -1,10 +1,10 @@
-import { requireUser } from "$lib/server/access";
+import { requireUser } from "$lib/server/auth/session";
 import {
   parseTrackUpdate,
   TrackRevisionConflict,
   TrackValidationError,
   updateTrackForUser,
-} from "$lib/server/subtitle-editor";
+} from "$lib/server/subtitles/track-editor";
 import { error, isHttpError, json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 

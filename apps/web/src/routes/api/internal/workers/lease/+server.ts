@@ -1,5 +1,6 @@
-import { leaseJob, parseWorkerManifest } from "$lib/server/queue";
-import { requireWorker } from "$lib/server/worker-auth";
+import { leaseJob } from "$lib/server/jobs/lease";
+import { parseWorkerManifest } from "$lib/server/workers/manifest";
+import { requireWorker } from "$lib/server/workers/auth";
 import { error, json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 

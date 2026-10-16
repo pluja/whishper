@@ -1,5 +1,6 @@
 import { pool } from "$lib/server/db";
-import { projectForUser, requireUser } from "$lib/server/access";
+import { projectForUser } from "$lib/server/projects/access";
+import { requireUser } from "$lib/server/auth/session";
 import { renderWebVtt } from "$lib/subtitles";
 import { error } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";

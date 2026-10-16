@@ -1,11 +1,11 @@
 import { building, dev } from "$app/environment";
-import { auth } from "$lib/server/auth";
+import { auth } from "$lib/server/auth/auth";
 import { assertSecureRuntimeConfiguration, privateEnv } from "$lib/server/env";
 import {
   handleUploadRequest,
   isUploadPath,
   startUploadCleanup,
-} from "$lib/server/uploads";
+} from "$lib/server/uploads/tus-server";
 import { svelteKitHandler } from "better-auth/svelte-kit";
 import type { Handle, ServerInit } from "@sveltejs/kit";
 

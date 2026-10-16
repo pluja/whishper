@@ -1,5 +1,7 @@
 import { MEDIA_PREPARATION_VERSION } from "@anysub/contracts";
 
+import { isRecord } from "$lib/shared/is-record";
+
 export type DecodedWaveformLevel = {
   samplesPerPeak: number;
   peaksPerSecond: number;
@@ -22,10 +24,6 @@ const DURATION_TOLERANCE_US = 50_000;
 
 const BASE64_PATTERN =
   /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 export function decodePeaks(data: string, expectedLength: number): Int8Array {
   if (

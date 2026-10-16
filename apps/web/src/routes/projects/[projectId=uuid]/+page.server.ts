@@ -1,22 +1,21 @@
 import type { MediaDerivativeKind } from "@anysub/contracts";
-import { projectForUser, requireUserOrLogin } from "$lib/server/access";
+import { projectForUser } from "$lib/server/projects/access";
+import { requireUserOrLogin } from "$lib/server/auth/session";
 import { pool } from "$lib/server/db";
 import { isUuid } from "$lib/uuid";
 import { withTransaction } from "$lib/server/db/transaction";
 import {
   availableTranscriptionModels,
   detectedWorkerHardware,
-} from "$lib/server/adapters";
-import { deleteProjectForUser } from "$lib/server/media";
+} from "$lib/server/transcription/models";
+import { deleteProjectForUser } from "$lib/server/projects/delete";
 import {
   cancelMediaPreparationForUser,
   requestMediaPreparationForUser,
-} from "$lib/server/media-enqueue";
-import {
-  deleteDerivativeForUser,
-  isMediaDerivativeKind,
-} from "$lib/server/media-finalize";
-import { deleteTranscriptForUser } from "$lib/server/transcripts";
+} from "$lib/server/media/preparation";
+import { deleteDerivativeForUser } from "$lib/server/media/finalize";
+import { isMediaDerivativeKind } from "$lib/server/media/derivatives";
+import { deleteTranscriptForUser } from "$lib/server/subtitles/transcripts";
 import { error, fail, isHttpError, isRedirect, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 

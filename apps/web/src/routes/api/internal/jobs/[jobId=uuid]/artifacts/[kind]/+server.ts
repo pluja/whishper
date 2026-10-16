@@ -1,13 +1,13 @@
-import { httpErrorFrom } from "$lib/server/http-error";
+import { httpErrorFrom } from "$lib/server/http/errors";
 import {
   appendArtifactChunk,
   ArtifactOffsetError,
   parseUploadInteger,
   requireMediaPreparationLease,
   stagedArtifactOffset,
-} from "$lib/server/media-artifact-staging";
-import { isMediaDerivativeKind } from "$lib/server/media-finalize";
-import { requireWorkerLeaseToken } from "$lib/server/worker-request";
+} from "$lib/server/media/artifact-staging";
+import { isMediaDerivativeKind } from "$lib/server/media/derivatives";
+import { requireWorkerLeaseToken } from "$lib/server/workers/request";
 import { error } from "@sveltejs/kit";
 import type { RequestEvent, RequestHandler } from "./$types";
 

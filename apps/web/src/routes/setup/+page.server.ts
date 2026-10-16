@@ -1,9 +1,9 @@
-import { auth } from "$lib/server/auth";
+import { auth } from "$lib/server/auth/auth";
 import {
   createInstanceOwner,
   isInstanceInitialized,
   isValidOwnerEmail,
-} from "$lib/server/instance";
+} from "$lib/server/auth/instance";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 

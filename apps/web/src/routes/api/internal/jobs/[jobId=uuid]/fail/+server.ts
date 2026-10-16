@@ -1,6 +1,6 @@
 import { validateJobFailureReport } from "@anysub/contracts";
-import { failJob } from "$lib/server/queue";
-import { readWorkerReport } from "$lib/server/worker-request";
+import { failJob } from "$lib/server/jobs/failure";
+import { readWorkerReport } from "$lib/server/workers/request";
 import { error, json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 

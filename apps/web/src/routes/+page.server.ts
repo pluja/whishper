@@ -1,11 +1,12 @@
-import { auth } from "$lib/server/auth";
-import { projectForUser, requireUserOrLogin } from "$lib/server/access";
+import { auth } from "$lib/server/auth/auth";
+import { projectForUser } from "$lib/server/projects/access";
+import { requireUserOrLogin } from "$lib/server/auth/session";
 import { pool } from "$lib/server/db";
-import { isInstanceInitialized } from "$lib/server/instance";
+import { isInstanceInitialized } from "$lib/server/auth/instance";
 import {
   normalizeProjectTitle,
   parseProjectLibrarySearch,
-} from "$lib/server/project-library";
+} from "$lib/server/projects/library";
 import { isUuid } from "$lib/uuid";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";

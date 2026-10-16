@@ -1,4 +1,5 @@
-import { projectForUser, requireUser } from "$lib/server/access";
+import { projectForUser } from "$lib/server/projects/access";
+import { requireUser } from "$lib/server/auth/session";
 import { pool } from "$lib/server/db";
 import {
   renderSrt,

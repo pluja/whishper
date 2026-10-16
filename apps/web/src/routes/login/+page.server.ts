@@ -1,5 +1,5 @@
-import { auth } from "$lib/server/auth";
-import { isInstanceInitialized } from "$lib/server/instance";
+import { auth } from "$lib/server/auth/auth";
+import { isInstanceInitialized } from "$lib/server/auth/instance";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 

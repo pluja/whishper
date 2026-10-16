@@ -3,7 +3,7 @@ import pg from "pg";
 
 import { privateEnv } from "$lib/server/env";
 
-import { schema } from "./schema";
+import { schema } from "$lib/server/auth/schema";
 
 const { Pool } = pg;
 
