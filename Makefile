@@ -26,8 +26,9 @@ generate: ## Regenerate the protocol schema and TypeScript contracts from the wo
 	$(RUN) worker uv run anysub-protocol-schema ../../packages/contracts/schema/protocol.schema.json
 	$(RUN) web pnpm --filter @anysub/contracts generate
 
-check: ## Type-check the web application
+check: ## Type-check the web application and the worker
 	$(RUN) web pnpm check
+	$(RUN) worker uv run pyright
 
 test: ## Run the web and worker test suites, including the contract drift checks
 	$(RUN) web pnpm test

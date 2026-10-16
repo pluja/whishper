@@ -81,6 +81,8 @@ jobs:
 
       - run: uv run ruff format --check .
 
+      - run: uv run pyright
+
       # Includes the check that packages/contracts/schema matches the Pydantic models.
       - run: uv run pytest
 

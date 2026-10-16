@@ -72,6 +72,7 @@ explicit = true
 
 [dependency-groups]
 dev = [
+  "pyright[nodejs]>=1.1.400,<2",
   "pytest>=8.4.1,<9",
   "pytest-asyncio>=1.1.0,<2",
   "respx>=0.22.0,<0.23",
@@ -93,3 +94,8 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
