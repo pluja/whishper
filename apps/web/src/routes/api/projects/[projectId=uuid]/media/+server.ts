@@ -8,14 +8,14 @@ import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ locals, params, request }) => {
   const user = requireUser(locals);
-  const project = await projectForUser(params.projectId, user.id);
-  if (!project?.media_original_key) error(404, "Media not found");
+  const project = await projectForUser(pool, params.projectId, user.id);
+  if (!project?.mediaOriginalKey) error(404, "Media not found");
   const upload = await pool.query<{ media_type: string | null }>(
     "select media_type from media_uploads where project_id = $1",
     [project.id],
   );
 
-  const path = resolveDataPath(project.media_original_key);
+  const path = resolveDataPath(project.mediaOriginalKey);
   const response = await streamMediaFile(
     path,
     safeMediaType(upload.rows[0]?.media_type),

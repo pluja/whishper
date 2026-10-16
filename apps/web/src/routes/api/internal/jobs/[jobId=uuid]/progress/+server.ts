@@ -1,24 +1,25 @@
 import { validateJobProgressReport } from "@anysub/contracts";
+import { httpErrorFrom } from "$lib/server/http/errors";
 import { reportProgress } from "$lib/server/jobs/lease";
-import { readWorkerReport } from "$lib/server/workers/request";
-import { error, json } from "@sveltejs/kit";
+import {
+  authenticateWorkerReport,
+  rejectLease,
+} from "$lib/server/workers/request";
+import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async (event) => {
-  const report = await readWorkerReport(
+  const report = await authenticateWorkerReport(
     event,
     validateJobProgressReport,
     "progress update",
   );
-  if (
-    !(await reportProgress(
-      event.params.jobId,
-      report.leaseToken,
-      report.progress,
-      report.message,
-    ))
-  ) {
-    error(409, "Lease is no longer active");
-  }
+  const accepted = await reportProgress(
+    event.params.jobId,
+    report.leaseToken,
+    report.progress,
+    report.message,
+  ).catch(httpErrorFrom);
+  if (!accepted) rejectLease();
   return json({ accepted: true });
 };

@@ -1,6 +1,14 @@
-import { projectForUser } from "$lib/server/projects/access";
+import {
+  projectForUser,
+  type MemberProject,
+} from "$lib/server/projects/access";
 import { requireUser } from "$lib/server/auth/session";
 import { pool } from "$lib/server/db";
+import { listTrackCues } from "$lib/server/subtitles/cues";
+import {
+  trackForProject,
+  type SubtitleTrack,
+} from "$lib/server/subtitles/tracks";
 import {
   renderSrt,
   renderWebVtt,
@@ -11,16 +19,6 @@ import type { RequestHandler } from "./$types";
 
 const JSON_EXPORT_SCHEMA_VERSION = "1.0";
 
-type ExportTrack = {
-  project_id: string;
-  project_name: string;
-  track_id: string;
-  track_name: string;
-  language: string;
-  revision: number;
-  metadata: Record<string, unknown>;
-};
-
 export const GET: RequestHandler = async ({ locals, params }) => {
   const user = requireUser(locals);
   const format = params.format;
@@ -28,51 +26,20 @@ export const GET: RequestHandler = async ({ locals, params }) => {
     error(404, "Export format not found");
   }
 
-  const project = await projectForUser(params.projectId, user.id);
+  const project = await projectForUser(pool, params.projectId, user.id);
   if (!project) error(404, "Subtitle track not found");
 
-  const track = await pool.query<ExportTrack>(
-    `select p.id as project_id, p.name as project_name,
-            track.id as track_id, track.name as track_name,
-            track.language, track.revision, track.metadata
-       from subtitle_tracks track
-       join projects p on p.id = track.project_id
-      where p.id = $1 and track.id = $2`,
-    [project.id, params.trackId],
-  );
-  if (!track.rows[0]) error(404, "Subtitle track not found");
+  const track = await trackForProject(pool, project.id, params.trackId);
+  if (!track) error(404, "Subtitle track not found");
+  const cues = await listTrackCues(pool, track.id, { includeWords: true });
 
-  const cues = (
-    await pool.query<{
-      id: string;
-      position: number;
-      start_us: number;
-      end_us: number;
-      text: string;
-      words: Record<string, unknown>[];
-    }>(
-      `select id, position, start_us, end_us, text, words
-         from cues where track_id = $1 order by position asc`,
-      [track.rows[0].track_id],
-    )
-  ).rows.map<SubtitleCueSnapshot>((cue) => ({
-    id: cue.id,
-    position: cue.position,
-    startUs: cue.start_us,
-    endUs: cue.end_us,
-    text: cue.text,
-    words: cue.words,
-  }));
-
-  const baseName = safeFilename(
-    `${track.rows[0].project_name}-${track.rows[0].language}`,
-  );
+  const baseName = safeFilename(`${project.name}-${track.language}`);
   const asciiName =
     baseName
       .normalize("NFKD")
       .replace(/[^\x20-\x7e]+/g, "-")
       .replace(/^-+|-+$/g, "") || "subtitles";
-  const output = exportBody(format, track.rows[0], cues);
+  const output = exportBody(format, project, track, cues);
   return new Response(output.body, {
     headers: {
       "Cache-Control": "private, no-store",
@@ -84,7 +51,8 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 function exportBody(
   format: string,
-  track: ExportTrack,
+  project: MemberProject,
+  track: SubtitleTrack,
   cues: SubtitleCueSnapshot[],
 ) {
   if (format === "srt") {
@@ -100,10 +68,10 @@ function exportBody(
     body: `${JSON.stringify(
       {
         schemaVersion: JSON_EXPORT_SCHEMA_VERSION,
-        project: { id: track.project_id, name: track.project_name },
+        project: { id: project.id, name: project.name },
         track: {
-          id: track.track_id,
-          name: track.track_name,
+          id: track.id,
+          name: track.name,
           language: track.language,
           revision: track.revision,
           metadata: track.metadata,

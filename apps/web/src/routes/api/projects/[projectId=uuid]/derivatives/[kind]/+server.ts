@@ -15,7 +15,7 @@ export const GET: RequestHandler = async ({ locals, params, request }) => {
   const kind = params.kind;
   if (!kind || !isMediaDerivativeKind(kind)) error(404, "Derivative not found");
 
-  const project = await projectForUser(params.projectId, user.id);
+  const project = await projectForUser(pool, params.projectId, user.id);
   if (!project) error(404, "Derivative not found");
 
   const result = await pool.query<{

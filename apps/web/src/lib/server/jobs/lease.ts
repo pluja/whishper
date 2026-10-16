@@ -13,8 +13,10 @@ import {
   reclaimExpiredLeases,
 } from "$lib/server/jobs/failure";
 import { generateLeaseToken, hashToken } from "$lib/server/jobs/lease-token";
+import { IS_MEDIA_PREPARE_JOB } from "$lib/server/jobs/predicates";
 
-export const LEASE_SECONDS = 60;
+const LEASE_SECONDS = 60;
+export const WORKER_POLL_INTERVAL_MS = 2_000;
 
 type LeasableJob = {
   id: string;
@@ -44,7 +46,7 @@ export async function leaseJob(
           and available_at <= now()
           and (
             (kind = 'transcribe' and payload->>'adapterId' = any($1::text[]))
-            or (kind = 'media_prepare' and $2)
+            or (${IS_MEDIA_PREPARE_JOB} and $2)
           )
         order by priority desc, created_at asc
         for update skip locked

@@ -4,7 +4,7 @@
 
   type JobProgress = {
     progress: number | null;
-    progress_message: string | null;
+    progressMessage: string | null;
     error: Record<string, unknown> | null;
   };
 
@@ -24,7 +24,7 @@
       <div>
         <span class="processing-stage">Transcription</span>
         <strong
-          >{run.progress_message ?? "Waiting for a compatible worker"}</strong
+          >{run.progressMessage ?? "Waiting for a compatible worker"}</strong
         >
         <progress value={run.progress ?? 0} max="1">
           {Math.round((run.progress ?? 0) * 100)}%
@@ -46,7 +46,7 @@
     <div>
       <span class="processing-stage">Media preparation</span>
       <strong
-        >{preparation.progress_message ?? "Waiting for a media worker"}</strong
+        >{preparation.progressMessage ?? "Waiting for a media worker"}</strong
       >
       <progress value={preparation.progress ?? 0} max="1">
         {Math.round((preparation.progress ?? 0) * 100)}%

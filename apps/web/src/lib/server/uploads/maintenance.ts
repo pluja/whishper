@@ -1,5 +1,4 @@
 import { stat } from "node:fs/promises";
-import { posix } from "node:path";
 
 import { pool } from "$lib/server/db";
 import {
@@ -7,7 +6,8 @@ import {
   tryLockForSession,
   unlockForSession,
 } from "$lib/server/db/locks";
-import { resolveDataPath } from "$lib/server/storage/paths";
+import { stagedUploadPath } from "$lib/server/storage/paths";
+import { deleteUnfinishedUploadProject } from "$lib/server/uploads/projects";
 
 export const UPLOAD_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1_000;
 const SWEEP_INTERVAL_MS = 15 * 60 * 1_000;
@@ -123,9 +123,7 @@ function databasePorts(options: UploadMaintenanceOptions): SweepPorts {
       return result.rows;
     },
     async stagedBytes(uploadId) {
-      const file = await stat(
-        resolveDataPath(posix.join("staging", "uploads", uploadId)),
-      ).catch(() => null);
+      const file = await stat(stagedUploadPath(uploadId)).catch(() => null);
       return file?.isFile() ? file.size : null;
     },
     async finalize(candidate) {
@@ -141,10 +139,7 @@ function databasePorts(options: UploadMaintenanceOptions): SweepPorts {
     },
     async deleteUpload(candidate) {
       await options.removeTusUpload(candidate.id);
-      await pool.query(
-        `delete from projects where id = $1 and media_original_key is null`,
-        [candidate.projectId],
-      );
+      await deleteUnfinishedUploadProject(candidate.projectId);
     },
     deleteExpiredTusFiles: options.deleteExpiredTusFiles,
   };

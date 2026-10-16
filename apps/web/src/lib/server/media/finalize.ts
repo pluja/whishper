@@ -1,5 +1,5 @@
 import { mkdir, rm, stat, unlink } from "node:fs/promises";
-import { dirname, posix } from "node:path";
+import { dirname } from "node:path";
 
 import type {
   MediaDerivativeKind,
@@ -17,13 +17,18 @@ import {
   ARTIFACT_LIMITS,
   ARTIFACT_MEDIA_TYPES,
 } from "$lib/server/media/derivatives";
-import { stagingArtifactPath } from "$lib/server/media/artifact-staging";
+import { stagedArtifactPath } from "$lib/server/media/artifact-staging";
 import {
   primaryFrameRate,
   requiredArtifactKinds,
 } from "$lib/server/media/probe";
+import { projectForUser } from "$lib/server/projects/access";
 import { linkIdempotent } from "$lib/server/storage/files";
-import { resolveDataPath } from "$lib/server/storage/paths";
+import {
+  derivativeStorageKey,
+  resolveDataPath,
+  workerArtifactsPath,
+} from "$lib/server/storage/paths";
 
 export type MediaFinalizationPlan = {
   createdPaths: string[];
@@ -86,14 +91,9 @@ export async function finalizeMediaPreparation(
 
   try {
     for (const artifact of artifacts.values()) {
-      const stagedPath = stagingArtifactPath(
-        {
-          jobId: input.jobId,
-          attempt: input.attempt,
-          workspaceId: input.workspaceId,
-          payload: input.payload,
-          mediaType: null,
-        },
+      const stagedPath = stagedArtifactPath(
+        input.jobId,
+        input.attempt,
         artifact.kind,
       );
       const stagedFile = await stat(stagedPath).catch(() => null);
@@ -103,7 +103,7 @@ export async function finalizeMediaPreparation(
         );
       }
 
-      const storageKey = derivativeStorageKey(
+      const storageKey = artifactStorageKey(
         input.workspaceId,
         input.payload.projectId,
         input.jobId,
@@ -194,9 +194,7 @@ export async function finalizeMediaPreparation(
   return {
     createdPaths,
     obsoletePaths,
-    stagingRoot: resolveDataPath(
-      posix.join("staging", "worker-artifacts", input.jobId),
-    ),
+    stagingRoot: workerArtifactsPath(input.jobId),
   };
 }
 
@@ -223,28 +221,21 @@ export async function deleteDerivativeForUser(
   userId: string,
 ): Promise<boolean> {
   const storageKey = await withTransaction(async (client) => {
+    if (!(await projectForUser(client, projectId, userId))) return null;
     const derivative = await client.query<{ storage_key: string }>(
-      `select derivative.storage_key
-         from media_derivatives derivative
-         join projects p on p.id = derivative.project_id
-         join memberships m on m.workspace_id = p.workspace_id
-        where derivative.project_id = $1 and derivative.kind = $2 and m.user_id = $3
-        for update of derivative`,
-      [projectId, kind, userId],
-    );
-    if (!derivative.rows[0]) return null;
-    await client.query(
-      `delete from media_derivatives where project_id = $1 and kind = $2`,
+      `delete from media_derivatives
+        where project_id = $1 and kind = $2
+        returning storage_key`,
       [projectId, kind],
     );
-    return derivative.rows[0].storage_key;
+    return derivative.rows[0]?.storage_key ?? null;
   });
   if (!storageKey) return false;
   await unlink(resolveDataPath(storageKey)).catch(() => undefined);
   return true;
 }
 
-function derivativeStorageKey(
+function artifactStorageKey(
   workspaceId: string,
   projectId: string,
   jobId: string,
@@ -255,12 +246,9 @@ function derivativeStorageKey(
     throw unprocessable(
       "Worker returned an unsupported derivative media type.",
     );
-  return posix.join(
-    "workspaces",
+  return derivativeStorageKey(
     workspaceId,
-    "projects",
     projectId,
-    "media",
     ARTIFACT_DIRECTORIES[artifact.kind],
     `${jobId}${extension}`,
   );

@@ -16,6 +16,7 @@ export const ARTIFACT_MEDIA_TYPES: Record<
   thumbnail: ["image/jpeg"],
   proxy: ["video/mp4", "audio/mpeg"],
 };
+
 export function derivativeMediaType(
   kind: MediaDerivativeKind,
   stored: string,
@@ -31,6 +32,7 @@ export const ARTIFACT_DIRECTORIES: Record<MediaDerivativeKind, string> = {
   thumbnail: "thumbnails",
   proxy: "proxy",
 };
+
 export const ARTIFACT_EXTENSIONS: Record<string, string> = {
   "application/vnd.anysub.waveform+json": ".json",
   "image/jpeg": ".jpg",

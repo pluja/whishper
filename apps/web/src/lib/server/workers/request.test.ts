@@ -2,9 +2,9 @@ import { isHttpError, type RequestEvent } from "@sveltejs/kit";
 import { validateJobCompletionReport } from "@anysub/contracts";
 import { describe, expect, it, vi } from "vitest";
 
-import { readWorkerReport, requireWorkerLeaseToken } from "./request";
+import { authenticateWorkerReport, authenticateLeaseToken } from "./request";
 
-vi.mock("$lib/server/workers/auth", () => ({ requireWorker: vi.fn() }));
+vi.mock("$lib/server/workers/auth", () => ({ authenticateWorker: vi.fn() }));
 
 function eventFor(init: RequestInit): RequestEvent {
   return {
@@ -39,10 +39,10 @@ const completion = {
   },
 };
 
-describe("readWorkerReport", () => {
+describe("authenticateWorkerReport", () => {
   it("rejects malformed JSON with 400", async () => {
     const thrown = await rejectionOf(
-      readWorkerReport(
+      authenticateWorkerReport(
         eventFor({ body: "{not json" }),
         validateJobCompletionReport,
         "completion",
@@ -53,7 +53,7 @@ describe("readWorkerReport", () => {
 
   it("rejects a non-object body with 400", async () => {
     const thrown = await rejectionOf(
-      readWorkerReport(
+      authenticateWorkerReport(
         eventFor({ body: "[1]" }),
         validateJobCompletionReport,
         "completion",
@@ -64,7 +64,7 @@ describe("readWorkerReport", () => {
 
   it("rejects an invalid completion with a validation message", async () => {
     const thrown = await rejectionOf(
-      readWorkerReport(
+      authenticateWorkerReport(
         eventFor({ body: JSON.stringify({ leaseToken: "token", result: {} }) }),
         validateJobCompletionReport,
         "completion",
@@ -75,7 +75,7 @@ describe("readWorkerReport", () => {
   });
 
   it("returns a valid report", async () => {
-    const report = await readWorkerReport(
+    const report = await authenticateWorkerReport(
       eventFor({ body: JSON.stringify(completion) }),
       validateJobCompletionReport,
       "completion",
@@ -84,14 +84,14 @@ describe("readWorkerReport", () => {
   });
 });
 
-describe("requireWorkerLeaseToken", () => {
+describe("authenticateLeaseToken", () => {
   it("returns the lease token header", () => {
     const event = eventFor({ headers: { "x-anysub-lease-token": "token" } });
-    expect(requireWorkerLeaseToken(event)).toBe("token");
+    expect(authenticateLeaseToken(event)).toBe("token");
   });
 
   it("rejects a missing lease token with 400", () => {
-    expect(() => requireWorkerLeaseToken(eventFor({}))).toThrowError(
+    expect(() => authenticateLeaseToken(eventFor({}))).toThrowError(
       expect.objectContaining({ status: 400 }),
     );
   });

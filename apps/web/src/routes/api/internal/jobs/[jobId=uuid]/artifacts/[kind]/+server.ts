@@ -7,24 +7,21 @@ import {
   stagedArtifactOffset,
 } from "$lib/server/media/artifact-staging";
 import { isMediaDerivativeKind } from "$lib/server/media/derivatives";
-import { requireWorkerLeaseToken } from "$lib/server/workers/request";
+import { authenticateLeaseToken } from "$lib/server/workers/request";
 import { error } from "@sveltejs/kit";
 import type { RequestEvent, RequestHandler } from "./$types";
 
 async function activeArtifactLease(event: RequestEvent) {
-  const leaseToken = requireWorkerLeaseToken(event);
+  const leaseToken = authenticateLeaseToken(event);
   const kind = event.params.kind;
   if (!isMediaDerivativeKind(kind)) {
     error(400, "A valid derivative kind is required");
   }
-  try {
-    return {
-      kind,
-      lease: await requireMediaPreparationLease(event.params.jobId, leaseToken),
-    };
-  } catch (cause) {
-    httpErrorFrom(cause, "Artifact transfer failed");
-  }
+  const lease = await requireMediaPreparationLease(
+    event.params.jobId,
+    leaseToken,
+  ).catch(httpErrorFrom);
+  return { kind, lease };
 }
 
 export const HEAD: RequestHandler = async (event) => {
@@ -71,6 +68,6 @@ export const PATCH: RequestHandler = async (event) => {
         headers: { "Upload-Offset": String(cause.currentOffset) },
       });
     }
-    httpErrorFrom(cause, "Artifact upload failed");
+    httpErrorFrom(cause);
   }
 };

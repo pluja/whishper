@@ -7,13 +7,13 @@
     project: {
       id: string;
       name: string;
-      media_filename: string | null;
-      workspace_name: string;
-      size_bytes: number | null;
-      media_frame_rate_num: number | null;
-      media_frame_rate_den: number | null;
-      media_preparation_status: string;
-      can_manage: boolean;
+      mediaFilename: string | null;
+      workspaceName: string;
+      sizeBytes: number | null;
+      mediaFrameRateNum: number | null;
+      mediaFrameRateDen: number | null;
+      mediaPreparationStatus: string;
+      canManage: boolean;
     };
     track: { id: string; language: string } | null;
     derivativeKinds: string[];
@@ -38,21 +38,19 @@
   </a>
   <div class="studio-identity">
     <strong>{project.name}</strong>
-    <span>{project.media_filename ?? "Worker diagnostic"}</span>
+    <span>{project.mediaFilename ?? "Worker diagnostic"}</span>
   </div>
   <div class="studio-context">
-    <span>{project.workspace_name}</span>
-    {#if project.size_bytes}
-      <span>{formatBytes(project.size_bytes)}</span>
+    <span>{project.workspaceName}</span>
+    {#if project.sizeBytes}
+      <span>{formatBytes(project.sizeBytes)}</span>
     {/if}
     {#if track}
       <span>{track.language.toUpperCase()} · {cueCount} cues</span>
     {/if}
-    {#if project.media_frame_rate_num && project.media_frame_rate_den}
+    {#if project.mediaFrameRateNum && project.mediaFrameRateDen}
       <span
-        >{(project.media_frame_rate_num / project.media_frame_rate_den).toFixed(
-          3,
-        )} fps</span
+        >{(project.mediaFrameRateNum / project.mediaFrameRateDen).toFixed(3)} fps</span
       >
     {/if}
   </div>
@@ -94,7 +92,7 @@
         </div>
       </details>
     {/if}
-    {#if project.can_manage}
+    {#if project.canManage}
       <details class="project-menu">
         <summary aria-label="Project actions" title="Project actions">
           <Icon name="more" size={18} />
@@ -119,7 +117,7 @@
           {/if}
           <form class="media-action" method="POST" action="?/prepareMedia">
             <button type="submit">
-              {project.media_preparation_status === "completed"
+              {project.mediaPreparationStatus === "completed"
                 ? "Regenerate media derivatives"
                 : "Prepare media"}
             </button>

@@ -6,18 +6,20 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 const dataRoot = vi.hoisted(() => ({ path: "" }));
 
 vi.mock("$lib/server/db", () => ({ pool: { query: vi.fn() } }));
-vi.mock("$lib/server/storage/paths", () => ({
-  resolveDataPath: (key: string) => `${dataRoot.path}/${key}`,
-}));
 vi.mock("$lib/server/env", () => ({
-  privateEnv: { maxUploadBytes: 1024 * 1024 * 1024 },
+  privateEnv: {
+    maxUploadBytes: 1024 * 1024 * 1024,
+    get dataRoot() {
+      return dataRoot.path;
+    },
+  },
 }));
 
 import {
   appendArtifactChunk,
   parseUploadInteger,
   stagedArtifactOffset,
-  stagingArtifactPath,
+  stagedArtifactPath,
   type MediaPreparationLease,
   withKeyedLock,
 } from "./artifact-staging";
@@ -58,7 +60,10 @@ describe("appendArtifactChunk", () => {
     );
     expect(next).toBe(5);
     expect(
-      await readFile(stagingArtifactPath(lease, "thumbnail"), "utf8"),
+      await readFile(
+        stagedArtifactPath(lease.jobId, lease.attempt, "thumbnail"),
+        "utf8",
+      ),
     ).toBe("hello");
   });
 
@@ -77,7 +82,7 @@ describe("appendArtifactChunk", () => {
   });
 
   it("stops a multi-chunk body once it passes the declared length", async () => {
-    const path = stagingArtifactPath(lease, "proxy");
+    const path = stagedArtifactPath(lease.jobId, lease.attempt, "proxy");
     await expect(
       appendArtifactChunk(lease, "proxy", 0, 100, 6, bodyOf("abcd", "efgh")),
     ).rejects.toMatchObject({ statusCode: 400 });
@@ -95,7 +100,7 @@ describe("appendArtifactChunk", () => {
   );
 
   it("serializes concurrent appends for the same lease", async () => {
-    const path = stagingArtifactPath(lease, "waveform");
+    const path = stagedArtifactPath(lease.jobId, lease.attempt, "waveform");
     const results = await Promise.allSettled([
       appendArtifactChunk(lease, "waveform", 0, 10, 4, bodyOf("aaaa")),
       appendArtifactChunk(lease, "waveform", 0, 10, 4, bodyOf("bbbb")),

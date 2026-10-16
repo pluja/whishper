@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  PROJECT_SEARCH_MAX_LENGTH,
-  PROJECT_TITLE_MAX_LENGTH,
   normalizeProjectTitle,
   parseProjectLibrarySearch,
 } from "$lib/server/projects/library";
+import {
+  PROJECT_SEARCH_MAX_LENGTH,
+  PROJECT_TITLE_MAX_LENGTH,
+} from "$lib/shared/project-limits";
 
 describe("project library inputs", () => {
   it("parses title search and optional subtitle scope", () => {

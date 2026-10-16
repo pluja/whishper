@@ -1,31 +1,62 @@
-import { pool } from "$lib/server/db";
+import type { PoolClient } from "pg";
 
-type Queryable = Pick<typeof pool, "query">;
+type Queryable = Pick<PoolClient, "query">;
 
 export type MemberProject = {
   id: string;
-  workspace_id: string;
+  workspaceId: string;
   name: string;
-  media_original_key: string | null;
+  mediaOriginalKey: string | null;
+  canManage: boolean;
 };
 
-// lock must run inside a transaction: it holds the project row until commit.
-export async function projectForUser(
-  projectId: string | undefined,
+type ProjectLookup = { lock?: boolean };
+
+const CAN_MANAGE = "(p.created_by = m.user_id or m.role in ('owner', 'admin'))";
+
+async function findProject(
+  executor: Queryable,
+  projectId: string,
   userId: string,
-  {
-    executor = pool,
-    lock = false,
-  }: { executor?: Queryable; lock?: boolean } = {},
+  { lock = false, manageableOnly }: ProjectLookup & { manageableOnly: boolean },
 ): Promise<MemberProject | null> {
-  if (!projectId) return null;
   const result = await executor.query<MemberProject>(
-    `select p.id, p.workspace_id, p.name, p.media_original_key
+    `select p.id, p.workspace_id as "workspaceId", p.name,
+            p.media_original_key as "mediaOriginalKey",
+            ${CAN_MANAGE} as "canManage"
        from projects p
        join memberships m on m.workspace_id = p.workspace_id
       where p.id = $1 and m.user_id = $2
+            ${manageableOnly ? `and ${CAN_MANAGE}` : ""}
       ${lock ? "for update of p" : ""}`,
     [projectId, userId],
   );
   return result.rows[0] ?? null;
+}
+
+// lock must run inside a transaction: it holds the project row until commit.
+export function projectForUser(
+  executor: Queryable,
+  projectId: string,
+  userId: string,
+  options: ProjectLookup = {},
+): Promise<MemberProject | null> {
+  return findProject(executor, projectId, userId, {
+    ...options,
+    manageableOnly: false,
+  });
+}
+
+// Managing covers destructive changes, open to the project's creator and to
+// workspace owners and admins.
+export function manageableProjectForUser(
+  executor: Queryable,
+  projectId: string,
+  userId: string,
+  options: ProjectLookup = {},
+): Promise<MemberProject | null> {
+  return findProject(executor, projectId, userId, {
+    ...options,
+    manageableOnly: true,
+  });
 }

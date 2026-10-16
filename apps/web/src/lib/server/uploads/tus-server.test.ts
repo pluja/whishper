@@ -39,12 +39,14 @@ describe("tusError", () => {
   });
 
   it.each([new Error("disk path /secret"), new StatusError(503, "pg down")])(
-    "hides the reason of server failures",
+    "logs server failures and hides their reason",
     (cause) => {
+      const log = vi.spyOn(console, "error").mockImplementation(() => {});
       expect(tusError(cause, "Upload creation failed.")).toEqual({
-        status_code: cause instanceof StatusError ? 503 : 500,
+        status_code: 500,
         body: "Upload creation failed.\n",
       });
+      expect(log).toHaveBeenCalledWith("Upload creation failed.", cause);
     },
   );
 });

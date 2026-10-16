@@ -1,6 +1,6 @@
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, rm, stat, truncate } from "node:fs/promises";
-import { dirname, posix } from "node:path";
+import { dirname, join } from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
@@ -10,10 +10,17 @@ import type {
 } from "@anysub/contracts";
 
 import { pool } from "$lib/server/db";
-import { StatusError } from "$lib/server/http/errors";
+import { badRequest, conflict, notFound } from "$lib/server/http/errors";
 import { hashToken } from "$lib/server/jobs/lease-token";
+import { IS_MEDIA_PREPARE_JOB } from "$lib/server/jobs/predicates";
 import { ARTIFACT_LIMITS } from "$lib/server/media/derivatives";
-import { resolveDataPath } from "$lib/server/storage/paths";
+import {
+  resolveDataPath,
+  workerArtifactsPath,
+  workerAttemptPath,
+} from "$lib/server/storage/paths";
+
+const MAX_ARTIFACT_CHUNK_BYTES = 32 * 1024 * 1024;
 
 const keyedLockTails = new Map<string, Promise<unknown>>();
 
@@ -66,7 +73,7 @@ export async function requireMediaPreparationLease(
         and j.state = 'leased'
         and j.lease_token_hash = $2
         and j.lease_expires_at > now()
-        and j.kind = 'media_prepare'`,
+        and ${IS_MEDIA_PREPARE_JOB}`,
     [jobId, hashToken(leaseToken)],
   );
   const row = result.rows[0];
@@ -75,7 +82,7 @@ export async function requireMediaPreparationLease(
     row.payload.kind !== "media_prepare" ||
     row.media_original_key !== row.payload.sourceStorageKey
   ) {
-    throw new StatusError(409, "Media preparation lease is no longer active.");
+    throw conflict("Media preparation lease is no longer active.");
   }
   return {
     jobId,
@@ -90,7 +97,9 @@ export async function stagedArtifactOffset(
   lease: MediaPreparationLease,
   kind: MediaDerivativeKind,
 ): Promise<number> {
-  const file = await stat(stagingArtifactPath(lease, kind)).catch(() => null);
+  const file = await stat(
+    stagedArtifactPath(lease.jobId, lease.attempt, kind),
+  ).catch(() => null);
   return file?.isFile() ? file.size : 0;
 }
 
@@ -112,16 +121,16 @@ export async function appendArtifactChunk(
     uploadLength > ARTIFACT_LIMITS[kind] ||
     !Number.isSafeInteger(contentLength) ||
     contentLength <= 0 ||
-    contentLength > 32 * 1024 * 1024 ||
+    contentLength > MAX_ARTIFACT_CHUNK_BYTES ||
     !Number.isSafeInteger(offset) ||
     offset < 0 ||
     offset + contentLength > uploadLength
   ) {
-    throw new StatusError(400, "Invalid artifact upload size.");
+    throw badRequest("Invalid artifact upload size.");
   }
 
   return withKeyedLock(`${lease.jobId}:${lease.attempt}`, async () => {
-    const path = stagingArtifactPath(lease, kind);
+    const path = stagedArtifactPath(lease.jobId, lease.attempt, kind);
     await mkdir(dirname(path), { recursive: true });
     const currentOffset = await stagedArtifactOffset(lease, kind);
     if (currentOffset !== offset) throw new ArtifactOffsetError(currentOffset);
@@ -144,10 +153,7 @@ export async function appendArtifactChunk(
 }
 
 function chunkLengthError(): Error {
-  return new StatusError(
-    400,
-    "Artifact chunk length did not match its headers.",
-  );
+  return badRequest("Artifact chunk length did not match its headers.");
 }
 
 function capBytes(limit: number): Transform {
@@ -170,7 +176,7 @@ export async function openMediaPreparationSource(
   const path = resolveDataPath(lease.payload.sourceStorageKey);
   const file = await stat(path);
   if (!file.isFile()) {
-    throw new StatusError(404, "Source media was not found.");
+    throw notFound("Source media was not found.");
   }
   return {
     stream: Readable.toWeb(
@@ -185,34 +191,25 @@ export async function cleanupStagedMediaAttempt(
   jobId: string,
   attempt: number,
 ): Promise<void> {
-  await rm(
-    resolveDataPath(
-      posix.join("staging", "worker-artifacts", jobId, String(attempt)),
-    ),
-    { recursive: true, force: true },
-  ).catch(() => undefined);
-}
-
-export async function cleanupStagedMediaArtifacts(
-  jobId: string,
-): Promise<void> {
-  await rm(resolveDataPath(posix.join("staging", "worker-artifacts", jobId)), {
+  await rm(workerAttemptPath(jobId, attempt), {
     recursive: true,
     force: true,
   }).catch(() => undefined);
 }
 
-export function stagingArtifactPath(
-  lease: MediaPreparationLease,
+export async function cleanupStagedMediaArtifacts(
+  jobId: string,
+): Promise<void> {
+  await rm(workerArtifactsPath(jobId), {
+    recursive: true,
+    force: true,
+  }).catch(() => undefined);
+}
+
+export function stagedArtifactPath(
+  jobId: string,
+  attempt: number,
   kind: MediaDerivativeKind,
 ): string {
-  return resolveDataPath(
-    posix.join(
-      "staging",
-      "worker-artifacts",
-      lease.jobId,
-      String(lease.attempt),
-      `${kind}.part`,
-    ),
-  );
+  return join(workerAttemptPath(jobId, attempt), `${kind}.part`);
 }

@@ -1,14 +1,19 @@
 import { mkdir, unlink } from "node:fs/promises";
-import { basename, dirname, extname, posix } from "node:path";
+import { basename, dirname, extname } from "node:path";
 
 import { pool } from "$lib/server/db";
-import { withTransaction } from "$lib/server/db/transaction";
-import { StatusError } from "$lib/server/http/errors";
 import { lockForTransaction, lockKeys } from "$lib/server/db/locks";
+import { withTransaction } from "$lib/server/db/transaction";
+import { badRequest, notFound } from "$lib/server/http/errors";
 import { enqueueMediaPreparation } from "$lib/server/media/preparation";
 import { normalizeProjectTitle } from "$lib/server/projects/library";
 import { linkIdempotent } from "$lib/server/storage/files";
-import { originalStorageKey, resolveDataPath } from "$lib/server/storage/paths";
+import {
+  originalStorageKey,
+  resolveDataPath,
+  stagedUploadPath,
+} from "$lib/server/storage/paths";
+import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/project-limits";
 
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 
@@ -27,7 +32,7 @@ export function normalizeFilename(value: string): string {
     .replace(/[\u0000-\u001f\u007f]/g, "_")
     .trim();
   if (!leaf || leaf === "." || leaf === "..") {
-    throw new StatusError(400, "A valid filename is required.");
+    throw badRequest("A valid filename is required.");
   }
   return leaf.slice(0, 255);
 }
@@ -43,7 +48,7 @@ export function projectNameFor(
     0,
     Math.max(0, filename.length - extension.length),
   );
-  return (stem.trim() || filename).slice(0, 160);
+  return (stem.trim() || filename).slice(0, PROJECT_TITLE_MAX_LENGTH);
 }
 
 export async function createUploadProject(input: {
@@ -55,8 +60,7 @@ export async function createUploadProject(input: {
   projectName?: string | null;
   sizeBytes: number;
 }): Promise<string> {
-  if (!SAFE_ID.test(input.uploadId))
-    throw new StatusError(400, "Invalid upload ID.");
+  if (!SAFE_ID.test(input.uploadId)) throw badRequest("Invalid upload ID.");
   const filename = normalizeFilename(input.filename);
   return withTransaction(async (client) => {
     const membership = await client.query(
@@ -64,7 +68,7 @@ export async function createUploadProject(input: {
       [input.workspaceId, input.userId],
     );
     if (membership.rowCount !== 1) {
-      throw new StatusError(404, "Workspace not found.");
+      throw notFound("Workspace not found.");
     }
     const project = await client.query<{ id: string }>(
       `insert into projects (workspace_id, name, media_filename, created_by)
@@ -108,7 +112,7 @@ export async function requireOwnedUpload(
   );
   const upload = result.rows[0];
   if (!upload) {
-    throw new StatusError(404, "Upload not found.");
+    throw notFound("Upload not found.");
   }
   return upload;
 }
@@ -139,9 +143,7 @@ export async function completeUpload(
     upload.projectId,
     upload.originalFilename,
   );
-  const stagingPath = resolveDataPath(
-    posix.join("staging", "uploads", uploadId),
-  );
+  const stagingPath = stagedUploadPath(uploadId);
   const canonicalPath = resolveDataPath(storageKey);
   await pool.query(
     `update media_uploads
@@ -205,8 +207,14 @@ export async function cancelUpload(
 ): Promise<void> {
   const upload = await requireOwnedUpload(uploadId, userId).catch(() => null);
   if (!upload || upload.status === "completed") return;
+  await deleteUnfinishedUploadProject(upload.projectId);
+}
+
+export async function deleteUnfinishedUploadProject(
+  projectId: string,
+): Promise<void> {
   await pool.query(
     `delete from projects where id = $1 and media_original_key is null`,
-    [upload.projectId],
+    [projectId],
   );
 }

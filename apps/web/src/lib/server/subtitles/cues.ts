@@ -1,6 +1,9 @@
 import type { PoolClient } from "pg";
 
+import type { SubtitleCueSnapshot } from "$lib/shared/subtitles";
 import { isUuid } from "$lib/shared/uuid";
+
+type Queryable = Pick<PoolClient, "query">;
 
 export type CueContent = {
   startUs: number;
@@ -48,4 +51,21 @@ function cueId(
   if (batch.ids === "generate") return null;
   if (!isUuid(cue.id)) throw new Error("Cue ids must be UUIDs.");
   return cue.id;
+}
+
+// Words are opt-in: they can outweigh the cue text many times over.
+export async function listTrackCues(
+  executor: Queryable,
+  trackId: string,
+  { includeWords = false }: { includeWords?: boolean } = {},
+): Promise<SubtitleCueSnapshot[]> {
+  const result = await executor.query<SubtitleCueSnapshot>(
+    `select id, position, start_us as "startUs", end_us as "endUs", text
+            ${includeWords ? ", words" : ""}
+       from cues
+      where track_id = $1
+      order by position asc`,
+    [trackId],
+  );
+  return result.rows;
 }

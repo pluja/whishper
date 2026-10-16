@@ -129,7 +129,7 @@ function completionKindMismatch(): Error {
   return unprocessable("Worker completion does not match the leased job.");
 }
 
-export function assertTranscriptTiming(artifact: TranscriptArtifact): void {
+function assertTranscriptTiming(artifact: TranscriptArtifact): void {
   let previousStart = -1;
   for (const cue of artifact.cues) {
     if (cue.endUs < cue.startUs || cue.endUs > artifact.durationUs) {

@@ -1,10 +1,10 @@
 import { FileStore } from "@tus/file-store";
 import { ERRORS, EVENTS, MemoryLocker, Server, type Upload } from "@tus/server";
 import { mkdir, unlink } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 
 import { privateEnv } from "$lib/server/env";
-import { publicFailure } from "$lib/server/http/errors";
+import { clientFailure } from "$lib/server/http/errors";
 import {
   cancelUpload,
   completeUpload,
@@ -18,6 +18,7 @@ import {
   UPLOAD_EXPIRATION_MS,
 } from "$lib/server/uploads/maintenance";
 import { isNodeError } from "$lib/server/guards";
+import { uploadStagingDirectory } from "$lib/server/storage/paths";
 import { isUuid } from "$lib/shared/uuid";
 
 const TUS_PATH = "/api/uploads";
@@ -47,7 +48,7 @@ async function getServer(): Promise<Server> {
 
 function getStore(): Promise<FileStore> {
   storePromise ??= (async () => {
-    const stagingDirectory = resolve(privateEnv.dataRoot, "staging", "uploads");
+    const stagingDirectory = uploadStagingDirectory();
     await mkdir(stagingDirectory, { recursive: true });
     return new FileStore({
       directory: stagingDirectory,
@@ -146,13 +147,13 @@ async function createServer(): Promise<Server> {
       const workspaceId = upload.metadata?.workspaceId;
       const filename = upload.metadata?.filename;
       if (!workspaceId || !isUuid(workspaceId)) {
-        throw { status_code: 400, body: "A valid workspaceId is required.\n" };
+        throw tusReject(400, "A valid workspaceId is required.");
       }
       if (!filename || upload.size === undefined || upload.size <= 0) {
-        throw {
-          status_code: 400,
-          body: "A filename and non-empty upload length are required.\n",
-        };
+        throw tusReject(
+          400,
+          "A filename and non-empty upload length are required.",
+        );
       }
       const mediaType = declaredUploadMediaType(upload.metadata?.filetype);
       const projectId = await createUploadProject({
@@ -175,7 +176,6 @@ async function createServer(): Promise<Server> {
         upload.id,
         requireUserId(request),
       ).catch((cause) => {
-        console.error(`Could not finalize upload ${upload.id}`, cause);
         throw tusError(cause, "Upload finalization failed.");
       });
       return {
@@ -200,17 +200,27 @@ async function createServer(): Promise<Server> {
 function requireUserId(request: Request): string {
   const userId = request.headers.get(USER_HEADER);
   if (!userId) {
-    throw { status_code: 401, body: "Authentication required.\n" };
+    throw tusReject(401, "Authentication required.");
   }
   return userId;
 }
 
+type TusRejection = { status_code: number; body: string };
+
+export function tusReject(status: number, message: string): TusRejection {
+  return { status_code: status, body: `${message}\n` };
+}
+
+// tus answers these itself, so server failures are logged here rather than by
+// the handleError hook.
 export function tusError(
   cause: unknown,
   fallbackMessage: string,
-): { status_code: number; body: string } {
-  const { status, message } = publicFailure(cause, fallbackMessage);
-  return { status_code: status, body: `${message}\n` };
+): TusRejection {
+  const failure = clientFailure(cause);
+  if (failure) return tusReject(failure.status, failure.message);
+  console.error(fallbackMessage, cause);
+  return tusReject(500, fallbackMessage);
 }
 
 export function declaredUploadMediaType(
@@ -220,10 +230,7 @@ export function declaredUploadMediaType(
   if (!trimmed) return null;
   const mediaType = normalizeMediaType(trimmed);
   if (!mediaType) {
-    throw {
-      status_code: 400,
-      body: "Only audio and video uploads are supported.\n",
-    };
+    throw tusReject(400, "Only audio and video uploads are supported.");
   }
   return mediaType;
 }

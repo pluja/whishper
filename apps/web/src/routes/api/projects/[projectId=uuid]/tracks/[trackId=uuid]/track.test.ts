@@ -13,6 +13,8 @@ vi.mock("$lib/server/subtitles/track-editor", async (importOriginal) => ({
   updateTrackForUser,
 }));
 
+import { TrackRevisionConflict } from "$lib/server/subtitles/track-editor";
+
 import { PUT } from "./+server";
 
 const projectId = "b14d765a-0cb2-4fa8-af80-c563ab57c959";
@@ -29,7 +31,6 @@ const callPut = (body: unknown) =>
 describe("track update route", () => {
   beforeEach(() => {
     updateTrackForUser.mockReset();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   it("answers 404 when the track does not exist", async () => {
@@ -40,12 +41,32 @@ describe("track update route", () => {
     });
   });
 
-  it("hides the cause of unexpected failures behind a fixed 500", async () => {
-    updateTrackForUser.mockRejectedValue(new Error("password=hunter2"));
+  it("answers 400 with the reason of an invalid update", async () => {
+    const response = await callPut({ revision: -1, cues: [] });
 
-    await expect(callPut({ revision: 1, cues: [] })).rejects.toMatchObject({
-      status: 500,
-      body: { message: "The subtitle track could not be saved." },
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      message: "A valid track revision is required.",
     });
+    expect(updateTrackForUser).not.toHaveBeenCalled();
+  });
+
+  it("answers 409 with the current revision on a conflict", async () => {
+    updateTrackForUser.mockRejectedValue(new TrackRevisionConflict(4));
+
+    const response = await callPut({ revision: 1, cues: [] });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      code: "revision_conflict",
+      revision: 4,
+    });
+  });
+
+  it("leaves unexpected failures to the error hook", async () => {
+    const failure = new Error("password=hunter2");
+    updateTrackForUser.mockRejectedValue(failure);
+
+    await expect(callPut({ revision: 1, cues: [] })).rejects.toBe(failure);
   });
 });

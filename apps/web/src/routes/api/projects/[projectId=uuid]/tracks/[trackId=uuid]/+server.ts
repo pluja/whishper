@@ -5,36 +5,28 @@ import {
   TrackValidationError,
   updateTrackForUser,
 } from "$lib/server/subtitles/track-editor";
-import { error, isHttpError, json } from "@sveltejs/kit";
+import { error, json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
+
+async function readTrackUpdate(request: Request) {
+  const body = await request.json().catch(() => {
+    throw new TrackValidationError("The track update must be valid JSON.");
+  });
+  return parseTrackUpdate(body);
+}
 
 export const PUT: RequestHandler = async ({ locals, params, request }) => {
   const user = requireUser(locals);
-
-  let update;
-  try {
-    update = parseTrackUpdate(await request.json());
-  } catch (cause) {
-    return json(
-      {
-        message:
-          cause instanceof Error ? cause.message : "Invalid track update.",
-      },
-      { status: 400 },
-    );
-  }
-
   try {
     const revision = await updateTrackForUser(
       params.projectId,
       params.trackId,
       user.id,
-      update,
+      await readTrackUpdate(request),
     );
     if (revision === null) error(404, "Subtitle track not found");
     return json({ revision });
   } catch (cause) {
-    if (isHttpError(cause)) throw cause;
     if (cause instanceof TrackRevisionConflict) {
       return json(
         {
@@ -48,7 +40,6 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
     if (cause instanceof TrackValidationError) {
       return json({ message: cause.message }, { status: 400 });
     }
-    console.error("Could not save subtitle track", cause);
-    error(500, "The subtitle track could not be saved.");
+    throw cause;
   }
 };

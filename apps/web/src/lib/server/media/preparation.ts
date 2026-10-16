@@ -3,7 +3,12 @@ import type { PoolClient } from "pg";
 
 import { lockForTransaction, lockKeys } from "$lib/server/db/locks";
 import { withTransaction } from "$lib/server/db/transaction";
+import {
+  IS_ACTIVE_JOB,
+  IS_MEDIA_PREPARE_JOB,
+} from "$lib/server/jobs/predicates";
 import { cleanupStagedMediaArtifacts } from "$lib/server/media/artifact-staging";
+import { projectForUser } from "$lib/server/projects/access";
 
 export async function enqueueMediaPreparation(
   client: PoolClient,
@@ -29,9 +34,9 @@ export async function enqueueMediaPreparation(
   const existing = await client.query<{ id: string }>(
     `select id
        from jobs
-      where kind = 'media_prepare'
-        and project_id = $1
-        and state in ('queued', 'leased')
+      where project_id = $1
+        and ${IS_MEDIA_PREPARE_JOB}
+        and ${IS_ACTIVE_JOB}
       order by created_at desc
       limit 1`,
     [input.projectId],
@@ -67,28 +72,24 @@ export async function requestMediaPreparationForUser(
   userId: string,
 ): Promise<boolean> {
   return withTransaction(async (client) => {
-    const project = await client.query<{
-      workspace_id: string;
-      media_original_key: string;
+    const project = await projectForUser(client, projectId, userId);
+    if (!project?.mediaOriginalKey) return false;
+    const source = await client.query<{
       media_filename: string;
       media_type: string | null;
     }>(
-      `select p.workspace_id, p.media_original_key, p.media_filename,
-              upload.media_type
+      `select p.media_filename, upload.media_type
          from projects p
-         join memberships m on m.workspace_id = p.workspace_id
          left join media_uploads upload on upload.project_id = p.id
-        where p.id = $1 and m.user_id = $2
-          and p.media_original_key is not null
-        `,
-      [projectId, userId],
+        where p.id = $1`,
+      [projectId],
     );
-    const row = project.rows[0];
+    const row = source.rows[0];
     if (!row) return false;
     await enqueueMediaPreparation(client, {
-      workspaceId: row.workspace_id,
+      workspaceId: project.workspaceId,
       projectId,
-      sourceStorageKey: row.media_original_key,
+      sourceStorageKey: project.mediaOriginalKey,
       sourceFilename: row.media_filename,
       sourceMediaType: row.media_type,
     });
@@ -101,19 +102,18 @@ export async function cancelMediaPreparationForUser(
   userId: string,
 ): Promise<boolean> {
   const jobId = await withTransaction(async (client) => {
+    if (!(await projectForUser(client, projectId, userId))) return null;
     const active = await client.query<{ id: string; prepared: boolean }>(
       `select j.id, (p.media_probe is not null) as prepared
          from jobs j
          join projects p on p.id = j.project_id
-         join memberships m on m.workspace_id = p.workspace_id
-        where j.kind = 'media_prepare'
-          and j.project_id = $1
-          and j.state in ('queued', 'leased')
-          and m.user_id = $2
+        where j.project_id = $1
+          and ${IS_MEDIA_PREPARE_JOB}
+          and ${IS_ACTIVE_JOB}
         order by j.created_at desc
         limit 1
         for update of j, p`,
-      [projectId, userId],
+      [projectId],
     );
     const job = active.rows[0];
     if (!job) return null;

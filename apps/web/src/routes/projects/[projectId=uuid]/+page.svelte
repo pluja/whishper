@@ -26,9 +26,11 @@
 
   function editorCues(): EditorCue[] {
     return data.cues.map((cue) => ({
-      ...cue,
-      start_us: Number(cue.start_us),
-      end_us: Number(cue.end_us),
+      id: cue.id,
+      position: cue.position,
+      start_us: cue.startUs,
+      end_us: cue.endUs,
+      text: cue.text,
     }));
   }
 
@@ -59,7 +61,7 @@
     Number(data.track?.metadata?.maxLineLength ?? 42),
   );
   let preparedDurationUs = $derived(
-    knownDurationUs(data.project.media_duration_us),
+    knownDurationUs(data.project.mediaDurationUs),
   );
   let trackDurationUs = $derived(
     knownDurationUs(data.track?.metadata?.durationUs),
@@ -71,9 +73,9 @@
     proxyUrl ?? `/api/projects/${data.project.id}/media`,
   );
   let isAudioSource = $derived(
-    data.project.media_type?.startsWith("audio/") ||
+    data.project.mediaType?.startsWith("audio/") ||
       /\.(mp3|wav|m4a|aac|flac|ogg|opus)$/i.test(
-        data.project.media_filename ?? "",
+        data.project.mediaFilename ?? "",
       ),
   );
 
@@ -84,8 +86,8 @@
     transport: {
       frameDurationUs: () =>
         frameDurationUs(
-          data.project.media_frame_rate_num,
-          data.project.media_frame_rate_den,
+          data.project.mediaFrameRateNum,
+          data.project.mediaFrameRateDen,
         ),
       preparedDurationUs: () => preparedDurationUs,
       trackDurationUs: () => trackDurationUs,
@@ -172,7 +174,7 @@
   <ProcessingStatus
     run={data.run}
     preparation={data.preparation}
-    mediaPreparationStatus={data.project.media_preparation_status}
+    mediaPreparationStatus={data.project.mediaPreparationStatus}
   />
   <div
     class="editor-workspace"
@@ -182,16 +184,16 @@
       <header class="panel-toolbar">
         <div>
           <span class="panel-kicker">Program monitor</span>
-          <strong>{data.project.media_filename ?? "Diagnostic source"}</strong>
+          <strong>{data.project.mediaFilename ?? "Diagnostic source"}</strong>
         </div>
         <span
           class="preview-state"
-          data-state={data.project.media_preparation_status}
+          data-state={data.project.mediaPreparationStatus}
         >
           <span></span>
           {proxyUrl
             ? "Editing proxy"
-            : data.project.media_preparation_status === "completed"
+            : data.project.mediaPreparationStatus === "completed"
               ? "Source prepared"
               : editor.cues.length > 0
                 ? "Track visible"
@@ -200,11 +202,11 @@
       </header>
 
       <div class="media-canvas">
-        {#if data.project.media_original_key}
+        {#if data.project.mediaOriginalKey}
           {#if isAudioSource}
             <div class="audio-preview">
               <span><Icon name="audio" size={28} /></span>
-              <strong>{data.project.media_filename}</strong>
+              <strong>{data.project.mediaFilename}</strong>
               <audio
                 bind:this={transport.mediaElement}
                 controls
@@ -258,7 +260,7 @@
 
       <Timeline
         durationUs={transport.sourceDurationUs}
-        probeState={data.project.media_preparation_status}
+        probeState={data.project.mediaPreparationStatus}
         {waveformUrl}
         cues={editor.cues}
         selectedCueId={editor.selectedCueId}
@@ -317,7 +319,7 @@
               The worker will place normalized subtitle cues here when
               processing finishes.
             </p>
-          {:else if data.project.media_original_key}
+          {:else if data.project.mediaOriginalKey}
             <h2>Ready to transcribe</h2>
             <TranscribePanel
               models={data.transcriptionModels}

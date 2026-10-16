@@ -1,5 +1,6 @@
-import { insertCues } from "$lib/server/subtitles/cues";
 import { withTransaction } from "$lib/server/db/transaction";
+import { projectForUser } from "$lib/server/projects/access";
+import { insertCues, listTrackCues } from "$lib/server/subtitles/cues";
 import { isRecord } from "$lib/shared/is-record";
 import type { SubtitleCueSnapshot } from "$lib/shared/subtitles";
 import { isUuid } from "$lib/shared/uuid";
@@ -27,10 +28,10 @@ export function parseTrackUpdate(value: unknown): TrackUpdate {
     !Number.isSafeInteger(value.revision) ||
     Number(value.revision) < 0
   ) {
-    throw new Error("A valid track revision is required.");
+    throw new TrackValidationError("A valid track revision is required.");
   }
   if (!Array.isArray(value.cues) || value.cues.length > MAX_CUES) {
-    throw new Error(
+    throw new TrackValidationError(
       `A track may contain at most ${MAX_CUES.toLocaleString()} cues.`,
     );
   }
@@ -43,9 +44,10 @@ export function parseTrackUpdate(value: unknown): TrackUpdate {
       typeof candidate.id !== "string" ||
       !isUuid(candidate.id)
     ) {
-      throw new Error(`Cue ${position + 1} has an invalid ID.`);
+      throw new TrackValidationError(`Cue ${position + 1} has an invalid ID.`);
     }
-    if (ids.has(candidate.id)) throw new Error("Cue IDs must be unique.");
+    if (ids.has(candidate.id))
+      throw new TrackValidationError("Cue IDs must be unique.");
     ids.add(candidate.id);
 
     const startUs = Number(candidate.startUs);
@@ -56,17 +58,17 @@ export function parseTrackUpdate(value: unknown): TrackUpdate {
       startUs < 0 ||
       endUs < startUs
     ) {
-      throw new Error(`Cue ${position + 1} has invalid timing.`);
+      throw new TrackValidationError(`Cue ${position + 1} has invalid timing.`);
     }
     if (
       typeof candidate.text !== "string" ||
       candidate.text.length > MAX_CUE_TEXT
     ) {
-      throw new Error(`Cue ${position + 1} has invalid text.`);
+      throw new TrackValidationError(`Cue ${position + 1} has invalid text.`);
     }
     totalText += candidate.text.length;
     if (totalText > MAX_TOTAL_TEXT)
-      throw new Error("The subtitle track is too large.");
+      throw new TrackValidationError("The subtitle track is too large.");
 
     return {
       id: candidate.id,
@@ -86,6 +88,7 @@ export async function updateTrackForUser(
   update: TrackUpdate,
 ): Promise<number | null> {
   return withTransaction(async (client) => {
+    if (!(await projectForUser(client, projectId, userId))) return null;
     const track = await client.query<{
       revision: number;
       duration_us: number | null;
@@ -97,10 +100,9 @@ export async function updateTrackForUser(
               end as duration_us
          from subtitle_tracks track
          join projects p on p.id = track.project_id
-         join memberships m on m.workspace_id = p.workspace_id
-        where track.id = $1 and p.id = $2 and m.user_id = $3
+        where track.id = $1 and p.id = $2
         for update of track`,
-      [trackId, projectId, userId],
+      [trackId, projectId],
     );
     if (!track.rows[0]) return null;
     if (track.rows[0].revision !== update.revision) {
@@ -116,17 +118,15 @@ export async function updateTrackForUser(
       );
     }
 
-    const existing = await client.query<{
-      id: string;
-      text: string;
-      words: Record<string, unknown>[];
-    }>("select id, text, words from cues where track_id = $1", [trackId]);
-    const existingById = new Map(existing.rows.map((cue) => [cue.id, cue]));
+    const existing = await listTrackCues(client, trackId, {
+      includeWords: true,
+    });
+    const existingById = new Map(existing.map((cue) => [cue.id, cue]));
     const storedCues = update.cues.map((cue) => {
       const previous = existingById.get(cue.id);
       return {
         ...cue,
-        words: previous?.text === cue.text ? previous.words : [],
+        words: previous?.text === cue.text ? (previous.words ?? []) : [],
       };
     });
 
