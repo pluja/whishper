@@ -1,10 +1,6 @@
-<script module lang="ts">
-  export type ProbeState =
-    "not_started" | "queued" | "running" | "completed" | "failed";
-</script>
-
 <script lang="ts">
-  import type { LoadState } from "$lib/timeline/waveform-loader.svelte";
+  import type { ProbeState } from "./types";
+  import type { LoadState } from "./waveform-loader.svelte";
 
   type Props = {
     loadState: LoadState;

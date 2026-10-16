@@ -10,7 +10,13 @@
     type TimingGesture,
     type TimingBounds,
     type TimingPart,
-  } from "$lib/timeline/math";
+  } from "./math";
+  import {
+    capturePointer,
+    isCapturedPointer,
+    releasePointer,
+    type PointerCapture,
+  } from "./pointer-drag";
 
   type Props = {
     cue: CueTiming & { text: string };
@@ -24,9 +30,7 @@
     oncommittiming: (timing: CueTiming, gesture: TimingGesture) => void;
   };
 
-  type TimingDrag = {
-    pointerId: number;
-    owner: HTMLElement;
+  type TimingDrag = PointerCapture & {
     part: TimingPart;
     originClientX: number;
     durationUs: number;
@@ -87,12 +91,6 @@
     );
   }
 
-  function releasePointer(active: TimingDrag): void {
-    if (active.owner.hasPointerCapture(active.pointerId)) {
-      active.owner.releasePointerCapture(active.pointerId);
-    }
-  }
-
   function cancelDrag(event?: Event): void {
     const active = drag;
     if (!active) return;
@@ -110,13 +108,10 @@
     ondragstart();
     onselect(cue.id);
 
-    const owner = event.currentTarget as HTMLElement;
-    owner.focus();
-    owner.setPointerCapture(event.pointerId);
+    (event.currentTarget as HTMLElement).focus();
     const original = { id: cue.id, start_us: cue.start_us, end_us: cue.end_us };
     drag = {
-      pointerId: event.pointerId,
-      owner,
+      ...capturePointer(event),
       part,
       originClientX: event.clientX,
       durationUs,
@@ -129,7 +124,7 @@
 
   function activeDragFor(event: PointerEvent): TimingDrag | null {
     const active = drag;
-    if (!active || event.pointerId !== active.pointerId) return null;
+    if (!isCapturedPointer(active, event)) return null;
     if (!dragIsCurrent(active)) {
       cancelDrag(event);
       return null;

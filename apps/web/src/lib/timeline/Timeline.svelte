@@ -1,30 +1,19 @@
 <script lang="ts">
-  import { tick, untrack } from "svelte";
   import TimelineCue from "./TimelineCue.svelte";
-  import TimelineStatus, { type ProbeState } from "./TimelineStatus.svelte";
+  import TimelineStatus from "./TimelineStatus.svelte";
   import TimelineToolbar from "./TimelineToolbar.svelte";
-  import { drawTimeline, TRACK_HEIGHT } from "$lib/timeline/draw";
-  import {
-    decideFollow,
-    zoomAnchorUs,
-    type FollowTrigger,
-  } from "$lib/timeline/follow";
+  import { drawTimeline, TRACK_HEIGHT } from "./draw";
   import {
     clampInteger,
-    clampNumber,
     neighbourBounds,
-    pxToTime,
-    scrollLeftCentredOn,
-    scrollLeftRevealing,
     timeToPx,
     type CueTiming,
     type TimingGesture,
-  } from "$lib/timeline/math";
-  import {
-    chooseWaveformLevel,
-    waveformMatchesDuration,
-  } from "$lib/timeline/waveform";
-  import { WaveformLoader } from "$lib/timeline/waveform-loader.svelte";
+  } from "./math";
+  import type { ProbeState } from "./types";
+  import { MAX_ZOOM, TimelineViewport } from "./viewport.svelte";
+  import { chooseWaveformLevel, waveformMatchesDuration } from "./waveform";
+  import { WaveformLoader } from "./waveform-loader.svelte";
 
   type Props = {
     durationUs: number;
@@ -39,21 +28,6 @@
     onselect: (cueId: string) => void;
     oncommittiming: (timing: CueTiming, gesture: TimingGesture) => void;
   };
-
-  type PanDrag = {
-    pointerId: number;
-    owner: HTMLElement;
-    originClientX: number;
-    originScrollLeft: number;
-    moved: boolean;
-  };
-
-  const MAX_ZOOM = 64;
-  const PLAYHEAD_GUTTER_PX = 5;
-  const WHEEL_LINE_PX = 16;
-  const PAN_THRESHOLD_PX = 3;
-  // Browsers may round a programmatic scrollLeft by a fraction of a pixel.
-  const SCROLL_ECHO_TOLERANCE_PX = 1;
 
   let {
     durationUs,
@@ -72,23 +46,19 @@
   const uid = $props.id();
 
   let root = $state<HTMLElement>();
-  let viewport = $state<HTMLDivElement>();
   let canvas = $state<HTMLCanvasElement>();
-  let viewportWidth = $state(0);
-  let scrollLeft = $state(0);
-  let zoom = $state(1);
   const loader = new WaveformLoader();
-  let panDrag = $state.raw<PanDrag | null>(null);
-  let followPlayhead = true;
-  let lastAutoScrollLeft = 0;
-  let handledSeekRevision = 0;
-
   let timelineDurationUs = $derived(
     Number.isSafeInteger(durationUs) && durationUs > 0 ? durationUs : 0,
   );
-  let contentWidthPx = $derived(
-    Math.max(1, viewportWidth, Math.round(viewportWidth * zoom)),
-  );
+  const viewport = new TimelineViewport({
+    durationUs: () => timelineDurationUs,
+    playbackUs: () => playbackUs,
+    playing: () => playing,
+    seekRevision: () => seekRevision,
+    seek: (microseconds) => onseek(microseconds),
+  });
+
   let waveformMismatch = $derived(
     loader.waveform !== null &&
       timelineDurationUs > 0 &&
@@ -99,197 +69,23 @@
       ? null
       : chooseWaveformLevel(
           loader.waveform,
-          (contentWidthPx * 1_000_000) / timelineDurationUs,
+          (viewport.contentWidthPx * 1_000_000) / timelineDurationUs,
         ),
   );
   $effect(() => loader.load(waveformUrl));
 
   $effect(() => {
-    if (!canvas || !root || viewportWidth <= 0) return;
+    if (!canvas || !root || viewport.width <= 0) return;
     drawTimeline({
       canvas,
       themeSource: root,
-      viewportWidthPx: viewportWidth,
-      scrollLeft,
+      viewportWidthPx: viewport.width,
+      scrollLeft: viewport.scrollLeft,
       durationUs: timelineDurationUs,
-      contentWidthPx,
+      contentWidthPx: viewport.contentWidthPx,
       level: selectedLevel,
     });
   });
-
-  $effect(() => {
-    if (playing) untrack(() => follow("play"));
-  });
-
-  // Zoom and resize are deliberately not triggers: only playback progress and
-  // explicit seeks may move the view to the playhead.
-  $effect(() => {
-    void playbackUs;
-    untrack(() => follow("progress"));
-  });
-
-  $effect(() => {
-    if (seekRevision === handledSeekRevision) return;
-    handledSeekRevision = seekRevision;
-    untrack(() => follow("seek"));
-  });
-
-  function followContext() {
-    return { following: followPlayhead, playing, panning: panDrag !== null };
-  }
-
-  function follow(trigger: FollowTrigger) {
-    const decision = decideFollow(trigger, followContext());
-    followPlayhead = decision.following;
-    if (decision.reveal) revealPlayhead();
-  }
-
-  function scrollGeometry() {
-    return {
-      durationUs: timelineDurationUs,
-      contentWidthPx,
-      viewportWidthPx: viewportWidth,
-    };
-  }
-
-  function scrollViewTo(node: HTMLDivElement, target: number) {
-    if (node.scrollLeft !== target) node.scrollLeft = target;
-    lastAutoScrollLeft = node.scrollLeft;
-  }
-
-  function revealPlayhead() {
-    const node = viewport;
-    if (!node || timelineDurationUs <= 0 || viewportWidth <= 0) return;
-    scrollViewTo(
-      node,
-      scrollLeftRevealing(
-        playbackUs,
-        node.scrollLeft,
-        PLAYHEAD_GUTTER_PX,
-        scrollGeometry(),
-      ),
-    );
-  }
-
-  function handleScroll() {
-    if (!viewport) return;
-    scrollLeft = viewport.scrollLeft;
-    const manual =
-      Math.abs(scrollLeft - lastAutoScrollLeft) > SCROLL_ECHO_TOLERANCE_PX;
-    lastAutoScrollLeft = scrollLeft;
-    if (manual) follow("manual-scroll");
-  }
-
-  function positionFromClientX(clientX: number) {
-    if (!viewport || timelineDurationUs <= 0) return 0;
-    const bounds = viewport.getBoundingClientRect();
-    const contentX = viewport.scrollLeft + clientX - bounds.left;
-    return clampInteger(
-      pxToTime(contentX, timelineDurationUs, contentWidthPx),
-      0,
-      timelineDurationUs,
-    );
-  }
-
-  function releasePointer(active: PanDrag) {
-    if (active.owner.hasPointerCapture(active.pointerId)) {
-      active.owner.releasePointerCapture(active.pointerId);
-    }
-  }
-
-  function beginPan(event: PointerEvent) {
-    if (event.button !== 0 || !viewport || timelineDurationUs <= 0) return;
-    event.preventDefault();
-    const owner = event.currentTarget as HTMLElement;
-    owner.setPointerCapture(event.pointerId);
-    panDrag = {
-      pointerId: event.pointerId,
-      owner,
-      originClientX: event.clientX,
-      originScrollLeft: viewport.scrollLeft,
-      moved: false,
-    };
-  }
-
-  function movePan(event: PointerEvent) {
-    const active = panDrag;
-    if (!active || event.pointerId !== active.pointerId || !viewport) return;
-    event.preventDefault();
-    const distance = event.clientX - active.originClientX;
-    const moved = active.moved || Math.abs(distance) >= PAN_THRESHOLD_PX;
-    viewport.scrollLeft = active.originScrollLeft - distance;
-    if (moved !== active.moved) panDrag = { ...active, moved };
-  }
-
-  function finishPan(event: PointerEvent) {
-    const active = panDrag;
-    if (!active || event.pointerId !== active.pointerId) return;
-    event.preventDefault();
-    releasePointer(active);
-    panDrag = null;
-    if (!active.moved) onseek(positionFromClientX(event.clientX));
-  }
-
-  function cancelPan(event?: Event) {
-    const active = panDrag;
-    if (!active) return;
-    event?.preventDefault();
-    event?.stopPropagation();
-    releasePointer(active);
-    panDrag = null;
-  }
-
-  async function setZoom(nextZoom: number) {
-    const node = viewport;
-    if (!node || viewportWidth <= 0 || timelineDurationUs <= 0) return;
-    const targetZoom = clampNumber(nextZoom, 1, MAX_ZOOM);
-    if (targetZoom === zoom) return;
-
-    const viewCentreUs = clampNumber(
-      pxToTime(
-        node.scrollLeft + node.clientWidth / 2,
-        timelineDurationUs,
-        contentWidthPx,
-      ),
-      0,
-      timelineDurationUs,
-    );
-    const anchorUs = zoomAnchorUs(viewCentreUs, playbackUs, followContext());
-    zoom = targetZoom;
-    await tick();
-
-    if (viewport !== node || node.clientWidth <= 0) return;
-    scrollViewTo(node, scrollLeftCentredOn(anchorUs, scrollGeometry()));
-  }
-
-  function handleWheelPan(event: WheelEvent) {
-    const node = viewport;
-    if (!node || event.ctrlKey) return;
-
-    let delta =
-      Math.abs(event.deltaX) > Math.abs(event.deltaY)
-        ? event.deltaX
-        : event.deltaY;
-    if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
-      delta *= WHEEL_LINE_PX;
-    } else if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
-      delta *= node.clientWidth;
-    }
-    if (!Number.isFinite(delta) || delta === 0) return;
-
-    const maxScrollLeft = node.scrollWidth - node.clientWidth;
-    if (maxScrollLeft <= 0) return;
-
-    const targetScrollLeft = clampNumber(
-      node.scrollLeft + delta,
-      0,
-      maxScrollLeft,
-    );
-    if (targetScrollLeft === node.scrollLeft) return;
-
-    event.preventDefault();
-    node.scrollLeft = targetScrollLeft;
-  }
 </script>
 
 <section
@@ -297,7 +93,12 @@
   bind:this={root}
   aria-label="Waveform timeline"
 >
-  <TimelineToolbar {playbackUs} {zoom} maxZoom={MAX_ZOOM} onzoom={setZoom} />
+  <TimelineToolbar
+    {playbackUs}
+    zoom={viewport.zoom}
+    maxZoom={MAX_ZOOM}
+    onzoom={viewport.setZoom}
+  />
 
   <p id={`${uid}-instructions`} class="visually-hidden">
     Click the timeline to seek. Drag empty space to pan. While zoomed, use the
@@ -311,25 +112,28 @@
   <div class="timeline-stage">
     <div
       class="timeline-viewport"
-      class:panning={panDrag?.moved}
-      bind:this={viewport}
-      bind:clientWidth={viewportWidth}
+      class:panning={viewport.panning}
+      bind:this={viewport.element}
+      bind:clientWidth={viewport.width}
       role="region"
       aria-label="Scrollable waveform and subtitle cues"
       aria-describedby={`${uid}-instructions`}
-      onscroll={handleScroll}
-      onwheel={handleWheelPan}
-      onpointerdown={beginPan}
-      onpointermove={movePan}
-      onpointerup={finishPan}
-      onpointercancel={cancelPan}
-      onlostpointercapture={cancelPan}
+      onscroll={viewport.handleScroll}
+      onwheel={viewport.handleWheel}
+      onpointerdown={viewport.beginPan}
+      onpointermove={viewport.movePan}
+      onpointerup={viewport.finishPan}
+      onpointercancel={viewport.cancelPan}
+      onlostpointercapture={viewport.cancelPan}
     >
-      <div class="timeline-content" style:width={`${contentWidthPx}px`}>
+      <div
+        class="timeline-content"
+        style:width={`${viewport.contentWidthPx}px`}
+      >
         <canvas
           class="timeline-canvas"
           bind:this={canvas}
-          style:width={`${Math.max(1, viewportWidth)}px`}
+          style:width={`${Math.max(1, viewport.width)}px`}
           style:height={`${TRACK_HEIGHT}px`}
           aria-hidden="true"
         ></canvas>
@@ -340,14 +144,14 @@
             number={cueIndex + 1}
             selected={cue.id === selectedCueId}
             durationUs={timelineDurationUs}
-            {contentWidthPx}
+            contentWidthPx={viewport.contentWidthPx}
             neighbourBounds={neighbourBounds(
               cues,
               cueIndex,
               timelineDurationUs,
             )}
             {onselect}
-            ondragstart={cancelPan}
+            ondragstart={viewport.cancelPan}
             {oncommittiming}
           />
         {/each}
@@ -355,7 +159,7 @@
         {#if timelineDurationUs > 0}
           <div
             class="playhead"
-            style:left={`${timeToPx(clampInteger(playbackUs, 0, timelineDurationUs), timelineDurationUs, contentWidthPx)}px`}
+            style:left={`${timeToPx(clampInteger(playbackUs, 0, timelineDurationUs), timelineDurationUs, viewport.contentWidthPx)}px`}
             aria-hidden="true"
           >
             <span></span>
