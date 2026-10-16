@@ -50,6 +50,8 @@ class AdapterRegistry:
 def _load_entry_point(entry_point: EntryPoint) -> Adapter:
     try:
         loaded: Any = entry_point.load()
+        # Third-party adapters rely on a no-argument constructor, so every adapter,
+        # the built-in one included, reads its own runtime settings.
         candidate: Any = loaded() if isinstance(loaded, type) else loaded
         if not isinstance(candidate, Adapter):
             raise TypeError("entry point does not implement the Adapter protocol")

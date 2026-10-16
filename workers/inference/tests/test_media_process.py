@@ -74,6 +74,19 @@ async def test_stdout_streams_to_the_consumer_without_being_retained() -> None:
     assert result.stdout == b""
 
 
+async def test_a_failing_consumer_raises_its_own_error(tmp_path: Path) -> None:
+    pid_file = tmp_path / "pid"
+    script = f"echo $$ > {pid_file}; printf abc; exec sleep 30"
+
+    def reject(_chunk: bytes) -> None:
+        raise MediaPreparationError("waveform samples are malformed")
+
+    with pytest.raises(MediaPreparationError, match="waveform samples are malformed"):
+        await process.run_media_tool(["-c", script], 5, program="sh", on_stdout=reject)
+
+    assert not process_is_alive(int(pid_file.read_text()))
+
+
 @pytest.mark.parametrize("output", ["", "\n"])
 async def test_ffmpeg_version_handles_empty_output(
     monkeypatch: pytest.MonkeyPatch, output: str

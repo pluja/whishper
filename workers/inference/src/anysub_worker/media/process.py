@@ -52,10 +52,8 @@ async def run_media_tool(
     stderr = _StderrTail()
     consume = on_stdout if on_stdout is not None else retained.extend
     try:
-        async with asyncio.timeout(timeout), asyncio.TaskGroup() as tasks:
-            tasks.create_task(_drain_stdout(process, consume))
-            tasks.create_task(_drain_stderr(process, stderr))
-            tasks.create_task(process.wait())
+        async with asyncio.timeout(timeout):
+            await _drain(process, consume, stderr)
     except TimeoutError as cause:
         raise MediaToolTimeoutError(
             f"{program} timed out after {timeout:g}s: {stderr.tail()}"
@@ -77,6 +75,24 @@ async def ffmpeg_version() -> str:
     lines = result.stdout.decode("utf-8", errors="replace").splitlines()
     parts = lines[0].split() if lines else []
     return parts[2] if len(parts) >= 3 else "unknown"
+
+
+async def _drain(
+    process: asyncio.subprocess.Process,
+    consume: Callable[[bytes], None],
+    stderr: _StderrTail,
+) -> None:
+    # A TaskGroup wraps task failures in an ExceptionGroup. The first failure
+    # cancels the other tasks, so its error is raised unwrapped, with its own cause,
+    # for failure_for to classify.
+    try:
+        async with asyncio.TaskGroup() as tasks:
+            tasks.create_task(_drain_stdout(process, consume))
+            tasks.create_task(_drain_stderr(process, stderr))
+            tasks.create_task(process.wait())
+    except ExceptionGroup as group:
+        error = group.exceptions[0]
+        raise error from error.__cause__
 
 
 async def _drain_stdout(
