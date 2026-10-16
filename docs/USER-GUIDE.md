@@ -6,7 +6,7 @@ This guide follows a file from upload to export. For installation see [INSTALL.m
 
 Create a project from the library by choosing a file. The project takes its name from the filename, and names do not need to be unique.
 
-- Audio and video files are accepted (`audio/*`, `video/*`, `application/ogg`, `application/mp4`). Anything else is rejected.
+- Audio and video files are accepted. If the browser reports a media type other than `audio/*`, `video/*`, `application/ogg`, or `application/mp4`, the upload is rejected. A file that reports no type at all is accepted.
 - Uploads go in 32 MiB chunks. If the connection drops or you reload the page, choosing the same file in the same browser resumes where it stopped.
 - The default size limit is 500 GiB per file. See [Uploads](CONFIGURATION.md#uploads) to change it.
 - Cancelling an upload from the browser that started it removes the draft project at once. Uploads that never finish are deleted after seven days.
@@ -25,7 +25,7 @@ The library search box matches project names. Tick **Subtitle text** to match cu
 
 1. Open the project and choose a model. The picker compares model size, memory estimates, and fit against your connected workers. `Small` is a good CPU starting point.
 2. Leave **Accurate word alignment** on for editing and word-level timings.
-3. Under **Advanced options**, change the maximum line length if 42 characters does not suit your platform, or the batch size if the worker runs out of memory.
+3. Under **Advanced options**, change the maximum line length if 42 characters does not suit your platform, or the batch size if the worker runs out of memory. The batch size defaults to 4 on CPU and 16 on CUDA. A higher value can raise throughput and also raises peak memory.
 4. Choose the spoken language, or leave it to Whisper to detect.
 5. Start the transcription and leave the worker running.
 
@@ -56,7 +56,7 @@ After transcription and alignment, WhisperX splits long segments at nearby natur
 
 The project page shows the current stage and progress. On failure it shows the adapter error and lets you start another run. Retranscribing creates a new run and keeps the earlier output until you delete it.
 
-The worker retries transient errors up to three attempts. Errors a retry cannot fix fail at once: FFmpeg timeouts, CUDA out-of-memory, and rejected requests. If the worker stops mid-job, the job goes back to the queue while attempts remain.
+The worker retries transient errors up to three attempts. Errors a retry cannot fix fail at once: FFmpeg timeouts, CUDA out-of-memory, and rejected requests. A worker that is stopped mid-job reports it as a retryable failure before exiting, so the job returns to the queue while attempts remain and fails once they run out.
 
 Deleting a transcript removes its cues and its run, including the job result and retry history, but keeps the project media.
 
@@ -107,7 +107,7 @@ Press `?` outside a text field, or use the **Shortcuts** button, for the full ke
 | `Ctrl/Command+Shift+Z`, `Ctrl/Command+Y` | Redo                                                    |
 | `Ctrl/Command+S`                         | Save now                                                |
 
-Unmodified shortcuts never capture keystrokes inside text fields. Save and split keep their `Ctrl` or `Command` forms while you type. Undo and redo stay native in text fields, which keep their own history. `Space` keeps its normal behaviour on a focused button, link, or disclosure.
+Opening the shortcut guide suspends the studio shortcuts. Unmodified shortcuts never capture keystrokes inside text fields. Save and split keep their `Ctrl` or `Command` forms while you type. Undo and redo stay native in text fields, which keep their own history. `Space` keeps its normal behaviour on a focused button, link, or disclosure.
 
 ## Saving and recovery
 

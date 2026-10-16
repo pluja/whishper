@@ -26,7 +26,7 @@ Server domain folders in `apps/web/src/lib/server/`: `auth`, `db`, `http`, `jobs
 
 Client folders in `apps/web/src/lib/`: `shared` (code used by server and client), `browser`, `library`, `studio`, `editor`, `timeline`, `components`.
 
-Worker modules in `anysub_worker`: `errors`, `retry`, `timing`, `progress`, `execution`, `runner`, `client`, `uploads`, `media/` for FFmpeg-based preparation, and `adapters/whisperx/` for the built-in adapter.
+Worker modules in `anysub_worker`: `models` (the Pydantic protocol), `config`, `cli`, `adapter`, `registry`, `hardware`, `threads`, `protocol_schema`, `errors`, `retry`, `timing`, `progress`, `execution`, `runner`, `client`, `uploads`, `media/` for FFmpeg-based preparation, and `adapters/whisperx/` for the built-in adapter.
 
 ## Naming and structure
 

@@ -45,7 +45,7 @@ Uploads arrive in 32 MiB chunks and resume after an interruption, so a large fil
 
 Your reverse proxy needs matching limits. Nginx defaults to a 1 MiB request body, which rejects chunks long before Anysub sees them.
 
-Uploads accept audio and video types only (`audio/*`, `video/*`, `application/ogg`, `application/mp4`) and must declare their length up front.
+A declared media type must be `audio/*`, `video/*`, `application/ogg`, or `application/mp4`; anything else is rejected. An upload that declares no type is accepted. Uploads must state their length up front.
 
 ## Worker
 
@@ -85,19 +85,27 @@ The [user guide](USER-GUIDE.md#choosing-a-model) describes what each model is go
 
 ### Set by Compose
 
-Compose derives these from the settings above. Change them only for a custom deployment.
+`compose.yaml` derives these from the settings above. Change them only for a custom deployment.
 
-| Variable                | Value in Compose                   | Notes                                                                                    |
-| ----------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------- |
-| `ANYSUB_DEVICE`         | Same as `ANYSUB_ACCELERATOR`       | Worker device. The image and the device cannot disagree.                                 |
-| `ANYSUB_APP_URL`        | `http://web:3000`                  | How the worker reaches the application.                                                  |
-| `ANYSUB_DATA_ROOT`      | `/data`                            | Worker side of the media mount. See [Data root](#data-root).                             |
-| `DATA_ROOT`             | `/data`                            | Application side of the media mount. See [Data root](#data-root).                        |
-| `ANYSUB_MODEL_ROOT`     | `/models`                          | Model cache location in the worker.                                                      |
-| `ANYSUB_WORKER_ID_FILE` | `/models/.worker-id`               | Where the worker stores its generated ID, so it keeps the same identity across restarts. |
-| `DATABASE_URL`          | Built from the `POSTGRES_*` values | Connection string for the application and the migration job.                             |
-| `ORIGIN`                | Same as `BETTER_AUTH_URL`          | Read by the SvelteKit Node server.                                                       |
-| `BODY_SIZE_LIMIT`       | Same as `ANYSUB_BODY_SIZE_LIMIT`   | The name SvelteKit's Node adapter reads.                                                 |
+| Variable            | Value in Compose                   | Notes                                                                                   |
+| ------------------- | ---------------------------------- | --------------------------------------------------------------------------------------- |
+| `ANYSUB_DEVICE`     | Same as `ANYSUB_ACCELERATOR`       | Worker device. The image and the device cannot disagree.                                |
+| `ANYSUB_APP_URL`    | `http://web:3000`                  | How the worker reaches the application. The development overlay uses `http://web:5173`. |
+| `ANYSUB_DATA_ROOT`  | `/data`                            | Worker side of the media mount. See [Data root](#data-root).                            |
+| `DATA_ROOT`         | `/data`                            | Application side of the media mount. See [Data root](#data-root).                       |
+| `ANYSUB_MODEL_ROOT` | `/models`                          | Model cache location in the worker.                                                     |
+| `DATABASE_URL`      | Built from the `POSTGRES_*` values | Connection string for the application and the migration job.                            |
+| `ORIGIN`            | Same as `BETTER_AUTH_URL`          | Read by the SvelteKit Node server.                                                      |
+| `BODY_SIZE_LIMIT`   | Same as `ANYSUB_BODY_SIZE_LIMIT`   | The name SvelteKit's Node adapter reads.                                                |
+
+### Worker defaults
+
+Compose does not set these. The worker reads them from its environment and falls back to the defaults below.
+
+| Variable                         | Default              | Notes                                                                          |
+| -------------------------------- | -------------------- | ------------------------------------------------------------------------------ |
+| `ANYSUB_WORKER_ID_FILE`          | `/models/.worker-id` | Where the worker stores its generated ID, so it keeps its identity on restart. |
+| `ANYSUB_REQUEST_TIMEOUT_SECONDS` | `30`                 | Timeout for requests from the worker to the application.                       |
 
 ## NVIDIA GPUs
 
@@ -163,7 +171,7 @@ Media and the database have to be backed up together. A transcript in PostgreSQL
 
 ### Data root
 
-The application builds the absolute media path it hands to the worker from its own `DATA_ROOT`, and the worker refuses any path outside its own `ANYSUB_DATA_ROOT`. Both must point at the same mount. Compose does this by mounting `app-data` at `/data` in both services, read-write for the application and read-only for the worker. If you change one, change the other, and mount the same storage in both.
+The application builds the absolute media path it hands to the worker from its own `DATA_ROOT`, and the worker refuses any path that is not inside its own `ANYSUB_DATA_ROOT`. The two values must therefore be the same path string, and both services must mount the same storage there. Compose does this by mounting `app-data` at `/data` in both services, read-write for the application and read-only for the worker. If you change one path, change the other to match.
 
 ## Workers on other machines
 

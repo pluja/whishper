@@ -51,7 +51,7 @@ Anysub does not ship a reverse proxy or manage TLS. To serve it on a hostname:
 2. Recreate the services with `docker compose up -d`.
 3. Configure the proxy to forward to `ANYSUB_PORT` (default `5173`).
 
-Uploads arrive as 32 MiB `PATCH` chunks. The proxy must allow `POST`, `HEAD`, `PATCH`, `DELETE`, and `OPTIONS`, accept request bodies of at least 64 MiB, and stream bodies instead of buffering a whole upload. Nginx rejects bodies over 1 MiB by default, which breaks every upload. A minimal nginx location:
+Uploads arrive as `PATCH` chunks. The proxy must allow `POST`, `HEAD`, `PATCH`, `DELETE`, and `OPTIONS`, accept the request body size from [Uploads](CONFIGURATION.md#uploads), and stream bodies instead of buffering a whole upload. A minimal nginx location:
 
 ```nginx
 location / {
@@ -64,8 +64,6 @@ location / {
     proxy_read_timeout 300s;
 }
 ```
-
-[CONFIGURATION.md](CONFIGURATION.md#uploads) explains the limits behind these numbers.
 
 ## Upgrading
 

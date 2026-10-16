@@ -91,6 +91,8 @@ Build a worker image. Do not install the adapter on the Docker host. First build
 docker build -f workers/inference/Dockerfile --target runtime -t anysub-worker:local .
 ```
 
+Add `--build-arg ANYSUB_ACCELERATOR=cuda` to build the CUDA base instead of the CPU one.
+
 Then derive an image that installs your wheel. The runtime image does not ship `uv`, so copy it in for the install step only:
 
 ```dockerfile
@@ -105,7 +107,13 @@ RUN uv pip install --python /app/.venv/bin/python /tmp/adapter.whl \
 USER anysub
 ```
 
-Build and tag the derived image, then reference it from a Compose override. The override drops the stock `build` section so `docker compose up --build` cannot replace your image:
+Build the derived image from a directory that contains your `Dockerfile` and `dist/*.whl`, because the build context must include the wheel:
+
+```sh
+docker build -t local/anysub-worker-my-model:0.1.0 .
+```
+
+Then reference it from a Compose override. The override drops the stock `build` section so `docker compose up --build` cannot replace your image:
 
 ```yaml
 services:
@@ -114,7 +122,9 @@ services:
     build: !reset null
 ```
 
-Save it as `compose.override.yaml` next to `compose.yaml`. Compose reads that file automatically when you run `docker compose up -d` without `-f`.
+Save it as `compose.override.yaml` next to `compose.yaml`. Compose reads that file automatically only when you run `docker compose up -d` without `-f`. If you pass explicit files, for example with `compose.cuda.yaml`, add `-f compose.override.yaml` yourself.
+
+After a `git pull`, rebuild both the base image and the derived image, in that order. Otherwise the worker keeps running the old code.
 
 Large model weights belong in `/models`, which is a persistent Docker volume. Media is available under the read-only `/data` mount for a local worker. An adapter must not modify canonical media.
 

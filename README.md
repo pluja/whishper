@@ -33,7 +33,17 @@ docker compose up --build
 
 Open `http://localhost:5173` and create the owner account on the setup page. It is the only account: public sign-up is disabled and there is no way to add users yet.
 
-On Fedora or another Podman host, install `podman` and `docker-compose`, then run `podman compose up --build -d` with `PODMAN_COMPOSE_PROVIDER` set. [docs/INSTALL.md](docs/INSTALL.md) has the details, plus reverse proxy setup, upgrades, and removal.
+On Fedora with rootless Podman, use Docker Compose as the provider:
+
+```sh
+sudo dnf install podman docker-compose
+systemctl --user enable --now podman.socket
+export PODMAN_COMPOSE_PROVIDER=/usr/libexec/docker/cli-plugins/docker-compose
+./scripts/init-env.sh
+podman compose up --build -d
+```
+
+[docs/INSTALL.md](docs/INSTALL.md) has more on Podman, plus reverse proxy setup, upgrades, and removal.
 
 ## Status
 
