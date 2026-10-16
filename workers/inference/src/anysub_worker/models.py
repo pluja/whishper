@@ -310,8 +310,11 @@ class MediaPreparationJobCompletion(StrictModel):
     generator: MediaGenerator
 
 
+type JobFailureCode = Literal["adapter_error", "adapter_unavailable", "media_preparation_error"]
+
+
 class JobFailure(StrictModel):
-    code: str
+    code: JobFailureCode
     message: str
     retryable: bool
 

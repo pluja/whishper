@@ -4,35 +4,34 @@ import asyncio
 import logging
 import platform
 import uuid
+from importlib.metadata import version
 from pathlib import Path
 
 import httpx
 
 from .config import WorkerSettings
-from .errors import LeaseLostError, is_transient
+from .errors import LeaseLostError, describe_error
 from .hardware import detect_hardware, detect_memory
 from .models import (
     MEDIA_PREPARATION_VERSION,
+    JobCompletion,
     JobCompletionReport,
     JobFailure,
     JobFailureReport,
     JobProgressReport,
     LeaseResponse,
-    MediaPreparationJobCompletion,
     StrictModel,
-    TranscriptArtifact,
-    TranscriptionJobCompletion,
     WorkerCapabilities,
     WorkerLease,
     WorkerManifest,
 )
 from .registry import AdapterRegistry
-from .timing import Sleep
+from .retry import Sleep, is_transient, retry
 from .uploads import upload_artifact
 
 LOGGER = logging.getLogger(__name__)
-WORKER_VERSION = "0.1.0"
-FINAL_REPORT_RETRY_DELAYS_SECONDS = (1, 2, 4, 8, 15, 30)
+WORKER_VERSION = version("anysub-worker")
+FINAL_REPORT_ATTEMPTS = 7
 
 
 class ApplicationClient:
@@ -94,30 +93,7 @@ class ApplicationClient:
     async def upload_artifact(self, lease: WorkerLease, kind: str, artifact_path: Path) -> None:
         await upload_artifact(self._client, lease, kind, artifact_path, sleep=self._sleep)
 
-    async def complete_transcription(
-        self,
-        lease: WorkerLease,
-        artifact: TranscriptArtifact,
-        adapter_id: str,
-        adapter_version: str,
-        model_id: str,
-    ) -> None:
-        completion = TranscriptionJobCompletion(
-            artifact=artifact,
-            adapter={"id": adapter_id, "version": adapter_version, "modelId": model_id},
-        )
-        await self._complete(lease, completion)
-
-    async def complete_media_preparation(
-        self, lease: WorkerLease, completion: MediaPreparationJobCompletion
-    ) -> None:
-        await self._complete(lease, completion)
-
-    async def _complete(
-        self,
-        lease: WorkerLease,
-        completion: TranscriptionJobCompletion | MediaPreparationJobCompletion,
-    ) -> None:
+    async def complete(self, lease: WorkerLease, completion: JobCompletion) -> None:
         await self._post_final_report(
             lease,
             "complete",
@@ -134,22 +110,22 @@ class ApplicationClient:
     async def _post_final_report(
         self, lease: WorkerLease, action: str, report: StrictModel
     ) -> None:
-        for delay in FINAL_REPORT_RETRY_DELAYS_SECONDS:
-            try:
-                await self._post_job_report(lease, action, report)
-                return
-            except httpx.HTTPError as error:
-                if not is_transient(error):
-                    raise
-                LOGGER.warning(
-                    "job %s report failed job_id=%s, retrying in %ss: %s",
-                    action,
-                    lease.job_id,
-                    delay,
-                    error,
-                )
-            await self._sleep(delay)
-        await self._post_job_report(lease, action, report)
+        def log_retry(error: Exception, delay: float) -> None:
+            LOGGER.warning(
+                "job %s report failed job_id=%s, retrying in %.1fs: %s",
+                action,
+                lease.job_id,
+                delay,
+                describe_error(error),
+            )
+
+        await retry(
+            lambda: self._post_job_report(lease, action, report),
+            attempts=FINAL_REPORT_ATTEMPTS,
+            is_retryable=is_transient,
+            sleep=self._sleep,
+            on_retry=log_retry,
+        )
 
     async def _post_job_report(self, lease: WorkerLease, action: str, report: StrictModel) -> None:
         response = await self._client.post(

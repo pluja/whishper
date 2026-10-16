@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type {
+  JobFailure,
   TranscriptionJobCompletion,
   WorkerManifest,
 } from "@anysub/contracts";
@@ -224,7 +225,11 @@ describe("leaseJob reclaim", () => {
 });
 
 describe("failJob", () => {
-  const FAILURE = { code: "adapter_error", message: "boom", retryable: true };
+  const FAILURE: JobFailure = {
+    code: "adapter_error",
+    message: "boom",
+    retryable: true,
+  };
 
   it("requeues a retryable failure and releases the worker", async () => {
     const project = await seedProject();

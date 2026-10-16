@@ -15,12 +15,10 @@ from .config import WorkerSettings
 from .errors import describe_error
 from .execution import execute_job
 from .registry import AdapterRegistry
+from .retry import APPLICATION_BACKOFF, Sleep
 from .threads import wait_for_abandoned_threads
-from .timing import Sleep
 
 LOGGER = logging.getLogger(__name__)
-POLL_BACKOFF_BASE_SECONDS = 1
-POLL_BACKOFF_CAP_SECONDS = 30
 SHUTDOWN_SIGNALS = (signal.SIGTERM, signal.SIGINT)
 LEASE_POLL_ERRORS = (httpx.HTTPError, ValidationError, json.JSONDecodeError)
 
@@ -73,7 +71,7 @@ async def poll_forever(
             response = await client.lease()
         except LEASE_POLL_ERRORS as error:
             consecutive_failures += 1
-            delay = poll_backoff_seconds(consecutive_failures, jitter())
+            delay = APPLICATION_BACKOFF.delay_seconds(consecutive_failures, jitter())
             LOGGER.warning(
                 "lease request failed, retrying in %.1fs: %s", delay, describe_error(error)
             )
@@ -88,12 +86,6 @@ async def poll_forever(
         except Exception:
             LOGGER.exception("job execution crashed job_id=%s", response.lease.job_id)
             consecutive_failures += 1
-            await sleep(poll_backoff_seconds(consecutive_failures, jitter()))
+            await sleep(APPLICATION_BACKOFF.delay_seconds(consecutive_failures, jitter()))
         else:
             consecutive_failures = 0
-
-
-def poll_backoff_seconds(consecutive_failures: int, jitter: float) -> float:
-    exponent = min(consecutive_failures - 1, 5)
-    ceiling = min(POLL_BACKOFF_CAP_SECONDS, POLL_BACKOFF_BASE_SECONDS * 2**exponent)
-    return ceiling * (0.5 + jitter / 2)

@@ -232,7 +232,7 @@
       "additionalProperties": false,
       "properties": {
         "code": {
-          "type": "string"
+          "$ref": "#/$defs/JobFailureCode"
         },
         "message": {
           "type": "string"
@@ -248,6 +248,14 @@
       ],
       "title": "JobFailure",
       "type": "object"
+    },
+    "JobFailureCode": {
+      "enum": [
+        "adapter_error",
+        "adapter_unavailable",
+        "media_preparation_error"
+      ],
+      "type": "string"
     },
     "JobFailureReport": {
       "additionalProperties": false,

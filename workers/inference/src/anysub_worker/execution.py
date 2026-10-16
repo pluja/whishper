@@ -5,20 +5,25 @@ import logging
 from collections.abc import Coroutine
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Literal
+from typing import Any
 
 import httpx
 
-from .adapter import ProgressReporter, TranscriptionAdapter
+from .adapter import AdapterExecutionError, ProgressReporter, TranscriptionAdapter
 from .client import ApplicationClient
-from .errors import JobError, LeaseLostError, describe_error
+from .errors import LeaseLostError, describe_error, failure_for
 from .media import prepare_media
+from .media.errors import MediaPreparationError
 from .models import (
     AdapterCapability,
+    AdapterReference,
     JobFailure,
+    JobFailureCode,
     MediaPreparationJobPayload,
+    TranscriptionJobCompletion,
     TranscriptionJobPayload,
     TranscriptionRequest,
+    WorkerJobPayload,
     WorkerLease,
 )
 from .registry import AdapterLoadError, AdapterRegistry
@@ -27,8 +32,6 @@ LOGGER = logging.getLogger(__name__)
 LEASE_HEARTBEAT_SECONDS = 20
 # Compose stops containers after 10s, so the shutdown failure report must finish well before.
 SHUTDOWN_REPORT_SECONDS = 5
-
-type JobKind = Literal["transcribe", "media_prepare"]
 
 
 class _LeasedJob:
@@ -72,7 +75,7 @@ class _LeasedJob:
 async def execute_job(
     client: ApplicationClient, registry: AdapterRegistry, lease: WorkerLease
 ) -> None:
-    kind = lease.payload.kind
+    fallback_code = _fallback_failure_code(lease.payload)
     job = _LeasedJob(client, lease)
     work = job.start(_run(client, registry, lease, job.report))
     heartbeat = asyncio.create_task(job.keep_alive())
@@ -88,7 +91,7 @@ async def execute_job(
                 client,
                 lease,
                 JobFailure(
-                    code=_failure_code(kind),
+                    code=fallback_code,
                     message="The worker shut down before the job finished.",
                     retryable=True,
                 ),
@@ -97,7 +100,7 @@ async def execute_job(
         raise
     except Exception as error:
         LOGGER.exception("job failed job_id=%s", lease.job_id)
-        await _report_failure(client, lease, _failure_for(error, kind))
+        await _report_failure(client, lease, failure_for(error, fallback_code))
     finally:
         heartbeat.cancel()
         await asyncio.wait([heartbeat])
@@ -126,26 +129,10 @@ async def _report_failure(
         )
 
 
-def _failure_for(error: Exception, kind: JobKind) -> JobFailure:
-    if isinstance(error, JobError):
-        return JobFailure(code=error.code, message=str(error), retryable=error.retryable)
-    return JobFailure(
-        code=_failure_code(kind),
-        message=describe_error(error),
-        retryable=not _is_rejected_request(error),
-    )
-
-
-def _failure_code(kind: JobKind) -> str:
-    return "adapter_error" if kind == "transcribe" else "media_preparation_error"
-
-
-def _is_rejected_request(error: Exception) -> bool:
-    return (
-        isinstance(error, httpx.HTTPStatusError)
-        and error.response.is_client_error
-        and error.response.status_code != httpx.codes.CONFLICT
-    )
+def _fallback_failure_code(payload: WorkerJobPayload) -> JobFailureCode:
+    if isinstance(payload, TranscriptionJobPayload):
+        return AdapterExecutionError.code
+    return MediaPreparationError.code
 
 
 async def _run(
@@ -185,7 +172,7 @@ async def _run_media_preparation(
             await report(progress, f"Uploading {kind} derivative")
             await client.upload_artifact(lease, kind, artifact_path)
         await report(0.98, "Finalizing media metadata")
-        await client.complete_media_preparation(lease, prepared.completion)
+        await client.complete(lease, prepared.completion)
 
 
 async def _run_transcription(
@@ -214,10 +201,13 @@ async def _run_transcription(
         ),
         report,
     )
-    await client.complete_transcription(
+    manifest = adapter.manifest
+    await client.complete(
         lease,
-        artifact,
-        adapter.manifest.id,
-        adapter.manifest.version,
-        payload.model_id,
+        TranscriptionJobCompletion(
+            artifact=artifact,
+            adapter=AdapterReference(
+                id=manifest.id, version=manifest.version, modelId=payload.model_id
+            ),
+        ),
     )

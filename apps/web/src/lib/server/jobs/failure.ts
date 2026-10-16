@@ -5,7 +5,8 @@ import { withTransaction } from "$lib/server/db/transaction";
 import { hashToken } from "$lib/server/jobs/lease-token";
 import { cleanupStagedMediaAttempt } from "$lib/server/media/artifact-staging";
 
-const LEASE_EXPIRED_FAILURE: JobFailure = {
+// Stored like a worker failure, but the application raises it, so it is not a JobFailureCode.
+const LEASE_EXPIRED_FAILURE = {
   code: "lease_expired",
   message: "Worker lease expired",
   retryable: false,

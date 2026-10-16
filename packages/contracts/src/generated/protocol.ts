@@ -10,6 +10,8 @@ export type ProtocolMessage =
   | LeaseResponse;
 export type MediaPreparationVersion = "1.0";
 export type AdapterCapability = "transcribe" | "align";
+export type JobFailureCode =
+  "adapter_error" | "adapter_unavailable" | "media_preparation_error";
 export type JobCompletion =
   TranscriptionJobCompletion | MediaPreparationJobCompletion;
 export type WorkerJobPayload =
@@ -80,7 +82,7 @@ export interface JobFailureReport {
   error: JobFailure;
 }
 export interface JobFailure {
-  code: string;
+  code: JobFailureCode;
   message: string;
   retryable: boolean;
 }

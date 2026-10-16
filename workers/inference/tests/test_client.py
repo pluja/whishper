@@ -1,9 +1,10 @@
 import httpx
 import pytest
+import respx
 from fakes import RecordedSleeps
 
 from anysub_worker import client as client_module
-from anysub_worker.client import FINAL_REPORT_RETRY_DELAYS_SECONDS, ApplicationClient
+from anysub_worker.client import FINAL_REPORT_ATTEMPTS, ApplicationClient
 from anysub_worker.config import WorkerSettings
 from anysub_worker.errors import LeaseLostError
 from anysub_worker.models import (
@@ -37,8 +38,11 @@ def make_client(settings: WorkerSettings, sleeps: RecordedSleeps) -> Application
 
 
 async def test_completion_is_retried_on_server_and_network_errors(
-    settings: WorkerSettings, media_lease: WorkerLease, respx_mock
-) -> None:  # type: ignore[no-untyped-def]
+    settings: WorkerSettings,
+    media_lease: WorkerLease,
+    respx_mock: respx.MockRouter,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     sleeps = RecordedSleeps()
     client = make_client(settings, sleeps)
     route = respx_mock.post(COMPLETE_URL).mock(
@@ -50,12 +54,14 @@ async def test_completion_is_retried_on_server_and_network_errors(
     )
 
     try:
-        await client.complete_media_preparation(media_lease, COMPLETION)
+        await client.complete(media_lease, COMPLETION)
     finally:
         await client.close()
 
     assert route.call_count == 3
     assert sleeps == [1, 2]
+    assert "HTTPStatusError: 503 Service Unavailable" in caplog.text
+    assert "app.test" not in caplog.text
 
 
 async def test_completion_gives_up_after_the_retry_budget(
@@ -67,13 +73,12 @@ async def test_completion_gives_up_after_the_retry_budget(
 
     try:
         with pytest.raises(httpx.HTTPStatusError):
-            await client.complete_media_preparation(media_lease, COMPLETION)
+            await client.complete(media_lease, COMPLETION)
     finally:
         await client.close()
 
-    assert sleeps == list(FINAL_REPORT_RETRY_DELAYS_SECONDS)
-    assert sum(sleeps) == 60
-    assert route.call_count == len(FINAL_REPORT_RETRY_DELAYS_SECONDS) + 1
+    assert sleeps == [1, 2, 4, 8, 16, 30]
+    assert route.call_count == FINAL_REPORT_ATTEMPTS
 
 
 async def test_rejected_completion_is_not_retried(
@@ -84,7 +89,7 @@ async def test_rejected_completion_is_not_retried(
 
     try:
         with pytest.raises(httpx.HTTPStatusError):
-            await client.complete_media_preparation(media_lease, COMPLETION)
+            await client.complete(media_lease, COMPLETION)
     finally:
         await client.close()
 
@@ -99,7 +104,7 @@ async def test_lease_conflict_raises_lease_lost(
 
     try:
         with pytest.raises(LeaseLostError):
-            await client.complete_media_preparation(media_lease, COMPLETION)
+            await client.complete(media_lease, COMPLETION)
     finally:
         await client.close()
 

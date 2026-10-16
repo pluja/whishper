@@ -45,16 +45,6 @@ async def test_invalid_lease_response_backs_off_instead_of_crashing(
     assert delays == [1, 2, 0.5]
 
 
-@pytest.mark.parametrize(
-    ("consecutive_failures", "jitter", "expected"),
-    [(1, 0.0, 0.5), (1, 1.0, 1), (3, 1.0, 4), (6, 1.0, 30), (500, 1.0, 30), (500, 0.0, 15)],
-)
-def test_poll_backoff_grows_exponentially_up_to_the_cap(
-    consecutive_failures: int, jitter: float, expected: float
-) -> None:
-    assert runner.poll_backoff_seconds(consecutive_failures, jitter) == expected
-
-
 async def test_sigterm_stops_the_worker_and_closes_the_client(
     settings: WorkerSettings, monkeypatch
 ) -> None:  # type: ignore[no-untyped-def]

@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import re
 from contextlib import suppress
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import httpx
+
+from .models import JobFailure, JobFailureCode
 
 MAX_RESPONSE_DETAIL_CHARS = 200
 HTML_TAG = re.compile(r"<[^>]*>")
@@ -14,7 +16,12 @@ HTML_TAG = re.compile(r"<[^>]*>")
 class JobError(RuntimeError):
     """A job failure whose message is safe to show and whose retry policy is explicit."""
 
-    code: ClassVar[str]
+    code: ClassVar[JobFailureCode]
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if not hasattr(cls, "code"):
+            raise TypeError(f"{cls.__name__} must declare the failure code it reports")
 
     def __init__(self, message: str, *, retryable: bool) -> None:
         super().__init__(message)
@@ -26,16 +33,28 @@ class LeaseLostError(RuntimeError):
         super().__init__(f"lease for job {job_id} is no longer active")
 
 
-def is_transient(error: httpx.HTTPError) -> bool:
-    if isinstance(error, httpx.HTTPStatusError):
-        return error.response.is_server_error
-    return isinstance(error, httpx.TransportError)
+def failure_for(error: Exception, fallback_code: JobFailureCode) -> JobFailure:
+    if isinstance(error, JobError):
+        return JobFailure(code=error.code, message=str(error), retryable=error.retryable)
+    if _is_rejected_request(error):
+        return JobFailure(code=fallback_code, message=describe_error(error), retryable=False)
+    return JobFailure(code=fallback_code, message=describe_error(error), retryable=True)
+
+
+def _is_rejected_request(error: Exception) -> bool:
+    # A conflict is a race with state on the server, so a later attempt can succeed.
+    return (
+        isinstance(error, httpx.HTTPStatusError)
+        and error.response.is_client_error
+        and error.response.status_code != httpx.codes.CONFLICT
+    )
 
 
 def describe_error(error: BaseException) -> str:
     if isinstance(error, httpx.HTTPStatusError):
         response = error.response
-        message = f"{type(error).__name__}: {response.status_code} {response.reason_phrase}"
+        status = f"{response.status_code} {response.reason_phrase}".rstrip()
+        message = f"{type(error).__name__}: {status}"
         with suppress(httpx.ResponseNotRead):
             detail = _summarize_response_body(response)
             if detail:

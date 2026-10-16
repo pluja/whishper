@@ -16,13 +16,12 @@ from fakes import (
 )
 
 from anysub_worker import execution
-from anysub_worker.adapter import AdapterExecutionError
 from anysub_worker.client import ApplicationClient
 from anysub_worker.config import WorkerSettings
 from anysub_worker.errors import LeaseLostError
 from anysub_worker.media import PreparedMedia
-from anysub_worker.media.errors import MediaPreparationError
 from anysub_worker.models import (
+    JobCompletion,
     JobFailure,
     MediaDerivativeUpload,
     MediaGenerator,
@@ -30,7 +29,7 @@ from anysub_worker.models import (
     MediaProbeArtifact,
     WorkerLease,
 )
-from anysub_worker.registry import AdapterLoadError, AdapterRegistry
+from anysub_worker.registry import AdapterRegistry
 
 
 async def test_long_adapter_work_renews_its_lease(
@@ -150,7 +149,7 @@ async def test_lease_conflict_on_completion_is_not_reported_as_failure(
     transcription_lease: WorkerLease,
 ) -> None:
     class LostOnCompleteClient(RecordingClient):
-        async def complete_transcription(self, *_args) -> None:  # type: ignore[no-untyped-def]
+        async def complete(self, lease: WorkerLease, completion: JobCompletion) -> None:
             raise LeaseLostError("job-1")
 
     client = LostOnCompleteClient()
@@ -227,43 +226,3 @@ async def test_unprocessable_completion_fails_the_job_permanently_with_its_reaso
         "message": "HTTPStatusError: 422 Unprocessable Entity: Adapter cues are not ordered.",
         "retryable": False,
     }
-
-
-@pytest.mark.parametrize(
-    ("error", "message", "retryable"),
-    [
-        (RuntimeError("disk full"), "RuntimeError: disk full", True),
-        (TimeoutError(), "TimeoutError", True),
-        (status_error(503, "busy"), "HTTPStatusError: 503 Service Unavailable: busy", True),
-        (
-            status_error(422, ""),
-            f"HTTPStatusError: 422 {httpx.codes.UNPROCESSABLE_ENTITY.phrase}",
-            False,
-        ),
-        (status_error(409, "stale"), "HTTPStatusError: 409 Conflict: stale", True),
-    ],
-)
-def test_unexpected_failures_are_described_with_their_type(
-    error: Exception, message: str, retryable: bool
-) -> None:
-    failure = execution._failure_for(error, "media_prepare")
-
-    assert failure == JobFailure(
-        code="media_preparation_error", message=message, retryable=retryable
-    )
-
-
-@pytest.mark.parametrize(
-    ("error", "code", "retryable"),
-    [
-        (AdapterExecutionError("out of memory", retryable=False), "adapter_error", False),
-        (MediaPreparationError("no streams", retryable=True), "media_preparation_error", True),
-        (AdapterLoadError("adapter is not installed: x"), "adapter_unavailable", False),
-    ],
-)
-def test_job_errors_report_their_own_code_and_retry_policy(
-    error: Exception, code: str, retryable: bool
-) -> None:
-    failure = execution._failure_for(error, "transcribe")
-
-    assert failure == JobFailure(code=code, message=str(error), retryable=retryable)

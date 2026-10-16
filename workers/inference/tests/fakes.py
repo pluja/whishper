@@ -11,11 +11,13 @@ from anysub_worker.models import (
     AdapterCapability,
     AdapterManifest,
     AdapterModel,
+    JobCompletion,
     JobFailure,
     TranscriptArtifact,
     TranscriptCue,
     TranscriptionRequest,
     WordToken,
+    WorkerLease,
 )
 
 
@@ -91,7 +93,9 @@ class FakeAdapter:
 
 
 class SlowFakeAdapter(FakeAdapter):
-    async def transcribe(self, request, report_progress):  # type: ignore[no-untyped-def]
+    async def transcribe(
+        self, request: TranscriptionRequest, report_progress: ProgressReporter
+    ) -> TranscriptArtifact:
         await asyncio.sleep(0.04)
         return await super().transcribe(request, report_progress)
 
@@ -105,23 +109,23 @@ class RecordingClient:
         self.downloads = 0
         self.uploads: list[tuple[str, bytes]] = []
 
-    async def progress(self, lease, progress: float, message: str) -> None:  # type: ignore[no-untyped-def]
+    async def progress(self, lease: WorkerLease, progress: float, message: str) -> None:
         self.progress_updates.append((progress, message))
 
-    async def complete_transcription(self, *args) -> None:  # type: ignore[no-untyped-def]
-        self.transcription_completions += 1
-
-    async def download_source(self, _lease, destination: Path) -> None:  # type: ignore[no-untyped-def]
+    async def download_source(self, lease: WorkerLease, destination: Path) -> None:
         self.downloads += 1
         destination.write_bytes(b"source")
 
-    async def upload_artifact(self, _lease, kind: str, path: Path) -> None:  # type: ignore[no-untyped-def]
-        self.uploads.append((kind, path.read_bytes()))
+    async def upload_artifact(self, lease: WorkerLease, kind: str, artifact_path: Path) -> None:
+        self.uploads.append((kind, artifact_path.read_bytes()))
 
-    async def complete_media_preparation(self, *_args) -> None:  # type: ignore[no-untyped-def]
-        self.media_completions += 1
+    async def complete(self, lease: WorkerLease, completion: JobCompletion) -> None:
+        if completion.kind == "transcribe":
+            self.transcription_completions += 1
+        else:
+            self.media_completions += 1
 
-    async def fail(self, _lease, failure: JobFailure) -> None:  # type: ignore[no-untyped-def]
+    async def fail(self, lease: WorkerLease, failure: JobFailure) -> None:
         self.failures.append(failure)
 
 
@@ -129,7 +133,9 @@ class GatedAdapter(FakeAdapter):
     def __init__(self) -> None:
         self.release = asyncio.Event()
 
-    async def transcribe(self, request, report_progress):  # type: ignore[no-untyped-def]
+    async def transcribe(
+        self, request: TranscriptionRequest, report_progress: ProgressReporter
+    ) -> TranscriptArtifact:
         await self.release.wait()
         return await super().transcribe(request, report_progress)
 
@@ -138,7 +144,9 @@ class FailingAdapter(FakeAdapter):
     def __init__(self, error: Exception) -> None:
         self.error = error
 
-    async def transcribe(self, request, report_progress):  # type: ignore[no-untyped-def]
+    async def transcribe(
+        self, request: TranscriptionRequest, report_progress: ProgressReporter
+    ) -> TranscriptArtifact:
         raise self.error
 
 
@@ -151,7 +159,7 @@ class ScriptedProgressClient(RecordingClient):
         self.recovered = asyncio.Event()
         self.saw_error = False
 
-    async def progress(self, lease, progress: float, message: str) -> None:  # type: ignore[no-untyped-def]
+    async def progress(self, lease: WorkerLease, progress: float, message: str) -> None:
         outcome = self.outcomes.pop(0) if self.outcomes else None
         if outcome is not None:
             self.saw_error = True
