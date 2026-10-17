@@ -9,6 +9,7 @@ import {
   isStudioActive,
   projectSourceFallback,
   stateLabel,
+  statusTone,
 } from "./project-status";
 
 const idle: Pick<
@@ -191,5 +192,23 @@ describe("stateLabel", () => {
   it("maps known states and passes unknown ones through", () => {
     expect(stateLabel("failed")).toBe("Needs attention");
     expect(stateLabel("weird")).toBe("weird");
+  });
+});
+
+describe("statusTone", () => {
+  it.each([
+    ["ready", "success"],
+    ["completed", "success"],
+    ["queued", "accent"],
+    ["leased", "accent"],
+    ["running", "accent"],
+    ["preparing", "accent"],
+    ["uploading", "accent"],
+    ["finalizing", "accent"],
+    ["failed", "danger"],
+    ["draft", "neutral"],
+    ["weird", "neutral"],
+  ] as const)("maps %s to %s", (state, tone) => {
+    expect(statusTone(state)).toBe(tone);
   });
 });

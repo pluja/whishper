@@ -100,6 +100,21 @@ export function stateLabel(state: string): string {
   return STATE_LABELS[state] ?? state;
 }
 
+export type StatusTone = "neutral" | "accent" | "success" | "danger";
+
+const IN_PROGRESS_STATES = [
+  ...ACTIVE_JOB_STATES,
+  ...ACTIVE_RUN_STATUSES,
+  ...ACTIVE_UPLOAD_STATUSES,
+  "preparing",
+];
+
+export function statusTone(state: string): StatusTone {
+  if (state === "ready" || state === "completed") return "success";
+  if (state === "failed") return "danger";
+  return IN_PROGRESS_STATES.includes(state) ? "accent" : "neutral";
+}
+
 export function projectSourceFallback(
   project: ProjectMessageFields & {
     mediaType: string | null;
