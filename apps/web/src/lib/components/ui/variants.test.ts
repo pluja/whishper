@@ -9,6 +9,18 @@ describe("buttonClasses", () => {
     expect(primary).toContain("h-9");
     expect(buttonClasses("ghost", "sm")).toContain("h-8");
   });
+  it("uses square sizing without horizontal padding for icon-only buttons", () => {
+    const small = buttonClasses("ghost", "sm", true);
+    const medium = buttonClasses("ghost", "md", true);
+    expect(small).toContain("size-8");
+    expect(medium).toContain("size-9");
+    expect(small).not.toMatch(/\bpx-/);
+    expect(medium).not.toMatch(/\bpx-/);
+  });
+  it("dims disabled controls", () => {
+    expect(CONTROL_CLASSES).toContain("disabled:cursor-not-allowed");
+    expect(CONTROL_CLASSES).toContain("disabled:opacity-50");
+  });
   it("always includes a visible focus ring", () => {
     for (const variant of [
       "primary",

@@ -32,7 +32,7 @@ const BADGE_TONES: Record<BadgeTone, string> = {
   danger: "bg-danger-soft text-danger",
 };
 
-export const CONTROL_CLASSES = `w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-text placeholder:text-text-subtle aria-[invalid=true]:border-danger ${FOCUS}`;
+export const CONTROL_CLASSES = `w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-text placeholder:text-text-subtle aria-[invalid=true]:border-danger disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS}`;
 
 export function buttonClasses(
   variant: ButtonVariant,

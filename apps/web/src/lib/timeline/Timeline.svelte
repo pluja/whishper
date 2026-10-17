@@ -200,7 +200,7 @@
     border-block: 1px solid var(--waveform-border);
     background: var(--waveform-bg);
     color: var(--waveform-text);
-    font-family: var(--font-body, ui-sans-serif, system-ui, sans-serif);
+    font-family: var(--legacy-font-body, ui-sans-serif, system-ui, sans-serif);
   }
 
   .timeline-viewport {

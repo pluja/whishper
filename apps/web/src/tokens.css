@@ -1,14 +1,26 @@
 :root {
-  --color-canvas: #f3f5f7;
-  --color-surface-soft: #f7f8fa;
-  --color-surface-strong: #edf0f3;
-  --color-sidebar: #111720;
-  --color-sidebar-soft: #1a222d;
-  --color-text-soft: #4d5b69;
-  --color-muted: #74808d;
-  --color-accent-ink: #fbfbff;
-  --color-error: #bd3445;
-  --color-error-soft: #fcebed;
+  --legacy-color-surface: #ffffff;
+  --legacy-color-text: #18212b;
+  --legacy-color-border: #dfe4e9;
+  --legacy-color-border-strong: #c9d0d8;
+  --legacy-color-accent: #5b5bd6;
+  --legacy-color-accent-hover: #4949bd;
+  --legacy-color-accent-soft: #eeeeff;
+  --legacy-color-focus: #5b5bd6;
+  --legacy-color-success: #177a55;
+  --legacy-color-success-soft: #e8f5ef;
+  --legacy-color-warning: #a85f12;
+  --legacy-color-warning-soft: #fff3e2;
+  --legacy-color-canvas: #f3f5f7;
+  --legacy-color-surface-soft: #f7f8fa;
+  --legacy-color-surface-strong: #edf0f3;
+  --legacy-color-sidebar: #111720;
+  --legacy-color-sidebar-soft: #1a222d;
+  --legacy-color-text-soft: #4d5b69;
+  --legacy-color-muted: #74808d;
+  --legacy-color-accent-ink: #fbfbff;
+  --legacy-color-error: #bd3445;
+  --legacy-color-error-soft: #fcebed;
 
   --studio-bg: #15171b;
   --studio-chrome: #1a1d21;
@@ -31,7 +43,8 @@
   --studio-error: #ffc1c7;
   --studio-error-soft: #392328;
 
-  --font-body: "Geist Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --legacy-font-body:
+    "Geist Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
 
   --space-3xs: 0.125rem;
   --space-2xs: 0.25rem;
@@ -43,24 +56,24 @@
   --space-2xl: 3rem;
   --space-3xl: 4.5rem;
 
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-md: 1.125rem;
-  --text-lg: 1.375rem;
-  --text-xl: 1.75rem;
-  --text-2xl: 2.25rem;
+  --legacy-text-xs: 0.75rem;
+  --legacy-text-sm: 0.875rem;
+  --legacy-text-base: 1rem;
+  --legacy-text-md: 1.125rem;
+  --legacy-text-lg: 1.375rem;
+  --legacy-text-xl: 1.75rem;
+  --legacy-text-2xl: 2.25rem;
 
-  --radius-xs: 0.375rem;
-  --radius-sm: 0.625rem;
-  --radius-md: 0.875rem;
-  --radius-lg: 1.25rem;
-  --radius-pill: 999rem;
+  --legacy-radius-xs: 0.375rem;
+  --legacy-radius-sm: 0.625rem;
+  --legacy-radius-md: 0.875rem;
+  --legacy-radius-lg: 1.25rem;
+  --legacy-radius-pill: 999rem;
 
-  --shadow-sm: 0 1px 2px rgb(16 24 40 / 0.04);
-  --shadow-md: 0 12px 32px rgb(16 24 40 / 0.08);
+  --legacy-shadow-sm: 0 1px 2px rgb(16 24 40 / 0.04);
+  --legacy-shadow-md: 0 12px 32px rgb(16 24 40 / 0.08);
 
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --legacy-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --dur-micro: 120ms;
   --dur-short: 180ms;
 

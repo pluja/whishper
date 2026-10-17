@@ -19,7 +19,7 @@
   class="h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken"
 >
   <div
-    class="h-full rounded-full bg-accent transition-[width] duration-200 {percent ===
+    class="h-full rounded-full bg-accent transition-[width] duration-200 motion-reduce:transition-none {percent ===
     undefined
       ? 'w-full animate-pulse motion-reduce:animate-none'
       : ''}"

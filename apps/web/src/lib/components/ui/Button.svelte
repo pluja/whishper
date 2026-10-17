@@ -1,26 +1,29 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import type { HTMLButtonAttributes } from "svelte/elements";
+  import type {
+    HTMLAnchorAttributes,
+    HTMLButtonAttributes,
+  } from "svelte/elements";
   import {
     buttonClasses,
     type ButtonSize,
     type ButtonVariant,
   } from "./variants";
 
-  type Props = HTMLButtonAttributes & {
+  type Common = {
     variant?: ButtonVariant;
     size?: ButtonSize;
-    href?: string;
     loading?: boolean;
     children: Snippet;
   };
+  type Props =
+    | (Common & HTMLButtonAttributes & { href?: undefined })
+    | (Common & HTMLAnchorAttributes & { href: string });
 
   let {
     variant = "secondary",
     size = "md",
-    href,
     loading = false,
-    disabled,
     class: extra = "",
     children,
     ...rest
@@ -29,14 +32,14 @@
   const classes = $derived(`${buttonClasses(variant, size)} ${extra}`);
 </script>
 
-{#if href}
-  <a {href} class={classes}>{@render children()}</a>
+{#if rest.href !== undefined}
+  <a {...rest} class={classes}>{@render children()}</a>
 {:else}
   <button
     type="button"
     {...rest}
     class={classes}
-    disabled={disabled || loading}
+    disabled={rest.disabled || loading}
     aria-busy={loading || undefined}
   >
     {#if loading}
