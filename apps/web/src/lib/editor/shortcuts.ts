@@ -21,7 +21,7 @@ type StudioTransportCommands = {
 
 export type StudioCommands = {
   transport: StudioTransportCommands;
-  isGuideOpen(): boolean;
+  isDialogOpen(): boolean;
   openGuide(): void;
   canSave(): boolean;
   save(): void;
@@ -223,7 +223,7 @@ export function handleStudioKeydown(
   event: KeyboardEvent,
   commands: StudioCommands,
 ): void {
-  if (commands.isGuideOpen() || event.defaultPrevented) return;
+  if (commands.isDialogOpen() || event.defaultPrevented) return;
 
   const key = event.key.toLowerCase();
   if (

@@ -24,4 +24,11 @@ export type IconName =
   | "more"
   | "sun"
   | "moon"
-  | "monitor";
+  | "monitor"
+  | "pause"
+  | "chevron-left"
+  | "chevron-right"
+  | "skip-back"
+  | "skip-forward"
+  | "keyboard"
+  | "alert";

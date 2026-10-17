@@ -5,6 +5,7 @@
   type Props = {
     onselect?: () => void;
     href?: string;
+    download?: boolean;
     disabled?: boolean;
     tone?: "default" | "danger";
     role?: "menuitem" | "menuitemradio";
@@ -16,6 +17,7 @@
   let {
     onselect,
     href,
+    download = false,
     disabled = false,
     tone = "default",
     role = "menuitem",
@@ -56,6 +58,7 @@
 {#if href !== undefined}
   <a
     href={disabled ? undefined : href}
+    download={download || undefined}
     {role}
     tabindex="-1"
     aria-checked={role === "menuitemradio" ? checked : undefined}

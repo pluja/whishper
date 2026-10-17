@@ -5,6 +5,7 @@
   import { isRunActive } from "$lib/shared/project-status";
   import CueList from "./CueList.svelte";
   import EditorToolbar from "./EditorToolbar.svelte";
+  import ProcessingStatus from "./ProcessingStatus.svelte";
   import TranscribePanel from "./TranscribePanel.svelte";
   import type { StudioData } from "$lib/shared/studio-data";
 
@@ -12,6 +13,8 @@
     editor: CueEditor;
     track: StudioData["track"];
     run: StudioData["run"];
+    preparation: StudioData["preparation"];
+    mediaPreparationStatus: StudioData["project"]["mediaPreparationStatus"];
     hasSourceMedia: boolean;
     transcriptionModels: StudioData["transcriptionModels"];
     detectedHardware: StudioData["detectedHardware"];
@@ -21,50 +24,74 @@
     editor,
     track,
     run,
+    preparation,
+    mediaPreparationStatus,
     hasSourceMedia,
     transcriptionModels,
     detectedHardware,
   }: Props = $props();
 </script>
 
-<section class="transcript-panel" aria-label="Subtitle cues">
-  <header class="panel-toolbar transcript-toolbar">
-    <div>
-      <span class="panel-kicker">Text</span>
-      <strong>{track?.name ?? "Transcript"}</strong>
-    </div>
+<section
+  class="flex h-[42rem] max-h-[85dvh] min-w-0 flex-col border-t border-border bg-surface lg:h-auto lg:max-h-none lg:min-h-0 lg:border-t-0 lg:border-l"
+  aria-label="Subtitle cues"
+>
+  <header
+    class="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-border px-4"
+  >
+    <h2 class="truncate text-sm font-semibold text-text">
+      {track?.name ?? "Transcript"}
+    </h2>
     {#if track}
-      <div class="track-summary">
-        <span class="track-meta">
-          {track.language} · {pluralize(editor.cues.length, "cue")}
-        </span>
-      </div>
+      <span class="shrink-0 text-xs text-text-muted">
+        {track.language.toUpperCase()} · {pluralize(editor.cues.length, "cue")}
+      </span>
     {/if}
   </header>
 
+  <ProcessingStatus {run} {preparation} {mediaPreparationStatus} />
+
   {#if track}
     <EditorToolbar {editor} />
-    <CueList {editor} />
+    <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]">
+      <CueList {editor} />
+    </div>
   {:else}
-    <div class="transcript-empty">
-      <span class="empty-illustration"><Icon name="subtitles" size={28} /></span
-      >
-      {#if isRunActive(run)}
-        <h2>Preparing the first track</h2>
-        <p>
-          The worker will place normalized subtitle cues here when processing
-          finishes.
-        </p>
-      {:else if hasSourceMedia}
-        <h2>Ready to transcribe</h2>
-        <TranscribePanel
-          models={transcriptionModels}
-          hardware={detectedHardware}
-        />
-      {:else}
-        <h2>No subtitle track</h2>
-        <p>This project does not have source media or a transcription run.</p>
-      {/if}
+    <div class="min-h-0 flex-1 overflow-y-auto px-5 py-6">
+      <div class="mx-auto grid max-w-md gap-4">
+        <div class="grid justify-items-start gap-2">
+          <span
+            class="grid size-10 place-items-center rounded-md bg-accent-soft text-accent"
+            aria-hidden="true"
+          >
+            <Icon name="subtitles" size={20} />
+          </span>
+          {#if isRunActive(run)}
+            <h3 class="text-base font-semibold text-text">
+              Preparing the first track
+            </h3>
+            <p class="text-sm text-text-muted">
+              The worker will place normalized subtitle cues here when
+              processing finishes.
+            </p>
+          {:else if hasSourceMedia}
+            <h3 class="text-base font-semibold text-text">
+              Ready to transcribe
+            </h3>
+          {:else}
+            <h3 class="text-base font-semibold text-text">No subtitle track</h3>
+            <p class="text-sm text-text-muted">
+              This project does not have source media or a transcription run.
+            </p>
+          {/if}
+        </div>
+        {#if !isRunActive(run) && hasSourceMedia}
+          <TranscribePanel
+            models={transcriptionModels}
+            hardware={detectedHardware}
+          />
+        {/if}
+      </div>
     </div>
   {/if}
 </section>

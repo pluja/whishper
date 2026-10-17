@@ -10,19 +10,27 @@
   } from "$lib/editor/shortcuts";
   import { frameDurationUs } from "$lib/editor/transport.svelte";
   import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
-  import { isStudioActive } from "$lib/shared/project-status";
+  import { isRunActive, isStudioActive } from "$lib/shared/project-status";
   import MediaMonitor from "$lib/studio/MediaMonitor.svelte";
-  import ProcessingStatus from "$lib/studio/ProcessingStatus.svelte";
-  import { editorCues, knownDurationUs } from "$lib/studio/project-view";
+  import {
+    derivativeUrl,
+    editorCues,
+    knownDurationUs,
+  } from "$lib/studio/project-view";
   import ShortcutGuide from "$lib/studio/ShortcutGuide.svelte";
   import StudioTitlebar from "$lib/studio/StudioTitlebar.svelte";
+  import TranscribeDialog from "$lib/studio/TranscribeDialog.svelte";
   import TranscriptPanel from "$lib/studio/TranscriptPanel.svelte";
+  import Timeline from "$lib/timeline/Timeline.svelte";
 
   let { data, form } = $props();
 
   pollWhileActive(() => isStudioActive(data), 1_500);
 
   let shortcutGuideOpen = $state(false);
+  let transcribeDialogOpen = $state(false);
+  let hasSourceMedia = $derived(Boolean(data.project.mediaOriginalKey));
+  let hasTrackAndMedia = $derived(data.track !== null && hasSourceMedia);
   let maxLineLength = $derived(
     Number(data.track?.metadata?.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH),
   );
@@ -49,7 +57,7 @@
   });
   const commands: StudioCommands = {
     transport: editor.transport,
-    isGuideOpen: () => shortcutGuideOpen,
+    isDialogOpen: () => shortcutGuideOpen || transcribeDialogOpen,
     openGuide: () => (shortcutGuideOpen = true),
     canSave: () => data.track !== null,
     save: () => void editor.autosave.flush(),
@@ -114,28 +122,32 @@
 
 <svelte:window onkeydown={onStudioKeydown} />
 
-<div class="project-editor-page">
+<!-- project-editor-page scopes the legacy cue list and toolbar rules until they are restyled. -->
+<div
+  class="project-editor-page flex min-h-dvh flex-col bg-bg text-text lg:h-dvh lg:overflow-hidden"
+>
   <StudioTitlebar
     project={data.project}
     track={data.track}
     derivativeKinds={data.derivatives.map((derivative) => derivative.kind)}
-    cueCount={editor.cues.length}
     autosave={editor.autosave}
+    canRetranscribe={hasTrackAndMedia && !isRunActive(data.run)}
+    onretranscribe={() => (transcribeDialogOpen = true)}
     onopenshortcuts={() => (shortcutGuideOpen = true)}
   />
 
   {#if form?.message}
-    <div class="alert error" role="alert">{form.message}</div>
+    <div
+      class="shrink-0 border-b border-border bg-danger-soft px-4 py-2 text-sm text-danger"
+      role="alert"
+    >
+      {form.message}
+    </div>
   {/if}
 
-  <ProcessingStatus
-    run={data.run}
-    preparation={data.preparation}
-    mediaPreparationStatus={data.project.mediaPreparationStatus}
-  />
   <div
-    class="editor-workspace"
-    style:--editor-pane-width={`${paneWidth.width}px`}
+    class="grid flex-1 grid-cols-1 lg:min-h-0 lg:grid-cols-[minmax(24rem,1fr)_auto_minmax(0,var(--transcript-pane-width))]"
+    style:--transcript-pane-width={`${paneWidth.width}px`}
   >
     <MediaMonitor
       project={data.project}
@@ -145,24 +157,58 @@
       onmediakeydown={onStudioKeydown}
     />
 
-    <button
-      class="studio-divider"
-      type="button"
-      aria-label="Resize subtitle panel with the left and right arrow keys"
+    <!-- A focusable separator is the ARIA window splitter widget, which Svelte's role table treats as static. -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+    <div
+      class="group relative z-10 -mx-2 hidden w-4 cursor-col-resize touch-none focus-visible:outline-none lg:block"
+      role="separator"
+      tabindex="0"
+      aria-orientation="vertical"
+      aria-label="Resize transcript pane"
+      aria-valuenow={paneWidth.value}
+      aria-valuemin={paneWidth.min}
+      aria-valuemax={paneWidth.max}
       onpointerdown={paneWidth.beginResize}
       onkeydown={paneWidth.resizeWithKeyboard}
     >
-      <span></span>
-    </button>
+      <span
+        class="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-transparent transition-colors duration-150 group-hover:bg-accent group-focus-visible:bg-focus motion-reduce:transition-none"
+      ></span>
+    </div>
 
     <TranscriptPanel
       {editor}
       track={data.track}
       run={data.run}
-      hasSourceMedia={Boolean(data.project.mediaOriginalKey)}
+      preparation={data.preparation}
+      mediaPreparationStatus={data.project.mediaPreparationStatus}
+      {hasSourceMedia}
       transcriptionModels={data.transcriptionModels}
       detectedHardware={data.detectedHardware}
     />
   </div>
+
+  <div class="shrink-0">
+    <Timeline
+      durationUs={editor.transport.sourceDurationUs}
+      probeState={data.project.mediaPreparationStatus}
+      waveformUrl={derivativeUrl(data.derivatives, "waveform")}
+      cues={editor.cues}
+      selectedCueId={editor.selectedCueId}
+      playbackUs={editor.transport.playbackUs}
+      playing={editor.transport.playing}
+      seekRevision={editor.transport.seekRevision}
+      onseek={editor.transport.seekTo}
+      onselect={(cueId) => editor.select(cueId)}
+      oncommittiming={(timing, gesture) => editor.retime(timing, gesture)}
+    />
+  </div>
   <ShortcutGuide bind:open={shortcutGuideOpen} />
+  {#if hasTrackAndMedia}
+    <TranscribeDialog
+      bind:open={transcribeDialogOpen}
+      models={data.transcriptionModels}
+      hardware={data.detectedHardware}
+    />
+  {/if}
 </div>

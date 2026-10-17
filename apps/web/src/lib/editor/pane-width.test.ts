@@ -20,6 +20,10 @@ function pointerDown(target: EventTarget, clientX = 1000): PointerEvent {
   } as unknown as PointerEvent;
 }
 
+function keyDown(key: string): KeyboardEvent {
+  return { key, preventDefault: () => {} } as KeyboardEvent;
+}
+
 function pointerMove(clientX: number): Event {
   return Object.assign(new Event("pointermove"), { clientX });
 }
@@ -83,6 +87,24 @@ describe("PaneWidth", () => {
 
     expect(bodyClasses.has(RESIZING_CLASS)).toBe(false);
     expect(pane.width).toBe(500);
+  });
+
+  it("exposes its range and rounded width for the separator", () => {
+    const pane = new PaneWidth();
+    pane.width = 500.4;
+
+    expect([pane.min, pane.value, pane.max]).toEqual([360, 500, 760]);
+  });
+
+  it("steps with the arrow keys and stays within its range", () => {
+    const pane = new PaneWidth();
+    pane.resizeWithKeyboard(keyDown("ArrowLeft"));
+    expect(pane.width).toBe(524);
+    expect(storage.get("anysub:editor-pane-width")).toBe("524");
+
+    pane.width = 370;
+    pane.resizeWithKeyboard(keyDown("ArrowRight"));
+    expect(pane.width).toBe(360);
   });
 
   it("keeps working when the browser blocks storage", () => {

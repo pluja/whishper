@@ -23,7 +23,7 @@ function commands(): StudioCommands {
   };
   return {
     transport,
-    isGuideOpen: () => false,
+    isDialogOpen: () => false,
     openGuide: vi.fn(),
     canSave: () => true,
     save: vi.fn(),

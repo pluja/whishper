@@ -35,6 +35,13 @@
     sun,
     moon,
     monitor,
+    pause,
+    "chevron-left": chevronLeft,
+    "chevron-right": chevronRight,
+    "skip-back": skipBack,
+    "skip-forward": skipForward,
+    keyboard,
+    alert,
   };
 </script>
 
@@ -136,6 +143,31 @@
 {#snippet monitor()}
   <rect x="3" y="4.5" width="18" height="12" rx="2" />
   <path d="M8.5 20h7M12 16.5V20" />
+{/snippet}
+{#snippet pause()}
+  <path d="M9 6.5v11M15 6.5v11" />
+{/snippet}
+{#snippet chevronLeft()}
+  <path d="m14.5 7-5 5 5 5" />
+{/snippet}
+{#snippet chevronRight()}
+  <path d="m9.5 7 5 5-5 5" />
+{/snippet}
+{#snippet skipBack()}
+  <path d="M7 6.5v11M17.5 7l-7.5 5 7.5 5z" />
+{/snippet}
+{#snippet skipForward()}
+  <path d="M17 6.5v11M6.5 7l7.5 5-7.5 5z" />
+{/snippet}
+{#snippet keyboard()}
+  <rect x="3" y="6" width="18" height="12" rx="2" />
+  <path
+    d="M7 10h.01M10.5 10h.01M14 10h.01M17 10h.01M7 14h.01M17 14h.01M10 14h4"
+  />
+{/snippet}
+{#snippet alert()}
+  <circle cx="12" cy="12" r="8.5" />
+  <path d="M12 8v4.5M12 16h.01" />
 {/snippet}
 
 <svg

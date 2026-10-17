@@ -37,9 +37,18 @@ const screens = [
   },
   {
     name: "studio",
-    path: firstProjectPath,
+    path: (page) => studioPath(page, true),
     signedIn: true,
     minWidth: 1024,
+    skipReason: "no project has a transcript",
+  },
+  {
+    name: "studio-no-cues",
+    legacyScreen: "studio",
+    path: (page) => studioPath(page, false),
+    signedIn: true,
+    minWidth: 1024,
+    skipReason: "every project has a transcript",
   },
 ];
 
@@ -58,11 +67,21 @@ async function open(page, path) {
   await page.waitForLoadState("networkidle");
 }
 
-async function firstProjectPath(page) {
+// A studio has a transcript when it offers the export menu.
+async function studioPath(page, withTranscript) {
   await open(page, "/");
   await page.locator("#project-list-title").waitFor();
-  const link = projectLinks(page).first();
-  return (await link.count()) ? await link.getAttribute("href") : null;
+  const paths = await projectLinks(page).evaluateAll((links) =>
+    links.map((link) => link.getAttribute("href")),
+  );
+  for (const path of new Set(paths)) {
+    await open(page, path);
+    const exportCount = await page
+      .getByRole("button", { name: "Export" })
+      .count();
+    if (exportCount > 0 === withTranscript) return path;
+  }
+  return null;
 }
 
 async function emptyLibraryPath(page) {
@@ -106,7 +125,7 @@ async function checkScreen(context, screen, theme, width) {
       return 0;
     }
     await open(page, path);
-    ranScreens.add(screen.name);
+    ranScreens.add(legacyScreen(screen));
     const appliedTheme = await page.evaluate(
       () => document.documentElement.dataset.theme,
     );
@@ -117,6 +136,9 @@ async function checkScreen(context, screen, theme, width) {
       path: `${outputDir}/${screen.name}-${theme}-${width}.png`,
       fullPage: true,
     });
+    if (await scrollsHorizontally(page)) {
+      throw new Error("the page scrolls horizontally");
+    }
     return reportViolations(await axeViolations(page), screen, theme, width);
   } catch (error) {
     console.error(`${screen.name} ${theme} ${width}: ${error.message}`);
@@ -126,10 +148,29 @@ async function checkScreen(context, screen, theme, width) {
   }
 }
 
-async function axeViolations(page) {
-  const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-    .analyze();
+function legacyScreen(screen) {
+  return screen.legacyScreen ?? screen.name;
+}
+
+async function scrollsHorizontally(page) {
+  return page.evaluate(
+    () =>
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth,
+  );
+}
+
+async function axeViolations(page, selector) {
+  const builder = new AxeBuilder({ page }).withTags([
+    "wcag2a",
+    "wcag2aa",
+    "wcag21a",
+    "wcag21aa",
+    "wcag22aa",
+  ]);
+  const results = await (
+    selector ? builder.include(selector) : builder
+  ).analyze();
   return results.violations;
 }
 
@@ -249,12 +290,7 @@ async function checkLongProjectName(context, theme) {
         path: `${outputDir}/library-long-name-${theme}-${width}.png`,
         fullPage: true,
       });
-      const overflows = await page.evaluate(
-        () =>
-          document.documentElement.scrollWidth >
-          document.documentElement.clientWidth,
-      );
-      if (overflows) {
+      if (await scrollsHorizontally(page)) {
         failures += 1;
         console.error(`${label} ${width}: the page scrolls horizontally`);
       }
@@ -275,11 +311,99 @@ async function checkLongProjectName(context, theme) {
   return failures;
 }
 
+async function isFocused(locator) {
+  return locator.evaluate((node) => node === document.activeElement);
+}
+
+async function separatorValue(separator) {
+  return Number(await separator.getAttribute("aria-valuenow"));
+}
+
+async function checkPaneSeparator(page) {
+  const separator = page.getByRole("separator", {
+    name: "Resize transcript pane",
+  });
+  await separator.focus();
+  const before = await separatorValue(separator);
+  await page.keyboard.press("ArrowLeft");
+  const widened = await separatorValue(separator);
+  await page.keyboard.press("ArrowRight");
+  const max = Number(await separator.getAttribute("aria-valuemax"));
+  if (widened <= before && before < max) {
+    throw new Error("ArrowLeft on the pane separator did not widen the pane");
+  }
+}
+
+async function checkRetranscribeDialog(page, theme) {
+  const trigger = page.getByRole("button", { name: "Re-transcribe" });
+  if (!(await trigger.count())) return 0;
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Re-transcribe" });
+  await dialog.waitFor();
+  await dialog.evaluate((node) =>
+    Promise.all(node.getAnimations().map((animation) => animation.finished)),
+  );
+  await page.screenshot({
+    path: `${outputDir}/studio-retranscribe-${theme}-1440.png`,
+  });
+  const failures = reportViolations(
+    await axeViolations(page, "dialog[open]"),
+    { name: "studio-retranscribe" },
+    theme,
+    1440,
+  );
+  await page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "hidden" });
+  if (!(await isFocused(trigger))) {
+    throw new Error(
+      "closing the re-transcribe dialog did not refocus its trigger",
+    );
+  }
+  return failures;
+}
+
+async function checkExportMenu(page) {
+  const trigger = page.getByRole("button", { name: "Export" });
+  await openMenuWithKeyboard(page, trigger);
+  if (!(await focusedText(page))?.startsWith("SRT")) {
+    throw new Error("opening the export menu did not focus SRT");
+  }
+  await page.keyboard.press("Escape");
+  await page.getByRole("menu", { name: "Export" }).waitFor({ state: "hidden" });
+  if (!(await isFocused(trigger))) {
+    throw new Error("Escape did not return focus to the export trigger");
+  }
+}
+
+async function checkStudioKeyboard(context, theme) {
+  const page = await context.newPage();
+  const label = `studio keyboard ${theme}`;
+  try {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const path = await studioPath(page, true);
+    if (!path) {
+      console.log(`skip ${label}: no project has a transcript`);
+      return 0;
+    }
+    await checkPaneSeparator(page);
+    const failures = await checkRetranscribeDialog(page, theme);
+    await checkExportMenu(page);
+    console.log(`${label}: separator, re-transcribe dialog and export menu ok`);
+    return failures;
+  } catch (error) {
+    console.error(`${label}: ${error.message}`);
+    return 1;
+  } finally {
+    await page.close();
+  }
+}
+
 function reportViolations(violations, screen, theme, width) {
   let failures = 0;
   for (const violation of violations) {
     if (!blockingImpacts.has(violation.impact)) continue;
-    const key = `${screen.name}:${violation.id}`;
+    const key = `${legacyScreen(screen)}:${violation.id}`;
     const label = `${screen.name} ${theme} ${width}: ${violation.id} (${violation.nodes.length} nodes) ${violation.help}`;
     if (KNOWN_LEGACY.has(key)) {
       usedLegacy.add(key);
@@ -331,6 +455,7 @@ for (const theme of themes) {
     if (signedIn) {
       failures += await checkThemeMenuKeyboard(context, theme);
       failures += await checkLongProjectName(context, theme);
+      failures += await checkStudioKeyboard(context, theme);
     }
     await context.close();
   }

@@ -1,5 +1,30 @@
+<script module lang="ts">
+  const LANGUAGES: { code: string; name: string }[] = [
+    { code: "auto", name: "Detect automatically" },
+    { code: "en", name: "English" },
+    { code: "es", name: "Spanish" },
+    { code: "fr", name: "French" },
+    { code: "de", name: "German" },
+    { code: "it", name: "Italian" },
+    { code: "pt", name: "Portuguese" },
+    { code: "nl", name: "Dutch" },
+    { code: "pl", name: "Polish" },
+    { code: "uk", name: "Ukrainian" },
+    { code: "el", name: "Greek" },
+    { code: "ar", name: "Arabic" },
+    { code: "hi", name: "Hindi" },
+    { code: "ja", name: "Japanese" },
+    { code: "ko", name: "Korean" },
+    { code: "zh", name: "Chinese" },
+  ];
+</script>
+
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
+  import Button from "$lib/components/ui/Button.svelte";
+  import Field from "$lib/components/ui/Field.svelte";
+  import Input from "$lib/components/ui/Input.svelte";
+  import Select from "$lib/components/ui/Select.svelte";
   import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
   import type {
     AvailableTranscriptionModel,
@@ -16,84 +41,101 @@
 </script>
 
 {#if models.length}
-  <p>
-    Choose the accuracy and resource profile for this source. The first run
-    downloads its model into the private cache.
-  </p>
-  <form class="transcription-setup" method="POST" action="?/transcribe">
+  <form class="grid gap-4" method="POST" action="?/transcribe">
+    <p class="text-sm text-text-muted">
+      Choose the accuracy and resource profile for this source. The first run
+      downloads its model into the private cache.
+    </p>
     <ModelPicker {models} {hardware} />
-    <label>
-      <span>Spoken language</span>
-      <select name="language">
-        <option value="auto">Detect automatically</option>
-        <option value="en">English</option>
-        <option value="es">Spanish</option>
-        <option value="fr">French</option>
-        <option value="de">German</option>
-        <option value="it">Italian</option>
-        <option value="pt">Portuguese</option>
-        <option value="nl">Dutch</option>
-        <option value="pl">Polish</option>
-        <option value="uk">Ukrainian</option>
-        <option value="el">Greek</option>
-        <option value="ar">Arabic</option>
-        <option value="hi">Hindi</option>
-        <option value="ja">Japanese</option>
-        <option value="ko">Korean</option>
-        <option value="zh">Chinese</option>
-      </select>
-    </label>
-    <label class="check-row">
-      <input name="alignment" type="checkbox" checked />
-      <span>
-        <strong>Accurate word alignment</strong>
-        <small>Recommended for editing, highlights, and karaoke.</small>
+    <Field label="Spoken language">
+      {#snippet control({ id })}
+        <Select {id} name="language">
+          {#each LANGUAGES as { code, name } (code)}
+            <option value={code}>{name}</option>
+          {/each}
+        </Select>
+      {/snippet}
+    </Field>
+    <label
+      class="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-surface-sunken px-3 py-2.5"
+    >
+      <input
+        class="mt-0.5 size-4 shrink-0 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        name="alignment"
+        type="checkbox"
+        checked
+      />
+      <span class="grid gap-0.5">
+        <span class="text-sm font-medium text-text"
+          >Accurate word alignment</span
+        >
+        <span class="text-xs text-text-muted">
+          Recommended for editing, highlights, and karaoke.
+        </span>
       </span>
     </label>
-    <details class="transcription-advanced">
-      <summary>Advanced options</summary>
-      <label>
-        <span>Maximum line length</span>
-        <input
-          name="maxLineLength"
-          type="number"
-          min="20"
-          max="120"
-          value={DEFAULT_MAX_LINE_LENGTH}
-          required
-        />
-      </label>
-      <small
-        >{DEFAULT_MAX_LINE_LENGTH} characters is a readable subtitle default. Splits
-        preserve whole words.</small
+    <details class="group rounded-md border border-border">
+      <summary
+        class="flex cursor-pointer list-none items-center justify-between gap-2 rounded-md px-3 py-2 text-sm font-medium text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus [&::-webkit-details-marker]:hidden"
       >
-      <label>
-        <span>Batch size</span>
-        <input
-          name="batchSize"
-          type="number"
-          min="1"
-          max="64"
-          placeholder="Automatic"
-        />
-      </label>
-      <small>Lower this only if the worker runs out of memory.</small>
+        Advanced options
+        <span
+          class="text-text-muted transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
+        >
+          <Icon name="chevron-down" size={16} />
+        </span>
+      </summary>
+      <div class="grid gap-4 border-t border-border px-3 py-3">
+        <Field
+          label="Maximum line length"
+          hint={`${DEFAULT_MAX_LINE_LENGTH} characters is a readable subtitle default. Splits preserve whole words.`}
+        >
+          {#snippet control({ id, describedBy })}
+            <Input
+              {id}
+              aria-describedby={describedBy}
+              name="maxLineLength"
+              type="number"
+              min="20"
+              max="120"
+              value={DEFAULT_MAX_LINE_LENGTH}
+              required
+            />
+          {/snippet}
+        </Field>
+        <Field
+          label="Batch size"
+          hint="Lower this only if the worker runs out of memory."
+        >
+          {#snippet control({ id, describedBy })}
+            <Input
+              {id}
+              aria-describedby={describedBy}
+              name="batchSize"
+              type="number"
+              min="1"
+              max="64"
+              placeholder="Automatic"
+            />
+          {/snippet}
+        </Field>
+      </div>
     </details>
-    <button class="button wide" type="submit">
+    <Button variant="primary" type="submit" class="w-full">
       <Icon name="activity" size={16} />
       Start transcription
-    </button>
-    <span class="empty-help"
-      >Processing stays on your connected worker. No media leaves Anysub.</span
-    >
+    </Button>
+    <p class="text-xs text-text-muted">
+      Processing stays on your connected worker. No media leaves Anysub.
+    </p>
   </form>
 {:else}
-  <p>
-    A transcription worker is not connected yet. Start or inspect the worker
-    container, then this page will offer its models.
-  </p>
-  <button class="button wide" type="button" disabled>
-    Waiting for a speech worker
-  </button>
-  <span class="empty-help">Model choices appear automatically.</span>
+  <div class="grid gap-3">
+    <p class="text-sm text-text-muted">
+      A transcription worker is not connected yet. Start or inspect the worker
+      container, then this page will offer its models.
+    </p>
+    <Button class="w-full" disabled>Waiting for a speech worker</Button>
+    <p class="text-xs text-text-muted">Model choices appear automatically.</p>
+  </div>
 {/if}

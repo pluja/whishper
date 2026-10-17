@@ -1,5 +1,6 @@
 <script lang="ts">
-  import Icon from "$lib/components/Icon.svelte";
+  import Button from "$lib/components/ui/Button.svelte";
+  import Progress from "$lib/components/ui/Progress.svelte";
   import { isPreparationActive, isRunActive } from "$lib/shared/project-status";
   import type { StudioData } from "$lib/shared/studio-data";
 
@@ -12,61 +13,75 @@
   let { run, preparation, mediaPreparationStatus }: Props = $props();
 </script>
 
-{#if run}
-  {#if isRunActive(run)}
-    <div class="processing-banner" aria-live="polite">
-      <span class="processing-icon"><Icon name="activity" size={18} /></span>
-      <div>
-        <span class="processing-stage">Transcription</span>
-        <strong
-          >{run.progressMessage ?? "Waiting for a compatible worker"}</strong
-        >
-        <progress value={run.progress ?? 0} max="1">
-          {Math.round((run.progress ?? 0) * 100)}%
-        </progress>
+{#snippet activeJob(
+  stage: string,
+  message: string,
+  progress: number | null,
+  cancelAction?: string,
+)}
+  <div class="grid gap-2 border-b border-border px-4 py-3" aria-live="polite">
+    <div class="flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="text-xs font-medium text-accent">{stage}</p>
+        <p class="truncate text-sm text-text">{message}</p>
       </div>
-      <span>{Math.round((run.progress ?? 0) * 100)}%</span>
+      <span class="font-mono text-xs text-text-muted tabular-nums">
+        {Math.round((progress ?? 0) * 100)}%
+      </span>
+      {#if cancelAction}
+        <form method="POST" action={cancelAction}>
+          <Button type="submit" size="sm" variant="ghost">Cancel</Button>
+        </form>
+      {/if}
     </div>
-  {:else if run.status === "failed"}
-    <div class="alert error" role="alert">
-      <strong>Transcription failed</strong>
-      <span>{String(run.error?.message ?? "The adapter run failed.")}</span>
+    <Progress value={progress ?? 0} label={`${stage} progress`} />
+  </div>
+{/snippet}
+
+{#snippet failure(title: string, message: string, retryAction?: string)}
+  <div
+    class="flex items-start justify-between gap-3 border-b border-border bg-danger-soft px-4 py-3 text-danger"
+    role="alert"
+  >
+    <div class="min-w-0 text-sm">
+      <p class="font-medium">{title}</p>
+      <p>{message}</p>
     </div>
-  {/if}
+    {#if retryAction}
+      <form method="POST" action={retryAction}>
+        <Button type="submit" size="sm">Retry preparation</Button>
+      </form>
+    {/if}
+  </div>
+{/snippet}
+
+{#if run && isRunActive(run)}
+  {@render activeJob(
+    "Transcription",
+    run.progressMessage ?? "Waiting for a compatible worker",
+    run.progress,
+  )}
+{:else if run?.status === "failed"}
+  {@render failure(
+    "Transcription failed",
+    String(run.error?.message ?? "The adapter run failed."),
+  )}
 {/if}
 
 {#if preparation && isPreparationActive(preparation)}
-  <div class="processing-banner" aria-live="polite">
-    <span class="processing-icon"><Icon name="activity" size={18} /></span>
-    <div>
-      <span class="processing-stage">Media preparation</span>
-      <strong
-        >{preparation.progressMessage ?? "Waiting for a media worker"}</strong
-      >
-      <progress value={preparation.progress ?? 0} max="1">
-        {Math.round((preparation.progress ?? 0) * 100)}%
-      </progress>
-    </div>
-    <div class="media-preparation-progress-actions">
-      <span>{Math.round((preparation.progress ?? 0) * 100)}%</span>
-      <form method="POST" action="?/cancelMedia">
-        <button type="submit">Cancel</button>
-      </form>
-    </div>
-  </div>
+  {@render activeJob(
+    "Media preparation",
+    preparation.progressMessage ?? "Waiting for a media worker",
+    preparation.progress,
+    "?/cancelMedia",
+  )}
 {:else if mediaPreparationStatus === "failed"}
-  <div class="alert error media-preparation-error" role="alert">
-    <div>
-      <strong>Media preparation failed</strong>
-      <span
-        >{String(
-          preparation?.error?.message ??
-            "The source could not be prepared for editing.",
-        )}</span
-      >
-    </div>
-    <form method="POST" action="?/prepareMedia">
-      <button type="submit">Retry preparation</button>
-    </form>
-  </div>
+  {@render failure(
+    "Media preparation failed",
+    String(
+      preparation?.error?.message ??
+        "The source could not be prepared for editing.",
+    ),
+    "?/prepareMedia",
+  )}
 {/if}
