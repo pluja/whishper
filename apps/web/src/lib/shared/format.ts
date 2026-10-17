@@ -65,3 +65,24 @@ export function formatSubtitleCounts(
 ): string {
   return `${pluralize(trackCount, "track")} · ${pluralize(cueCount, "cue")}`;
 }
+
+const relativeTime = new Intl.RelativeTimeFormat(undefined, {
+  numeric: "auto",
+});
+const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 365 * 86_400],
+  ["month", 30 * 86_400],
+  ["week", 7 * 86_400],
+  ["day", 86_400],
+  ["hour", 3_600],
+  ["minute", 60],
+];
+
+export function formatRelativeTime(date: Date, now: Date): string {
+  const seconds = (date.getTime() - now.getTime()) / 1_000;
+  for (const [unit, unitSeconds] of RELATIVE_UNITS) {
+    const amount = Math.trunc(seconds / unitSeconds);
+    if (amount !== 0) return relativeTime.format(amount, unit);
+  }
+  return "just now";
+}

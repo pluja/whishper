@@ -12,7 +12,7 @@ import {
   requireOwnedUpload,
   updateUploadProgress,
 } from "$lib/server/uploads/projects";
-import { normalizeMediaType } from "$lib/server/media/stream";
+import { normalizeMediaType } from "$lib/shared/media";
 import {
   startUploadMaintenance,
   UPLOAD_EXPIRATION_MS,

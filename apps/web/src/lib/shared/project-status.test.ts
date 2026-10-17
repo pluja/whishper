@@ -7,6 +7,7 @@ import {
   isProjectActive,
   isRunActive,
   isStudioActive,
+  projectProgress,
   projectSourceFallback,
   stateLabel,
   statusTone,
@@ -210,5 +211,36 @@ describe("statusTone", () => {
     ["weird", "neutral"],
   ] as const)("maps %s to %s", (state, tone) => {
     expect(statusTone(state)).toBe(tone);
+  });
+});
+
+describe("projectProgress", () => {
+  const progressIdle = {
+    ...idle,
+    progress: null,
+    receivedBytes: null,
+    sizeBytes: null,
+  };
+
+  it("is null while nothing is in flight", () => {
+    expect(projectProgress({ ...progressIdle, progress: 1 })).toBeNull();
+  });
+
+  it("reports the uploaded fraction during an upload", () => {
+    expect(
+      projectProgress({
+        ...progressIdle,
+        uploadStatus: "uploading",
+        receivedBytes: 25,
+        sizeBytes: 100,
+      }),
+    ).toBe(0.25);
+  });
+
+  it("reports the job progress, starting at zero", () => {
+    expect(
+      projectProgress({ ...progressIdle, jobState: "leased", progress: 0.4 }),
+    ).toBe(0.4);
+    expect(projectProgress({ ...progressIdle, jobState: "queued" })).toBe(0);
   });
 });

@@ -1,15 +1,8 @@
 import { open } from "node:fs/promises";
 import { Readable } from "node:stream";
+import { normalizeMediaType } from "$lib/shared/media";
 
 export type ByteRange = { start: number; end: number };
-
-const MEDIA_TYPE_PATTERN =
-  /^(?:(?:audio|video)\/[a-z0-9][a-z0-9!#$&^_.+-]*|application\/(?:ogg|mp4))$/;
-
-export function normalizeMediaType(value: string | null | undefined) {
-  const essence = value?.split(";")[0].trim().toLowerCase();
-  return essence && MEDIA_TYPE_PATTERN.test(essence) ? essence : null;
-}
 
 export function safeMediaType(value: string | null | undefined): string {
   return normalizeMediaType(value) ?? "application/octet-stream";

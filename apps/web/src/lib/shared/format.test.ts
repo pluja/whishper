@@ -6,6 +6,7 @@ import {
   formatDimensions,
   formatDuration,
   formatLanguages,
+  formatRelativeTime,
   formatSubtitleCounts,
   pluralize,
 } from "./format";
@@ -70,5 +71,19 @@ describe("formatSubtitleCounts", () => {
   it("pluralizes tracks and cues independently", () => {
     expect(formatSubtitleCounts(1, 1)).toBe("1 track · 1 cue");
     expect(formatSubtitleCounts(2, 0)).toBe("2 tracks · 0 cues");
+  });
+});
+
+describe("formatRelativeTime", () => {
+  const now = new Date("2026-10-17T12:00:00Z");
+  const ago = (seconds: number) => new Date(now.getTime() - seconds * 1_000);
+
+  it("rounds down to the largest whole unit", () => {
+    expect(formatRelativeTime(ago(30), now)).toBe("just now");
+    expect(formatRelativeTime(ago(5 * 60 + 59), now)).toBe("5 minutes ago");
+    expect(formatRelativeTime(ago(90 * 60), now)).toBe("1 hour ago");
+    expect(formatRelativeTime(ago(26 * 3_600), now)).toBe("yesterday");
+    expect(formatRelativeTime(ago(21 * 86_400), now)).toBe("3 weeks ago");
+    expect(formatRelativeTime(ago(400 * 86_400), now)).toBe("last year");
   });
 });

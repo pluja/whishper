@@ -9,6 +9,7 @@
     description?: string;
     children: Snippet;
     actions?: Snippet;
+    dismissible?: boolean;
     onclose?: () => void;
   };
 
@@ -18,6 +19,7 @@
     description,
     children,
     actions,
+    dismissible = true,
     onclose,
   }: Props = $props();
 
@@ -31,6 +33,14 @@
     }
   });
 
+  function handleCancel(event: Event) {
+    if (!dismissible) event.preventDefault();
+  }
+
+  function handleBackdropClick(event: MouseEvent) {
+    if (dismissible && event.target === event.currentTarget) open = false;
+  }
+
   function handleClose() {
     open = false;
     onclose?.();
@@ -41,7 +51,9 @@
 
 <dialog
   {@attach modal(open)}
+  oncancel={handleCancel}
   onclose={handleClose}
+  onclick={handleBackdropClick}
   aria-labelledby="{id}-title"
   aria-describedby={description ? `${id}-description` : undefined}
   class="m-auto w-[calc(100%-2rem)] max-w-md scale-95 rounded-lg border border-border bg-surface-raised p-0 text-text opacity-0 shadow-xl transition-[opacity,scale] duration-150 backdrop:bg-overlay open:scale-100 open:opacity-100 motion-reduce:transition-none starting:open:scale-95 starting:open:opacity-0"
@@ -60,6 +72,7 @@
       icon="close"
       size="sm"
       class="-mt-1 -mr-2"
+      disabled={!dismissible}
       onclick={() => (open = false)}
     />
   </div>

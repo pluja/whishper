@@ -1,15 +1,31 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import Icon from "$lib/components/Icon.svelte";
-  import { modal } from "$lib/browser/modal";
+  import Button from "$lib/components/ui/Button.svelte";
+  import Dialog from "$lib/components/ui/Dialog.svelte";
+  import Field from "$lib/components/ui/Field.svelte";
+  import Input from "$lib/components/ui/Input.svelte";
+  import Progress from "$lib/components/ui/Progress.svelte";
+  import { buttonClasses } from "$lib/components/ui/variants";
   import { formatBytes } from "$lib/shared/format";
   import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/limits";
   import { ProjectUpload } from "./upload.svelte";
 
+  type Props = {
+    workspaceId: string;
+    open?: boolean;
+    initialFile?: File | null;
+  };
+
   let {
     workspaceId,
     open = $bindable(false),
-  }: { workspaceId: string; open?: boolean } = $props();
+    initialFile = null,
+  }: Props = $props();
 
+  const id = $props.id();
+  const formId = `${id}-form`;
+  const fileStatusId = `${id}-file-status`;
   const upload = new ProjectUpload();
   let selectedFile = $state<File | null>(null);
   let projectName = $state("");
@@ -22,6 +38,20 @@
       selectedFile !== null &&
       !upload.uploading,
   );
+  let percent = $derived(Math.round(upload.progress * 100));
+
+  $effect(() => {
+    if (!open || !initialFile) return;
+    const file = initialFile;
+    untrack(() => {
+      if (fileInput) {
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        fileInput.files = transfer.files;
+      }
+      selectFile(file);
+    });
+  });
 
   function reset() {
     selectedFile = null;
@@ -35,16 +65,7 @@
     if (!upload.uploading) open = false;
   }
 
-  function handleCancel(event: Event) {
-    if (upload.uploading) event.preventDefault();
-  }
-
-  function handleClick(event: MouseEvent) {
-    if (event.target === event.currentTarget) close();
-  }
-
   function handleClose() {
-    open = false;
     if (!upload.uploading) reset();
   }
 
@@ -54,12 +75,16 @@
     return extensionless.trim().slice(0, PROJECT_TITLE_MAX_LENGTH);
   }
 
-  function chooseFile(event: Event) {
-    selectedFile = (event.currentTarget as HTMLInputElement).files?.[0] ?? null;
+  function selectFile(file: File | null) {
+    selectedFile = file;
     if (selectedFile && !projectNameEdited) {
       projectName = suggestedProjectName(selectedFile.name);
     }
     upload.reset();
+  }
+
+  function chooseFile(event: Event) {
+    selectFile((event.currentTarget as HTMLInputElement).files?.[0] ?? null);
   }
 
   function submit(event: SubmitEvent) {
@@ -69,40 +94,18 @@
   }
 </script>
 
-<dialog
-  class="create-project-dialog"
-  {@attach modal(open)}
-  aria-labelledby="create-project-title"
-  aria-describedby="create-project-description"
-  oncancel={handleCancel}
+<Dialog
+  bind:open
+  title="New project"
+  description="Name the project and choose its source recording."
+  dismissible={!upload.uploading}
   onclose={handleClose}
-  onclick={handleClick}
 >
-  <div class="create-project-shell">
-    <header class="create-project-header">
-      <div>
-        <p class="dialog-context">New project</p>
-        <h2 id="create-project-title">Create a media workspace</h2>
-        <p id="create-project-description">
-          Name the project and choose its source recording.
-        </p>
-      </div>
-      <button
-        class="dialog-close"
-        type="button"
-        aria-label="Close create project"
-        title="Close"
-        disabled={upload.uploading}
-        onclick={close}
-      >
-        <Icon name="close" size={18} />
-      </button>
-    </header>
-
-    <form class="create-project-form" onsubmit={submit}>
-      <label class="project-name-field">
-        <span>Project name</span>
-        <input
+  <form id={formId} class="grid gap-4" onsubmit={submit}>
+    <Field label="Project name">
+      {#snippet control({ id: inputId, describedBy, invalid })}
+        <Input
+          id={inputId}
           type="text"
           name="projectName"
           bind:value={projectName}
@@ -112,73 +115,88 @@
           autocomplete="off"
           disabled={upload.uploading}
           placeholder="Untitled project"
+          aria-describedby={describedBy}
+          aria-invalid={invalid}
         />
-      </label>
+      {/snippet}
+    </Field>
 
-      <div class="source-media-field">
-        <span class="source-media-label">Source media</span>
-        <label class="media-dropzone" data-state={upload.status}>
+    <Field label="Source media">
+      {#snippet control({ id: inputId })}
+        <div
+          class="relative flex items-center gap-3 rounded-md border border-dashed border-border-strong bg-surface-sunken px-3 py-3 transition-colors duration-150 hover:border-accent has-[input:disabled]:opacity-50 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-focus has-[input[aria-invalid=true]]:border-danger motion-reduce:transition-none"
+        >
           <input
             bind:this={fileInput}
+            id={inputId}
             type="file"
             accept="audio/*,video/*"
             disabled={upload.uploading}
             aria-invalid={upload.status === "error"}
+            aria-describedby={fileStatusId}
             onchange={chooseFile}
+            class="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
           />
-          <span class="dropzone-icon"><Icon name="file" size={24} /></span>
-          <span class="dropzone-copy">
-            <strong>
+          <span
+            class="grid size-9 shrink-0 place-items-center rounded-md bg-surface text-text-muted"
+            aria-hidden="true"
+          >
+            <Icon name="file" size={18} />
+          </span>
+          <span id={fileStatusId} class="min-w-0 flex-1">
+            <span class="block truncate text-sm font-medium text-text">
               {selectedFile?.name ?? "Choose an audio or video file"}
-            </strong>
-            <span>
+            </span>
+            <span class="block text-xs text-text-muted">
               {selectedFile
                 ? `${formatBytes(selectedFile.size)} · ready to upload`
                 : "Drop a file here or browse your device"}
             </span>
           </span>
-          <span class="button secondary compact" aria-hidden="true">
+          <span
+            class="{buttonClasses('secondary', 'sm')} max-sm:hidden"
+            aria-hidden="true"
+          >
             {selectedFile ? "Change" : "Browse"}
           </span>
-        </label>
-      </div>
-
-      <p class="upload-assurance">
-        Large uploads resume after interruptions. Your original stays in
-        Anysub's application-managed project directory.
-      </p>
-
-      {#if upload.status !== "idle" || upload.message}
-        <div class="job-progress" aria-live="polite">
-          <div class="progress-meta">
-            <span class:error={upload.status === "error"}>
-              {upload.message}
-            </span>
-            <span>{Math.round(upload.progress * 100)}%</span>
-          </div>
-          <progress value={upload.progress} max="1">
-            {Math.round(upload.progress * 100)}%
-          </progress>
         </div>
-      {/if}
+      {/snippet}
+    </Field>
 
-      <footer class="create-project-actions">
-        <button
-          class="button secondary"
-          type="button"
-          onclick={upload.uploading ? () => void upload.cancel() : close}
-        >
-          {upload.uploading ? "Cancel upload" : "Cancel"}
-        </button>
-        <button
-          class="button"
-          type="submit"
-          data-state={upload.uploading ? "loading" : undefined}
-          disabled={!canCreateProject}
-        >
-          {upload.uploading ? "Uploading" : "Create project"}
-        </button>
-      </footer>
-    </form>
-  </div>
-</dialog>
+    <p class="text-xs text-text-muted">
+      Large uploads resume after interruptions. Your original stays in Anysub's
+      application-managed project directory.
+    </p>
+
+    {#if upload.status !== "idle" || upload.message}
+      <div class="grid gap-1.5" aria-live="polite">
+        <div class="flex items-center justify-between gap-3 text-xs">
+          <span
+            class={upload.status === "error"
+              ? "text-danger"
+              : "text-text-muted"}
+          >
+            {upload.message}
+          </span>
+          <span class="font-mono text-text-muted tabular-nums">{percent}%</span>
+        </div>
+        <Progress value={upload.progress} label="Upload progress" />
+      </div>
+    {/if}
+  </form>
+
+  {#snippet actions()}
+    <Button onclick={upload.uploading ? () => void upload.cancel() : close}>
+      {upload.uploading ? "Cancel upload" : "Cancel"}
+    </Button>
+    <Button
+      variant="primary"
+      type="submit"
+      form={formId}
+      loading={upload.uploading}
+      disabled={!canCreateProject}
+    >
+      {upload.uploading ? "Uploading" : "Create project"}
+    </Button>
+  {/snippet}
+</Dialog>

@@ -67,18 +67,34 @@ export function displayState(project: ProjectStatusFields): string {
     : (project.uploadStatus ?? "draft");
 }
 
+type UploadFields = Pick<
+  ProjectMessageFields,
+  "uploadStatus" | "receivedBytes" | "sizeBytes"
+>;
+
+function uploadFraction(project: UploadFields): number | null {
+  if (
+    project.uploadStatus !== "uploading" ||
+    project.receivedBytes === null ||
+    !project.sizeBytes
+  ) {
+    return null;
+  }
+  return project.receivedBytes / project.sizeBytes;
+}
+
+export function projectProgress(
+  project: Omit<ProjectStatusFields, "runStatus"> &
+    UploadFields & { progress: number | null },
+): number | null {
+  if (!isProjectActive(project)) return null;
+  return uploadFraction(project) ?? project.progress ?? 0;
+}
+
 function projectMessage(project: ProjectMessageFields): string {
   if (project.progressMessage) return project.progressMessage;
-  if (
-    project.uploadStatus === "uploading" &&
-    project.receivedBytes !== null &&
-    project.sizeBytes
-  ) {
-    const progress = Math.round(
-      (project.receivedBytes / project.sizeBytes) * 100,
-    );
-    return `Uploading · ${progress}%`;
-  }
+  const uploaded = uploadFraction(project);
+  if (uploaded !== null) return `Uploading · ${Math.round(uploaded * 100)}%`;
   if (project.uploadStatus === "finalizing") return "Finalizing source media";
   if (project.uploadStatus === "completed") return "Source media stored";
   return "Project ready";

@@ -8,6 +8,9 @@ const outputDir = "/workspace/ui-check-output";
 const widths = [390, 1024, 1440];
 const themes = ["light", "dark"];
 const blockingImpacts = new Set(["serious", "critical"]);
+const LONG_PROJECT_NAME = "An unusually long project name that keeps going "
+  .repeat(3)
+  .trim();
 
 // Baseline violations on screens that are not migrated yet, as "screen:rule".
 // Each screen task removes its entries. Nothing new may be added.
@@ -26,6 +29,12 @@ const screens = [
     skipReason: "an owner already exists",
   },
   { name: "library", path: "/", signedIn: true },
+  {
+    name: "library-empty",
+    path: emptyLibraryPath,
+    signedIn: true,
+    skipReason: "projects exist, so the empty state is not reachable",
+  },
   {
     name: "studio",
     path: firstProjectPath,
@@ -52,13 +61,25 @@ async function open(page, path) {
 async function firstProjectPath(page) {
   await open(page, "/");
   await page.locator("#project-list-title").waitFor();
-  const link = page.locator('a[href^="/projects/"]').first();
+  const link = projectLinks(page).first();
   return (await link.count()) ? await link.getAttribute("href") : null;
 }
 
+async function emptyLibraryPath(page) {
+  await open(page, "/");
+  await page.locator("#project-list-title").waitFor();
+  return (await projectLinks(page).count()) ? null : "/";
+}
+
+function projectLinks(page) {
+  return page.locator('li a[href^="/projects/"]');
+}
+
 async function setupPath(page) {
-  await page.goto(`${baseUrl}/setup`);
-  return new URL(page.url()).pathname === "/setup" ? "/setup" : null;
+  const response = await page.request.get(`${baseUrl}/setup`, {
+    maxRedirects: 0,
+  });
+  return response.status() === 200 ? "/setup" : null;
 }
 
 async function signIn(context) {
@@ -96,16 +117,20 @@ async function checkScreen(context, screen, theme, width) {
       path: `${outputDir}/${screen.name}-${theme}-${width}.png`,
       fullPage: true,
     });
-    const results = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-      .analyze();
-    return reportViolations(results.violations, screen, theme, width);
+    return reportViolations(await axeViolations(page), screen, theme, width);
   } catch (error) {
     console.error(`${screen.name} ${theme} ${width}: ${error.message}`);
     return 1;
   } finally {
     await page.close();
   }
+}
+
+async function axeViolations(page) {
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  return results.violations;
 }
 
 async function focusedText(page) {
@@ -180,6 +205,85 @@ async function checkThemeMenuKeyboard(context, theme) {
   }
 }
 
+async function renameProject(page, projectHref, name) {
+  const row = page.locator("li", {
+    has: page.locator(`a[href="${projectHref}"]`),
+  });
+  const trigger = row.getByRole("button", { name: /^Actions for / });
+  await openMenuWithKeyboard(page, trigger);
+  await page.keyboard.press("ArrowDown");
+  if ((await focusedText(page)) !== "Rename") {
+    throw new Error("ArrowDown in the row menu did not reach Rename");
+  }
+  await page.keyboard.press("Enter");
+  const input = page.getByRole("textbox", { name: "Title" });
+  await input.waitFor();
+  await input.fill(name);
+  await page.keyboard.press("Enter");
+  await input.waitFor({ state: "detached" });
+  await page
+    .locator(`a[href="${projectHref}"]`, { hasText: name })
+    .first()
+    .waitFor();
+}
+
+async function checkLongProjectName(context, theme) {
+  const page = await context.newPage();
+  const label = `library long name ${theme}`;
+  let restore = null;
+  let failures = 0;
+  try {
+    await open(page, "/");
+    const link = projectLinks(page).first();
+    if (!(await link.count())) {
+      console.log(`skip ${label}: no project to rename`);
+      return 0;
+    }
+    const href = await link.getAttribute("href");
+    const originalName = (await link.textContent()).trim();
+    await renameProject(page, href, LONG_PROJECT_NAME);
+    restore = () => renameProject(page, href, originalName);
+    for (const width of [widths[0], widths.at(-1)]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.screenshot({
+        path: `${outputDir}/library-long-name-${theme}-${width}.png`,
+        fullPage: true,
+      });
+      const overflows = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth >
+          document.documentElement.clientWidth,
+      );
+      if (overflows) {
+        failures += 1;
+        console.error(`${label} ${width}: the page scrolls horizontally`);
+      }
+      failures += reportViolations(
+        await axeViolations(page),
+        { name: "library" },
+        theme,
+        width,
+      );
+    }
+    console.log(`${label}: row menu keyboard and rename ok`);
+  } catch (error) {
+    console.error(`${label}: ${error.message}`);
+    failures += 1;
+  } finally {
+    if (restore) {
+      try {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await restore();
+      } catch (error) {
+        console.error(`${label}: could not restore the name: ${error.message}`);
+        failures += 1;
+      }
+    }
+    await page.close();
+  }
+  return failures;
+}
+
 function reportViolations(violations, screen, theme, width) {
   let failures = 0;
   for (const violation of violations) {
@@ -233,7 +337,10 @@ for (const theme of themes) {
         failures += await checkScreen(context, screen, theme, width);
       }
     }
-    if (signedIn) failures += await checkThemeMenuKeyboard(context, theme);
+    if (signedIn) {
+      failures += await checkThemeMenuKeyboard(context, theme);
+      failures += await checkLongProjectName(context, theme);
+    }
     await context.close();
   }
 }
