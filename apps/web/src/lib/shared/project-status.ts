@@ -21,6 +21,7 @@ const ACTIVE_JOB_STATES = ["queued", "leased"];
 const ACTIVE_RUN_STATUSES = ["queued", "running"];
 const ACTIVE_UPLOAD_STATUSES = ["uploading", "finalizing"];
 const ACTIVE_PREPARATION_STATUSES: ProbeState[] = ["queued", "running"];
+const PREPARING_STATE = "preparing";
 
 export function isProjectActive(
   project: Pick<
@@ -58,7 +59,7 @@ export function displayState(project: ProjectStatusFields): string {
   const processingState = project.jobState ?? project.runStatus;
   if (processingState) return processingState;
   if (ACTIVE_PREPARATION_STATUSES.includes(project.mediaPreparationStatus)) {
-    return "preparing";
+    return PREPARING_STATE;
   }
   if (project.mediaPreparationStatus === "failed") return "failed";
   return project.uploadStatus === "completed"
@@ -106,7 +107,7 @@ const IN_PROGRESS_STATES = [
   ...ACTIVE_JOB_STATES,
   ...ACTIVE_RUN_STATUSES,
   ...ACTIVE_UPLOAD_STATUSES,
-  "preparing",
+  PREPARING_STATE,
 ];
 
 export function statusTone(state: string): StatusTone {

@@ -1,11 +1,14 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import Icon from "../Icon.svelte";
 
   type Props = {
     onselect?: () => void;
     href?: string;
     disabled?: boolean;
     tone?: "default" | "danger";
+    role?: "menuitem" | "menuitemradio";
+    checked?: boolean;
     children: Snippet;
   };
 
@@ -14,11 +17,13 @@
     href,
     disabled = false,
     tone = "default",
+    role = "menuitem",
+    checked = false,
     children,
   }: Props = $props();
 
   const classes = $derived(
-    `flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-sm whitespace-nowrap focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus aria-disabled:pointer-events-none aria-disabled:opacity-50 ${
+    `flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-sm whitespace-nowrap focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus aria-disabled:pointer-events-none aria-disabled:opacity-50 ${
       tone === "danger"
         ? "text-danger hover:bg-danger-soft focus:bg-danger-soft"
         : "text-text hover:bg-surface-sunken focus:bg-surface-sunken"
@@ -37,26 +42,37 @@
   }
 </script>
 
+{#snippet content()}
+  {#if role === "menuitemradio"}
+    <span class="size-4 shrink-0">
+      {#if checked}<Icon name="check" size={16} />{/if}
+    </span>
+  {/if}
+  {@render children()}
+{/snippet}
+
 {#if href !== undefined}
   <a
     href={disabled ? undefined : href}
-    role="menuitem"
+    {role}
     tabindex="-1"
+    aria-checked={role === "menuitemradio" ? checked : undefined}
     aria-disabled={disabled || undefined}
     class={classes}
     onclick={select}
   >
-    {@render children()}
+    {@render content()}
   </a>
 {:else}
   <button
     type="button"
-    role="menuitem"
+    {role}
     tabindex="-1"
+    aria-checked={role === "menuitemradio" ? checked : undefined}
     aria-disabled={disabled || undefined}
     class={classes}
     onclick={select}
   >
-    {@render children()}
+    {@render content()}
   </button>
 {/if}

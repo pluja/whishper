@@ -4,6 +4,11 @@
     "aria-haspopup": "menu";
     "aria-expanded": boolean;
   };
+
+  const GAP_PX = 4;
+  // Evaluated per environment; only read from browser-side handlers and effects, so the server's false never reaches the DOM.
+  const SUPPORTS_ANCHORING =
+    typeof CSS !== "undefined" && CSS.supports("anchor-name", "--menu");
 </script>
 
 <script lang="ts">
@@ -27,7 +32,7 @@
   let panel: HTMLElement;
 
   function menuItems(): HTMLElement[] {
-    return [...panel.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+    return [...panel.querySelectorAll<HTMLElement>('[role^="menuitem"]')];
   }
 
   function focusItem(key: string) {
@@ -42,24 +47,50 @@
     return true;
   }
 
-  function computePlacement(): string {
-    if (CSS.supports("anchor-name", anchorName)) {
-      const side =
-        align === "end" ? "right: anchor(right)" : "left: anchor(left)";
-      return `position-anchor: ${anchorName}; top: anchor(bottom); ${side}; position-try-fallbacks: flip-block;`;
-    }
+  function anchoredPlacement(): string {
+    const side =
+      align === "end" ? "right: anchor(right)" : "left: anchor(left)";
+    return `position-anchor: ${anchorName}; top: calc(anchor(bottom) + ${GAP_PX}px); ${side}; position-try-fallbacks: flip-block;`;
+  }
+
+  function fallbackPlacement(): string {
     const rect = anchor.getBoundingClientRect();
+    const viewport = document.documentElement;
+    const height = panel.offsetHeight;
+    const flipAbove =
+      rect.bottom + GAP_PX + height > viewport.clientHeight &&
+      rect.top >= height + GAP_PX;
+    const vertical = flipAbove
+      ? `bottom: ${viewport.clientHeight - rect.top + GAP_PX}px`
+      : `top: ${rect.bottom + GAP_PX}px`;
     const side =
       align === "end"
-        ? `right: ${window.innerWidth - rect.right}px`
+        ? `right: ${viewport.clientWidth - rect.right}px`
         : `left: ${rect.left}px`;
-    return `top: ${rect.bottom}px; ${side};`;
+    return `${vertical}; ${side};`;
   }
+
+  $effect(() => {
+    if (!open || SUPPORTS_ANCHORING) return;
+    const reposition = () => (placement = fallbackPlacement());
+    window.addEventListener("scroll", reposition, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, { capture: true });
+      window.removeEventListener("resize", reposition);
+    };
+  });
 
   function handleBeforeToggle(event: ToggleEvent) {
     open = event.newState === "open";
     if (open) {
-      placement = computePlacement();
+      // The panel isn't rendered yet, so the fallback can't measure it to flip; handleToggle corrects it once shown.
+      placement = SUPPORTS_ANCHORING
+        ? anchoredPlacement()
+        : fallbackPlacement();
       return;
     }
     // Synchronous so that a dialog opened from an item's onselect captures the trigger as its return target.
@@ -70,7 +101,9 @@
   }
 
   function handleToggle(event: ToggleEvent) {
-    if (event.newState === "open") focusItem("Home");
+    if (event.newState !== "open") return;
+    if (!SUPPORTS_ANCHORING) placement = fallbackPlacement();
+    focusItem("Home");
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -99,7 +132,7 @@
     onbeforetoggle={handleBeforeToggle}
     ontoggle={handleToggle}
     onkeydown={handleKeydown}
-    class="inset-auto m-0 mt-1 min-w-44 rounded-md border border-border bg-surface-raised p-1 text-text shadow-lg"
+    class="inset-auto m-0 min-w-44 rounded-md border border-border bg-surface-raised p-1 text-text shadow-lg"
   >
     {@render children()}
   </div>

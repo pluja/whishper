@@ -16,6 +16,6 @@
     {label}
   </Badge>
   {#if progress !== null}
-    <Progress value={progress} {label} />
+    <Progress value={progress} label={`${label} progress`} />
   {/if}
 </span>
