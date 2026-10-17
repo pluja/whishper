@@ -44,6 +44,7 @@
     if (!open || !initialFile) return;
     const file = initialFile;
     untrack(() => {
+      if (upload.uploading) return;
       if (fileInput) {
         const transfer = new DataTransfer();
         transfer.items.add(file);

@@ -205,10 +205,8 @@ async function checkThemeMenuKeyboard(context, theme) {
   }
 }
 
-async function renameProject(page, projectHref, name) {
-  const row = page.locator("li", {
-    has: page.locator(`a[href="${projectHref}"]`),
-  });
+async function checkRowMenuRename(page) {
+  const row = page.locator("main ul > li").first();
   const trigger = row.getByRole("button", { name: /^Actions for / });
   await openMenuWithKeyboard(page, trigger);
   await page.keyboard.press("ArrowDown");
@@ -218,31 +216,33 @@ async function renameProject(page, projectHref, name) {
   await page.keyboard.press("Enter");
   const input = page.getByRole("textbox", { name: "Title" });
   await input.waitFor();
-  await input.fill(name);
-  await page.keyboard.press("Enter");
+  await page.keyboard.press("Escape");
   await input.waitFor({ state: "detached" });
-  await page
-    .locator(`a[href="${projectHref}"]`, { hasText: name })
-    .first()
-    .waitFor();
+}
+
+// Overrides the rendered name only, so the check never writes user data.
+async function showLongProjectName(page) {
+  await page.evaluate((name) => {
+    const link = document.querySelector(
+      'main ul > li h3 a[href^="/projects/"]',
+    );
+    link.textContent = name;
+    link.title = name;
+  }, LONG_PROJECT_NAME);
 }
 
 async function checkLongProjectName(context, theme) {
   const page = await context.newPage();
   const label = `library long name ${theme}`;
-  let restore = null;
   let failures = 0;
   try {
     await open(page, "/");
-    const link = projectLinks(page).first();
-    if (!(await link.count())) {
-      console.log(`skip ${label}: no project to rename`);
+    if (!(await projectLinks(page).count())) {
+      console.log(`skip ${label}: no project row to check`);
       return 0;
     }
-    const href = await link.getAttribute("href");
-    const originalName = (await link.textContent()).trim();
-    await renameProject(page, href, LONG_PROJECT_NAME);
-    restore = () => renameProject(page, href, originalName);
+    await checkRowMenuRename(page);
+    await showLongProjectName(page);
     for (const width of [widths[0], widths.at(-1)]) {
       await page.setViewportSize({ width, height: 900 });
       await page.screenshot({
@@ -265,20 +265,11 @@ async function checkLongProjectName(context, theme) {
         width,
       );
     }
-    console.log(`${label}: row menu keyboard and rename ok`);
+    console.log(`${label}: row menu keyboard and long name layout ok`);
   } catch (error) {
     console.error(`${label}: ${error.message}`);
     failures += 1;
   } finally {
-    if (restore) {
-      try {
-        await page.setViewportSize({ width: 1440, height: 900 });
-        await restore();
-      } catch (error) {
-        console.error(`${label}: could not restore the name: ${error.message}`);
-        failures += 1;
-      }
-    }
     await page.close();
   }
   return failures;

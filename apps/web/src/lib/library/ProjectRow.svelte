@@ -34,12 +34,13 @@
   type RenameForm = { renameProjectId?: string; renameError?: string } | null;
   type Props = {
     project: ProjectSummary;
+    now: Date;
     eagerThumbnail: boolean;
     renameAction: string;
     form: RenameForm;
   };
 
-  let { project, eagerThumbnail, renameAction, form }: Props = $props();
+  let { project, now, eagerThumbnail, renameAction, form }: Props = $props();
 
   // svelte-ignore state_referenced_locally
   let editing = $state(form?.renameProjectId === project.id);
@@ -53,7 +54,7 @@
   let hasDuration = $derived(
     project.mediaDurationUs !== null && project.mediaDurationUs > 0,
   );
-  let lastEdited = $derived(formatRelativeTime(project.activityAt, new Date()));
+  let lastEdited = $derived(formatRelativeTime(project.activityAt, now));
 
   function beginRename() {
     renameDraft = project.name;
@@ -91,7 +92,7 @@
 </script>
 
 <li
-  class="relative grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-3 py-3 transition-colors duration-150 hover:bg-surface-sunken/60 motion-reduce:transition-none sm:gap-x-4 sm:px-4 {PROJECT_ROW_COLUMNS}"
+  class="group relative grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-3 py-3 transition-colors duration-150 hover:bg-surface-sunken/60 motion-reduce:transition-none sm:gap-x-4 sm:px-4 {PROJECT_ROW_COLUMNS}"
 >
   <div
     class="row-span-2 grid h-9 w-16 place-items-center overflow-hidden rounded border border-border bg-surface-sunken text-text-subtle sm:row-span-1"
@@ -222,11 +223,15 @@
           bind:this={menuTrigger}
           type="button"
           {...args}
-          class={buttonClasses("ghost", "sm", true)}
+          class="{buttonClasses(
+            'ghost',
+            'sm',
+            true,
+          )} group-focus-within:text-text group-hover:text-text"
           aria-label={`Actions for ${project.name}`}
           title="Actions"
         >
-          <Icon name="more" size={16} />
+          <Icon name="more" size={18} />
         </button>
       {/snippet}
       <MenuItem href={projectPageUrl(project.id)}>

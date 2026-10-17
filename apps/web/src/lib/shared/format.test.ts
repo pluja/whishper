@@ -86,4 +86,8 @@ describe("formatRelativeTime", () => {
     expect(formatRelativeTime(ago(21 * 86_400), now)).toBe("3 weeks ago");
     expect(formatRelativeTime(ago(400 * 86_400), now)).toBe("last year");
   });
+
+  it("treats a timestamp ahead of the clock as just now", () => {
+    expect(formatRelativeTime(ago(-5 * 60), now)).toBe("just now");
+  });
 });

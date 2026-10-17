@@ -66,9 +66,8 @@ export function formatSubtitleCounts(
   return `${pluralize(trackCount, "track")} · ${pluralize(cueCount, "cue")}`;
 }
 
-const relativeTime = new Intl.RelativeTimeFormat(undefined, {
-  numeric: "auto",
-});
+// Pinned to English so the phrase matches the surrounding UI copy.
+const relativeTime = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ["year", 365 * 86_400],
   ["month", 30 * 86_400],
@@ -79,7 +78,8 @@ const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
 ];
 
 export function formatRelativeTime(date: Date, now: Date): string {
-  const seconds = (date.getTime() - now.getTime()) / 1_000;
+  // Clamped so client clock skew never reads as a future edit.
+  const seconds = Math.min(0, (date.getTime() - now.getTime()) / 1_000);
   for (const [unit, unitSeconds] of RELATIVE_UNITS) {
     const amount = Math.trunc(seconds / unitSeconds);
     if (amount !== 0) return relativeTime.format(amount, unit);

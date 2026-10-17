@@ -1,9 +1,13 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import CreateProjectDialog from "$lib/library/CreateProjectDialog.svelte";
   import ProjectRow, {
     PROJECT_ROW_COLUMNS,
   } from "$lib/library/ProjectRow.svelte";
-  import { firstDroppedMediaFile } from "$lib/library/drop-zone";
+  import {
+    carriesMediaFile,
+    firstDroppedMediaFile,
+  } from "$lib/library/drop-zone";
   import Icon from "$lib/components/Icon.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import Input from "$lib/components/ui/Input.svelte";
@@ -17,6 +21,9 @@
   let createDialogOpen = $state(false);
   let droppedFile = $state<File | null>(null);
   let dragDepth = $state(0);
+  let dragHasMedia = $state(true);
+  let dropMessage = $state("");
+  let now = $state(new Date());
   let hasActiveSearch = $derived(
     data.search.query.length > 0 || data.search.includeSubtitles,
   );
@@ -35,6 +42,11 @@
 
   pollWhileActive(() => hasActiveJob, 2_000);
 
+  $effect(() => {
+    const timer = window.setInterval(() => (now = new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  });
+
   function openCreateDialog(file: File | null = null) {
     droppedFile = file;
     createDialogOpen = true;
@@ -52,7 +64,12 @@
   }
 
   function handleDragEnter(event: DragEvent) {
-    if (acceptsDrops && carriesFiles(event)) dragDepth += 1;
+    if (!acceptsDrops || !carriesFiles(event)) return;
+    if (dragDepth === 0) {
+      dragHasMedia = carriesMediaFile(event.dataTransfer);
+      dropMessage = "";
+    }
+    dragDepth += 1;
   }
 
   function handleDragLeave() {
@@ -71,6 +88,15 @@
     if (!acceptsDrops) return;
     const file = firstDroppedMediaFile(event.dataTransfer);
     if (file) openCreateDialog(file);
+    else void announceRejectedDrop();
+  }
+
+  // Cleared first so a repeated rejection is announced again.
+  async function announceRejectedDrop() {
+    dropMessage = "";
+    await tick();
+    dropMessage =
+      "Not a media file. Drop an audio or video file to create a project.";
   }
 </script>
 
@@ -234,6 +260,7 @@
             <ProjectRow
               {project}
               {form}
+              {now}
               eagerThumbnail={index === firstThumbnailIndex}
               renameAction={renameActionUrl}
             />
@@ -244,17 +271,28 @@
   </section>
 </div>
 
+<p class="sr-only" role="status">{dropMessage}</p>
+
 {#if dragDepth > 0}
   <div
     class="pointer-events-none fixed inset-0 z-40 grid place-items-center bg-overlay p-6 transition-opacity duration-150 motion-reduce:transition-none starting:opacity-0"
     aria-hidden="true"
   >
     <div
-      class="grid justify-items-center gap-3 rounded-xl border-2 border-dashed border-accent bg-surface-raised px-10 py-8 text-center shadow-xl"
+      class={[
+        "grid justify-items-center gap-3 rounded-xl border-2 border-dashed bg-surface-raised px-10 py-8 text-center shadow-xl",
+        dragHasMedia ? "border-accent" : "border-danger",
+      ]}
     >
-      <span class="text-accent"><Icon name="file" size={28} /></span>
-      <p class="text-base font-semibold text-text">Drop to create a project</p>
-      <p class="text-sm text-text-muted">Audio or video files</p>
+      <span class={dragHasMedia ? "text-accent" : "text-danger"}>
+        <Icon name="file" size={28} />
+      </span>
+      <p class="text-base font-semibold text-text">
+        {dragHasMedia ? "Drop to create a project" : "Not a media file"}
+      </p>
+      <p class="text-sm text-text-muted">
+        {dragHasMedia ? "Audio or video files" : "Drop an audio or video file"}
+      </p>
     </div>
   </div>
 {/if}
