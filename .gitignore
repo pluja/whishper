@@ -10,6 +10,7 @@ build/
 coverage/
 playwright-report/
 test-results/
+ui-check-output/
 
 # Python
 .venv/

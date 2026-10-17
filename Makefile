@@ -13,7 +13,7 @@ TEST_DATABASE := anysub_test
 psql = $(COMPOSE) exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "$(1)"'
 
 .DEFAULT_GOAL := help
-.PHONY: help dev down generate check test test-db lint format-check build verify
+.PHONY: help dev down generate check test test-db lint format-check build verify ui-check
 
 help: ## List available targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z][a-z-]*:.*## / {printf "  %-13s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -54,3 +54,6 @@ build: ## Build the production web bundle
 	$(RUN) web pnpm build
 
 verify: check test test-db lint format-check build ## Run the web and worker checks CI runs, before you push
+
+ui-check: ## Screenshot every screen in light and dark and run accessibility checks (needs make dev running)
+	$(COMPOSE) --profile ui run --rm ui-check

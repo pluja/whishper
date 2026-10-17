@@ -100,4 +100,18 @@ describe("toolchain versions", () => {
     expect(postgresImage(workflow)).toBeDefined();
     expect(postgresImage(workflow)).toBe(postgresImage(compose));
   });
+
+  it("runs ui-check in the Playwright image that matches the pinned package", async () => {
+    const [compose, packageJson] = await Promise.all([
+      repositoryFile("compose.dev.yaml"),
+      repositoryFile("apps/web/package.json"),
+    ]);
+    const pinned = JSON.parse(packageJson).devDependencies.playwright;
+    const imageTag = /image:\s*mcr\.microsoft\.com\/playwright:v([\d.]+)-/.exec(
+      compose,
+    )?.[1];
+
+    expect(pinned).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(imageTag).toBe(pinned);
+  });
 });

@@ -98,6 +98,15 @@ It runs `check`, `test`, `test-db`, `lint`, `format-check`, and `build`:
 
 CI runs the same checks with a frozen lockfile. It adds one job that builds both production images without pushing them. No `make` target builds production images, so a Dockerfile change is only fully checked in CI.
 
+## UI checks
+
+```sh
+make dev       # in one terminal
+make ui-check  # in another
+```
+
+`make ui-check` signs in to the running dev stack with the dev account (override with `UI_CHECK_EMAIL` and `UI_CHECK_PASSWORD`), screenshots every screen in light and dark at 390, 1024 and 1440 px, and runs axe-core. Screenshots land in `ui-check-output/`, which Git ignores. Serious or critical violations fail the target. It is not part of `make verify`. The Playwright image tag in `compose.dev.yaml` must equal the `playwright` version in `apps/web/package.json`, and a test checks that.
+
 ## Contracts
 
 The Pydantic models in `workers/inference/src/anysub_worker/models.py` are the source of truth for the worker protocol. After changing them:
