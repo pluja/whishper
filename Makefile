@@ -56,4 +56,5 @@ build: ## Build the production web bundle
 verify: check test test-db lint format-check build ## Run the web and worker checks CI runs, before you push
 
 ui-check: ## Screenshot every screen in light and dark and run accessibility checks (needs make dev running)
+	mkdir -p ui-check-output
 	$(COMPOSE) --profile ui run --rm ui-check

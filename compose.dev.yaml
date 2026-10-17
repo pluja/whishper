@@ -72,7 +72,8 @@ services:
     image: mcr.microsoft.com/playwright:v1.64.1-noble
     working_dir: /workspace/apps/web
     volumes:
-      - .:/workspace:z
+      - .:/workspace:ro,z
+      - ./ui-check-output:/workspace/ui-check-output:z
       - web-node-modules:/workspace/node_modules
       - web-app-node-modules:/workspace/apps/web/node_modules
     environment:
