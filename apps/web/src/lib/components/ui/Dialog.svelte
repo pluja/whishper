@@ -44,7 +44,7 @@
   onclose={handleClose}
   aria-labelledby="{id}-title"
   aria-describedby={description ? `${id}-description` : undefined}
-  class="m-auto w-[calc(100%-2rem)] max-w-md scale-95 rounded-lg border border-border bg-surface-raised p-0 text-text opacity-0 shadow-xl transition-[opacity,scale] duration-150 backdrop:bg-black/40 open:scale-100 open:opacity-100 motion-reduce:transition-none starting:open:scale-95 starting:open:opacity-0"
+  class="m-auto w-[calc(100%-2rem)] max-w-md scale-95 rounded-lg border border-border bg-surface-raised p-0 text-text opacity-0 shadow-xl transition-[opacity,scale] duration-150 backdrop:bg-overlay open:scale-100 open:opacity-100 motion-reduce:transition-none starting:open:scale-95 starting:open:opacity-0"
 >
   <div class="flex items-start justify-between gap-4 px-5 pt-5">
     <div class="min-w-0">
