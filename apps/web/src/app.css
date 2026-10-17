@@ -1,6 +1,84 @@
 @import "tailwindcss";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 @import "./tokens.css";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
+
+  --color-bg: var(--theme-bg);
+  --color-surface: var(--theme-surface);
+  --color-surface-raised: var(--theme-surface-raised);
+  --color-surface-sunken: var(--theme-surface-sunken);
+  --color-border: var(--theme-border);
+  --color-border-strong: var(--theme-border-strong);
+  --color-text: var(--theme-text);
+  --color-text-muted: var(--theme-text-muted);
+  --color-text-subtle: var(--theme-text-subtle);
+  --color-accent: var(--theme-accent);
+  --color-accent-hover: var(--theme-accent-hover);
+  --color-accent-fg: var(--theme-accent-fg);
+  --color-accent-soft: var(--theme-accent-soft);
+  --color-success: var(--theme-success);
+  --color-success-soft: var(--theme-success-soft);
+  --color-warning: var(--theme-warning);
+  --color-warning-soft: var(--theme-warning-soft);
+  --color-danger: var(--theme-danger);
+  --color-danger-soft: var(--theme-danger-soft);
+  --color-focus: var(--theme-focus);
+}
+
+/* --theme-border is decorative (dividers, card edges). Outlines that identify a control use --theme-border-strong, which meets 3:1. */
+:root {
+  color-scheme: light;
+  --theme-bg: #f3f5f7;
+  --theme-surface: #ffffff;
+  --theme-surface-raised: #ffffff;
+  --theme-surface-sunken: #edf0f3;
+  --theme-border: #dfe4e9;
+  --theme-border-strong: #80898f;
+  --theme-text: #18212b;
+  --theme-text-muted: #4d5b69;
+  --theme-text-subtle: #616d79;
+  --theme-accent: #5b5bd6;
+  --theme-accent-hover: #4949bd;
+  --theme-accent-fg: #fbfbff;
+  --theme-accent-soft: #eeeeff;
+  --theme-success: #177a55;
+  --theme-success-soft: #e8f5ef;
+  --theme-warning: #a15b11;
+  --theme-warning-soft: #fff3e2;
+  --theme-danger: #bd3445;
+  --theme-danger-soft: #fcebed;
+  --theme-focus: #5b5bd6;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --theme-bg: #15171b;
+  --theme-surface: #1c1f24;
+  --theme-surface-raised: #22262c;
+  --theme-surface-sunken: #1a1d21;
+  --theme-border: #292d33;
+  --theme-border-strong: #6d7075;
+  --theme-text: #e6e8ec;
+  --theme-text-muted: #bec3cb;
+  --theme-text-subtle: #959ca6;
+  --theme-accent: #948dff;
+  --theme-accent-hover: #aaa5ff;
+  --theme-accent-fg: #15171b;
+  --theme-accent-soft: rgb(122 111 255 / 0.14);
+  --theme-success: #69d5a5;
+  --theme-success-soft: #1c332b;
+  --theme-warning: #e2a467;
+  --theme-warning-soft: #382b20;
+  --theme-danger: #ffc1c7;
+  --theme-danger-soft: #392328;
+  --theme-focus: #aaa5ff;
+}
 
 *,
 *::before,
