@@ -25,7 +25,7 @@
   <label for={id} class="text-sm font-medium text-text">{label}</label>
   {@render control({ id, describedBy, invalid: Boolean(error) })}
   {#if error}
-    <p id="{id}-error" class="text-sm text-danger">{error}</p>
+    <p id="{id}-error" class="text-sm text-danger" role="alert">{error}</p>
   {:else if hint}
     <p id="{id}-hint" class="text-sm text-text-muted">{hint}</p>
   {/if}

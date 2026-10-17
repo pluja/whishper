@@ -1,4 +1,9 @@
 <script lang="ts">
+  import AuthLayout from "$lib/components/AuthLayout.svelte";
+  import Button from "$lib/components/ui/Button.svelte";
+  import Field from "$lib/components/ui/Field.svelte";
+  import Input from "$lib/components/ui/Input.svelte";
+
   let { form } = $props();
 </script>
 
@@ -6,61 +11,39 @@
   <title>Sign in · Anysub</title>
 </svelte:head>
 
-<div class="auth-layout">
-  <section class="auth-context" aria-labelledby="login-title">
-    <p class="eyebrow">Local workspace</p>
-    <h1 id="login-title">Welcome back.</h1>
-    <p>
-      Continue transcribing, reviewing, and preparing subtitles without sending
-      your media to an external service.
-    </p>
-    <div class="auth-assurance">
-      <span><strong>Private</strong> Your installation</span>
-      <span><strong>Local</strong> Your infrastructure</span>
-    </div>
-  </section>
-
-  <section class="auth-card" aria-label="Sign in">
-    <div class="auth-card-heading">
-      <p class="eyebrow">Anysub account</p>
-      <h2>Sign in</h2>
-      <p>Use the credentials for this installation.</p>
-    </div>
-
-    <form class="auth-form" method="POST">
-      <div class="field">
-        <label for="email">Email address</label>
-        <input
-          id="email"
+<AuthLayout
+  title="Sign in"
+  description="Use the credentials for this installation."
+>
+  <form class="grid gap-4" method="POST">
+    <Field label="Email address">
+      {#snippet control({ id, describedBy, invalid })}
+        <Input
+          {id}
           name="email"
           type="email"
           autocomplete="email"
           required
+          aria-describedby={describedBy}
+          aria-invalid={invalid}
         />
-      </div>
+      {/snippet}
+    </Field>
 
-      <div class="field">
-        <label for="password">Password</label>
-        <input
-          id="password"
+    <Field label="Password" error={form?.message}>
+      {#snippet control({ id, describedBy, invalid })}
+        <Input
+          {id}
           name="password"
           type="password"
           autocomplete="current-password"
           required
-          aria-describedby="login-error"
-          aria-invalid={form?.message ? "true" : "false"}
+          aria-describedby={describedBy}
+          aria-invalid={invalid}
         />
-        <p
-          id="login-error"
-          class="helper"
-          class:error={form?.message}
-          role="alert"
-        >
-          {form?.message ?? ""}
-        </p>
-      </div>
+      {/snippet}
+    </Field>
 
-      <button class="button wide" type="submit">Open workspace</button>
-    </form>
-  </section>
-</div>
+    <Button variant="primary" type="submit" class="mt-2 w-full">Sign in</Button>
+  </form>
+</AuthLayout>

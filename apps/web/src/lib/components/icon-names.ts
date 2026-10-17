@@ -21,4 +21,7 @@ export type IconName =
   | "merge"
   | "trash"
   | "download"
-  | "more";
+  | "more"
+  | "sun"
+  | "moon"
+  | "monitor";

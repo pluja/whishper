@@ -14,8 +14,6 @@
   --legacy-color-canvas: #f3f5f7;
   --legacy-color-surface-soft: #f7f8fa;
   --legacy-color-surface-strong: #edf0f3;
-  --legacy-color-sidebar: #111720;
-  --legacy-color-sidebar-soft: #1a222d;
   --legacy-color-text-soft: #4d5b69;
   --legacy-color-muted: #74808d;
   --legacy-color-accent-ink: #fbfbff;
@@ -76,7 +74,4 @@
   --legacy-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --dur-micro: 120ms;
   --dur-short: 180ms;
-
-  --sidebar-width: 15rem;
-  --content-width: 88rem;
 }

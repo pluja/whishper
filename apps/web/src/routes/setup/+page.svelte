@@ -1,4 +1,8 @@
 <script lang="ts">
+  import AuthLayout from "$lib/components/AuthLayout.svelte";
+  import Button from "$lib/components/ui/Button.svelte";
+  import Field from "$lib/components/ui/Field.svelte";
+  import Input from "$lib/components/ui/Input.svelte";
   import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "$lib/shared/limits";
 
   let { form } = $props();
@@ -8,77 +12,67 @@
   <title>Create owner · Anysub</title>
 </svelte:head>
 
-<div class="auth-layout">
-  <section class="auth-context" aria-labelledby="setup-title">
-    <p class="eyebrow">First-run setup</p>
-    <h1 id="setup-title">Your private subtitle workspace.</h1>
-    <p>
-      Create the installation owner. Your media, transcripts, and account data
-      remain on this Anysub server.
-    </p>
-    <ul class="auth-promises">
-      <li><span>01</span> Local processing by default</li>
-      <li><span>02</span> No telemetry or external account</li>
-      <li><span>03</span> One secure owner to begin</li>
-    </ul>
-  </section>
-
-  <section class="auth-card" aria-label="Create owner account">
-    <div class="auth-card-heading">
-      <p class="eyebrow">Installation owner</p>
-      <h2>Create your account</h2>
-      <p>You can invite workspace members in a later release.</p>
-    </div>
-
-    <form class="auth-form" method="POST">
-      <div class="field">
-        <label for="name">Your name</label>
-        <input
-          id="name"
+<AuthLayout
+  title="Create the owner account"
+  description="Your media, transcripts, and account data stay on this Anysub server."
+>
+  <form class="grid gap-4" method="POST">
+    <Field
+      label="Your name"
+      hint="Shown in workspace ownership and activity history."
+    >
+      {#snippet control({ id, describedBy, invalid })}
+        <Input
+          {id}
           name="name"
           autocomplete="name"
           required
-          minlength="2"
+          minlength={2}
+          aria-describedby={describedBy}
+          aria-invalid={invalid}
         />
-        <p class="helper">Shown in workspace ownership and activity history.</p>
-      </div>
+      {/snippet}
+    </Field>
 
-      <div class="field">
-        <label for="email">Email address</label>
-        <input
-          id="email"
+    <Field
+      label="Email address"
+      hint="Used to sign in. Anysub does not send email yet."
+    >
+      {#snippet control({ id, describedBy, invalid })}
+        <Input
+          {id}
           name="email"
           type="email"
           autocomplete="email"
           required
+          aria-describedby={describedBy}
+          aria-invalid={invalid}
         />
-        <p class="helper">Used to sign in. Anysub does not send email yet.</p>
-      </div>
+      {/snippet}
+    </Field>
 
-      <div class="field">
-        <label for="password">Password</label>
-        <input
-          id="password"
+    <Field
+      label="Password"
+      hint={`Use at least ${PASSWORD_MIN_LENGTH} characters.`}
+      error={form?.message}
+    >
+      {#snippet control({ id, describedBy, invalid })}
+        <Input
+          {id}
           name="password"
           type="password"
           autocomplete="new-password"
           required
           minlength={PASSWORD_MIN_LENGTH}
           maxlength={PASSWORD_MAX_LENGTH}
-          aria-describedby="setup-error"
-          aria-invalid={form?.message ? "true" : "false"}
+          aria-describedby={describedBy}
+          aria-invalid={invalid}
         />
-        <p
-          id="setup-error"
-          class="helper"
-          class:error={form?.message}
-          role="alert"
-        >
-          {form?.message ?? `Use at least ${PASSWORD_MIN_LENGTH} characters.`}
-        </p>
-      </div>
+      {/snippet}
+    </Field>
 
-      <button class="button wide" type="submit">Create workspace</button>
-    </form>
-  </section>
-</div>
+    <Button variant="primary" type="submit" class="mt-2 w-full">
+      Create workspace
+    </Button>
+  </form>
+</AuthLayout>

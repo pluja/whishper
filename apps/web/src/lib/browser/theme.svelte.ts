@@ -1,3 +1,4 @@
+import { createContext } from "svelte";
 import {
   parseThemePreference,
   resolveTheme,
@@ -40,3 +41,7 @@ export class ThemeController {
     if (changed) window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT));
   }
 }
+
+// A getter because the controller only exists after mount, once window is available.
+export const [getThemeController, setThemeController] =
+  createContext<() => ThemeController | undefined>();

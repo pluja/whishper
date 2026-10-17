@@ -32,6 +32,9 @@
     trash,
     download,
     more,
+    sun,
+    moon,
+    monitor,
   };
 </script>
 
@@ -120,6 +123,19 @@
   <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" />
   <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
   <circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" />
+{/snippet}
+{#snippet sun()}
+  <circle cx="12" cy="12" r="4" />
+  <path
+    d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"
+  />
+{/snippet}
+{#snippet moon()}
+  <path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z" />
+{/snippet}
+{#snippet monitor()}
+  <rect x="3" y="4.5" width="18" height="12" rx="2" />
+  <path d="M8.5 20h7M12 16.5V20" />
 {/snippet}
 
 <svg

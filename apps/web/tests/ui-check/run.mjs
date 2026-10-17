@@ -12,7 +12,6 @@ const blockingImpacts = new Set(["serious", "critical"]);
 // Baseline violations on screens that are not migrated yet, as "screen:rule".
 // Each screen task removes its entries. Nothing new may be added.
 const KNOWN_LEGACY = new Set([
-  "login:color-contrast",
   "studio:color-contrast",
   "studio:label-content-name-mismatch",
   "studio:target-size",
@@ -20,6 +19,12 @@ const KNOWN_LEGACY = new Set([
 
 const screens = [
   { name: "login", path: "/login", signedIn: false },
+  {
+    name: "setup",
+    path: setupPath,
+    signedIn: false,
+    skipReason: "an owner already exists",
+  },
   { name: "library", path: "/", signedIn: true },
   {
     name: "studio",
@@ -51,12 +56,17 @@ async function firstProjectPath(page) {
   return (await link.count()) ? await link.getAttribute("href") : null;
 }
 
+async function setupPath(page) {
+  await page.goto(`${baseUrl}/setup`);
+  return new URL(page.url()).pathname === "/setup" ? "/setup" : null;
+}
+
 async function signIn(context) {
   const page = await context.newPage();
   await page.goto(`${baseUrl}/login`);
   await page.getByLabel(/email/i).fill(email);
   await page.getByLabel(/password/i).fill(password);
-  await page.getByRole("button", { name: /open workspace/i }).click();
+  await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForURL(`${baseUrl}/`);
   await page.close();
 }
@@ -69,7 +79,9 @@ async function checkScreen(context, screen, theme, width) {
       ? screen.path(page)
       : screen.path);
     if (!path) {
-      console.log(`skip ${screen.name}: nothing to open`);
+      console.log(
+        `skip ${screen.name}: ${screen.skipReason ?? "nothing to open"}`,
+      );
       return 0;
     }
     await open(page, path);
@@ -90,6 +102,78 @@ async function checkScreen(context, screen, theme, width) {
     return reportViolations(results.violations, screen, theme, width);
   } catch (error) {
     console.error(`${screen.name} ${theme} ${width}: ${error.message}`);
+    return 1;
+  } finally {
+    await page.close();
+  }
+}
+
+async function focusedText(page) {
+  return page.evaluate(() => document.activeElement?.textContent?.trim());
+}
+
+async function appliedTheme(page) {
+  return page.evaluate(() => document.documentElement.dataset.theme);
+}
+
+async function openMenuWithKeyboard(page, trigger) {
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  // The menu focuses its first item from the async toggle event, after it becomes visible.
+  await page.waitForFunction(() =>
+    document.activeElement?.getAttribute("role")?.startsWith("menuitem"),
+  );
+}
+
+async function chooseTheme(page, trigger, key) {
+  await openMenuWithKeyboard(page, trigger);
+  await page.keyboard.press(key);
+  await page.keyboard.press("Enter");
+}
+
+async function checkThemeMenuKeyboard(context, theme) {
+  const page = await context.newPage();
+  const label = `theme menu ${theme}`;
+  try {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page, "/");
+    const trigger = page.getByRole("button", { name: "Theme" });
+    const menu = page.getByRole("menu", { name: "Theme" });
+
+    await openMenuWithKeyboard(page, trigger);
+    if ((await focusedText(page)) !== "Light") {
+      throw new Error("opening did not focus the first item");
+    }
+    await page.keyboard.press("ArrowDown");
+    if ((await focusedText(page)) !== "Dark") {
+      throw new Error("ArrowDown did not move focus to the next item");
+    }
+    await page.keyboard.press("Escape");
+    await menu.waitFor({ state: "hidden" });
+    if (!(await trigger.evaluate((node) => node === document.activeElement))) {
+      throw new Error("Escape did not return focus to the trigger");
+    }
+
+    await chooseTheme(page, trigger, "ArrowDown");
+    if ((await appliedTheme(page)) !== "dark") {
+      throw new Error("choosing Dark did not apply the dark theme");
+    }
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    if ((await appliedTheme(page)) !== "dark") {
+      throw new Error("the Dark preference did not persist across reload");
+    }
+
+    await chooseTheme(page, trigger, "End");
+    if ((await appliedTheme(page)) !== theme) {
+      throw new Error(
+        `choosing System did not follow the ${theme} system theme`,
+      );
+    }
+    console.log(`${label}: keyboard, persistence and System ok`);
+    return 0;
+  } catch (error) {
+    console.error(`${label}: ${error.message}`);
     return 1;
   } finally {
     await page.close();
@@ -149,6 +233,7 @@ for (const theme of themes) {
         failures += await checkScreen(context, screen, theme, width);
       }
     }
+    if (signedIn) failures += await checkThemeMenuKeyboard(context, theme);
     await context.close();
   }
 }
