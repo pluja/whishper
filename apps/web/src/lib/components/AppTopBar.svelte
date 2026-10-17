@@ -9,7 +9,8 @@
 
   let { email }: Props = $props();
 
-  let signOutForm: HTMLFormElement;
+  const id = $props.id();
+  const signOutFormId = `${id}-sign-out`;
 </script>
 
 <header class="h-14 border-b border-border bg-surface">
@@ -32,7 +33,7 @@
             type="button"
             {...args}
             class={buttonClasses("ghost", "md", true)}
-            aria-label="Account"
+            aria-label={`Account, ${email}`}
             title="Account"
           >
             <span
@@ -43,17 +44,22 @@
             </span>
           </button>
         {/snippet}
-        <p class="max-w-64 truncate px-2.5 pt-1.5 pb-2 text-xs text-text-muted">
-          {email}
-        </p>
-        <div role="separator" class="-mx-1 mb-1 border-t border-border"></div>
-        <MenuItem onselect={() => signOutForm.requestSubmit()}>
-          <Icon name="logout" size={16} />
-          Sign out
-        </MenuItem>
+        <div role="group" aria-label={`Signed in as ${email}`}>
+          <p
+            class="max-w-64 truncate px-2.5 pt-1.5 pb-2 text-xs text-text-muted"
+            aria-hidden="true"
+          >
+            {email}
+          </p>
+          <div role="separator" class="-mx-1 mb-1 border-t border-border"></div>
+          <MenuItem form={signOutFormId}>
+            <Icon name="logout" size={16} />
+            Sign out
+          </MenuItem>
+        </div>
       </Menu>
     </div>
   </div>
 </header>
 
-<form bind:this={signOutForm} method="POST" action="/?/signOut" hidden></form>
+<form id={signOutFormId} method="POST" action="/?/signOut" hidden></form>

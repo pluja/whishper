@@ -39,7 +39,11 @@
       Skip to content
     </a>
     <AppTopBar email={data.user.email} />
-    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6">
+    <main
+      id="main"
+      tabindex="-1"
+      class="mx-auto w-full max-w-6xl flex-1 px-4 outline-none sm:px-6"
+    >
       {@render children()}
     </main>
   </div>

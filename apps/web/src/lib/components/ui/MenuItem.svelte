@@ -9,6 +9,7 @@
     tone?: "default" | "danger";
     role?: "menuitem" | "menuitemradio";
     checked?: boolean;
+    form?: string;
     children: Snippet;
   };
 
@@ -19,6 +20,7 @@
     tone = "default",
     role = "menuitem",
     checked = false,
+    form,
     children,
   }: Props = $props();
 
@@ -65,7 +67,8 @@
   </a>
 {:else}
   <button
-    type="button"
+    type={form ? "submit" : "button"}
+    {form}
     {role}
     tabindex="-1"
     aria-checked={role === "menuitemradio" ? checked : undefined}

@@ -35,7 +35,7 @@
     "playwright": "1.64.1",
     "prettier": "catalog:",
     "prettier-plugin-svelte": "^3.4.0",
-    "svelte": "^5.38.6",
+    "svelte": "^5.40.0",
     "svelte-check": "^4.3.1",
     "tailwindcss": "^4.1.12",
     "typescript": "catalog:",
