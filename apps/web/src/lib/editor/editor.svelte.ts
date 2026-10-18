@@ -36,6 +36,7 @@ export class CueEditor {
   readonly transport: Transport;
   readonly #options: CueEditorOptions;
   readonly #cursorPositions = new Map<string, number>();
+  #journalDeferred = false;
 
   selectedCueIndex = $derived(
     this.cues.findIndex((cue) => cue.id === this.selectedCueId),
@@ -73,9 +74,31 @@ export class CueEditor {
 
   loadTrack(track: TrackRef | null, cues: EditorCue[], revision: number): void {
     if (this.autosave.track?.trackId === track?.trackId) return;
+    const replacedLockedTrack = this.#journalDeferred;
+    if (replacedLockedTrack) this.autosave.discardJournal();
     this.autosave.dispose();
     this.autosave = new Autosave(track, revision, () => this.cues);
-    const ordered = orderCuesByStart(this.autosave.recoverJournal() ?? cues);
+    if (replacedLockedTrack) {
+      this.autosave.message =
+        "Unsaved edits to the previous transcript were found in this browser and discarded, because a new transcription replaced it.";
+    }
+    // Recovered edits would be stranded while a new transcription runs, so
+    // they wait in the journal until editing resumes.
+    this.#journalDeferred = this.readOnly;
+    this.#showCues(
+      (this.#journalDeferred ? null : this.autosave.recoverJournal()) ?? cues,
+    );
+  }
+
+  recoverDeferredJournal(): void {
+    if (!this.#journalDeferred || this.readOnly) return;
+    this.#journalDeferred = false;
+    const recovered = this.autosave.recoverJournal();
+    if (recovered) this.#showCues(recovered);
+  }
+
+  #showCues(cues: EditorCue[]): void {
+    const ordered = orderCuesByStart(cues);
     this.cues = ordered.cues;
     this.selectedCueId = this.cues[0]?.id ?? null;
     this.#cursorPositions.clear();

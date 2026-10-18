@@ -104,11 +104,13 @@
 
   <p id={`${uid}-instructions`} class="visually-hidden">
     Click the timeline to seek. Drag empty space to pan. While zoomed, use the
-    mouse wheel or trackpad to pan horizontally. Dragging a cue stops at its
-    neighbours; hold Alt to drag past them. Focus a cue or one of its boundary
-    handles and use Left or Right Arrow to adjust it by one millisecond, or
-    Shift with an arrow for 100 milliseconds. Press Escape to cancel a pointer
-    drag.
+    mouse wheel or trackpad to pan horizontally.
+    {#if editable}
+      Dragging a cue stops at its neighbours; hold Alt to drag past them. Focus
+      a cue or one of its boundary handles and use Left or Right Arrow to adjust
+      it by one millisecond, or Shift with an arrow for 100 milliseconds. Press
+      Escape to cancel a pointer drag.
+    {/if}
   </p>
 
   <div class="timeline-stage">

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { beforeNavigate } from "$app/navigation";
+  import { beforeNavigate, invalidateAll } from "$app/navigation";
   import { pollWhileActive } from "$lib/browser/polling.svelte";
   import { CueEditor } from "$lib/editor/editor.svelte";
   import { PaneWidth } from "$lib/editor/pane-width.svelte";
@@ -97,6 +97,16 @@
         Number(track?.revision ?? 0),
       ),
     );
+  });
+
+  $effect(() => {
+    if (!editor.readOnly) untrack(() => editor.recoverDeferredJournal());
+  });
+
+  // Another tab started the run: reload the studio so the editor locks and
+  // follows the run.
+  $effect(() => {
+    if (editor.autosave.blockedByTranscription) untrack(() => invalidateAll());
   });
 
   // The dialog unmounts without closing when its track or media goes away.

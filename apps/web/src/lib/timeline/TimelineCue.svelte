@@ -103,13 +103,13 @@
   }
 
   function beginDrag(event: PointerEvent, part: TimingPart): void {
-    if (
-      !editable ||
-      event.button !== 0 ||
-      durationUs <= 0 ||
-      !cueIsValid(cue, durationUs)
-    )
+    if (event.button !== 0) return;
+    if (!editable) {
+      event.stopPropagation();
+      onselect(cue.id);
       return;
+    }
+    if (durationUs <= 0 || !cueIsValid(cue, durationUs)) return;
     event.preventDefault();
     event.stopPropagation();
     ondragstart();
@@ -211,24 +211,26 @@
   <button
     class="cue-body"
     type="button"
-    aria-label={`${selected ? "Selected cue" : "Cue"} ${number}, ${formatEditorTime(timing.start_us)} to ${formatEditorTime(timing.end_us)}. Drag to move, holding Alt to pass neighbouring cues; Arrow keys adjust by one millisecond, Shift+Arrow by 100 milliseconds.`}
+    aria-label={`${selected ? "Selected cue" : "Cue"} ${number}, ${formatEditorTime(timing.start_us)} to ${formatEditorTime(timing.end_us)}.${editable ? " Drag to move, holding Alt to pass neighbouring cues; Arrow keys adjust by one millisecond, Shift+Arrow by 100 milliseconds." : ""}`}
     {...interactions("whole")}
   >
     <span class="timeline-cue-number">{number}</span>
     <span class="timeline-cue-text">{singleLine(cue.text)}</span>
   </button>
-  <button
-    class="cue-handle start"
-    type="button"
-    aria-label={`Adjust start of ${label} ${number}, currently ${formatEditorTime(timing.start_us)}. Arrow keys adjust by one millisecond, Shift+Arrow by 100 milliseconds.`}
-    {...interactions("start")}
-  ></button>
-  <button
-    class="cue-handle end"
-    type="button"
-    aria-label={`Adjust end of ${label} ${number}, currently ${formatEditorTime(timing.end_us)}. Arrow keys adjust by one millisecond, Shift+Arrow by 100 milliseconds.`}
-    {...interactions("end")}
-  ></button>
+  {#if editable}
+    <button
+      class="cue-handle start"
+      type="button"
+      aria-label={`Adjust start of ${label} ${number}, currently ${formatEditorTime(timing.start_us)}. Arrow keys adjust by one millisecond, Shift+Arrow by 100 milliseconds.`}
+      {...interactions("start")}
+    ></button>
+    <button
+      class="cue-handle end"
+      type="button"
+      aria-label={`Adjust end of ${label} ${number}, currently ${formatEditorTime(timing.end_us)}. Arrow keys adjust by one millisecond, Shift+Arrow by 100 milliseconds.`}
+      {...interactions("end")}
+    ></button>
+  {/if}
 </div>
 
 <style>

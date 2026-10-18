@@ -144,6 +144,30 @@ describe("Autosave", () => {
     expect(editor.autosave.state).toBe("conflict");
   });
 
+  it("reports a save refused during a transcription and keeps the edits", async () => {
+    const editor = editorWith("");
+    editor.type("a");
+    await vi.advanceTimersByTimeAsync(800);
+    await puts[0].respond(409, {
+      code: "transcription_running",
+      message: "A new transcription is running for this project.",
+    });
+
+    expect(editor.autosave.state).toBe("error");
+    expect(editor.autosave.message).toBe(
+      "A new transcription is running for this project.",
+    );
+    expect(editor.autosave.blockedByTranscription).toBe(true);
+    expect(editor.autosave.hasUnsavedChanges).toBe(true);
+    expect(JSON.parse(storage.get(journalKey) ?? "{}").cues[0].text).toBe("a");
+
+    editor.type("ab");
+    await vi.advanceTimersByTimeAsync(800);
+    await puts[1].respond(200, { revision: 2 });
+    expect(editor.autosave.blockedByTranscription).toBe(false);
+    expect(editor.autosave.state).toBe("saved");
+  });
+
   it("treats a non-JSON 409 as a conflict", async () => {
     const editor = editorWith("");
     editor.type("a");

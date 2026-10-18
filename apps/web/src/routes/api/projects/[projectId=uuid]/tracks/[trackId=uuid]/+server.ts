@@ -1,6 +1,7 @@
 import { requireUser } from "$lib/server/auth/session";
 import {
   parseTrackUpdate,
+  TrackLockedByTranscription,
   TrackRevisionConflict,
   TrackValidationError,
   updateTrackForUser,
@@ -35,6 +36,12 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
           message: cause.message,
           revision: cause.currentRevision,
         },
+        { status: 409 },
+      );
+    }
+    if (cause instanceof TrackLockedByTranscription) {
+      return json(
+        { code: "transcription_running", message: cause.message },
         { status: 409 },
       );
     }

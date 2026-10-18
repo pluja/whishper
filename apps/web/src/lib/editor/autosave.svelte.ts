@@ -32,9 +32,19 @@ function responseMessage(body: unknown): string | null {
   return typeof message === "string" && message ? message : null;
 }
 
+function isTranscriptionRunning(body: unknown): boolean {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    (body as { code?: unknown }).code === "transcription_running"
+  );
+}
+
 export class Autosave {
   state = $state<SaveState>("saved");
   message = $state("");
+  // The server refused the save because a new transcription is running.
+  blockedByTranscription = $state(false);
   readonly track: TrackRef | null;
   #revision: number;
   #cues: () => readonly EditorCue[];
@@ -126,13 +136,21 @@ export class Autosave {
           this.#leaving &&
           new TextEncoder().encode(body).length <= KEEPALIVE_BODY_LIMIT_BYTES,
       });
+      const result: unknown = await response.json().catch(() => null);
+      if (response.status === 409 && isTranscriptionRunning(result)) {
+        this.state = "error";
+        this.message =
+          responseMessage(result) ?? "A new transcription is running.";
+        this.blockedByTranscription = true;
+        this.#persistJournal();
+        return false;
+      }
       if (response.status === 409) {
         this.state = "conflict";
         this.message =
           "This track changed elsewhere. Reload before continuing.";
         return false;
       }
-      const result: unknown = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(
           responseMessage(result) ?? `Save failed (HTTP ${response.status}).`,
@@ -143,6 +161,7 @@ export class Autosave {
         throw new Error("Save failed: the server sent an unexpected response.");
       }
       this.#revision = revision as number;
+      this.blockedByTranscription = false;
       return true;
     } catch (cause) {
       this.state = "error";
@@ -150,6 +169,10 @@ export class Autosave {
       this.#persistJournal();
       return false;
     }
+  }
+
+  discardJournal(): void {
+    this.#clearJournal();
   }
 
   recoverJournal(): EditorCue[] | null {

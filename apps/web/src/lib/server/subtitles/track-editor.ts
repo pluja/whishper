@@ -1,6 +1,7 @@
 import { withTransaction } from "$lib/server/db/transaction";
 import { projectForUser } from "$lib/server/projects/access";
 import { insertCues, listTrackCues } from "$lib/server/subtitles/cues";
+import { hasActiveTranscriptionRun } from "$lib/server/transcription/active-run";
 import { isRecord } from "$lib/shared/is-record";
 import type { SubtitleCueSnapshot } from "$lib/shared/subtitles";
 import { isUuid } from "$lib/shared/uuid";
@@ -12,6 +13,14 @@ const MAX_TOTAL_TEXT = 10_000_000;
 export class TrackRevisionConflict extends Error {
   constructor(readonly currentRevision: number) {
     super("The subtitle track changed in another editor.");
+  }
+}
+
+export class TrackLockedByTranscription extends Error {
+  constructor() {
+    super(
+      "A new transcription is running for this project. Editing resumes when it finishes.",
+    );
   }
 }
 
@@ -88,7 +97,14 @@ export async function updateTrackForUser(
   update: TrackUpdate,
 ): Promise<number | null> {
   return withTransaction(async (client) => {
-    if (!(await projectForUser(client, projectId, userId))) return null;
+    // Locking the project serializes this check with enqueueTranscription,
+    // which takes the same lock before it inserts a run.
+    if (!(await projectForUser(client, projectId, userId, { lock: true }))) {
+      return null;
+    }
+    if (await hasActiveTranscriptionRun(client, projectId)) {
+      throw new TrackLockedByTranscription();
+    }
     const track = await client.query<{
       revision: number;
       duration_us: number | null;

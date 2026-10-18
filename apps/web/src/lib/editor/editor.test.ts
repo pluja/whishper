@@ -299,3 +299,45 @@ describe("CueEditor read-only", () => {
     expect(editor.cues[0].text).toBe("after the lock");
   });
 });
+
+describe("CueEditor journal recovery while read-only", () => {
+  const journalKeyA = "anysub:editor:project-a:track-a";
+
+  function storeJournal(text: string, revision = 1): void {
+    localStorage.setItem(
+      journalKeyA,
+      JSON.stringify({ revision, cues: [cue("a", text)], updatedAt: 0 }),
+    );
+  }
+
+  it("keeps the journal while locked and recovers it once unlocked", () => {
+    let locked = true;
+    const editor = newEditor(() => locked);
+    storeJournal("journaled edit");
+
+    editor.loadTrack(trackA, [cue("a", "server")], 1);
+    editor.recoverDeferredJournal();
+    expect(editor.cues[0].text).toBe("server");
+    expect(localStorage.getItem(journalKeyA)).not.toBeNull();
+
+    locked = false;
+    editor.recoverDeferredJournal();
+    expect(editor.cues[0].text).toBe("journaled edit");
+    expect(editor.autosave.hasUnsavedChanges).toBe(true);
+  });
+
+  it("discards the deferred journal when a new track replaces the locked one", () => {
+    let locked = true;
+    const editor = newEditor(() => locked);
+    storeJournal("journaled edit");
+    editor.loadTrack(trackA, [cue("a", "server")], 1);
+
+    locked = false;
+    editor.loadTrack(trackB, [cue("b", "new transcript")], 1);
+    editor.recoverDeferredJournal();
+
+    expect(editor.cues[0].text).toBe("new transcript");
+    expect(localStorage.getItem(journalKeyA)).toBeNull();
+    expect(editor.autosave.message).toMatch(/discarded/);
+  });
+});

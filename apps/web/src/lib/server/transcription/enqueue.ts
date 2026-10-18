@@ -4,6 +4,7 @@ import { withTransaction } from "$lib/server/db/transaction";
 import { badRequest, conflict, notFound } from "$lib/server/http/errors";
 import { projectForUser } from "$lib/server/projects/access";
 import { resolveDataPath } from "$lib/server/storage/paths";
+import { hasActiveTranscriptionRun } from "$lib/server/transcription/active-run";
 import { availableTranscriptionModels } from "$lib/server/transcription/models";
 import { activeWorkerManifests } from "$lib/server/workers/active";
 import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
@@ -82,13 +83,7 @@ export async function enqueueTranscription(
       throw conflict("The source upload is not complete yet.");
     }
 
-    const activeRun = await client.query(
-      `select 1 from transcription_runs
-        where project_id = $1 and status in ('queued', 'running')
-        limit 1`,
-      [project.id],
-    );
-    if (activeRun.rowCount) {
+    if (await hasActiveTranscriptionRun(client, project.id)) {
       throw conflict("This project is already being transcribed.");
     }
 
