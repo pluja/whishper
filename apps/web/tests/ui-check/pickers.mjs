@@ -1,19 +1,10 @@
 import {
   axeViolations,
   isFocused,
+  openPopupWithKey,
   outputDir,
   reportViolations,
 } from "./shared.mjs";
-
-async function openWithArrowDown(page, trigger, focusedRole) {
-  await trigger.focus();
-  await page.keyboard.press("ArrowDown");
-  // The picker moves focus from its async toggle event, once it is visible.
-  await page.waitForFunction(
-    (role) => document.activeElement?.getAttribute("role") === role,
-    focusedRole,
-  );
-}
 
 async function captureOpenPicker(page, popover, name, theme) {
   await popover.evaluate((node) =>
@@ -49,7 +40,7 @@ export async function checkPickers(page, scope, theme) {
   const languagePopover = scope.getByRole("dialog", {
     name: "Choose the spoken language",
   });
-  await openWithArrowDown(page, languageTrigger, "combobox");
+  await openPopupWithKey(page, languageTrigger, "ArrowDown", "combobox");
   await page.keyboard.type("espa");
   const matches = await languagePopover.getByRole("option").allTextContents();
   if (matches.length !== 1 || !matches[0].includes("Spanish")) {
@@ -74,7 +65,7 @@ export async function checkPickers(page, scope, theme) {
 
   const modelTrigger = scope.getByRole("button", { name: /^Model/ });
   const modelPopover = scope.getByRole("dialog", { name: "Choose a model" });
-  await openWithArrowDown(page, modelTrigger, "listbox");
+  await openPopupWithKey(page, modelTrigger, "ArrowDown", "listbox");
   failures += await captureOpenPicker(
     page,
     modelPopover,

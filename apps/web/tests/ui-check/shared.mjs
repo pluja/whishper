@@ -64,13 +64,47 @@ export async function focusedText(page) {
   return page.evaluate(() => document.activeElement?.textContent?.trim());
 }
 
-export async function openMenuWithKeyboard(page, trigger) {
+async function describeFocus(page) {
+  return page.evaluate(() => {
+    const element = document.activeElement;
+    if (!element || element === document.body) return "the page body";
+    const name = element.getAttribute("aria-label") ?? element.textContent;
+    return `<${element.tagName.toLowerCase()}> "${name?.trim().slice(0, 40)}"`;
+  });
+}
+
+async function waitForStep(page, step, condition, argument) {
+  try {
+    await page.waitForFunction(condition, argument);
+  } catch (error) {
+    throw new Error(
+      `${step}; focus was on ${await describeFocus(page)} (${error.message.split("\n")[0]})`,
+    );
+  }
+}
+
+// Opening is two observable steps: the trigger reports its popup open, then
+// the popup's async toggle handler moves focus inside. A failure names the
+// step that never happened instead of a bare timeout.
+export async function openPopupWithKey(page, trigger, key, focusedRole) {
   await trigger.focus();
-  await page.keyboard.press("Enter");
-  // The menu focuses its first item from the async toggle event, after it becomes visible.
-  await page.waitForFunction(() =>
-    document.activeElement?.getAttribute("role")?.startsWith("menuitem"),
+  await page.keyboard.press(key);
+  await waitForStep(
+    page,
+    `${key} did not open the popup`,
+    (node) => node.getAttribute("aria-expanded") === "true",
+    await trigger.elementHandle(),
   );
+  await waitForStep(
+    page,
+    `the open popup did not take focus (${focusedRole})`,
+    (role) => document.activeElement?.getAttribute("role")?.startsWith(role),
+    focusedRole,
+  );
+}
+
+export async function openMenuWithKeyboard(page, trigger) {
+  await openPopupWithKey(page, trigger, "Enter", "menuitem");
 }
 
 export async function isFocused(locator) {
