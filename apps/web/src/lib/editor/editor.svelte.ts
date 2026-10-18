@@ -73,20 +73,32 @@ export class CueEditor {
   }
 
   loadTrack(track: TrackRef | null, cues: EditorCue[], revision: number): void {
-    if (this.autosave.track?.trackId === track?.trackId) return;
-    const replacedLockedTrack = this.#journalDeferred;
-    if (replacedLockedTrack) this.autosave.discardJournal();
-    this.autosave.dispose();
+    const outgoing = this.autosave;
+    if (outgoing.track?.trackId === track?.trackId) return;
+    const editsDiscarded =
+      this.#heldBackByTranscription(track) && outgoing.discardEdits();
+    outgoing.dispose();
     this.autosave = new Autosave(track, revision, () => this.cues);
-    if (replacedLockedTrack) {
+    if (editsDiscarded) {
       this.autosave.message =
-        "Unsaved edits to the previous transcript were found in this browser and discarded, because a new transcription replaced it.";
+        "Unsaved edits to the previous transcript were discarded, because a new transcription replaced it.";
     }
     // Recovered edits would be stranded while a new transcription runs, so
     // they wait in the journal until editing resumes.
     this.#journalDeferred = this.readOnly;
     this.#showCues(
       (this.#journalDeferred ? null : this.autosave.recoverJournal()) ?? cues,
+    );
+  }
+
+  // A new track in the same project comes from the transcription that kept
+  // the outgoing track's edits from the server, so they can never be saved.
+  #heldBackByTranscription(incoming: TrackRef | null): boolean {
+    const outgoing = this.autosave;
+    return (
+      incoming !== null &&
+      outgoing.track?.projectId === incoming.projectId &&
+      (this.#journalDeferred || outgoing.blockedByTranscription)
     );
   }
 

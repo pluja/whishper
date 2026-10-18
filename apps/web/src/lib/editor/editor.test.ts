@@ -64,6 +64,7 @@ describe("CueEditor.loadTrack", () => {
     expect(editor.autosave.track).toEqual(trackB);
     expect(editor.cues).toEqual([cue("b", "other project")]);
     expect(editor.selectedCueId).toBe("b");
+    expect(editor.autosave.message).toBe("");
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/projects/project-a/tracks/track-a");
@@ -300,8 +301,9 @@ describe("CueEditor read-only", () => {
   });
 });
 
-describe("CueEditor journal recovery while read-only", () => {
+describe("CueEditor track replaced by a transcription", () => {
   const journalKeyA = "anysub:editor:project-a:track-a";
+  const replacementTrack = { projectId: "project-a", trackId: "track-a2" };
 
   function storeJournal(text: string, revision = 1): void {
     localStorage.setItem(
@@ -326,18 +328,83 @@ describe("CueEditor journal recovery while read-only", () => {
     expect(editor.autosave.hasUnsavedChanges).toBe(true);
   });
 
-  it("discards the deferred journal when a new track replaces the locked one", () => {
+  it("discards and reports a deferred journal when the new track loads", () => {
     let locked = true;
     const editor = newEditor(() => locked);
     storeJournal("journaled edit");
     editor.loadTrack(trackA, [cue("a", "server")], 1);
 
     locked = false;
-    editor.loadTrack(trackB, [cue("b", "new transcript")], 1);
+    editor.loadTrack(replacementTrack, [cue("b", "new transcript")], 1);
     editor.recoverDeferredJournal();
 
     expect(editor.cues[0].text).toBe("new transcript");
     expect(localStorage.getItem(journalKeyA)).toBeNull();
     expect(editor.autosave.message).toMatch(/discarded/);
+  });
+
+  it("reports nothing when the track loaded while locked had no edits", () => {
+    let locked = true;
+    const editor = newEditor(() => locked);
+    editor.loadTrack(trackA, [cue("a", "server")], 1);
+
+    locked = false;
+    editor.loadTrack(replacementTrack, [cue("b", "new transcript")], 1);
+
+    expect(editor.autosave.message).toBe("");
+    expect(localStorage.getItem(journalKeyA)).toBeNull();
+  });
+
+  it("discards and reports edits the server refused during the run", async () => {
+    let locked = false;
+    const editor = newEditor(() => locked);
+    fetchMock.mockResolvedValueOnce({
+      status: 409,
+      ok: false,
+      json: async () => ({ code: "transcription_running", message: "Busy." }),
+    });
+    editor.loadTrack(trackA, [cue("a", "server")], 1);
+    editor.setText(0, "refused edit");
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(editor.autosave.blockedByTranscription).toBe(true);
+    expect(localStorage.getItem(journalKeyA)).not.toBeNull();
+
+    locked = true;
+    editor.loadTrack(trackA, [cue("a", "server")], 1);
+    locked = false;
+    editor.loadTrack(replacementTrack, [cue("b", "new transcript")], 1);
+    await vi.runAllTimersAsync();
+
+    expect(editor.cues[0].text).toBe("new transcript");
+    expect(editor.autosave.message).toMatch(/discarded/);
+    expect(localStorage.getItem(journalKeyA)).toBeNull();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("still saves pending edits when no transcription held them back", () => {
+    const editor = newEditor();
+    editor.loadTrack(trackA, [cue("a", "server")], 1);
+    editor.setText(0, "edited");
+
+    editor.loadTrack(replacementTrack, [cue("b", "new transcript")], 1);
+
+    expect(editor.autosave.message).toBe("");
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "/api/projects/project-a/tracks/track-a",
+    );
+  });
+
+  it("keeps a locked track's journal when leaving for another project", () => {
+    let locked = true;
+    const editor = newEditor(() => locked);
+    storeJournal("journaled edit");
+    editor.loadTrack(trackA, [cue("a", "server")], 1);
+
+    locked = false;
+    editor.loadTrack(trackB, [cue("b", "other project")], 1);
+
+    expect(editor.autosave.message).toBe("");
+    expect(localStorage.getItem(journalKeyA)).not.toBeNull();
   });
 });

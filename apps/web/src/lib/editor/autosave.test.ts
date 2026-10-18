@@ -168,6 +168,23 @@ describe("Autosave", () => {
     expect(editor.autosave.state).toBe("saved");
   });
 
+  it("leaves no journal behind once its edits are discarded", async () => {
+    const editor = editorWith("");
+    editor.type("a");
+    await vi.advanceTimersByTimeAsync(800);
+    const refusal = puts[0];
+
+    expect(editor.autosave.discardEdits()).toBe(true);
+    editor.autosave.dispose();
+    await refusal.respond(409, { code: "transcription_running" });
+    await vi.runAllTimersAsync();
+
+    expect(editor.autosave.hasUnsavedChanges).toBe(false);
+    expect(storage.has(journalKey)).toBe(false);
+    expect(puts).toHaveLength(1);
+    expect(editor.autosave.discardEdits()).toBe(false);
+  });
+
   it("treats a non-JSON 409 as a conflict", async () => {
     const editor = editorWith("");
     editor.type("a");

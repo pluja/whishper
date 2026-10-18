@@ -171,8 +171,13 @@ export class Autosave {
     }
   }
 
-  discardJournal(): void {
+  // Returns whether there were edits to discard.
+  discardEdits(): boolean {
+    const hadEdits = this.hasUnsavedChanges || this.#readJournal() !== null;
+    this.#savedVersion = this.#changeVersion;
+    this.#clearSaveTimer();
     this.#clearJournal();
+    return hadEdits;
   }
 
   recoverJournal(): EditorCue[] | null {
@@ -223,7 +228,7 @@ export class Autosave {
   #persistJournal(): void {
     clearTimeout(this.#journalTimer);
     const journalKey = this.#journalKey;
-    if (!journalKey) return;
+    if (!journalKey || !this.hasUnsavedChanges) return;
     const journal = JSON.stringify({
       revision: this.#revision,
       cues: this.#cues(),
