@@ -42,6 +42,7 @@
     "skip-forward": skipForward,
     keyboard,
     alert,
+    refresh,
   };
 </script>
 
@@ -164,6 +165,10 @@
   <path
     d="M7 10h.01M10.5 10h.01M14 10h.01M17 10h.01M7 14h.01M17 14h.01M10 14h4"
   />
+{/snippet}
+{#snippet refresh()}
+  <path d="M19 12a7 7 0 1 1-2.05-4.95" />
+  <path d="M19 4.5v3.5h-3.5" />
 {/snippet}
 {#snippet alert()}
   <circle cx="12" cy="12" r="8.5" />

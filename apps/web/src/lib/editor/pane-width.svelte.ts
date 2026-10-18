@@ -14,15 +14,20 @@ export class PaneWidth {
   width = $state(500);
   #resizeController: AbortController | undefined;
 
+  // innerWidth.current makes the range follow viewport resizes, but it is
+  // only defined in the browser build.
   get max(): number {
-    const viewportWidth = innerWidth.current;
+    const viewportWidth =
+      innerWidth.current ??
+      (typeof window === "undefined" ? undefined : window.innerWidth);
     return viewportWidth === undefined
       ? MAX_WIDTH_PX
       : Math.round(Math.min(MAX_WIDTH_PX, viewportWidth * MAX_VIEWPORT_SHARE));
   }
 
+  // The rendered width: the preference re-clamped to the current viewport.
   get value(): number {
-    return Math.round(this.width);
+    return Math.round(this.#clamp(this.width));
   }
 
   #clamp(width: number): number {
@@ -44,7 +49,7 @@ export class PaneWidth {
     if (window.innerWidth < SIDE_BY_SIDE_MIN_VIEWPORT_PX) return;
     event.preventDefault();
     const startX = event.clientX;
-    const startWidth = this.width;
+    const startWidth = this.value;
     const separator = event.currentTarget as HTMLElement;
     separator.setPointerCapture(event.pointerId);
     this.#resizeController?.abort();
@@ -72,7 +77,7 @@ export class PaneWidth {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
     this.width = this.#clamp(
-      this.width +
+      this.value +
         (event.key === "ArrowLeft" ? KEYBOARD_STEP_PX : -KEYBOARD_STEP_PX),
     );
     this.#persist();

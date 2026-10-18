@@ -3,6 +3,7 @@
   import type { CueEditor } from "$lib/editor/editor.svelte";
   import { pluralize } from "$lib/shared/format";
   import { isRunActive } from "$lib/shared/project-status";
+  import { isEditingLocked } from "./project-view";
   import CueList from "./CueList.svelte";
   import EditorToolbar from "./EditorToolbar.svelte";
   import ProcessingStatus from "./ProcessingStatus.svelte";
@@ -50,6 +51,14 @@
   </header>
 
   <ProcessingStatus {run} {preparation} {mediaPreparationStatus} />
+  {#if isEditingLocked(track, run)}
+    <p
+      class="shrink-0 border-b border-border bg-accent-soft px-4 py-2 text-sm text-text"
+      role="status"
+    >
+      A new transcription is running. Editing resumes when it finishes.
+    </p>
+  {/if}
 
   {#if track}
     <EditorToolbar {editor} />

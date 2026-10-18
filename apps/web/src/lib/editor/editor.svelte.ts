@@ -23,6 +23,7 @@ function nudgeHistoryKey(cueId: string): string {
 type CueEditorOptions = {
   cues: EditorCue[];
   maxLineLength: () => number;
+  readOnly?: () => boolean;
   transport: TransportOptions;
 };
 
@@ -40,8 +41,6 @@ export class CueEditor {
     this.cues.findIndex((cue) => cue.id === this.selectedCueId),
   );
   hasSelection = $derived(this.selectedCueIndex >= 0);
-  canUndo = $derived(this.history.undoStack.length > 0);
-  canRedo = $derived(this.history.redoStack.length > 0);
   issues = $derived.by(() =>
     cueIssues(this.cues, this.#options.maxLineLength()),
   );
@@ -58,6 +57,18 @@ export class CueEditor {
 
   get maxLineLength(): number {
     return this.#options.maxLineLength();
+  }
+
+  get readOnly(): boolean {
+    return this.#options.readOnly?.() ?? false;
+  }
+
+  get canUndo(): boolean {
+    return !this.readOnly && this.history.undoStack.length > 0;
+  }
+
+  get canRedo(): boolean {
+    return !this.readOnly && this.history.redoStack.length > 0;
   }
 
   loadTrack(track: TrackRef | null, cues: EditorCue[], revision: number): void {
@@ -88,12 +99,14 @@ export class CueEditor {
   }
 
   setText(index: number, text: string): void {
+    if (this.readOnly) return;
     this.cues[index].text = text;
     this.cues = [...this.cues];
     this.autosave.markChanged();
   }
 
   setTime(index: number, field: "start_us" | "end_us", value: number): void {
+    if (this.readOnly) return;
     const cue = this.cues[index];
     this.cues = retimeCue(this.cues, index, {
       start_us: cue.start_us,
@@ -108,6 +121,7 @@ export class CueEditor {
   }
 
   #apply(edit: CueEdit, coalesceKey?: string): void {
+    if (this.readOnly) return;
     this.history.record(copyCues(this.cues), coalesceKey);
     this.cues = edit.cues;
     if (edit.selectedCueId !== undefined) {
@@ -118,7 +132,7 @@ export class CueEditor {
 
   splitSelected(): void {
     const index = this.selectedCueIndex;
-    if (index < 0) return;
+    if (index < 0 || this.readOnly) return;
     const result = splitCue(this.cues, index, {
       playbackUs: this.transport.playbackUs,
       cursorPosition: this.#cursorPositions.get(this.cues[index].id),
@@ -179,10 +193,12 @@ export class CueEditor {
   }
 
   undo(): void {
+    if (this.readOnly) return;
     this.#restore(this.history.undo(this.cues));
   }
 
   redo(): void {
+    if (this.readOnly) return;
     this.#restore(this.history.redo(this.cues));
   }
 

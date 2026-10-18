@@ -84,7 +84,7 @@
 </script>
 
 <header
-  class="grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-border bg-surface px-2"
+  class="grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-b border-border bg-surface px-2 sm:grid-cols-[1fr_auto_1fr] sm:gap-3"
 >
   <div class="flex min-w-0 items-center gap-1.5 overflow-hidden">
     <a
@@ -128,7 +128,10 @@
 
   <div class="flex items-center justify-end gap-1">
     {#if canRetranscribe}
-      <Button size="sm" onclick={onretranscribe}>Re-transcribe</Button>
+      <Button size="sm" class="max-sm:px-2" onclick={onretranscribe}>
+        <Icon name="refresh" size={16} />
+        <span class="max-sm:sr-only">Re-transcribe</span>
+      </Button>
     {/if}
     {#if track}
       <Menu label="Export" align="end">

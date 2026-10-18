@@ -120,7 +120,7 @@ async function checkScreen(context, screen, theme, width) {
       : screen.path);
     if (!path) {
       console.log(
-        `skip ${screen.name}: ${screen.skipReason ?? "nothing to open"}`,
+        `SKIP ${screen.name}: ${screen.skipReason ?? "nothing to open"}`,
       );
       return 0;
     }
@@ -279,7 +279,7 @@ async function checkLongProjectName(context, theme) {
   try {
     await open(page, "/");
     if (!(await projectLinks(page).count())) {
-      console.log(`skip ${label}: no project row to check`);
+      console.log(`SKIP ${label}: no project row to check`);
       return 0;
     }
     await checkRowMenuRename(page);
@@ -334,9 +334,28 @@ async function checkPaneSeparator(page) {
   }
 }
 
+async function retranscribeUnavailableReason(page) {
+  if (await page.getByText("No source media is attached").count()) {
+    return "the project has no source media";
+  }
+  const running = page.getByRole("progressbar", {
+    name: "Transcription progress",
+  });
+  return (await running.count()) ? "a transcription is running" : null;
+}
+
 async function checkRetranscribeDialog(page, theme) {
   const trigger = page.getByRole("button", { name: "Re-transcribe" });
-  if (!(await trigger.count())) return 0;
+  if (!(await trigger.count())) {
+    const reason = await retranscribeUnavailableReason(page);
+    if (!reason) {
+      throw new Error(
+        "Re-transcribe is missing on a studio with a transcript, source media and no active run",
+      );
+    }
+    console.log(`SKIP re-transcribe dialog ${theme}: ${reason}`);
+    return 0;
+  }
   await trigger.focus();
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Re-transcribe" });
@@ -383,7 +402,7 @@ async function checkStudioKeyboard(context, theme) {
     await page.setViewportSize({ width: 1440, height: 900 });
     const path = await studioPath(page, true);
     if (!path) {
-      console.log(`skip ${label}: no project has a transcript`);
+      console.log(`SKIP ${label}: no project has a transcript`);
       return 0;
     }
     await checkPaneSeparator(page);

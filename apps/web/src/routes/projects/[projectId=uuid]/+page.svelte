@@ -15,6 +15,7 @@
   import {
     derivativeUrl,
     editorCues,
+    isEditingLocked,
     knownDurationUs,
   } from "$lib/studio/project-view";
   import ShortcutGuide from "$lib/studio/ShortcutGuide.svelte";
@@ -45,6 +46,7 @@
   const editor = new CueEditor({
     cues: untrack(() => editorCues(data.cues)),
     maxLineLength: () => maxLineLength,
+    readOnly: () => isEditingLocked(data.track, data.run),
     transport: {
       frameDurationUs: () =>
         frameDurationUs(
@@ -70,6 +72,13 @@
     deleteSelected: () => editor.deleteSelected(),
   };
 
+  async function saveBeforeTranscribing(): Promise<string | null> {
+    await editor.autosave.flush();
+    return editor.autosave.hasUnsavedChanges
+      ? "Your latest edits could not be saved, so the transcription did not start. Try again once they are saved."
+      : null;
+  }
+
   function onStudioKeydown(event: KeyboardEvent): void {
     handleStudioKeydown(event, commands);
   }
@@ -88,6 +97,11 @@
         Number(track?.revision ?? 0),
       ),
     );
+  });
+
+  // The dialog unmounts without closing when its track or media goes away.
+  $effect(() => {
+    if (!hasTrackAndMedia) transcribeDialogOpen = false;
   });
 
   beforeNavigate((navigation) => {
@@ -147,7 +161,7 @@
 
   <div
     class="grid flex-1 grid-cols-1 lg:min-h-0 lg:grid-cols-[minmax(24rem,1fr)_auto_minmax(0,var(--transcript-pane-width))]"
-    style:--transcript-pane-width={`${paneWidth.width}px`}
+    style:--transcript-pane-width={`${paneWidth.value}px`}
   >
     <MediaMonitor
       project={data.project}
@@ -198,6 +212,7 @@
       playbackUs={editor.transport.playbackUs}
       playing={editor.transport.playing}
       seekRevision={editor.transport.seekRevision}
+      editable={!editor.readOnly}
       onseek={editor.transport.seekTo}
       onselect={(cueId) => editor.select(cueId)}
       oncommittiming={(timing, gesture) => editor.retime(timing, gesture)}
@@ -209,6 +224,7 @@
       bind:open={transcribeDialogOpen}
       models={data.transcriptionModels}
       hardware={data.detectedHardware}
+      onbeforesubmit={saveBeforeTranscribing}
     />
   {/if}
 </div>

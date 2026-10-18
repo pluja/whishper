@@ -96,6 +96,20 @@ describe("PaneWidth", () => {
     expect([pane.min, pane.value, pane.max]).toEqual([360, 500, 760]);
   });
 
+  it("narrows its range and value to fit a smaller viewport", () => {
+    vi.stubGlobal(
+      "window",
+      Object.assign(new EventTarget(), { innerWidth: 1100 }),
+    );
+    const pane = new PaneWidth();
+    pane.width = 700;
+
+    expect(pane.max).toBe(572);
+    expect(pane.value).toBe(572);
+    pane.resizeWithKeyboard(keyDown("ArrowRight"));
+    expect(pane.value).toBe(548);
+  });
+
   it("steps with the arrow keys and stays within its range", () => {
     const pane = new PaneWidth();
     pane.resizeWithKeyboard(keyDown("ArrowLeft"));

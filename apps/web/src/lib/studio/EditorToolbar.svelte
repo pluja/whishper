@@ -33,25 +33,30 @@
     <button
       type="button"
       onclick={() => editor.splitSelected()}
-      disabled={!editor.hasSelection}
+      disabled={editor.readOnly || !editor.hasSelection}
     >
       <Icon name="scissors" size={15} /> Split
     </button>
     <button
       type="button"
       onclick={() => editor.mergeSelected()}
-      disabled={!editor.hasSelection ||
+      disabled={editor.readOnly ||
+        !editor.hasSelection ||
         editor.selectedCueIndex >= editor.cues.length - 1}
     >
       <Icon name="merge" size={15} /> Merge
     </button>
-    <button type="button" onclick={() => editor.insertAfterSelected()}>
+    <button
+      type="button"
+      onclick={() => editor.insertAfterSelected()}
+      disabled={editor.readOnly}
+    >
       <Icon name="plus" size={15} /> Insert
     </button>
     <button
       type="button"
       onclick={() => editor.deleteSelected()}
-      disabled={!editor.hasSelection}
+      disabled={editor.readOnly || !editor.hasSelection}
       title="Delete selected cue"
     >
       <Icon name="trash" size={15} />
@@ -62,14 +67,14 @@
     <button
       type="button"
       onclick={() => editor.nudgeSelected(-100)}
-      disabled={!editor.hasSelection}
+      disabled={editor.readOnly || !editor.hasSelection}
     >
       −100 ms
     </button>
     <button
       type="button"
       onclick={() => editor.nudgeSelected(100)}
-      disabled={!editor.hasSelection}
+      disabled={editor.readOnly || !editor.hasSelection}
     >
       +100 ms
     </button>

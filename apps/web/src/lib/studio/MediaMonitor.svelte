@@ -27,6 +27,7 @@
       !isAudioMedia(project.mediaType, project.mediaFilename),
   );
   let noMedia = $derived(!transport.mediaElement);
+  let videoAspectRatio = $state(16 / 9);
   let previewState = $derived(
     proxyUrl
       ? "Editing proxy"
@@ -43,9 +44,9 @@
   aria-label="Subtitle preview"
 >
   <div
-    class="relative grid aspect-video place-items-center overflow-hidden lg:aspect-auto lg:min-h-0 lg:flex-1 {isVideo
-      ? 'bg-black'
-      : 'bg-surface-sunken'}"
+    class="relative grid place-items-center overflow-hidden lg:min-h-0 lg:flex-1 {isVideo
+      ? 'aspect-video bg-black [container-type:size] lg:aspect-auto'
+      : 'bg-surface-sunken py-8'}"
   >
     {#if !project.mediaOriginalKey}
       <div class="grid justify-items-center gap-3 text-text-muted">
@@ -58,23 +59,46 @@
         <p class="text-sm">No source media is attached</p>
       </div>
     {:else if isVideo}
-      <video
-        bind:this={transport.mediaElement}
-        class="absolute inset-0 size-full object-contain"
-        controls
-        preload="metadata"
-        src={previewUrl}
-        poster={thumbnailUrl ?? undefined}
-        onkeydowncapture={onmediakeydown}
-        {...transport.mediaEvents}
+      <!-- Sized to the picture so the controls and the cue overlay sit on it rather than on letterboxing. -->
+      <div
+        class="relative"
+        style:aspect-ratio={videoAspectRatio}
+        style:width={`min(100cqw, ${videoAspectRatio * 100}cqh)`}
       >
-        <track
-          kind="captions"
-          srclang={track?.language ?? "und"}
-          label={`${track?.language ?? "Source"} captions`}
-          src={projectCaptionsUrl(project.id)}
-        />
-      </video>
+        <video
+          bind:this={transport.mediaElement}
+          class="size-full object-contain"
+          onloadedmetadata={(event) => {
+            const { videoWidth, videoHeight } = event.currentTarget;
+            if (videoWidth > 0 && videoHeight > 0) {
+              videoAspectRatio = videoWidth / videoHeight;
+            }
+          }}
+          controls
+          preload="metadata"
+          src={previewUrl}
+          poster={thumbnailUrl ?? undefined}
+          onkeydowncapture={onmediakeydown}
+          {...transport.mediaEvents}
+        >
+          <track
+            kind="captions"
+            srclang={track?.language ?? "und"}
+            label={`${track?.language ?? "Source"} captions`}
+            src={projectCaptionsUrl(project.id)}
+          />
+        </video>
+        {#if transport.activeCue}
+          <p
+            class="pointer-events-none absolute inset-x-[10%] bottom-[max(12%,4.5rem)] text-center text-base leading-relaxed font-semibold text-white lg:text-lg"
+          >
+            <span
+              class="rounded bg-black/75 px-2 py-0.5 whitespace-pre-line box-decoration-clone"
+              >{transport.activeCue.text}</span
+            >
+          </p>
+        {/if}
+      </div>
     {:else}
       <div class="grid w-full max-w-md justify-items-center gap-3 px-6">
         <span
@@ -95,17 +119,12 @@
           onkeydowncapture={onmediakeydown}
           {...transport.mediaEvents}
         ></audio>
+        <p class="min-h-14 text-center text-base font-semibold text-text">
+          <span class="whitespace-pre-line"
+            >{transport.activeCue?.text ?? ""}</span
+          >
+        </p>
       </div>
-    {/if}
-    {#if transport.activeCue}
-      <p
-        class="pointer-events-none absolute inset-x-[10%] bottom-[12%] text-center text-base leading-relaxed font-semibold text-white lg:text-lg"
-      >
-        <span
-          class="rounded bg-black/75 px-2 py-0.5 whitespace-pre-line box-decoration-clone"
-          >{transport.activeCue.text}</span
-        >
-      </p>
     {/if}
   </div>
 

@@ -100,6 +100,7 @@
               onfocus={() => editor.beginEdit()}
               onchange={(event) => updateTime(index, "start_us", event)}
               onblur={() => editor.finishEdit()}
+              readonly={editor.readOnly}
               spellcheck="false"
             />
           </label>
@@ -112,6 +113,7 @@
               onfocus={() => editor.beginEdit()}
               onchange={(event) => updateTime(index, "end_us", event)}
               onblur={() => editor.finishEdit()}
+              readonly={editor.readOnly}
               spellcheck="false"
             />
           </label>
@@ -129,6 +131,7 @@
           onclick={(event) => rememberCursor(cue.id, event)}
           onkeyup={(event) => rememberCursor(cue.id, event)}
           onblur={() => editor.finishEdit()}
+          readonly={editor.readOnly}
           spellcheck="true"
         ></textarea>
         <div class="cue-quality">
@@ -152,6 +155,7 @@
       <button
         type="button"
         class="button compact"
+        disabled={editor.readOnly}
         onclick={() => editor.insertAfterSelected()}>Insert first cue</button
       >
     </div>

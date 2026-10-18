@@ -25,6 +25,7 @@
     durationUs: number;
     contentWidthPx: number;
     neighbourBounds: TimingBounds;
+    editable: boolean;
     onselect: (cueId: string) => void;
     ondragstart: () => void;
     oncommittiming: (timing: CueTiming, gesture: TimingGesture) => void;
@@ -50,6 +51,7 @@
     durationUs,
     contentWidthPx,
     neighbourBounds,
+    editable,
     onselect,
     ondragstart,
     oncommittiming,
@@ -101,7 +103,12 @@
   }
 
   function beginDrag(event: PointerEvent, part: TimingPart): void {
-    if (event.button !== 0 || durationUs <= 0 || !cueIsValid(cue, durationUs))
+    if (
+      !editable ||
+      event.button !== 0 ||
+      durationUs <= 0 ||
+      !cueIsValid(cue, durationUs)
+    )
       return;
     event.preventDefault();
     event.stopPropagation();
@@ -154,6 +161,7 @@
       return;
     }
     if (
+      !editable ||
       event.altKey ||
       event.ctrlKey ||
       event.metaKey ||

@@ -35,13 +35,36 @@
   type Props = {
     models: AvailableTranscriptionModel[];
     hardware: DetectedWorkerHardware[];
+    // Resolves to an error message when the transcription must not start.
+    onbeforesubmit?: () => Promise<string | null>;
   };
 
-  let { models, hardware }: Props = $props();
+  let { models, hardware, onbeforesubmit }: Props = $props();
+
+  let preparing = $state(false);
+  let blockedMessage = $state<string | null>(null);
+
+  async function handleSubmit(event: SubmitEvent): Promise<void> {
+    if (!onbeforesubmit) return;
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    preparing = true;
+    blockedMessage = await onbeforesubmit();
+    if (blockedMessage) {
+      preparing = false;
+      return;
+    }
+    form.submit();
+  }
 </script>
 
 {#if models.length}
-  <form class="grid gap-4" method="POST" action="?/transcribe">
+  <form
+    class="grid gap-4"
+    method="POST"
+    action="?/transcribe"
+    onsubmit={handleSubmit}
+  >
     <p class="text-sm text-text-muted">
       Choose the accuracy and resource profile for this source. The first run
       downloads its model into the private cache.
@@ -121,7 +144,10 @@
         </Field>
       </div>
     </details>
-    <Button variant="primary" type="submit" class="w-full">
+    {#if blockedMessage}
+      <p class="text-sm text-danger" role="alert">{blockedMessage}</p>
+    {/if}
+    <Button variant="primary" type="submit" class="w-full" loading={preparing}>
       <Icon name="activity" size={16} />
       Start transcription
     </Button>

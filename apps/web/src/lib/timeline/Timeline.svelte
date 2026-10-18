@@ -24,6 +24,7 @@
     playbackUs: number;
     playing: boolean;
     seekRevision: number;
+    editable?: boolean;
     onseek: (us: number) => void;
     onselect: (cueId: string) => void;
     oncommittiming: (timing: CueTiming, gesture: TimingGesture) => void;
@@ -38,6 +39,7 @@
     playbackUs,
     playing,
     seekRevision,
+    editable = true,
     onseek,
     onselect,
     oncommittiming,
@@ -150,6 +152,7 @@
               cueIndex,
               timelineDurationUs,
             )}
+            {editable}
             {onselect}
             ondragstart={viewport.cancelPan}
             {oncommittiming}

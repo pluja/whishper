@@ -31,4 +31,5 @@ export type IconName =
   | "skip-back"
   | "skip-forward"
   | "keyboard"
-  | "alert";
+  | "alert"
+  | "refresh";

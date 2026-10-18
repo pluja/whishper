@@ -10,11 +10,17 @@
     open?: boolean;
     models: AvailableTranscriptionModel[];
     hardware: DetectedWorkerHardware[];
+    onbeforesubmit: () => Promise<string | null>;
   };
 
-  let { open = $bindable(false), models, hardware }: Props = $props();
+  let {
+    open = $bindable(false),
+    models,
+    hardware,
+    onbeforesubmit,
+  }: Props = $props();
 </script>
 
 <Dialog bind:open title="Re-transcribe">
-  <TranscribePanel {models} {hardware} />
+  <TranscribePanel {models} {hardware} {onbeforesubmit} />
 </Dialog>
