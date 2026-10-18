@@ -78,7 +78,7 @@ async function waitForStep(page, step, condition, argument) {
     await page.waitForFunction(condition, argument);
   } catch (error) {
     throw new Error(
-      `${step}; focus was on ${await describeFocus(page)} (${error.message.split("\n")[0]})`,
+      `${step}; focus was on ${await describeFocus(page).catch(() => "an unknown element (page context lost)")} (${error.message.split("\n")[0]})`,
     );
   }
 }

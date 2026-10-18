@@ -235,11 +235,23 @@ async function checkLongProjectName(context, theme) {
   return failures;
 }
 
+// A dev server reload mid-run can leave Playwright waiting forever, so a
+// stalled run fails instead of hanging. A full run takes about a minute.
+const RUN_DEADLINE_MS = 5 * 60_000;
+let currentStep = "browser launch";
+setTimeout(() => {
+  console.error(
+    `ui-check stalled during ${currentStep}; did the app reload mid-run?`,
+  );
+  process.exit(1);
+}, RUN_DEADLINE_MS).unref();
+
 const browser = await chromium.launch();
 let failures = 0;
 
 for (const theme of themes) {
   for (const signedIn of [false, true]) {
+    currentStep = `${signedIn ? "signed-in" : "signed-out"} ${theme} checks`;
     const context = await browser.newContext({ colorScheme: theme });
     if (signedIn) {
       try {

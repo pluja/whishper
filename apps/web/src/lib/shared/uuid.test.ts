@@ -38,7 +38,7 @@ describe("createUuid", () => {
   });
 
   it("works without crypto.randomUUID, as in an insecure context", () => {
-    const original = crypto.randomUUID;
+    const ownDescriptor = Object.getOwnPropertyDescriptor(crypto, "randomUUID");
     Object.defineProperty(crypto, "randomUUID", {
       value: undefined,
       configurable: true,
@@ -46,10 +46,11 @@ describe("createUuid", () => {
     try {
       expect(isUuid(createUuid())).toBe(true);
     } finally {
-      Object.defineProperty(crypto, "randomUUID", {
-        value: original,
-        configurable: true,
-      });
+      if (ownDescriptor) {
+        Object.defineProperty(crypto, "randomUUID", ownDescriptor);
+      } else {
+        Reflect.deleteProperty(crypto, "randomUUID");
+      }
     }
   });
 });
