@@ -17,6 +17,12 @@ describe("buttonClasses", () => {
     expect(small).not.toMatch(/\bpx-/);
     expect(medium).not.toMatch(/\bpx-/);
   });
+  it("keeps the extra small icon button at the 24 px minimum target size", () => {
+    const extraSmall = buttonClasses("ghost", "xs", true);
+    expect(extraSmall).toContain("size-6");
+    expect(extraSmall).not.toMatch(/\bpx-/);
+    expect(buttonClasses("ghost", "xs")).toContain("h-6");
+  });
   it("dims disabled controls", () => {
     expect(CONTROL_CLASSES).toContain("disabled:cursor-not-allowed");
     expect(CONTROL_CLASSES).toContain("disabled:opacity-50");

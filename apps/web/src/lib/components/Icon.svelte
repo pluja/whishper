@@ -45,6 +45,7 @@
     "zoom-out": zoomOut,
     "fit-width": fitWidth,
     globe,
+    playhead,
   };
 </script>
 
@@ -180,6 +181,10 @@
   <path
     d="M3.5 12h17M12 3.5c2.2 2.3 3.4 5.1 3.4 8.5s-1.2 6.2-3.4 8.5c-2.2-2.3-3.4-5.1-3.4-8.5s1.2-6.2 3.4-8.5z"
   />
+{/snippet}
+{#snippet playhead()}
+  <path d="M8 4h8v4l-4 3.5L8 8z" />
+  <path d="M12 11.5V20" />
 {/snippet}
 {#snippet alert()}
   <circle cx="12" cy="12" r="8.5" />

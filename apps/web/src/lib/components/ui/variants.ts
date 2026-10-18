@@ -1,5 +1,5 @@
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
-export type ButtonSize = "sm" | "md";
+export type ButtonSize = "xs" | "sm" | "md";
 export type BadgeTone = "neutral" | "accent" | "success" | "warning" | "danger";
 
 const FOCUS =
@@ -15,11 +15,13 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
 };
 
 const BUTTON_SIZES: Record<ButtonSize, string> = {
+  xs: "h-6 px-2 text-xs",
   sm: "h-8 px-3 text-sm",
   md: "h-9 px-4 text-sm",
 };
 
 const ICON_BUTTON_SIZES: Record<ButtonSize, string> = {
+  xs: "size-6 text-xs",
   sm: "size-8 text-sm",
   md: "size-9 text-sm",
 };

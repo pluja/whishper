@@ -26,6 +26,8 @@
     ...rest
   }: Props = $props();
 
+  const ICON_SIZES: Record<ButtonSize, number> = { xs: 14, sm: 16, md: 18 };
+
   const classes = $derived(`${buttonClasses(variant, size, true)} ${extra}`);
 </script>
 
@@ -36,5 +38,5 @@
   aria-label={label}
   title={shortcut ? `${label} (${shortcut})` : label}
 >
-  <Icon name={icon} size={size === "sm" ? 16 : 18} />
+  <Icon name={icon} size={ICON_SIZES[size]} />
 </button>
