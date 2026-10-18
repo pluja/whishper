@@ -75,11 +75,15 @@ export class CueEditor {
   loadTrack(track: TrackRef | null, cues: EditorCue[], revision: number): void {
     const outgoing = this.autosave;
     if (outgoing.track?.trackId === track?.trackId) return;
-    const editsDiscarded =
-      this.#heldBackByTranscription(track) && outgoing.discardEdits();
+    const refusedEditsDiscarded =
+      this.#refusedEditsStranded(track) && outgoing.discardEdits();
     outgoing.dispose();
     this.autosave = new Autosave(track, revision, () => this.cues);
-    if (editsDiscarded) {
+    // The outgoing track's journal stays while its own pending save runs.
+    const journalsDiscarded = this.autosave.discardOtherTrackJournals(
+      outgoing.hasUnsavedChanges ? outgoing.track : null,
+    );
+    if (refusedEditsDiscarded || journalsDiscarded) {
       this.autosave.notice =
         "Unsaved edits to the previous transcript were discarded, because it was replaced.";
     }
@@ -91,15 +95,14 @@ export class CueEditor {
     );
   }
 
-  // Once another track of the same project replaces the outgoing one (the run
-  // finished, or the transcript was deleted), edits a transcription kept from
-  // the server can never be saved.
-  #heldBackByTranscription(incoming: TrackRef | null): boolean {
+  // Edits the server refused during a transcription can never be saved once
+  // another track of the same project replaces theirs.
+  #refusedEditsStranded(incoming: TrackRef | null): boolean {
     const outgoing = this.autosave;
     return (
       incoming !== null &&
       outgoing.track?.projectId === incoming.projectId &&
-      (this.#journalDeferred || outgoing.blockedByTranscription)
+      outgoing.blockedByTranscription
     );
   }
 

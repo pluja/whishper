@@ -34,6 +34,10 @@ beforeEach(() => {
     getItem: (key: string) => storage.get(key) ?? null,
     setItem: (key: string, value: string) => storage.set(key, value),
     removeItem: (key: string) => storage.delete(key),
+    key: (index: number) => [...storage.keys()][index] ?? null,
+    get length() {
+      return storage.size;
+    },
   });
 });
 
@@ -389,10 +393,58 @@ describe("CueEditor track replaced by a transcription", () => {
     editor.loadTrack(replacementTrack, [cue("b", "new transcript")], 1);
 
     expect(editor.autosave.notice).toBeNull();
+    expect(localStorage.getItem(journalKeyA)).not.toBeNull();
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0][0]).toBe(
       "/api/projects/project-a/tracks/track-a",
     );
+  });
+
+  it("discards and reports another track's journal found on load", () => {
+    storeJournal("edit left behind by the replaced track");
+    const editor = newEditor();
+
+    editor.loadTrack(replacementTrack, [cue("b", "new transcript")], 1);
+
+    expect(editor.cues[0].text).toBe("new transcript");
+    expect(localStorage.getItem(journalKeyA)).toBeNull();
+    expect(editor.autosave.notice).toBe(
+      "Unsaved edits to the previous transcript were discarded, because it was replaced.",
+    );
+  });
+
+  it("reports nothing on load when no other track left a journal", () => {
+    localStorage.setItem("anysub:theme", "dark");
+    const editor = newEditor();
+
+    editor.loadTrack(replacementTrack, [cue("b", "new transcript")], 1);
+
+    expect(editor.autosave.notice).toBeNull();
+    expect(localStorage.getItem("anysub:theme")).toBe("dark");
+  });
+
+  it("leaves the journals of other projects alone", () => {
+    const otherProjectKey = "anysub:editor:project-b:track-b";
+    localStorage.setItem(
+      otherProjectKey,
+      JSON.stringify({ revision: 1, cues: [cue("b", "x")], updatedAt: 0 }),
+    );
+    const editor = newEditor();
+
+    editor.loadTrack(replacementTrack, [cue("b", "new transcript")], 1);
+
+    expect(localStorage.getItem(otherProjectKey)).not.toBeNull();
+    expect(editor.autosave.notice).toBeNull();
+  });
+
+  it("keeps the journal of the track being loaded", () => {
+    storeJournal("journaled edit");
+    const editor = newEditor();
+
+    editor.loadTrack(trackA, [cue("a", "server")], 1);
+
+    expect(editor.cues[0].text).toBe("journaled edit");
+    expect(editor.autosave.notice).toBeNull();
   });
 
   it("keeps a locked track's journal when leaving for another project", () => {

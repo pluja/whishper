@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { readStorage, removeStorage, writeStorage } from "./safe-storage";
+import {
+  readStorage,
+  removeStorage,
+  storageKeys,
+  writeStorage,
+} from "./safe-storage";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -13,10 +18,15 @@ describe("safe storage", () => {
       getItem: (key: string) => storage.get(key) ?? null,
       setItem: (key: string, value: string) => storage.set(key, value),
       removeItem: (key: string) => storage.delete(key),
+      key: (index: number) => [...storage.keys()][index] ?? null,
+      get length() {
+        return storage.size;
+      },
     });
 
     expect(writeStorage("key", "value")).toBe(true);
     expect(readStorage("key")).toBe("value");
+    expect(storageKeys()).toEqual(["key"]);
     removeStorage("key");
     expect(readStorage("key")).toBeNull();
   });
@@ -29,10 +39,15 @@ describe("safe storage", () => {
       getItem: blocked,
       setItem: blocked,
       removeItem: blocked,
+      key: blocked,
+      get length() {
+        return blocked();
+      },
     });
 
     expect(readStorage("key")).toBeNull();
     expect(writeStorage("key", "value")).toBe(false);
     expect(() => removeStorage("key")).not.toThrow();
+    expect(storageKeys()).toEqual([]);
   });
 });

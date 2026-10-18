@@ -3,6 +3,7 @@ import { parseCueJournal } from "./journal";
 import {
   readStorage,
   removeStorage,
+  storageKeys,
   writeStorage,
 } from "$lib/browser/safe-storage";
 import { trackUrl } from "$lib/shared/routes";
@@ -17,6 +18,7 @@ const SAVE_DEBOUNCE_MS = 800;
 const RECOVERED_SAVE_DELAY_MS = 1_200;
 const JOURNAL_DEBOUNCE_MS = 120;
 const KEEPALIVE_BODY_LIMIT_BYTES = 64 * 1024;
+const JOURNAL_PREFIX = "anysub:editor:";
 
 const SAVE_LABELS: Record<SaveState, string> = {
   saving: "Saving…",
@@ -25,6 +27,10 @@ const SAVE_LABELS: Record<SaveState, string> = {
   conflict: "Editing conflict",
   saved: "Saved",
 };
+
+function journalKey({ projectId, trackId }: TrackRef): string {
+  return `${JOURNAL_PREFIX}${projectId}:${trackId}`;
+}
 
 function responseMessage(body: unknown): string | null {
   if (typeof body !== "object" || body === null) return null;
@@ -76,9 +82,7 @@ export class Autosave {
   }
 
   get #journalKey(): string {
-    return this.track
-      ? `anysub:editor:${this.track.projectId}:${this.track.trackId}`
-      : "";
+    return this.track ? journalKey(this.track) : "";
   }
 
   markChanged(): void {
@@ -203,6 +207,19 @@ export class Autosave {
     this.message = "Recovered unsaved changes from this browser.";
     this.#scheduleSave(RECOVERED_SAVE_DELAY_MS);
     return journal.cues;
+  }
+
+  // Only the latest track of a project is editable, so no editor will ever
+  // recover the journal of another track. Returns whether any were removed.
+  discardOtherTrackJournals(pendingSave: TrackRef | null): boolean {
+    if (!this.track) return false;
+    const projectPrefix = `${JOURNAL_PREFIX}${this.track.projectId}:`;
+    const kept = [this.#journalKey, pendingSave ? journalKey(pendingSave) : ""];
+    const orphaned = storageKeys().filter(
+      (key) => key.startsWith(projectPrefix) && !kept.includes(key),
+    );
+    orphaned.forEach(removeStorage);
+    return orphaned.length > 0;
   }
 
   dismissNotice(): void {
