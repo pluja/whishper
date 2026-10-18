@@ -1,3 +1,4 @@
+import { checkPickers } from "./pickers.mjs";
 import {
   axeViolations,
   focusedText,
@@ -66,12 +67,13 @@ async function checkRetranscribeDialog(page, theme) {
   await page.screenshot({
     path: `${outputDir}/studio-retranscribe-${theme}-1440.png`,
   });
-  const failures = reportViolations(
+  let failures = reportViolations(
     await axeViolations(page, "dialog[open]"),
     { name: "studio-retranscribe" },
     theme,
     1440,
   );
+  failures += await checkPickers(page, dialog, theme);
   await page.keyboard.press("Escape");
   await dialog.waitFor({ state: "hidden" });
   if (!(await isFocused(trigger))) {
@@ -108,7 +110,9 @@ export async function checkStudioKeyboard(context, theme) {
     await checkPaneSeparator(page);
     const failures = await checkRetranscribeDialog(page, theme);
     await checkExportMenu(page);
-    console.log(`${label}: separator, re-transcribe dialog and export menu ok`);
+    console.log(
+      `${label}: separator, re-transcribe dialog, pickers and export menu ok`,
+    );
     return failures;
   } catch (error) {
     console.error(`${label}: ${error.message}`);
