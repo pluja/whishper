@@ -19,16 +19,22 @@ export function formatEditorTime(microseconds: number): string {
   return formatSubtitleTime(microseconds, ".");
 }
 
+// Accepts plain seconds ("62.5") as well as MM:SS and HH:MM:SS forms, so
+// times pasted from other tools parse without retyping.
 export function parseEditorTime(value: string): number | null {
   const match = value
     .trim()
-    .match(/^(?:(\d{1,3}):)?(\d{1,2}):(\d{2})(?:[.,](\d{1,3}))?$/);
+    .match(/^(?:(?:(\d+):)?(\d{1,2}):)?(\d+)(?:[.,](\d{1,3}))?$/);
   if (!match) return null;
-  const hours = Number(match[1] ?? 0);
-  const minutes = Number(match[2]);
-  const seconds = Number(match[3]);
-  const milliseconds = Number((match[4] ?? "0").padEnd(3, "0"));
-  if (minutes > 59 || seconds > 59) return null;
+  const [, hoursPart, minutesPart, secondsPart, fractionPart] = match;
+  const hours = Number(hoursPart ?? 0);
+  const minutes = Number(minutesPart ?? 0);
+  const seconds = Number(secondsPart);
+  const milliseconds = Number((fractionPart ?? "0").padEnd(3, "0"));
+  if (minutes > 59) return null;
+  if (minutesPart !== undefined && (secondsPart.length !== 2 || seconds > 59)) {
+    return null;
+  }
   return (
     ((hours * 3_600 + minutes * 60 + seconds) * 1_000 + milliseconds) * 1_000
   );

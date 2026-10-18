@@ -25,6 +25,35 @@ describe("subtitle timecodes", () => {
     expect(parseEditorTime("02:03,5")).toBe(123_500_000);
     expect(parseEditorTime("00:61.000")).toBeNull();
   });
+
+  it("parses loose pasted forms", () => {
+    expect(parseEditorTime("1:02.5")).toBe(62_500_000);
+    expect(parseEditorTime("62.5")).toBe(62_500_000);
+    expect(parseEditorTime("00:01:02,500")).toBe(62_500_000);
+    expect(parseEditorTime("1:02:03")).toBe(3_723_000_000);
+    expect(parseEditorTime("27")).toBe(27_000_000);
+    expect(parseEditorTime(" 01:02:03.456\n")).toBe(3_723_456_000);
+    expect(parseEditorTime("100:00:00.000")).toBe(360_000_000_000);
+  });
+
+  it("rejects malformed and out of range times", () => {
+    for (const value of [
+      "",
+      "abc",
+      "-5",
+      "1.2345",
+      "5.",
+      ".5",
+      "1:5",
+      "1:60",
+      "1:61:00",
+      "1:2:3:4",
+      "1.2.3",
+      "01:02:03.456 extra",
+    ]) {
+      expect(parseEditorTime(value), value).toBeNull();
+    }
+  });
 });
 
 describe("subtitle exports", () => {
