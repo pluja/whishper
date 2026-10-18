@@ -1,3 +1,5 @@
+import type { CueTimeField } from "./cues";
+
 type ShortcutDefinition = {
   id: string;
   keys: readonly string[];
@@ -32,10 +34,14 @@ export type StudioCommands = {
   hasSelection(): boolean;
   splitSelected(): void;
   deleteSelected(): void;
+  setSelectedTimeToPlayhead(field: CueTimeField): void;
 };
 
 const TEXT_ENTRY_TARGET_SELECTOR =
   'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]';
+// Fields that rewrite their own value keep no native undo history, so undo
+// and redo there act on the cues.
+const NO_NATIVE_UNDO_SELECTOR = "[data-no-native-undo]";
 const ACTIVATION_TARGET_SELECTOR =
   'button, a, summary, [role="button"], [role="link"]';
 // Focus can only be inside a popover, such as a menu or picker, while it is open.
@@ -101,6 +107,16 @@ export const shortcutGroups: readonly ShortcutGroup[] = [
         description: "Split the selected cue",
       },
       {
+        id: "set-start",
+        keys: ["I"],
+        description: "Set the selected cue's start to the playhead",
+      },
+      {
+        id: "set-end",
+        keys: ["O"],
+        description: "Set the selected cue's end to the playhead",
+      },
+      {
         id: "delete",
         keys: ["Shift", "Delete / Backspace"],
         description: "Deliberately delete the selected cue",
@@ -119,6 +135,36 @@ export const shortcutGroups: readonly ShortcutGroup[] = [
         id: "save",
         keys: ["Ctrl/Command", "S"],
         description: "Save the current track",
+      },
+    ],
+  },
+  {
+    title: "Timecode fields",
+    shortcuts: [
+      {
+        id: "timecode-type",
+        keys: ["0-9"],
+        description: "Overwrite the digit under the caret",
+      },
+      {
+        id: "timecode-step",
+        keys: ["↑ / ↓"],
+        description: "Step the hours, minutes, seconds or milliseconds",
+      },
+      {
+        id: "timecode-large-step",
+        keys: ["Shift", "↑ / ↓"],
+        description: "Step the same part by ten",
+      },
+      {
+        id: "timecode-apply",
+        keys: ["Enter"],
+        description: "Apply the typed time",
+      },
+      {
+        id: "timecode-revert",
+        keys: ["Escape"],
+        description: "Return to the last applied time",
       },
     ],
   },
@@ -176,7 +222,8 @@ function handleCommandShortcut(
   }
   if (
     (key === "z" || key === "y") &&
-    matchesClosest(event.target, TEXT_ENTRY_TARGET_SELECTOR)
+    matchesClosest(event.target, TEXT_ENTRY_TARGET_SELECTOR) &&
+    !matchesClosest(event.target, NO_NATIVE_UNDO_SELECTOR)
   ) {
     return;
   }
@@ -222,6 +269,14 @@ function handlePlainShortcut(
     return transport.goToSourceEdge(false);
   if (!event.shiftKey && event.key === "End")
     return transport.goToSourceEdge(true);
+  if (
+    !event.shiftKey &&
+    (key === "i" || key === "o") &&
+    commands.hasSelection()
+  ) {
+    commands.setSelectedTimeToPlayhead(key === "i" ? "start_us" : "end_us");
+    return true;
+  }
   if (
     event.shiftKey &&
     (event.key === "Delete" || event.key === "Backspace") &&

@@ -35,6 +35,7 @@ function commands(): StudioCommands {
     hasSelection: () => true,
     splitSelected: vi.fn(),
     deleteSelected: vi.fn(),
+    setSelectedTimeToPlayhead: vi.fn(),
   };
 }
 
@@ -86,6 +87,21 @@ describe("handleStudioKeydown", () => {
     expect(redo.preventDefault).not.toHaveBeenCalled();
     expect(studio.undo).not.toHaveBeenCalled();
     expect(studio.redo).not.toHaveBeenCalled();
+  });
+
+  it("sends undo and redo from a field without native undo to the cues", () => {
+    const studio = commands();
+    const field = ["input", "[data-no-native-undo]"];
+    const undo = keydown("z", { ctrlKey: true, target: field });
+    press(undo, studio);
+    press(
+      keydown("z", { ctrlKey: true, shiftKey: true, target: field }),
+      studio,
+    );
+    press(keydown("y", { ctrlKey: true, target: field }), studio);
+    expect(undo.preventDefault).toHaveBeenCalledOnce();
+    expect(studio.undo).toHaveBeenCalledOnce();
+    expect(studio.redo).toHaveBeenCalledTimes(2);
   });
 
   it("splits at the caret with Ctrl+K from inside a textarea", () => {
@@ -178,6 +194,34 @@ describe("handleStudioKeydown", () => {
     press(event, studio);
     expect(studio.deleteSelected).toHaveBeenCalledOnce();
     expect(event.preventDefault).toHaveBeenCalledOnce();
+  });
+
+  it("sets the selected cue's In and Out to the playhead with I and O", () => {
+    const studio = commands();
+    const setIn = keydown("i", { target: "button" });
+    press(setIn, studio);
+    press(keydown("O"), studio);
+    expect(studio.setSelectedTimeToPlayhead).toHaveBeenNthCalledWith(
+      1,
+      "start_us",
+    );
+    expect(studio.setSelectedTimeToPlayhead).toHaveBeenNthCalledWith(
+      2,
+      "end_us",
+    );
+    expect(setIn.preventDefault).toHaveBeenCalledOnce();
+  });
+
+  it("leaves I and O alone while typing, in a menu or without a selection", () => {
+    const studio = commands();
+    press(keydown("i", { target: "textarea" }), studio);
+    press(keydown("o", { target: ["input", "[data-no-native-undo]"] }), studio);
+    press(keydown("i", { target: ["button", "[popover]"] }), studio);
+    press(keydown("o", { ctrlKey: true }), studio);
+    press(keydown("I", { shiftKey: true }), studio);
+    press(keydown("i"), { ...studio, isDialogOpen: () => true });
+    press(keydown("o"), { ...studio, hasSelection: () => false });
+    expect(studio.setSelectedTimeToPlayhead).not.toHaveBeenCalled();
   });
 
   it("ignores plain transport keys while typing", () => {

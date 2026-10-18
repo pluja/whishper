@@ -70,6 +70,8 @@
     hasSelection: () => editor.hasSelection,
     splitSelected: () => editor.splitSelected(),
     deleteSelected: () => editor.deleteSelected(),
+    setSelectedTimeToPlayhead: (field) =>
+      editor.setTimeToPlayhead(editor.selectedCueIndex, field),
   };
 
   async function saveBeforeTranscribing(): Promise<string | null> {
