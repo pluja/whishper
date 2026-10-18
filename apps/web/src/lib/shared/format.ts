@@ -28,44 +28,6 @@ export function pluralize(count: number, noun: string): string {
   return `${count} ${count === 1 ? noun : `${noun}s`}`;
 }
 
-export function formatDimensions(
-  width: string | null,
-  height: string | null,
-): string | null {
-  const numericWidth = Number(width);
-  const numericHeight = Number(height);
-  if (
-    !Number.isInteger(numericWidth) ||
-    !Number.isInteger(numericHeight) ||
-    numericWidth <= 0 ||
-    numericHeight <= 0
-  ) {
-    return null;
-  }
-  return `${numericWidth}×${numericHeight}`;
-}
-
-const languageNames = new Intl.DisplayNames(undefined, { type: "language" });
-
-export function formatLanguages(languages: string[]): string {
-  return languages
-    .map((language) => {
-      try {
-        return languageNames.of(language) ?? language;
-      } catch {
-        return language;
-      }
-    })
-    .join(", ");
-}
-
-export function formatSubtitleCounts(
-  trackCount: number,
-  cueCount: number,
-): string {
-  return `${pluralize(trackCount, "track")} · ${pluralize(cueCount, "cue")}`;
-}
-
 // Pinned to English so the phrase matches the surrounding UI copy.
 const relativeTime = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [

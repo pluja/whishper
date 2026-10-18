@@ -9,7 +9,6 @@
   }: { name: IconName; size?: number; label?: string } = $props();
 
   const ICONS: Record<IconName, Snippet> = {
-    projects,
     file,
     check,
     edit,
@@ -17,7 +16,6 @@
     search,
     activity,
     cpu,
-    lock,
     "arrow-left": arrowLeft,
     plus,
     logout,
@@ -49,10 +47,6 @@
   };
 </script>
 
-{#snippet projects()}
-  <path d="M4 5.5h16v13H4z" />
-  <path d="M8 9h8M8 13h5" />
-{/snippet}
 {#snippet file()}
   <path d="M6.5 3.5h7l4 4v13h-11z" />
   <path d="M13.5 3.5v4h4M9 12h6M9 15.5h4" />
@@ -79,10 +73,6 @@
   <path
     d="M9 9h6v6H9zM9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"
   />
-{/snippet}
-{#snippet lock()}
-  <rect x="5" y="10" width="14" height="10" rx="2" />
-  <path d="M8 10V7a4 4 0 0 1 8 0v3" />
 {/snippet}
 {#snippet arrowLeft()}
   <path d="m15 18-6-6 6-6" />

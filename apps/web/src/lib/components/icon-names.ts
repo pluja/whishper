@@ -1,5 +1,4 @@
 export type IconName =
-  | "projects"
   | "file"
   | "check"
   | "edit"
@@ -7,7 +6,6 @@ export type IconName =
   | "search"
   | "activity"
   | "cpu"
-  | "lock"
   | "arrow-left"
   | "plus"
   | "logout"
