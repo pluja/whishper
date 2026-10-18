@@ -4,9 +4,15 @@
   import Icon from "$lib/components/Icon.svelte";
   import Badge from "$lib/components/ui/Badge.svelte";
   import Button from "$lib/components/ui/Button.svelte";
-  import { charactersPerSecond, cueTimeError } from "$lib/editor/cues";
+  import IconButton from "$lib/components/ui/IconButton.svelte";
+  import TimecodeInput from "$lib/components/ui/TimecodeInput.svelte";
+  import {
+    charactersPerSecond,
+    cueTimeError,
+    type CueTimeField,
+    type EditorCue,
+  } from "$lib/editor/cues";
   import type { CueEditor } from "$lib/editor/editor.svelte";
-  import { formatEditorTime, parseEditorTime } from "$lib/shared/subtitles";
 
   let { editor }: { editor: CueEditor } = $props();
 
@@ -40,29 +46,33 @@
     });
   });
 
-  function updateTime(
-    index: number,
-    field: "start_us" | "end_us",
-    event: Event,
-  ): void {
-    const input = event.currentTarget as HTMLInputElement;
-    const parsed = parseEditorTime(input.value);
-    if (parsed === null) {
-      input.setCustomValidity("Use HH:MM:SS.mmm or MM:SS.mmm.");
-      input.reportValidity();
-      return;
-    }
-    const timeError = cueTimeError(editor.cues[index], field, parsed);
-    input.setCustomValidity(timeError ?? "");
-    if (timeError) {
-      input.reportValidity();
-      return;
-    }
-    editor.setTime(index, field, parsed);
+  const TIME_FIELDS = {
+    start_us: { edge: "start", shortcut: "I" },
+    end_us: { edge: "end", shortcut: "O" },
+  } as const;
+  const timecodeHintId = `${uid}-timecode-hint`;
+
+  function timeErrorFor(cueId: string, field: CueTimeField): string | null {
+    const error = editor.timeError;
+    return error?.cueId === cueId && error.field === field
+      ? error.message
+      : null;
   }
 
-  function fieldClasses(selected: boolean): string {
-    return `rounded border text-text hover:border-border-strong focus:border-accent focus:bg-surface ${FOCUS_RING} ${selected ? "border-border-strong bg-surface" : "border-transparent bg-transparent"}`;
+  function reportTimeError(
+    cueId: string,
+    field: CueTimeField,
+    message: string | null,
+  ): void {
+    if (message) editor.showTimeError(cueId, field, message);
+    else editor.clearTimeError(cueId, field);
+  }
+
+  function fieldClasses(selected: boolean, invalid = false): string {
+    const border = invalid
+      ? "border-danger"
+      : `hover:border-border-strong focus:border-accent ${selected ? "border-border-strong" : "border-transparent"}`;
+    return `rounded border text-text focus:bg-surface ${FOCUS_RING} ${border} ${selected ? "bg-surface" : "bg-transparent"}`;
   }
 
   function rememberCursor(cueId: string, event: Event): void {
@@ -72,6 +82,42 @@
     );
   }
 </script>
+
+{#snippet timeField(
+  cue: EditorCue,
+  index: number,
+  field: CueTimeField,
+  selected: boolean,
+  errorId: string,
+)}
+  {@const { edge, shortcut } = TIME_FIELDS[field]}
+  {@const error = timeErrorFor(cue.id, field)}
+  <span class="inline-flex items-center">
+    <TimecodeInput
+      class="h-6 w-[14ch] px-1 {fieldClasses(selected, Boolean(error))}"
+      label={`Cue ${index + 1} ${edge} time`}
+      value={cue[field]}
+      validate={(microseconds) => cueTimeError(cue, field, microseconds)}
+      onchange={(microseconds) => editor.setTime(index, field, microseconds)}
+      onerror={(message) => reportTimeError(cue.id, field, message)}
+      invalid={Boolean(error)}
+      describedBy={error ? `${timecodeHintId} ${errorId}` : timecodeHintId}
+      readonly={editor.readOnly}
+      onfocus={() => editor.beginEdit()}
+      onblur={() => editor.finishEdit()}
+    />
+    {#if selected}
+      <IconButton
+        size="xs"
+        icon="playhead"
+        label={`Set ${edge} to playhead`}
+        {shortcut}
+        disabled={editor.readOnly}
+        onclick={() => editor.setTimeToPlayhead(index, field)}
+      />
+    {/if}
+  </span>
+{/snippet}
 
 {#if editor.cues.length === 0}
   <div class="grid content-start justify-items-start gap-2 px-5 py-6">
@@ -84,6 +130,11 @@
     >
   </div>
 {:else}
+  <p id={timecodeHintId} class="sr-only">
+    Type digits to overwrite the time. Up and Down arrows step the part under
+    the caret, ten times as far with Shift. Enter applies, Escape reverts.
+  </p>
+  <p class="sr-only" aria-live="polite">{editor.timeError?.message ?? ""}</p>
   <ol
     class="min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
     aria-label="Cues"
@@ -93,6 +144,9 @@
       {@const selected = editor.selectedCueId === cue.id}
       {@const active = activeCueId === cue.id}
       {@const issuesId = `${uid}-issues-${cue.id}`}
+      {@const timeErrorId = `${uid}-time-error-${cue.id}`}
+      {@const rowTimeError =
+        editor.timeError?.cueId === cue.id ? editor.timeError.message : null}
       <li
         {@attach registerRow(cue.id)}
         class={[
@@ -124,27 +178,9 @@
           <div
             class="flex flex-wrap items-center gap-x-1 gap-y-0.5 font-mono text-xs tabular-nums"
           >
-            <input
-              class="h-6 w-[14ch] px-1 {fieldClasses(selected)}"
-              aria-label={`Cue ${index + 1} start time`}
-              value={formatEditorTime(cue.start_us)}
-              onfocus={() => editor.beginEdit()}
-              onchange={(event) => updateTime(index, "start_us", event)}
-              onblur={() => editor.finishEdit()}
-              readonly={editor.readOnly}
-              spellcheck="false"
-            />
+            {@render timeField(cue, index, "start_us", selected, timeErrorId)}
             <span class="text-text-subtle" aria-hidden="true">→</span>
-            <input
-              class="h-6 w-[14ch] px-1 {fieldClasses(selected)}"
-              aria-label={`Cue ${index + 1} end time`}
-              value={formatEditorTime(cue.end_us)}
-              onfocus={() => editor.beginEdit()}
-              onchange={(event) => updateTime(index, "end_us", event)}
-              onblur={() => editor.finishEdit()}
-              readonly={editor.readOnly}
-              spellcheck="false"
-            />
+            {@render timeField(cue, index, "end_us", selected, timeErrorId)}
             <span class="ml-auto flex gap-2 pl-1 text-text-subtle">
               {#if selected}
                 {@const cps = charactersPerSecond(cue)}
@@ -164,6 +200,9 @@
               >
             </span>
           </div>
+          {#if rowTimeError}
+            <p id={timeErrorId} class="text-xs text-danger">{rowTimeError}</p>
+          {/if}
           <textarea
             class="w-full resize-none px-1 py-1 text-sm leading-snug field-sizing-content {fieldClasses(
               selected,

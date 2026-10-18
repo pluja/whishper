@@ -90,7 +90,8 @@ Select a cue by focusing its text or timing fields. Clicking the numbered badge 
 
 You can:
 
-- Edit multiline text and enter timings as `HH:MM:SS.mmm`.
+- Edit multiline text and type timings into fixed `HH:MM:SS.mmm` fields.
+- Set the selected cue's start or end to the playhead with the buttons beside its timing fields, or with `I` and `O`.
 - Nudge a whole cue by 100 ms from the cue sheet.
 - Split at the playhead, or at the cue midpoint when the playhead is outside the cue. With a text cursor, the split snaps to the nearest word boundary.
 - Merge with the following cue.
@@ -98,6 +99,20 @@ You can:
 - Undo and redo until you close the page.
 
 Editing a cue's text clears that cue's word timings, because the old timings no longer describe the new words. Unchanged cues keep theirs.
+
+### Timing fields
+
+Each start and end field always shows `HH:MM:SS.mmm`. Typing works like overtype mode:
+
+- A digit replaces the digit under the caret and the caret moves on, skipping `:` and `.`. With a selection, typing starts at its first digit. Letters and other characters are ignored. Minutes and seconds refuse a first digit above 5.
+- `Backspace` sets the digit before the caret to zero and moves onto it. `Delete` sets the digit after the caret to zero and moves past it. With a selection, both set every selected digit to zero.
+- Up and down arrows add or remove one unit of the part under the caret: an hour, a minute, a second, or a millisecond. Hold `Shift` to step by ten. Steps carry into the next part, stop at zero, and apply at once, so the player and timeline follow.
+- Paste accepts looser forms such as `27`, `62.5`, `1:02.5`, `1:02:03`, or `00:01:02,500`.
+- `Enter` or leaving the field applies the typed time. `Escape` returns to the last applied time.
+
+A start later than the end, or an end earlier than the start, is refused. The field gets a red border and a message appears under it. The message goes away once the value is valid again, or when you press `Escape` or leave the field, which restores the last valid time. `I`, `O`, and the playhead buttons refuse the same cases with the same message.
+
+Everything you change in one timing field, from focusing it until you leave it, is one undo step. `Ctrl/Command+Z` inside the field first drops digits you have not applied, then undoes applied changes.
 
 ### Keyboard shortcuts
 
@@ -111,13 +126,14 @@ Press `?` outside a text field, or use the **Shortcuts** button, for the full ke
 | Left, right arrow                        | Step one frame, or five with `Shift`                    |
 | Up, down arrow                           | Jump between cue starts                                 |
 | `Home`, `End`                            | Jump to the start or end of the media                   |
+| `I`, `O`                                 | Set the selected cue's start or end to the playhead     |
 | `Ctrl/Command+K`                         | Split the selected cue, at the cursor when typing       |
 | `Shift+Delete`, `Shift+Backspace`        | Delete the selected cue                                 |
 | `Ctrl/Command+Z`                         | Undo                                                    |
 | `Ctrl/Command+Shift+Z`, `Ctrl/Command+Y` | Redo                                                    |
 | `Ctrl/Command+S`                         | Save now                                                |
 
-Opening the shortcut guide suspends the studio shortcuts. Unmodified shortcuts never capture keystrokes inside text fields. Save and split keep their `Ctrl` or `Command` forms while you type. Undo and redo stay native in text fields, which keep their own history. `Space` keeps its normal behaviour on a focused button, link, or disclosure.
+Opening the shortcut guide suspends the studio shortcuts. Unmodified shortcuts never capture keystrokes inside text fields. Save and split keep their `Ctrl` or `Command` forms while you type. Undo and redo stay native in text fields, which keep their own history. Timing fields have no history of their own, so there they undo and redo cue edits. `Space` keeps its normal behaviour on a focused button, link, or disclosure.
 
 ## Saving and recovery
 
