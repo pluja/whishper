@@ -38,6 +38,8 @@ const TEXT_ENTRY_TARGET_SELECTOR =
   'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]';
 const ACTIVATION_TARGET_SELECTOR =
   'button, a, summary, [role="button"], [role="link"]';
+// Focus can only be inside a menu while it is open.
+const OPEN_MENU_SELECTOR = '[role="menu"]';
 
 export const shortcutGroups: readonly ShortcutGroup[] = [
   {
@@ -239,7 +241,13 @@ export function handleStudioKeydown(
   event: KeyboardEvent,
   commands: StudioCommands,
 ): void {
-  if (commands.isDialogOpen() || event.defaultPrevented) return;
+  if (
+    commands.isDialogOpen() ||
+    event.defaultPrevented ||
+    matchesClosest(event.target, OPEN_MENU_SELECTOR)
+  ) {
+    return;
+  }
 
   const key = event.key.toLowerCase();
   if (

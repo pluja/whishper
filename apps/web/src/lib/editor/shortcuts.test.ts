@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { handleStudioKeydown, type StudioCommands } from "./shortcuts";
 
+// Matches the selectors of the element itself and its ancestors.
 class FakeElement {
-  constructor(private readonly tagName: string) {}
+  constructor(private readonly selectors: string[]) {}
 
   closest(selector: string): FakeElement | null {
-    const tagSelectors = selector.split(",").map((part) => part.trim());
-    return tagSelectors.includes(this.tagName) ? this : null;
+    const parts = selector.split(",").map((part) => part.trim());
+    return parts.some((part) => this.selectors.includes(part)) ? this : null;
   }
 }
 
@@ -39,7 +40,11 @@ function commands(): StudioCommands {
 
 function keydown(
   key: string,
-  options: { ctrlKey?: boolean; shiftKey?: boolean; target?: string } = {},
+  options: {
+    ctrlKey?: boolean;
+    shiftKey?: boolean;
+    target?: string | string[];
+  } = {},
 ) {
   return {
     key,
@@ -49,7 +54,7 @@ function keydown(
     shiftKey: options.shiftKey ?? false,
     repeat: false,
     defaultPrevented: false,
-    target: new FakeElement(options.target ?? "div"),
+    target: new FakeElement([options.target ?? "div"].flat()),
     preventDefault: vi.fn(),
   };
 }
@@ -108,6 +113,35 @@ describe("handleStudioKeydown", () => {
     expect(studio.undo).toHaveBeenCalledOnce();
     expect(studio.redo).toHaveBeenCalledTimes(2);
     expect(studio.splitSelected).toHaveBeenCalledOnce();
+  });
+
+  it("leaves every key to an open menu", () => {
+    const studio = commands();
+    const insideMenu = ["button", '[role="menu"]'];
+    const events = [
+      keydown("ArrowLeft", { target: insideMenu }),
+      keydown("ArrowRight", { shiftKey: true, target: insideMenu }),
+      keydown("Delete", { shiftKey: true, target: insideMenu }),
+      keydown("Backspace", { shiftKey: true, target: insideMenu }),
+      keydown("k", { ctrlKey: true, target: insideMenu }),
+      keydown("j", { target: insideMenu }),
+    ];
+    for (const event of events) {
+      press(event, studio);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    }
+    expect(studio.transport.stepFrames).not.toHaveBeenCalled();
+    expect(studio.transport.startReverseShuttle).not.toHaveBeenCalled();
+    expect(studio.deleteSelected).not.toHaveBeenCalled();
+    expect(studio.splitSelected).not.toHaveBeenCalled();
+  });
+
+  it("deletes the selected cue with Shift+Delete outside menus", () => {
+    const studio = commands();
+    const event = keydown("Delete", { shiftKey: true, target: "button" });
+    press(event, studio);
+    expect(studio.deleteSelected).toHaveBeenCalledOnce();
+    expect(event.preventDefault).toHaveBeenCalledOnce();
   });
 
   it("ignores plain transport keys while typing", () => {
