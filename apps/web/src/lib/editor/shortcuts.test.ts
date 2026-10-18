@@ -117,7 +117,7 @@ describe("handleStudioKeydown", () => {
 
   it("leaves every key to an open menu", () => {
     const studio = commands();
-    const insideMenu = ["button", '[role="menu"]'];
+    const insideMenu = ["button", '[role="menu"]', "[popover]"];
     const events = [
       keydown("ArrowLeft", { target: insideMenu }),
       keydown("ArrowRight", { shiftKey: true, target: insideMenu }),
@@ -132,6 +132,42 @@ describe("handleStudioKeydown", () => {
     }
     expect(studio.transport.stepFrames).not.toHaveBeenCalled();
     expect(studio.transport.startReverseShuttle).not.toHaveBeenCalled();
+    expect(studio.deleteSelected).not.toHaveBeenCalled();
+    expect(studio.splitSelected).not.toHaveBeenCalled();
+  });
+
+  it("leaves every key to an open picker, from its search field or list", () => {
+    const studio = commands();
+    for (const focused of ["input", '[role="listbox"]']) {
+      const insidePicker = [focused, "[popover]"];
+      const events = [
+        keydown("ArrowDown", { target: insidePicker }),
+        keydown("ArrowUp", { target: insidePicker }),
+        keydown("ArrowLeft", { target: insidePicker }),
+        keydown("Home", { target: insidePicker }),
+        keydown("End", { target: insidePicker }),
+        keydown("j", { target: insidePicker }),
+        keydown("k", { target: insidePicker }),
+        keydown("l", { target: insidePicker }),
+        keydown(" ", { target: insidePicker }),
+        keydown("?", { target: insidePicker }),
+        keydown("Delete", { shiftKey: true, target: insidePicker }),
+        keydown("k", { ctrlKey: true, target: insidePicker }),
+      ];
+      for (const event of events) {
+        press(event, studio);
+        expect(event.preventDefault).not.toHaveBeenCalled();
+      }
+    }
+    const { transport } = studio;
+    expect(transport.jumpToCueStart).not.toHaveBeenCalled();
+    expect(transport.stepFrames).not.toHaveBeenCalled();
+    expect(transport.goToSourceEdge).not.toHaveBeenCalled();
+    expect(transport.startReverseShuttle).not.toHaveBeenCalled();
+    expect(transport.playForwardAtNormalRate).not.toHaveBeenCalled();
+    expect(transport.startForwardShuttle).not.toHaveBeenCalled();
+    expect(transport.togglePlayback).not.toHaveBeenCalled();
+    expect(studio.openGuide).not.toHaveBeenCalled();
     expect(studio.deleteSelected).not.toHaveBeenCalled();
     expect(studio.splitSelected).not.toHaveBeenCalled();
   });

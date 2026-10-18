@@ -38,8 +38,8 @@ const TEXT_ENTRY_TARGET_SELECTOR =
   'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]';
 const ACTIVATION_TARGET_SELECTOR =
   'button, a, summary, [role="button"], [role="link"]';
-// Focus can only be inside a menu while it is open.
-const OPEN_MENU_SELECTOR = '[role="menu"]';
+// Focus can only be inside a popover, such as a menu or picker, while it is open.
+const OPEN_POPOVER_SELECTOR = "[popover]";
 
 export const shortcutGroups: readonly ShortcutGroup[] = [
   {
@@ -244,7 +244,7 @@ export function handleStudioKeydown(
   if (
     commands.isDialogOpen() ||
     event.defaultPrevented ||
-    matchesClosest(event.target, OPEN_MENU_SELECTOR)
+    matchesClosest(event.target, OPEN_POPOVER_SELECTOR)
   ) {
     return;
   }
