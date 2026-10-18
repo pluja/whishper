@@ -1,54 +1,49 @@
 <script lang="ts">
-  import { modal } from "$lib/browser/modal";
+  import Dialog from "$lib/components/ui/Dialog.svelte";
+  import Kbd from "$lib/components/ui/Kbd.svelte";
   import { shortcutGroups } from "$lib/editor/shortcuts";
 
   let { open = $bindable(false) }: { open?: boolean } = $props();
 </script>
 
-<dialog
-  class="shortcut-guide"
-  {@attach modal(open)}
-  aria-labelledby="shortcut-guide-title"
-  onclose={() => (open = false)}
+<Dialog
+  bind:open
+  size="lg"
+  title="Keyboard shortcuts"
+  description="Edit and navigate the studio without leaving the keyboard."
 >
-  <div class="shortcut-guide-shell">
-    <div class="shortcut-guide-header">
-      <div>
-        <span>Power user map</span>
-        <h2 id="shortcut-guide-title">Keyboard shortcuts</h2>
-      </div>
-      <form method="dialog">
-        <button
-          class="shortcut-guide-close"
-          type="submit"
-          aria-label="Close keyboard shortcuts">Close</button
+  <div class="grid gap-x-8 gap-y-6 md:grid-cols-2">
+    {#each shortcutGroups as group (group.title)}
+      <section class="min-w-0">
+        <h3
+          class="mb-2 text-xs font-semibold tracking-wide text-text-muted uppercase"
         >
-      </form>
-    </div>
-    <p class="shortcut-guide-intro">
-      Edit and navigate the studio without leaving the keyboard.
-    </p>
-    <div class="shortcut-groups">
-      {#each shortcutGroups as group (group.title)}
-        <section class="shortcut-group">
-          <h3>{group.title}</h3>
+          {group.title}
+        </h3>
+        <dl class="grid divide-y divide-border">
           {#each group.shortcuts as shortcut (shortcut.id)}
-            <div class="shortcut-row">
-              <span class="shortcut-keys">
+            <div
+              class="grid grid-cols-[9.5rem_minmax(0,1fr)] items-baseline gap-3 py-1.5"
+            >
+              <dt class="flex flex-wrap items-center gap-1">
                 {#each shortcut.keys as key, index (key)}
-                  {#if index > 0}<span aria-hidden="true">+</span>{/if}
-                  <kbd>{key}</kbd>
+                  {#if index > 0}
+                    <span class="text-xs text-text-subtle" aria-hidden="true"
+                      >+</span
+                    >
+                  {/if}
+                  <Kbd>{key}</Kbd>
                 {/each}
-              </span>
-              <span class="shortcut-description">{shortcut.description}</span>
+              </dt>
+              <dd class="text-sm text-text">{shortcut.description}</dd>
             </div>
           {/each}
-        </section>
-      {/each}
-    </div>
-    <p class="shortcut-guide-note">
-      Shortcuts pause while typing. Space preserves focused button, link, and
-      summary activation. Press <kbd>?</kbd> to reopen this guide.
-    </p>
+        </dl>
+      </section>
+    {/each}
   </div>
-</dialog>
+  <p class="mt-6 text-xs text-text-muted">
+    Shortcuts pause while typing. Space preserves focused button, link, and
+    summary activation. Press <Kbd>?</Kbd> to reopen this guide.
+  </p>
+</Dialog>

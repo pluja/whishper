@@ -1,11 +1,18 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import type { Attachment } from "svelte/attachments";
+  import Icon from "$lib/components/Icon.svelte";
+  import Badge from "$lib/components/ui/Badge.svelte";
+  import Button from "$lib/components/ui/Button.svelte";
   import { charactersPerSecond, cueTimeError } from "$lib/editor/cues";
   import type { CueEditor } from "$lib/editor/editor.svelte";
   import { formatEditorTime, parseEditorTime } from "$lib/shared/subtitles";
 
   let { editor }: { editor: CueEditor } = $props();
+
+  const uid = $props.id();
+  const FOCUS_RING =
+    "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus";
 
   const activeCueId = $derived(editor.transport.activeCue?.id);
 
@@ -54,6 +61,10 @@
     editor.setTime(index, field, parsed);
   }
 
+  function fieldClasses(selected: boolean): string {
+    return `rounded border bg-transparent text-text hover:border-border-strong focus:border-accent focus:bg-surface ${FOCUS_RING} ${selected ? "border-border-strong" : "border-transparent"}`;
+  }
+
   function rememberCursor(cueId: string, event: Event): void {
     editor.rememberCursor(
       cueId,
@@ -62,21 +73,44 @@
   }
 </script>
 
-<div class="cue-list">
-  {#each editor.cues as cue, index (cue.id)}
-    {@const issues = editor.issues[index]}
-    {@const cps = charactersPerSecond(cue)}
-    <article
-      {@attach registerRow(cue.id)}
-      class:active={activeCueId === cue.id}
-      class:selected={editor.selectedCueId === cue.id}
-      class:invalid={issues.length > 0}
-      class="cue-editor"
-      onfocusin={() => (editor.selectedCueId = cue.id)}
+{#if editor.cues.length === 0}
+  <div class="grid content-start justify-items-start gap-2 px-5 py-6">
+    <h3 class="text-sm font-semibold text-text">This track has no cues</h3>
+    <p class="text-sm text-text-muted">Insert a cue to continue editing.</p>
+    <Button
+      size="sm"
+      disabled={editor.readOnly}
+      onclick={() => editor.insertAfterSelected()}>Insert first cue</Button
     >
-      <div class="cue-gutter">
+  </div>
+{:else}
+  <ol
+    class="min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+    aria-label="Cues"
+  >
+    {#each editor.cues as cue, index (cue.id)}
+      {@const issues = editor.issues[index]}
+      {@const selected = editor.selectedCueId === cue.id}
+      {@const active = activeCueId === cue.id}
+      {@const issuesId = `${uid}-issues-${cue.id}`}
+      <li
+        {@attach registerRow(cue.id)}
+        class={[
+          "grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2 border-b border-l-2 border-b-border py-1.5 pr-3 pl-2",
+          selected
+            ? "border-l-accent bg-accent-soft"
+            : active
+              ? "border-l-accent/40"
+              : "border-l-transparent hover:bg-surface-sunken",
+        ]}
+        onfocusin={() => (editor.selectedCueId = cue.id)}
+      >
         <button
-          class="cue-index"
+          class={[
+            "h-6 w-8 rounded text-left font-mono text-xs tabular-nums hover:bg-surface-sunken hover:text-text",
+            FOCUS_RING,
+            active ? "font-semibold text-accent" : "text-text-subtle",
+          ]}
           type="button"
           onclick={() => {
             editor.selectedCueId = cue.id;
@@ -84,17 +118,14 @@
           }}
           aria-label={`Play cue ${index + 1}`}
         >
-          {String(index + 1).padStart(2, "0")}
+          {index + 1}
         </button>
-        {#if issues.length}
-          <span class="cue-warning" title={issues.join(" · ")}>!</span>
-        {/if}
-      </div>
-      <div class="cue-fields">
-        <div class="cue-time-fields">
-          <label>
-            <span>In</span>
+        <div class="grid min-w-0 gap-1">
+          <div
+            class="flex flex-wrap items-center gap-x-1 gap-y-0.5 font-mono text-xs tabular-nums"
+          >
             <input
+              class="h-6 w-[14ch] px-1 {fieldClasses(selected)}"
               aria-label={`Cue ${index + 1} start time`}
               value={formatEditorTime(cue.start_us)}
               onfocus={() => editor.beginEdit()}
@@ -103,11 +134,9 @@
               readonly={editor.readOnly}
               spellcheck="false"
             />
-          </label>
-          <span aria-hidden="true">→</span>
-          <label>
-            <span>Out</span>
+            <span class="text-text-subtle" aria-hidden="true">→</span>
             <input
+              class="h-6 w-[14ch] px-1 {fieldClasses(selected)}"
               aria-label={`Cue ${index + 1} end time`}
               value={formatEditorTime(cue.end_us)}
               onfocus={() => editor.beginEdit()}
@@ -116,48 +145,61 @@
               readonly={editor.readOnly}
               spellcheck="false"
             />
-          </label>
-          <span class="cue-duration"
-            >{((cue.end_us - cue.start_us) / 1_000_000).toFixed(2)}s</span
-          >
-        </div>
-        <textarea
-          aria-label={`Cue ${index + 1} text`}
-          rows="2"
-          value={cue.text}
-          onfocus={() => editor.beginEdit()}
-          oninput={(event) => editor.setText(index, event.currentTarget.value)}
-          onselect={(event) => rememberCursor(cue.id, event)}
-          onclick={(event) => rememberCursor(cue.id, event)}
-          onkeyup={(event) => rememberCursor(cue.id, event)}
-          onblur={() => editor.finishEdit()}
-          readonly={editor.readOnly}
-          spellcheck="true"
-        ></textarea>
-        <div class="cue-quality">
-          <span class:over-limit={cue.text.length > editor.maxLineLength}>
-            {cue.text.length}/{editor.maxLineLength} chars
-          </span>
-          {#if cps !== null}
-            <span>{cps.toFixed(1)} CPS</span>
+            <span class="ml-auto flex gap-2 pl-1 text-text-subtle">
+              {#if selected}
+                {@const cps = charactersPerSecond(cue)}
+                <span
+                  class={cue.text.length > editor.maxLineLength
+                    ? "text-warning"
+                    : undefined}
+                >
+                  {cue.text.length}/{editor.maxLineLength} chars
+                </span>
+                {#if cps !== null}
+                  <span>{cps.toFixed(1)} CPS</span>
+                {/if}
+              {/if}
+              <span
+                >{((cue.end_us - cue.start_us) / 1_000_000).toFixed(2)}s</span
+              >
+            </span>
+          </div>
+          <textarea
+            class="w-full resize-none px-1 py-1 text-sm leading-snug field-sizing-content {fieldClasses(
+              selected,
+            )}"
+            aria-label={`Cue ${index + 1} text`}
+            aria-describedby={issues.length ? issuesId : undefined}
+            rows="2"
+            value={cue.text}
+            onfocus={() => editor.beginEdit()}
+            oninput={(event) =>
+              editor.setText(index, event.currentTarget.value)}
+            onselect={(event) => rememberCursor(cue.id, event)}
+            onclick={(event) => rememberCursor(cue.id, event)}
+            onkeyup={(event) => rememberCursor(cue.id, event)}
+            onblur={() => editor.finishEdit()}
+            readonly={editor.readOnly}
+            spellcheck="true"
+          ></textarea>
+          {#if issues.length}
+            <ul
+              id={issuesId}
+              class="flex flex-wrap gap-1"
+              aria-label={`Cue ${index + 1} issues: ${issues.join(", ")}`}
+            >
+              {#each issues as issue (issue)}
+                <li>
+                  <Badge tone="warning">
+                    <Icon name="alert" size={12} />
+                    {issue}
+                  </Badge>
+                </li>
+              {/each}
+            </ul>
           {/if}
-          {#each issues as issue (issue)}
-            <span class="quality-tag">{issue}</span>
-          {/each}
         </div>
-      </div>
-    </article>
-  {/each}
-  {#if editor.cues.length === 0}
-    <div class="empty-cue-list">
-      <strong>This track has no cues</strong>
-      <p>Insert a cue to continue editing.</p>
-      <button
-        type="button"
-        class="button compact"
-        disabled={editor.readOnly}
-        onclick={() => editor.insertAfterSelected()}>Insert first cue</button
-      >
-    </div>
-  {/if}
-</div>
+      </li>
+    {/each}
+  </ol>
+{/if}

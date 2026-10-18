@@ -43,6 +43,8 @@ function isTranscriptionRunning(body: unknown): boolean {
 export class Autosave {
   state = $state<SaveState>("saved");
   message = $state("");
+  // Unlike message, typing does not clear it, so a discard stays visible.
+  notice = $state<string | null>(null);
   // The server refused the save because a new transcription is running.
   blockedByTranscription = $state(false);
   readonly track: TrackRef | null;
@@ -192,7 +194,7 @@ export class Autosave {
     // overwriting the newer server copy, so they are dropped, but visibly.
     if (journal.revision !== this.#revision) {
       this.#clearJournal();
-      this.message =
+      this.notice =
         "Unsaved edits from an older version of this track were found in this browser and discarded, because the track has changed since.";
       return null;
     }
@@ -201,6 +203,10 @@ export class Autosave {
     this.message = "Recovered unsaved changes from this browser.";
     this.#scheduleSave(RECOVERED_SAVE_DELAY_MS);
     return journal.cues;
+  }
+
+  dismissNotice(): void {
+    this.notice = null;
   }
 
   // Returns false when unsaved edits cannot reach the server, so leaving

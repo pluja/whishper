@@ -146,9 +146,8 @@
 
 <svelte:window onkeydown={onStudioKeydown} />
 
-<!-- project-editor-page scopes the legacy cue list and toolbar rules until they are restyled. -->
 <div
-  class="project-editor-page flex min-h-dvh flex-col bg-bg text-text lg:h-dvh lg:overflow-hidden"
+  class="flex min-h-dvh flex-col bg-bg text-text lg:h-dvh lg:overflow-hidden"
 >
   <StudioTitlebar
     project={data.project}

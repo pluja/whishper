@@ -6,6 +6,7 @@
   import { isEditingLocked } from "./project-view";
   import CueList from "./CueList.svelte";
   import EditorToolbar from "./EditorToolbar.svelte";
+  import JournalNotice from "./JournalNotice.svelte";
   import ProcessingStatus from "./ProcessingStatus.svelte";
   import TranscribePanel from "./TranscribePanel.svelte";
   import type { StudioData } from "$lib/shared/studio-data";
@@ -50,6 +51,7 @@
     {/if}
   </header>
 
+  <JournalNotice autosave={editor.autosave} />
   <ProcessingStatus {run} {preparation} {mediaPreparationStatus} />
   {#if isEditingLocked(track, run)}
     <p

@@ -80,8 +80,8 @@ export class CueEditor {
     outgoing.dispose();
     this.autosave = new Autosave(track, revision, () => this.cues);
     if (editsDiscarded) {
-      this.autosave.message =
-        "Unsaved edits to the previous transcript were discarded, because a new transcription replaced it.";
+      this.autosave.notice =
+        "Unsaved edits to the previous transcript were discarded, because it was replaced.";
     }
     // Recovered edits would be stranded while a new transcription runs, so
     // they wait in the journal until editing resumes.
@@ -91,8 +91,9 @@ export class CueEditor {
     );
   }
 
-  // A new track in the same project comes from the transcription that kept
-  // the outgoing track's edits from the server, so they can never be saved.
+  // Once another track of the same project replaces the outgoing one (the run
+  // finished, or the transcript was deleted), edits a transcription kept from
+  // the server can never be saved.
   #heldBackByTranscription(incoming: TrackRef | null): boolean {
     const outgoing = this.autosave;
     return (

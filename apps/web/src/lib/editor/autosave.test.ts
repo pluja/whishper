@@ -310,8 +310,19 @@ describe("Autosave", () => {
       const editor = editorWith("server");
       expect(editor.autosave.recoverJournal()).toBeNull();
       expect(editor.autosave.state).toBe("saved");
-      expect(editor.autosave.message).toMatch(/older version.*discarded/);
+      expect(editor.autosave.notice).toMatch(/older version.*discarded/);
       expect(storage.has(journalKey)).toBe(false);
+    });
+
+    it("keeps the discarded-journal notice until it is dismissed", () => {
+      storeJournal(7, [cue("old")]);
+      const { autosave } = editorWith("server");
+      autosave.recoverJournal();
+      expect(autosave.notice).toMatch(/older version.*discarded/);
+      autosave.markChanged();
+      expect(autosave.notice).toMatch(/older version.*discarded/);
+      autosave.dismissNotice();
+      expect(autosave.notice).toBeNull();
     });
 
     it("survives storage that the browser blocks", async () => {

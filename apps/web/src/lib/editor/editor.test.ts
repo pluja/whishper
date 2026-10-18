@@ -64,7 +64,7 @@ describe("CueEditor.loadTrack", () => {
     expect(editor.autosave.track).toEqual(trackB);
     expect(editor.cues).toEqual([cue("b", "other project")]);
     expect(editor.selectedCueId).toBe("b");
-    expect(editor.autosave.message).toBe("");
+    expect(editor.autosave.notice).toBeNull();
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/projects/project-a/tracks/track-a");
@@ -340,7 +340,7 @@ describe("CueEditor track replaced by a transcription", () => {
 
     expect(editor.cues[0].text).toBe("new transcript");
     expect(localStorage.getItem(journalKeyA)).toBeNull();
-    expect(editor.autosave.message).toMatch(/discarded/);
+    expect(editor.autosave.notice).toMatch(/discarded/);
   });
 
   it("reports nothing when the track loaded while locked had no edits", () => {
@@ -351,7 +351,7 @@ describe("CueEditor track replaced by a transcription", () => {
     locked = false;
     editor.loadTrack(replacementTrack, [cue("b", "new transcript")], 1);
 
-    expect(editor.autosave.message).toBe("");
+    expect(editor.autosave.notice).toBeNull();
     expect(localStorage.getItem(journalKeyA)).toBeNull();
   });
 
@@ -376,7 +376,7 @@ describe("CueEditor track replaced by a transcription", () => {
     await vi.runAllTimersAsync();
 
     expect(editor.cues[0].text).toBe("new transcript");
-    expect(editor.autosave.message).toMatch(/discarded/);
+    expect(editor.autosave.notice).toMatch(/discarded/);
     expect(localStorage.getItem(journalKeyA)).toBeNull();
     expect(fetchMock).toHaveBeenCalledOnce();
   });
@@ -388,7 +388,7 @@ describe("CueEditor track replaced by a transcription", () => {
 
     editor.loadTrack(replacementTrack, [cue("b", "new transcript")], 1);
 
-    expect(editor.autosave.message).toBe("");
+    expect(editor.autosave.notice).toBeNull();
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0][0]).toBe(
       "/api/projects/project-a/tracks/track-a",
@@ -404,7 +404,7 @@ describe("CueEditor track replaced by a transcription", () => {
     locked = false;
     editor.loadTrack(trackB, [cue("b", "other project")], 1);
 
-    expect(editor.autosave.message).toBe("");
+    expect(editor.autosave.notice).toBeNull();
     expect(localStorage.getItem(journalKeyA)).not.toBeNull();
   });
 });
