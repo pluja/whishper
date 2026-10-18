@@ -53,14 +53,16 @@
 
   <JournalNotice autosave={editor.autosave} />
   <ProcessingStatus {run} {preparation} {mediaPreparationStatus} />
-  {#if isEditingLocked(track, run)}
-    <p
-      class="shrink-0 border-b border-border bg-accent-soft px-4 py-2 text-sm text-text"
-      role="status"
-    >
-      A new transcription is running. Editing resumes when it finishes.
-    </p>
-  {/if}
+  <!-- Always mounted, so screen readers announce the lock when it starts. -->
+  <div role="status" class="shrink-0">
+    {#if isEditingLocked(track, run)}
+      <p
+        class="border-b border-border bg-accent-soft px-4 py-2 text-sm text-text"
+      >
+        A new transcription is running. Editing resumes when it finishes.
+      </p>
+    {/if}
+  </div>
 
   {#if track}
     <EditorToolbar {editor} />
