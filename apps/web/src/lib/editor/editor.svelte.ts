@@ -16,6 +16,7 @@ import {
 } from "./cues";
 import { CueHistory, type EditSession } from "./history.svelte";
 import { Transport, type TransportOptions } from "./transport.svelte";
+import { createUuid } from "$lib/shared/uuid";
 import type { TimingGesture } from "$lib/timeline/math";
 
 function nudgeHistoryKey(cueId: string): string {
@@ -255,7 +256,7 @@ export class CueEditor {
     const result = splitCue(this.cues, index, {
       playbackUs: this.transport.playbackUs,
       cursorPosition: this.#cursorPositions.get(this.cues[index].id),
-      newId: crypto.randomUUID(),
+      newId: createUuid(),
     });
     if ("message" in result) {
       this.autosave.message = result.message;
@@ -276,7 +277,7 @@ export class CueEditor {
     this.#apply(
       insertCueAfter(this.cues, index, {
         sourceDurationUs: this.transport.sourceDurationUs,
-        newId: crypto.randomUUID(),
+        newId: createUuid(),
       }),
     );
   }

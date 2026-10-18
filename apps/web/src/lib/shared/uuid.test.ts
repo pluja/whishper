@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isUuid } from "./uuid";
+import { createUuid, isUuid } from "./uuid";
 
 describe("isUuid", () => {
   it.each([
@@ -20,5 +20,36 @@ describe("isUuid", () => {
 
   it("rejects non-strings", () => {
     expect(isUuid(undefined)).toBe(false);
+  });
+});
+
+describe("createUuid", () => {
+  it("creates version 4 ids the server accepts as cue ids", () => {
+    const value = createUuid();
+    expect(isUuid(value)).toBe(true);
+    expect(value).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+  });
+
+  it("creates a different id on every call", () => {
+    const values = new Set(Array.from({ length: 10_000 }, () => createUuid()));
+    expect(values.size).toBe(10_000);
+  });
+
+  it("works without crypto.randomUUID, as in an insecure context", () => {
+    const original = crypto.randomUUID;
+    Object.defineProperty(crypto, "randomUUID", {
+      value: undefined,
+      configurable: true,
+    });
+    try {
+      expect(isUuid(createUuid())).toBe(true);
+    } finally {
+      Object.defineProperty(crypto, "randomUUID", {
+        value: original,
+        configurable: true,
+      });
+    }
   });
 });
