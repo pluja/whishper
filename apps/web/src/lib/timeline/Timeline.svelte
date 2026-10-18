@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { untrack } from "svelte";
+  import { on } from "svelte/events";
+  import { THEME_CHANGE_EVENT } from "$lib/shared/theme";
   import TimelineCue from "./TimelineCue.svelte";
   import TimelineStatus from "./TimelineStatus.svelte";
   import TimelineToolbar from "./TimelineToolbar.svelte";
@@ -11,6 +14,7 @@
     type TimingGesture,
   } from "./math";
   import type { ProbeState } from "$lib/shared/project-status";
+  import { focusableCueIndex, nextRovingIndex } from "./roving-focus";
   import { MAX_ZOOM, TimelineViewport } from "./viewport.svelte";
   import { chooseWaveformLevel, waveformMatchesDuration } from "./waveform";
   import { WaveformLoader } from "./waveform-loader.svelte";
@@ -76,8 +80,16 @@
   );
   $effect(() => loader.load(waveformUrl));
 
+  let themeRevision = $state(0);
+  $effect(() =>
+    on(window, THEME_CHANGE_EVENT, () => {
+      themeRevision += 1;
+    }),
+  );
+
   $effect(() => {
     if (!canvas || !root || viewport.width <= 0) return;
+    void themeRevision;
     drawTimeline({
       canvas,
       themeSource: root,
@@ -88,10 +100,47 @@
       level: selectedLevel,
     });
   });
+
+  let tabStopIndex = $derived(
+    focusableCueIndex(
+      cues.findIndex((cue) => cue.id === selectedCueId),
+      cues.length,
+    ),
+  );
+
+  function cueBody(index: number): HTMLElement | null {
+    const cue = cues[index];
+    return cue
+      ? (root?.querySelector<HTMLElement>(
+          `[data-cue-id="${CSS.escape(cue.id)}"] [data-cue-part="whole"]`,
+        ) ?? null)
+      : null;
+  }
+
+  function navigate(fromIndex: number, key: string): boolean {
+    const next = nextRovingIndex(fromIndex, key, cues.length);
+    if (next === null) return false;
+    onselect(cues[next].id);
+    cueBody(next)?.focus();
+    return true;
+  }
+
+  // A selection that changes elsewhere, such as during playback, carries
+  // keyboard focus along while it is on another cue.
+  $effect(() => {
+    const index = tabStopIndex;
+    const focusedCue = untrack(() =>
+      root?.contains(document.activeElement)
+        ? document.activeElement?.closest<HTMLElement>("[data-cue-id]")
+        : null,
+    );
+    if (!focusedCue || focusedCue.dataset.cueId === cues[index]?.id) return;
+    untrack(() => cueBody(index))?.focus({ preventScroll: true });
+  });
 </script>
 
 <section
-  class="studio-waveform"
+  class="grid h-[min(11.25rem,24dvh)] min-h-42 min-w-0 grid-rows-[2.25rem_minmax(0,1fr)] overflow-hidden border-y border-border bg-surface text-text max-[42rem]:h-42"
   bind:this={root}
   aria-label="Waveform timeline"
 >
@@ -106,17 +155,29 @@
     Click the timeline to seek. Drag empty space to pan. While zoomed, use the
     mouse wheel or trackpad to pan horizontally.
     {#if editable}
-      Dragging a cue stops at its neighbours; hold Alt to drag past them. Focus
-      a cue or one of its boundary handles and use Left or Right Arrow to adjust
-      it by one millisecond, or Shift with an arrow for 100 milliseconds. Press
+      Dragging a cue stops at its neighbours; hold Alt to drag past them. Press
       Escape to cancel a pointer drag.
     {/if}
   </p>
+  <p id={`${uid}-cue-keys`} class="sr-only">
+    Left and Right Arrow move between cues; Home and End jump to the first and
+    last cue.
+    {#if editable}
+      Alt with an arrow adjusts the cue by one millisecond, Alt and Shift by 100
+      milliseconds. Press [ or ] to focus its start or end handle.
+    {/if}
+  </p>
+  <p id={`${uid}-handle-keys`} class="sr-only">
+    Alt with an arrow adjusts this edge by one millisecond, Alt and Shift by 100
+    milliseconds. Press Escape to return to the cue.
+  </p>
 
-  <div class="timeline-stage">
+  <div class="relative h-full min-h-0 min-w-0 overflow-hidden">
     <div
-      class="timeline-viewport"
-      class:panning={viewport.panning}
+      class={[
+        "relative h-full min-h-0 min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain bg-surface-sunken [scrollbar-width:thin]",
+        viewport.panning ? "cursor-grabbing select-none" : "cursor-crosshair",
+      ]}
       bind:this={viewport.element}
       bind:clientWidth={viewport.width}
       role="region"
@@ -131,11 +192,12 @@
       onlostpointercapture={viewport.cancelPan}
     >
       <div
-        class="timeline-content"
+        class="relative min-w-full touch-none"
         style:width={`${viewport.contentWidthPx}px`}
+        style:height={`${TRACK_HEIGHT}px`}
       >
         <canvas
-          class="timeline-canvas"
+          class="pointer-events-none sticky left-0 block max-w-none"
           bind:this={canvas}
           style:width={`${Math.max(1, viewport.width)}px`}
           style:height={`${TRACK_HEIGHT}px`}
@@ -147,6 +209,7 @@
             {cue}
             number={cueIndex + 1}
             selected={cue.id === selectedCueId}
+            tabStop={cueIndex === tabStopIndex}
             durationUs={timelineDurationUs}
             contentWidthPx={viewport.contentWidthPx}
             neighbourBounds={neighbourBounds(
@@ -155,7 +218,10 @@
               timelineDurationUs,
             )}
             {editable}
+            cueKeysId={`${uid}-cue-keys`}
+            handleKeysId={`${uid}-handle-keys`}
             {onselect}
+            onnavigate={(key) => navigate(cueIndex, key)}
             ondragstart={viewport.cancelPan}
             {oncommittiming}
           />
@@ -163,11 +229,13 @@
 
         {#if timelineDurationUs > 0}
           <div
-            class="playhead"
+            class="pointer-events-none absolute inset-y-0 z-6 w-px bg-danger"
             style:left={`${timeToPx(clampInteger(playbackUs, 0, timelineDurationUs), timelineDurationUs, viewport.contentWidthPx)}px`}
             aria-hidden="true"
           >
-            <span></span>
+            <span
+              class="absolute top-0 -left-1 h-[7px] w-[9px] bg-danger [clip-path:polygon(0_0,100%_0,50%_100%)]"
+            ></span>
           </div>
         {/if}
       </div>
@@ -182,96 +250,3 @@
     />
   </div>
 </section>
-
-<style>
-  .studio-waveform {
-    --waveform-bg: var(--studio-panel, #1c1f24);
-    --waveform-track: var(--studio-bg, #15171b);
-    --waveform-raised: var(--studio-panel-raised, #22262c);
-    --waveform-hover: var(--studio-panel-hover, #272b32);
-    --waveform-border: var(--studio-border, #343940);
-    --waveform-border-soft: var(--studio-border-soft, #292d33);
-    --waveform-text: var(--studio-text, #e6e8ec);
-    --waveform-text-soft: var(--studio-text-soft, #bec3cb);
-    --waveform-muted: var(--studio-muted, #858c97);
-    --waveform-accent: var(--studio-accent, #8b83ff);
-    --studio-waveform: color-mix(in srgb, var(--waveform-accent) 76%, #a7b2c4);
-    display: grid;
-    min-width: 0;
-    height: min(11.25rem, 24dvh);
-    min-height: 10.5rem;
-    grid-template-rows: 2.25rem minmax(0, 1fr);
-    overflow: hidden;
-    border-block: 1px solid var(--waveform-border);
-    background: var(--waveform-bg);
-    color: var(--waveform-text);
-    font-family: var(--legacy-font-body, ui-sans-serif, system-ui, sans-serif);
-  }
-
-  .timeline-viewport {
-    position: relative;
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-    background: var(--waveform-track);
-    cursor: crosshair;
-    overscroll-behavior-inline: contain;
-    scrollbar-color: #505661 #17191d;
-    scrollbar-width: thin;
-  }
-  .timeline-stage {
-    position: relative;
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .timeline-viewport.panning {
-    cursor: grabbing;
-    user-select: none;
-  }
-
-  .timeline-content {
-    position: relative;
-    height: 124px;
-    min-width: 100%;
-    touch-action: none;
-  }
-
-  .timeline-canvas {
-    position: sticky;
-    left: 0;
-    display: block;
-    max-width: none;
-    pointer-events: none;
-  }
-
-  .playhead {
-    position: absolute;
-    z-index: 6;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: #ff8a92;
-    pointer-events: none;
-  }
-
-  .playhead span {
-    position: absolute;
-    top: 0;
-    left: -4px;
-    width: 9px;
-    height: 7px;
-    background: #ff8a92;
-    clip-path: polygon(0 0, 100% 0, 50% 100%);
-  }
-
-  @media (max-width: 42rem) {
-    .studio-waveform {
-      height: 10.5rem;
-    }
-  }
-</style>

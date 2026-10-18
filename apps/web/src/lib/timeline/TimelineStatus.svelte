@@ -18,6 +18,9 @@
     durationMismatch,
   }: Props = $props();
 
+  const STATE_CLASSES =
+    "pointer-events-none absolute bottom-[39px] left-1/2 z-7 w-max max-w-[min(26rem,calc(100%-2rem))] min-h-7 -translate-x-1/2 rounded-md border px-2.5 py-1 text-xs";
+
   let timelineStatus = $derived.by(() => {
     if (loadState === "loading") {
       return { kind: "preparing", message: "Loading waveform…" } as const;
@@ -62,74 +65,24 @@
 
 {#if timelineStatus}
   {#if timelineStatus.kind === "failure"}
-    <div class="timeline-state failure" role="alert">
+    <div
+      class="{STATE_CLASSES} grid gap-0.5 border-danger/40 bg-danger-soft text-danger"
+      role="alert"
+    >
       <strong>Waveform unavailable</strong>
       <span>{timelineStatus.message}</span>
     </div>
   {:else}
-    <div class="timeline-state" data-kind={timelineStatus.kind} role="status">
-      {#if timelineStatus.kind === "preparing"}<span class="state-pulse"
-        ></span>{/if}
+    <div
+      class="{STATE_CLASSES} flex items-center gap-2 border-border bg-surface-raised/95 text-text-muted"
+      role="status"
+    >
+      {#if timelineStatus.kind === "preparing"}
+        <span
+          class="size-1.5 flex-none animate-pulse-ring rounded-full bg-accent motion-reduce:animate-none"
+        ></span>
+      {/if}
       <span>{timelineStatus.message}</span>
     </div>
   {/if}
 {/if}
-
-<style>
-  .timeline-state {
-    position: absolute;
-    z-index: 7;
-    left: 50%;
-    bottom: 39px;
-    display: flex;
-    width: max-content;
-    max-width: min(26rem, calc(100% - 2rem));
-    min-height: 1.75rem;
-    align-items: center;
-    gap: 0.45rem;
-    translate: -50% 0;
-    border: 1px solid var(--waveform-border);
-    border-radius: 0.3rem;
-    padding: 0.28rem 0.6rem;
-    background: color-mix(in srgb, var(--waveform-raised) 94%, transparent);
-    color: var(--waveform-muted);
-    font-size: 0.625rem;
-    pointer-events: none;
-  }
-
-  .timeline-state.failure {
-    display: grid;
-    gap: 0.05rem;
-    border-color: rgb(255 126 139 / 0.32);
-    background: rgb(57 35 40 / 0.96);
-    color: #ffc1c7;
-  }
-
-  .timeline-state.failure strong {
-    font-size: 0.625rem;
-  }
-
-  .state-pulse {
-    width: 0.4rem;
-    height: 0.4rem;
-    flex: none;
-    border-radius: 50%;
-    background: var(--waveform-accent);
-    box-shadow: 0 0 0 0
-      color-mix(in srgb, var(--waveform-accent) 40%, transparent);
-    animation: waveform-pulse 1.5s ease-out infinite;
-  }
-
-  @keyframes waveform-pulse {
-    70%,
-    100% {
-      box-shadow: 0 0 0 5px transparent;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .state-pulse {
-      animation: none;
-    }
-  }
-</style>

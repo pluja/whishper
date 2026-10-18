@@ -43,6 +43,9 @@
     keyboard,
     alert,
     refresh,
+    "zoom-in": zoomIn,
+    "zoom-out": zoomOut,
+    "fit-width": fitWidth,
   };
 </script>
 
@@ -169,6 +172,17 @@
 {#snippet refresh()}
   <path d="M19 12a7 7 0 1 1-2.05-4.95" />
   <path d="M19 4.5v3.5h-3.5" />
+{/snippet}
+{#snippet zoomIn()}
+  <circle cx="10.75" cy="10.75" r="6.25" />
+  <path d="m15.5 15.5 4 4M10.75 8v5.5M8 10.75h5.5" />
+{/snippet}
+{#snippet zoomOut()}
+  <circle cx="10.75" cy="10.75" r="6.25" />
+  <path d="m15.5 15.5 4 4M8 10.75h5.5" />
+{/snippet}
+{#snippet fitWidth()}
+  <path d="M4 5v14M20 5v14M7.5 12h9M10 9l-2.5 3 2.5 3M14 9l2.5 3-2.5 3" />
 {/snippet}
 {#snippet alert()}
   <circle cx="12" cy="12" r="8.5" />

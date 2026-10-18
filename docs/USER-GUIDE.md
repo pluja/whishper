@@ -62,7 +62,7 @@ Deleting a transcript removes its cues and its run, including the job result and
 
 ## The studio
 
-Opening a project switches to a dark studio workspace. A compact title bar replaces the project navigation, and it keeps export and save state in view. Destructive actions live in the overflow menu.
+Opening a project switches to the studio workspace, in the same light or dark theme as the rest of the app. A compact title bar replaces the project navigation, and it keeps export and save state in view. Destructive actions live in the overflow menu.
 
 On desktop the media monitor sits beside the cue sheet, and you can drag the divider between them or move it with the left and right arrow keys. Your position is remembered in that browser. On narrow screens the panels stack and the cue sheet scrolls on its own.
 
@@ -70,9 +70,15 @@ Each cue row shows timing, text, duration, playback state, and quality warnings 
 
 ### Waveform timeline
 
-Below the monitor, the timeline draws a time ruler and the visible part of the waveform. Fit, zoom, scroll, drag to pan, click to seek, and playhead following all stay in sync with the player and the cue sheet. When zoomed in, the mouse wheel pans horizontally. At the edge of the range, or when fitted, the wheel scrolls the page.
+Across the bottom of the studio, the timeline draws a time ruler and the visible part of the waveform. Fit, zoom, scroll, drag to pan, click to seek, and playhead following all stay in sync with the player and the cue sheet. When zoomed in, the mouse wheel pans horizontally. At the edge of the range, or when fitted, the wheel scrolls the page.
 
-Drag a cue to move it, or drag either edge to trim it. One drag makes one undo step and one autosave. Hold `Alt` to move a cue or edge past its neighbours. Without it, the drag stops at the adjacent cues. Focus a cue or edge and press the left or right arrow key to nudge it by 1 ms, or `Shift` with the arrow key for 100 ms. Overlaps are reported but never blocked.
+Drag a cue to move it, or drag either edge to trim it. One drag makes one undo step and one autosave. Hold `Alt` to move a cue or edge past its neighbours. Without it, the drag stops at the adjacent cues. Overlaps are reported but never blocked.
+
+The cues take a single `Tab` stop, on the selected cue. From a focused cue:
+
+- The left and right arrow keys select the previous or next cue, and `Home` and `End` select the first or last. `Enter` or `Space` selects the focused cue.
+- `Alt` with the left or right arrow key nudges the cue by 1 ms, and `Alt` + `Shift` by 100 ms.
+- `[` and `]` focus the start and end handles, where the same `Alt` keys trim that edge. `Escape` returns to the cue.
 
 ### Editing cues
 

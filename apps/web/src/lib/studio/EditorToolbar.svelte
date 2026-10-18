@@ -1,7 +1,7 @@
 <script lang="ts">
   import Button from "$lib/components/ui/Button.svelte";
   import IconButton from "$lib/components/ui/IconButton.svelte";
-  import { nextMenuIndex } from "$lib/components/ui/menu-keyboard";
+  import { ToolbarFocus } from "$lib/components/ui/toolbar-focus.svelte";
   import type { IconName } from "$lib/components/icon-names";
   import type { CueEditor } from "$lib/editor/editor.svelte";
   import { pluralize } from "$lib/shared/format";
@@ -13,13 +13,6 @@
     shortcut?: string;
     disabled: boolean;
     run: () => void;
-  };
-
-  const FOCUS_KEYS: Record<string, string> = {
-    ArrowLeft: "ArrowUp",
-    ArrowRight: "ArrowDown",
-    Home: "Home",
-    End: "End",
   };
 
   let { editor }: { editor: CueEditor } = $props();
@@ -92,51 +85,19 @@
   ]);
   const actions = $derived(actionGroups.flat());
 
-  let toolbar: HTMLElement;
-  let focusedIndex = $state(0);
-  // One tab stop for the whole toolbar, moved to an enabled button when the
-  // last focused one becomes disabled.
-  const tabStopIndex = $derived(
-    actions[focusedIndex]?.disabled === false
-      ? focusedIndex
-      : actions.findIndex((action) => !action.disabled),
+  const toolbarFocus = new ToolbarFocus(() =>
+    actions.map((action) => action.disabled),
   );
-
-  function toolbarButtons(): HTMLButtonElement[] {
-    return [...toolbar.querySelectorAll("button")];
-  }
-
-  function moveFocus(event: KeyboardEvent): void {
-    const key = FOCUS_KEYS[event.key];
-    if (!key || event.altKey || event.ctrlKey || event.metaKey) return;
-    const buttons = toolbarButtons();
-    const current = buttons.indexOf(
-      document.activeElement as HTMLButtonElement,
-    );
-    const next = nextMenuIndex(
-      current,
-      key,
-      buttons.map((button) => !button.disabled),
-    );
-    if (next === null) return;
-    event.preventDefault();
-    buttons[next].focus();
-  }
-
-  function rememberFocus(event: FocusEvent): void {
-    const index = toolbarButtons().indexOf(event.target as HTMLButtonElement);
-    if (index >= 0) focusedIndex = index;
-  }
 </script>
 
 <div
-  bind:this={toolbar}
+  bind:this={toolbarFocus.element}
   class="flex shrink-0 flex-wrap items-center gap-0.5 border-b border-border px-2 py-1"
   role="toolbar"
   aria-label="Cue editing"
   tabindex="-1"
-  onkeydown={moveFocus}
-  onfocusin={rememberFocus}
+  onkeydown={toolbarFocus.handleKeydown}
+  onfocusin={toolbarFocus.handleFocusIn}
 >
   {#each actionGroups as group, groupIndex (groupIndex)}
     {#if groupIndex > 0}
@@ -152,7 +113,7 @@
             shortcut={action.shortcut}
             size="sm"
             aria-keyshortcuts={action.keyshortcuts}
-            tabindex={index === tabStopIndex ? 0 : -1}
+            tabindex={toolbarFocus.tabIndex(index)}
             disabled={action.disabled}
             onclick={action.run}
           />
@@ -161,7 +122,7 @@
             variant="ghost"
             size="sm"
             class="font-mono tabular-nums"
-            tabindex={index === tabStopIndex ? 0 : -1}
+            tabindex={toolbarFocus.tabIndex(index)}
             disabled={action.disabled}
             onclick={action.run}>{action.label}</Button
           >

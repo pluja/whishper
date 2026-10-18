@@ -32,4 +32,7 @@ export type IconName =
   | "skip-forward"
   | "keyboard"
   | "alert"
-  | "refresh";
+  | "refresh"
+  | "zoom-in"
+  | "zoom-out"
+  | "fit-width";

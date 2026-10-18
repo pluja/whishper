@@ -3,13 +3,10 @@ import {
   axeViolations,
   baseUrl,
   focusedText,
-  legacyScreen,
   open,
   openMenuWithKeyboard,
   outputDir,
   projectLinks,
-  ranScreens,
-  reportStaleLegacy,
   reportViolations,
   scrollsHorizontally,
   studioPath,
@@ -48,7 +45,6 @@ const screens = [
   },
   {
     name: "studio-no-cues",
-    legacyScreen: "studio",
     path: (page) => studioPath(page, false),
     signedIn: true,
     minWidth: 1024,
@@ -93,7 +89,6 @@ async function checkScreen(context, screen, theme, width) {
       return 0;
     }
     await open(page, path);
-    ranScreens.add(legacyScreen(screen));
     const appliedTheme = await page.evaluate(
       () => document.documentElement.dataset.theme,
     );
@@ -275,6 +270,5 @@ for (const theme of themes) {
 }
 
 await browser.close();
-failures += reportStaleLegacy();
 console.log(failures ? `${failures} ui-check failures` : "ui-check passed");
 process.exit(failures ? 1 : 0);

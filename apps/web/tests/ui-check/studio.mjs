@@ -145,6 +145,28 @@ async function checkToolbarArrows(page) {
   }
 }
 
+// Moves the selection only, which is never saved.
+async function checkTimelineKeys(page) {
+  const cues = page.locator('[data-cue-part="whole"]');
+  const count = await cues.count();
+  const tabStops = page.locator('[data-cue-id] button[tabindex="0"]');
+  if ((await tabStops.count()) !== Math.min(count, 1)) {
+    throw new Error("the timeline cues do not have exactly one tab stop");
+  }
+  if (count < 2) return;
+  const isRovingStop = (node) =>
+    node === document.activeElement && node.tabIndex === 0;
+  await tabStops.focus();
+  await page.keyboard.press("Home");
+  await page.keyboard.press("ArrowRight");
+  const second = await cues.nth(1).evaluate(isRovingStop);
+  await page.keyboard.press("End");
+  const last = await cues.nth(count - 1).evaluate(isRovingStop);
+  if (!second || !last) {
+    throw new Error("arrows, Home and End do not move the timeline tab stop");
+  }
+}
+
 async function focusedLabel(page) {
   return page.evaluate(
     () =>
@@ -190,6 +212,7 @@ export async function checkStudioCues(context, theme) {
       return 0;
     }
     await checkToolbarArrows(page);
+    await checkTimelineKeys(page);
     await showLongCueText(page);
     for (const width of [widths[0], widths.at(-1)]) {
       await page.setViewportSize({ width, height: 900 });
@@ -209,7 +232,9 @@ export async function checkStudioCues(context, theme) {
       );
       failures += await checkShortcutGuide(page, theme);
     }
-    console.log(`${label}: toolbar keys, long cue text and shortcut guide ok`);
+    console.log(
+      `${label}: toolbar and timeline keys, long cue text and shortcut guide ok`,
+    );
   } catch (error) {
     console.error(`${label}: ${error.message}`);
     failures += 1;

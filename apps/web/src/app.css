@@ -1,9 +1,6 @@
-@layer theme, base, legacy, components, utilities;
-
 @import "tailwindcss";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
-@import "./tokens.css" layer(legacy);
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
@@ -32,6 +29,19 @@
   --color-danger-soft: var(--theme-danger-soft);
   --color-focus: var(--theme-focus);
   --color-overlay: var(--theme-overlay);
+
+  --animate-pulse-ring: pulse-ring 1.5s ease-out infinite;
+
+  @keyframes pulse-ring {
+    0% {
+      box-shadow: 0 0 0 0
+        color-mix(in srgb, var(--theme-accent) 40%, transparent);
+    }
+    70%,
+    100% {
+      box-shadow: 0 0 0 5px transparent;
+    }
+  }
 }
 
 /* --theme-border is decorative (dividers, card edges). Outlines that identify a control use --theme-border-strong, which meets 3:1. */
@@ -85,37 +95,19 @@
   --theme-overlay: rgb(0 0 0 / 0.6);
 }
 
-@layer legacy {
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
-
+@layer base {
   html {
     min-width: 20rem;
-    background: var(--legacy-color-canvas);
     overflow-x: clip;
+    scrollbar-color: var(--theme-border-strong) transparent;
   }
 
   body {
     min-width: 20rem;
     min-height: 100dvh;
-    margin: 0;
-    background: var(--legacy-color-canvas);
     overflow-x: clip;
-    color: var(--legacy-color-text);
-    font-family: var(--legacy-font-body);
-    font-size: var(--legacy-text-base);
-    line-height: 1.5;
-    text-rendering: optimizeLegibility;
-  }
-
-  button,
-  input,
-  select,
-  textarea {
-    font: inherit;
+    background-color: var(--theme-bg);
+    color: var(--theme-text);
   }
 
   button,
@@ -125,14 +117,15 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  a {
-    color: inherit;
+  :focus-visible {
+    outline: 2px solid var(--theme-focus);
+    outline-offset: 2px;
   }
 
-  :focus-visible {
-    outline: 3px solid
-      color-mix(in srgb, var(--legacy-color-focus) 42%, transparent);
-    outline-offset: 2px;
+  body.resizing-studio-pane,
+  body.resizing-studio-pane * {
+    cursor: col-resize !important;
+    user-select: none !important;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -144,11 +137,5 @@
       scroll-behavior: auto !important;
       transition-duration: 1ms !important;
     }
-  }
-
-  body.resizing-studio-pane,
-  body.resizing-studio-pane * {
-    cursor: col-resize !important;
-    user-select: none !important;
   }
 }

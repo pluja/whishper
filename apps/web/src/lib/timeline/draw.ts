@@ -26,21 +26,19 @@ type Palette = {
   baseline: string;
 };
 
-function cssColor(
-  styles: CSSStyleDeclaration,
-  name: string,
-  fallback: string,
-): string {
-  return styles.getPropertyValue(name).trim() || fallback;
+const NEUTRAL_COLOR = "#808080";
+
+function themeColor(styles: CSSStyleDeclaration, token: string): string {
+  return styles.getPropertyValue(`--theme-${token}`).trim() || NEUTRAL_COLOR;
 }
 
 function readPalette(themeSource: HTMLElement): Palette {
   const styles = getComputedStyle(themeSource);
   return {
-    ruler: cssColor(styles, "--studio-muted", "#858c97"),
-    line: cssColor(styles, "--studio-border", "#343940"),
-    waveform: cssColor(styles, "--studio-waveform", "#7772c9"),
-    baseline: cssColor(styles, "--studio-border-soft", "#292d33"),
+    ruler: themeColor(styles, "text-muted"),
+    line: themeColor(styles, "border-strong"),
+    waveform: themeColor(styles, "accent"),
+    baseline: themeColor(styles, "border"),
   };
 }
 

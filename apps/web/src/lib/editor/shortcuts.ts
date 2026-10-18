@@ -124,14 +124,30 @@ export const shortcutGroups: readonly ShortcutGroup[] = [
     title: "Timeline",
     shortcuts: [
       {
-        id: "timeline-nudge",
+        id: "timeline-move",
         keys: ["← / →"],
+        description: "Select the previous or next cue from a focused cue",
+      },
+      {
+        id: "timeline-ends",
+        keys: ["Home / End"],
+        description: "Select the first or last cue from a focused cue",
+      },
+      {
+        id: "timeline-nudge",
+        keys: ["Alt", "← / →"],
         description: "Move a focused cue or handle by one millisecond",
       },
       {
         id: "timeline-large-nudge",
-        keys: ["Shift", "← / →"],
+        keys: ["Alt", "Shift", "← / →"],
         description: "Move a focused cue or handle by 100 milliseconds",
+      },
+      {
+        id: "timeline-handles",
+        keys: ["[ / ]"],
+        description:
+          "Focus the start or end handle of a focused cue; Escape returns to the cue",
       },
       {
         id: "timeline-pass-neighbours",

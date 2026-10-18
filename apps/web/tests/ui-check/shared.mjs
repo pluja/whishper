@@ -5,17 +5,6 @@ export const outputDir = "/workspace/ui-check-output";
 export const widths = [390, 1024, 1440];
 const blockingImpacts = new Set(["serious", "critical"]);
 
-// Baseline violations on screens that are not migrated yet, as "screen:rule".
-// Each screen task removes its entries. Nothing new may be added.
-const KNOWN_LEGACY = new Set([
-  "studio:color-contrast",
-  "studio:label-content-name-mismatch",
-  "studio:target-size",
-]);
-
-const usedLegacy = new Set();
-export const ranScreens = new Set();
-
 export async function open(page, path) {
   const response = await page.goto(`${baseUrl}${path}`);
   if (!response?.ok()) {
@@ -47,10 +36,6 @@ export async function studioPath(page, withTranscript) {
 
 export function projectLinks(page) {
   return page.locator('li a[href^="/projects/"]');
-}
-
-export function legacyScreen(screen) {
-  return screen.legacyScreen ?? screen.name;
 }
 
 export async function scrollsHorizontally(page) {
@@ -96,27 +81,10 @@ export function reportViolations(violations, screen, theme, width) {
   let failures = 0;
   for (const violation of violations) {
     if (!blockingImpacts.has(violation.impact)) continue;
-    const key = `${legacyScreen(screen)}:${violation.id}`;
-    const label = `${screen.name} ${theme} ${width}: ${violation.id} (${violation.nodes.length} nodes) ${violation.help}`;
-    if (KNOWN_LEGACY.has(key)) {
-      usedLegacy.add(key);
-      console.log(`known legacy ${label}`);
-    } else {
-      failures += 1;
-      console.error(label);
-    }
-  }
-  return failures;
-}
-
-export function reportStaleLegacy() {
-  let failures = 0;
-  for (const key of KNOWN_LEGACY) {
-    const screenName = key.split(":")[0];
-    if (ranScreens.has(screenName) && !usedLegacy.has(key)) {
-      failures += 1;
-      console.error(`stale KNOWN_LEGACY entry: ${key}, remove it`);
-    }
+    failures += 1;
+    console.error(
+      `${screen.name} ${theme} ${width}: ${violation.id} (${violation.nodes.length} nodes) ${violation.help}`,
+    );
   }
   return failures;
 }
