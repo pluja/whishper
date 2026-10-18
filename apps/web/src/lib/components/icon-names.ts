@@ -33,4 +33,5 @@ export type IconName =
   | "refresh"
   | "zoom-in"
   | "zoom-out"
-  | "fit-width";
+  | "fit-width"
+  | "globe";

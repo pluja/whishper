@@ -44,6 +44,7 @@
     "zoom-in": zoomIn,
     "zoom-out": zoomOut,
     "fit-width": fitWidth,
+    globe,
   };
 </script>
 
@@ -173,6 +174,12 @@
 {/snippet}
 {#snippet fitWidth()}
   <path d="M4 5v14M20 5v14M7.5 12h9M10 9l-2.5 3 2.5 3M14 9l2.5 3-2.5 3" />
+{/snippet}
+{#snippet globe()}
+  <circle cx="12" cy="12" r="8.5" />
+  <path
+    d="M3.5 12h17M12 3.5c2.2 2.3 3.4 5.1 3.4 8.5s-1.2 6.2-3.4 8.5c-2.2-2.3-3.4-5.1-3.4-8.5s1.2-6.2 3.4-8.5z"
+  />
 {/snippet}
 {#snippet alert()}
   <circle cx="12" cy="12" r="8.5" />

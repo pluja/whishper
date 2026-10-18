@@ -1,35 +1,14 @@
-<script module lang="ts">
-  const LANGUAGES: { code: string; name: string }[] = [
-    { code: "auto", name: "Detect automatically" },
-    { code: "en", name: "English" },
-    { code: "es", name: "Spanish" },
-    { code: "fr", name: "French" },
-    { code: "de", name: "German" },
-    { code: "it", name: "Italian" },
-    { code: "pt", name: "Portuguese" },
-    { code: "nl", name: "Dutch" },
-    { code: "pl", name: "Polish" },
-    { code: "uk", name: "Ukrainian" },
-    { code: "el", name: "Greek" },
-    { code: "ar", name: "Arabic" },
-    { code: "hi", name: "Hindi" },
-    { code: "ja", name: "Japanese" },
-    { code: "ko", name: "Korean" },
-    { code: "zh", name: "Chinese" },
-  ];
-</script>
-
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import Field from "$lib/components/ui/Field.svelte";
   import Input from "$lib/components/ui/Input.svelte";
-  import Select from "$lib/components/ui/Select.svelte";
   import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
   import type {
     AvailableTranscriptionModel,
     DetectedWorkerHardware,
   } from "$lib/shared/transcription-models";
+  import LanguagePicker from "./LanguagePicker.svelte";
   import ModelPicker from "./ModelPicker.svelte";
 
   type Props = {
@@ -70,15 +49,7 @@
       downloads its model into the private cache.
     </p>
     <ModelPicker {models} {hardware} />
-    <Field label="Spoken language">
-      {#snippet control({ id })}
-        <Select {id} name="language">
-          {#each LANGUAGES as { code, name } (code)}
-            <option value={code}>{name}</option>
-          {/each}
-        </Select>
-      {/snippet}
-    </Field>
+    <LanguagePicker />
     <label
       class="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-surface-sunken px-3 py-2.5"
     >

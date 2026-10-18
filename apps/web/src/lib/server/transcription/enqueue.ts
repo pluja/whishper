@@ -7,9 +7,9 @@ import { resolveDataPath } from "$lib/server/storage/paths";
 import { hasActiveTranscriptionRun } from "$lib/server/transcription/active-run";
 import { availableTranscriptionModels } from "$lib/server/transcription/models";
 import { activeWorkerManifests } from "$lib/server/workers/active";
+import { DETECT_LANGUAGE, LANGUAGE_TAG } from "$lib/shared/languages";
 import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
 
-const LANGUAGE_TAG = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
 const MAX_BATCH_SIZE = 64;
 const MIN_LINE_LENGTH = 20;
 const MAX_LINE_LENGTH = 120;
@@ -25,7 +25,7 @@ export function parseTranscriptionRequest(
   values: FormData,
 ): TranscriptionRequest {
   const modelKey = String(values.get("model") ?? "");
-  const language = String(values.get("language") ?? "auto").trim();
+  const language = String(values.get("language") ?? DETECT_LANGUAGE).trim();
   const batchSizeValue = String(values.get("batchSize") ?? "").trim();
   const maxLineLength = Number(
     String(values.get("maxLineLength") ?? DEFAULT_MAX_LINE_LENGTH).trim(),
@@ -35,7 +35,7 @@ export function parseTranscriptionRequest(
   if (separator < 0) {
     throw badRequest("Choose an available transcription model.");
   }
-  if (language !== "auto" && !LANGUAGE_TAG.test(language)) {
+  if (language !== DETECT_LANGUAGE && !LANGUAGE_TAG.test(language)) {
     throw badRequest("Choose a valid transcription language.");
   }
   const batchSize = batchSizeValue ? Number(batchSizeValue) : undefined;
@@ -60,7 +60,7 @@ export function parseTranscriptionRequest(
   return {
     adapterId: modelKey.slice(0, separator),
     modelId: modelKey.slice(separator + 1),
-    language: language === "auto" ? null : language,
+    language: language === DETECT_LANGUAGE ? null : language,
     options: {
       alignment: values.get("alignment") === "on",
       maxLineLength,

@@ -26,7 +26,7 @@ The library search box matches project names. Tick **Subtitle text** to match cu
 1. Open the project and choose a model. The picker compares model size, memory estimates, and fit against your connected workers. `Small` is a good CPU starting point.
 2. Leave **Accurate word alignment** on for editing and word-level timings.
 3. Under **Advanced options**, change the maximum line length if 42 characters does not suit your platform, or the batch size if the worker runs out of memory. The batch size defaults to 4 on CPU and 16 on CUDA. A higher value can raise throughput and also raises peak memory.
-4. Choose the spoken language, or leave it to Whisper to detect.
+4. Choose the spoken language, or leave it on **Detect automatically**. The list offers every language Whisper knows, with the most used ones first. Type in its search field to filter by English name, native name or code; accents are optional, so `espanol` finds Spanish.
 5. Start the transcription and leave the worker running.
 
 The first run with a model downloads its weights. Accurate alignment then downloads a smaller model for the language. Both land in the `model-cache` volume and survive rebuilds. A network connection is needed only for files that are not cached yet. Telemetry from Hugging Face and Pyannote is disabled, and transcript text is never written to worker logs.
