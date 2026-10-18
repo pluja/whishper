@@ -7,12 +7,12 @@
   import IconButton from "$lib/components/ui/IconButton.svelte";
   import TimecodeInput from "$lib/components/ui/TimecodeInput.svelte";
   import {
-    charactersPerSecond,
     cueTimeError,
     type CueTimeField,
     type EditorCue,
   } from "$lib/editor/cues";
   import type { CueEditor } from "$lib/editor/editor.svelte";
+  import { CUE_TIME_ERROR_ID } from "./cue-status";
 
   let { editor }: { editor: CueEditor } = $props();
 
@@ -52,11 +52,20 @@
   } as const;
   const timecodeHintId = `${uid}-timecode-hint`;
 
-  function timeErrorFor(cueId: string, field: CueTimeField): string | null {
+  function hasTimeError(cueId: string, field: CueTimeField): boolean {
     const error = editor.timeError;
-    return error?.cueId === cueId && error.field === field
-      ? error.message
-      : null;
+    return error?.cueId === cueId && error.field === field;
+  }
+
+  // The row's index can change under a focused field when cues re-sort, so
+  // the cue is looked up again when the field commits.
+  function setCueTime(
+    cueId: string,
+    field: CueTimeField,
+    microseconds: number,
+  ): void {
+    const index = editor.cues.findIndex((cue) => cue.id === cueId);
+    if (index >= 0) editor.setTime(index, field, microseconds);
   }
 
   function reportTimeError(
@@ -88,34 +97,35 @@
   index: number,
   field: CueTimeField,
   selected: boolean,
-  errorId: string,
 )}
   {@const { edge, shortcut } = TIME_FIELDS[field]}
-  {@const error = timeErrorFor(cue.id, field)}
+  {@const invalid = hasTimeError(cue.id, field)}
   <span class="inline-flex items-center">
     <TimecodeInput
-      class="h-6 w-[14ch] px-1 {fieldClasses(selected, Boolean(error))}"
+      class="h-6 w-[14ch] px-1 {fieldClasses(selected, invalid)}"
       label={`Cue ${index + 1} ${edge} time`}
       value={cue[field]}
+      max={editor.transport.sourceDurationUs}
       validate={(microseconds) => cueTimeError(cue, field, microseconds)}
-      onchange={(microseconds) => editor.setTime(index, field, microseconds)}
+      onchange={(microseconds) => setCueTime(cue.id, field, microseconds)}
       onerror={(message) => reportTimeError(cue.id, field, message)}
-      invalid={Boolean(error)}
-      describedBy={error ? `${timecodeHintId} ${errorId}` : timecodeHintId}
+      {invalid}
+      describedBy={invalid
+        ? `${timecodeHintId} ${CUE_TIME_ERROR_ID}`
+        : timecodeHintId}
       readonly={editor.readOnly}
-      onfocus={() => editor.beginEdit()}
+      onfocus={() => editor.beginEdit(cue.id)}
       onblur={() => editor.finishEdit()}
     />
-    {#if selected}
-      <IconButton
-        size="xs"
-        icon="playhead"
-        label={`Set ${edge} to playhead`}
-        {shortcut}
-        disabled={editor.readOnly}
-        onclick={() => editor.setTimeToPlayhead(index, field)}
-      />
-    {/if}
+    <IconButton
+      size="xs"
+      icon="playhead"
+      label={`Set ${edge} to playhead`}
+      {shortcut}
+      class={selected ? undefined : "invisible"}
+      disabled={editor.readOnly}
+      onclick={() => editor.setTimeToPlayhead(index, field)}
+    />
   </span>
 {/snippet}
 
@@ -134,7 +144,12 @@
     Type digits to overwrite the time. Up and Down arrows step the part under
     the caret, ten times as far with Shift. Enter applies, Escape reverts.
   </p>
-  <p class="sr-only" aria-live="polite">{editor.timeError?.message ?? ""}</p>
+  <!-- A refusal replaces the node, so an identical message is announced again. -->
+  <p class="sr-only" aria-live="polite">
+    {#key editor.timeError}
+      {#if editor.timeError}<span>{editor.timeError.message}</span>{/if}
+    {/key}
+  </p>
   <ol
     class="min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
     aria-label="Cues"
@@ -144,9 +159,6 @@
       {@const selected = editor.selectedCueId === cue.id}
       {@const active = activeCueId === cue.id}
       {@const issuesId = `${uid}-issues-${cue.id}`}
-      {@const timeErrorId = `${uid}-time-error-${cue.id}`}
-      {@const rowTimeError =
-        editor.timeError?.cueId === cue.id ? editor.timeError.message : null}
       <li
         {@attach registerRow(cue.id)}
         class={[
@@ -178,31 +190,13 @@
           <div
             class="flex flex-wrap items-center gap-x-1 gap-y-0.5 font-mono text-xs tabular-nums"
           >
-            {@render timeField(cue, index, "start_us", selected, timeErrorId)}
+            {@render timeField(cue, index, "start_us", selected)}
             <span class="text-text-subtle" aria-hidden="true">→</span>
-            {@render timeField(cue, index, "end_us", selected, timeErrorId)}
-            <span class="ml-auto flex gap-2 pl-1 text-text-subtle">
-              {#if selected}
-                {@const cps = charactersPerSecond(cue)}
-                <span
-                  class={cue.text.length > editor.maxLineLength
-                    ? "text-warning"
-                    : undefined}
-                >
-                  {cue.text.length}/{editor.maxLineLength} chars
-                </span>
-                {#if cps !== null}
-                  <span>{cps.toFixed(1)} CPS</span>
-                {/if}
-              {/if}
-              <span
-                >{((cue.end_us - cue.start_us) / 1_000_000).toFixed(2)}s</span
-              >
-            </span>
+            {@render timeField(cue, index, "end_us", selected)}
+            <span class="ml-auto pl-1 text-text-subtle"
+              >{((cue.end_us - cue.start_us) / 1_000_000).toFixed(2)}s</span
+            >
           </div>
-          {#if rowTimeError}
-            <p id={timeErrorId} class="text-xs text-danger">{rowTimeError}</p>
-          {/if}
           <textarea
             class="w-full resize-none px-1 py-1 text-sm leading-snug field-sizing-content {fieldClasses(
               selected,
@@ -211,7 +205,7 @@
             aria-describedby={issues.length ? issuesId : undefined}
             rows="2"
             value={cue.text}
-            onfocus={() => editor.beginEdit()}
+            onfocus={() => editor.beginEdit(cue.id)}
             oninput={(event) =>
               editor.setText(index, event.currentTarget.value)}
             onselect={(event) => rememberCursor(cue.id, event)}

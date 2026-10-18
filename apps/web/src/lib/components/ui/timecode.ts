@@ -1,4 +1,4 @@
-import { parseEditorTime } from "$lib/shared/subtitles";
+import { formatEditorTime, parseEditorTime } from "$lib/shared/subtitles";
 
 export type TimecodeEdit = { text: string; caret: number };
 
@@ -15,6 +15,10 @@ const SEGMENTS = [
 ];
 
 export const TIMECODE_MAX_US = ((99 * 60 + 59) * 60 + 59) * 1_000_000 + 999_000;
+
+export function formatTimecode(microseconds: number): string {
+  return formatEditorTime(Math.min(microseconds, TIMECODE_MAX_US));
+}
 
 function nextDigitPosition(position: number): number {
   return DIGIT_POSITIONS.find((digit) => digit >= position) ?? TIMECODE_LENGTH;
@@ -86,19 +90,25 @@ export function eraseForward(
   };
 }
 
-// A caret touching a segment from either side steps that segment.
+// A caret touching a segment from either side steps that segment. A known
+// source duration caps the result, unless the time already lies past it.
 export function stepTimecode(
   microseconds: number,
   caret: number,
   direction: 1 | -1,
   large: boolean,
+  sourceDurationUs = 0,
 ): number {
   const segment = SEGMENTS.find(({ end }) => caret <= end) ?? SEGMENTS[3];
   const wholeMilliseconds =
     Math.floor(microseconds / MILLISECOND_US) * MILLISECOND_US;
   const stepped =
     wholeMilliseconds + direction * segment.unitUs * (large ? 10 : 1);
-  return Math.min(TIMECODE_MAX_US, Math.max(0, stepped));
+  const limit =
+    sourceDurationUs > 0
+      ? Math.min(TIMECODE_MAX_US, Math.max(sourceDurationUs, wholeMilliseconds))
+      : TIMECODE_MAX_US;
+  return Math.min(limit, Math.max(0, stepped));
 }
 
 export function parsePastedTimecode(value: string): number | null {

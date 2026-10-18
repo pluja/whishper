@@ -16,12 +16,16 @@ export class CueHistory {
   undoStack = $state<EditorCue[][]>([]);
   redoStack = $state<EditorCue[][]>([]);
   #editBaseline: EditorCue[] | null = null;
+  // The undo step below the open edit session, compared by identity so a
+  // trimmed stack cannot shift it. Undo inside the session stops there.
+  #editFloor: EditorCue[] | undefined;
   #lastCoalesced: { key: string; at: number } | null = null;
 
   reset(): void {
     this.undoStack = [];
     this.redoStack = [];
     this.#lastCoalesced = null;
+    this.#editBaseline = null;
   }
 
   // Consecutive records sharing a coalesce key keep only the first snapshot.
@@ -39,7 +43,16 @@ export class CueHistory {
   }
 
   beginEdit(current: readonly EditorCue[]): void {
-    this.#editBaseline ??= copyCues(current);
+    if (this.#editBaseline) return;
+    this.#editBaseline = copyCues(current);
+    this.#editFloor = this.undoStack.at(-1);
+  }
+
+  hasPendingEdit(current: readonly EditorCue[]): boolean {
+    return (
+      this.#editBaseline !== null &&
+      JSON.stringify(this.#editBaseline) !== JSON.stringify(current)
+    );
   }
 
   finishEdit(current: readonly EditorCue[]): void {
@@ -51,9 +64,9 @@ export class CueHistory {
   }
 
   undo(current: readonly EditorCue[]): EditorCue[] | undefined {
-    return this.#stepAcrossEdit(current, () => {
+    return this.#stepAcrossEdit(current, (floor) => {
       const previous = this.undoStack.at(-1);
-      if (!previous) return undefined;
+      if (!previous || previous === floor) return undefined;
       this.redoStack = pushBounded(this.redoStack, copyCues(current));
       this.undoStack = this.undoStack.slice(0, -1);
       return previous;
@@ -74,13 +87,17 @@ export class CueHistory {
   // as their own step, then continues the session from the restored cues.
   #stepAcrossEdit(
     current: readonly EditorCue[],
-    step: () => EditorCue[] | undefined,
+    step: (floor: EditorCue[] | undefined) => EditorCue[] | undefined,
   ): EditorCue[] | undefined {
     const editing = this.#editBaseline !== null;
+    const floor = editing ? this.#editFloor : undefined;
     this.finishEdit(current);
     this.#lastCoalesced = null;
-    const restored = step();
-    if (editing) this.beginEdit(restored ?? current);
+    const restored = step(floor);
+    if (editing) {
+      this.beginEdit(restored ?? current);
+      this.#editFloor = floor;
+    }
     return restored;
   }
 }

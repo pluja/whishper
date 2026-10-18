@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   eraseBackward,
   eraseForward,
+  formatTimecode,
   overtype,
   parsePastedTimecode,
   stepTimecode,
@@ -149,8 +150,33 @@ describe("stepTimecode", () => {
     expect(TIMECODE_MAX_US).toBe(99 * HOUR + 59 * MINUTE + 59_999_000);
   });
 
+  it("stops at the end of the source when it is known", () => {
+    expect(stepTimecode(17 * SECOND, 7, 1, true, 17_612_000)).toBe(17_612_000);
+    expect(stepTimecode(17 * SECOND, 0, 1, false, 0)).toBe(HOUR + 17 * SECOND);
+  });
+
+  it("never lowers a time that already lies past the end of the source", () => {
+    expect(stepTimecode(18 * SECOND, 9, 1, false, 17_612_000)).toBe(
+      18 * SECOND,
+    );
+    expect(stepTimecode(18 * SECOND, 9, -1, false, 17_612_000)).toBe(
+      18 * SECOND - 1_000,
+    );
+  });
+
   it("drops sub-millisecond precision so the value matches the field", () => {
     expect(stepTimecode(SECOND + 400, 9, 1, false)).toBe(SECOND + 1_000);
+  });
+});
+
+describe("formatTimecode", () => {
+  it("shows the mask for times inside its range", () => {
+    expect(formatTimecode(HOUR + 2 * MINUTE + 3_456_789)).toBe("01:02:03.456");
+  });
+
+  it("clamps times of 100 hours or more so the mask keeps its shape", () => {
+    expect(formatTimecode(100 * HOUR)).toBe("99:59:59.999");
+    expect(formatTimecode(250 * HOUR)).toHaveLength(12);
   });
 });
 

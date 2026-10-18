@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { formatEditorTime, parseEditorTime } from "$lib/shared/subtitles";
+  import { tick } from "svelte";
+  import { parseEditorTime } from "$lib/shared/subtitles";
   import {
     eraseBackward,
     eraseForward,
+    formatTimecode,
     overtype,
     parsePastedTimecode,
     stepTimecode,
@@ -11,6 +13,8 @@
 
   type Props = {
     value: number;
+    // Steps stop here when it is positive, such as at the end of the source.
+    max?: number;
     label: string;
     onchange: (microseconds: number) => void;
     validate?: (microseconds: number) => string | null;
@@ -25,6 +29,7 @@
 
   let {
     value,
+    max = 0,
     label,
     onchange,
     validate,
@@ -40,7 +45,7 @@
   const PASTE_ERROR = "Paste a time such as 1:02.5 or 00:01:02.500.";
 
   let input: HTMLInputElement;
-  const committedText = $derived(formatEditorTime(value));
+  const committedText = $derived(formatTimecode(value));
   let draft = $derived(committedText);
 
   // Writes the DOM first so Svelte sees an unchanged value and keeps the caret.
@@ -65,7 +70,26 @@
     if (invalid && !validate?.(draftMicroseconds())) onerror?.(null);
   }
 
-  function commit(): boolean {
+  let changing = false;
+
+  // A change can re-sort the rows, and moving a focused element drops its
+  // focus. The field takes it back without ending the edit.
+  async function changeInPlace(microseconds: number): Promise<void> {
+    const caret = input.selectionStart ?? 0;
+    changing = true;
+    onchange(microseconds);
+    await tick();
+    const focusLost =
+      document.activeElement === null ||
+      document.activeElement === document.body;
+    if (focusLost && input.isConnected) {
+      input.focus();
+      input.setSelectionRange(caret, caret);
+    }
+    changing = false;
+  }
+
+  function commit(inPlace = false): boolean {
     if (draft === committedText) {
       clearError();
       return true;
@@ -76,7 +100,8 @@
       onerror?.(message);
       return false;
     }
-    onchange(microseconds);
+    if (inPlace) void changeInPlace(microseconds);
+    else onchange(microseconds);
     clearError();
     return true;
   }
@@ -93,14 +118,15 @@
       caret,
       direction,
       large,
+      max,
     );
     const message = validate?.(microseconds) ?? null;
     if (message) {
       onerror?.(message);
       return;
     }
-    show({ text: formatEditorTime(microseconds), caret });
-    if (microseconds !== value) onchange(microseconds);
+    show({ text: formatTimecode(microseconds), caret });
+    if (microseconds !== value) void changeInPlace(microseconds);
     clearError();
   }
 
@@ -111,7 +137,7 @@
       revert();
     } else if (!modified && event.key === "Enter") {
       event.preventDefault();
-      commit();
+      commit(true);
     } else if (
       !modified &&
       (event.key === "ArrowUp" || event.key === "ArrowDown")
@@ -163,11 +189,12 @@
       onerror?.(PASTE_ERROR);
       return;
     }
-    const text = formatEditorTime(microseconds);
+    const text = formatTimecode(microseconds);
     editDraft({ text, caret: text.length });
   }
 
   function handleBlur(): void {
+    if (changing) return;
     if (!commit()) revert();
     onblur?.();
   }

@@ -45,6 +45,7 @@ export class CueEditor {
   readonly transport: Transport;
   readonly #options: CueEditorOptions;
   readonly #cursorPositions = new Map<string, number>();
+  #editedCueId: string | null = null;
   #journalDeferred = false;
 
   selectedCueIndex = $derived(
@@ -74,7 +75,11 @@ export class CueEditor {
   }
 
   get canUndo(): boolean {
-    return !this.readOnly && this.history.undoStack.length > 0;
+    return (
+      !this.readOnly &&
+      (this.history.undoStack.length > 0 ||
+        (this.editing && this.history.hasPendingEdit(this.cues)))
+    );
   }
 
   get canRedo(): boolean {
@@ -132,6 +137,7 @@ export class CueEditor {
     this.selectedCueId = this.cues[0]?.id ?? null;
     this.#cursorPositions.clear();
     this.editing = false;
+    this.#editedCueId = null;
     this.timeError = null;
     this.history.reset();
     if (ordered.changed) this.autosave.markChanged();
@@ -141,33 +147,49 @@ export class CueEditor {
     if (this.cues.some((cue) => cue.id === cueId)) this.selectedCueId = cueId;
   }
 
-  beginEdit(): void {
+  beginEdit(cueId: string): void {
     this.editing = true;
+    this.#editedCueId = cueId;
     this.history.beginEdit(this.cues);
   }
 
   finishEdit(): void {
     this.editing = false;
+    this.#editedCueId = null;
     this.history.finishEdit(this.cues);
+  }
+
+  // A removed row takes its focused field with it, and Firefox and Safari
+  // fire no blur then, so the session has to close here.
+  #closeEditOfRemovedCue(cues: readonly EditorCue[]): void {
+    const cueId = this.#editedCueId;
+    if (cueId && !cues.some((cue) => cue.id === cueId)) this.finishEdit();
   }
 
   setText(index: number, text: string): void {
     if (this.readOnly) return;
     this.cues[index].text = text;
     this.cues = [...this.cues];
+    this.#clearSettledTimeError(this.cues[index].id);
     this.autosave.markChanged();
   }
 
   setTime(index: number, field: CueTimeField, value: number): void {
     if (this.readOnly) return;
+    const cueId = this.cues[index].id;
     this.cues = this.#retimeField(index, field, value).cues;
+    this.#clearSettledTimeError(cueId);
     this.autosave.markChanged();
   }
 
   setTimeToPlayhead(index: number, field: CueTimeField): void {
     const cue = this.cues[index];
     if (!cue || this.readOnly) return;
-    const playheadUs = this.transport.playbackUs;
+    const sourceDurationUs = this.transport.sourceDurationUs;
+    const playheadUs =
+      sourceDurationUs > 0
+        ? Math.min(this.transport.playbackUs, sourceDurationUs)
+        : this.transport.playbackUs;
     const message = cueTimeError(cue, field, playheadUs);
     if (message) {
       this.showTimeError(cue.id, field, message);
@@ -187,6 +209,13 @@ export class CueEditor {
     }
   }
 
+  #clearSettledTimeError(cueId: string): void {
+    const cue = this.cues.find((item) => item.id === cueId);
+    if (this.timeError?.cueId === cueId && cue && cue.end_us >= cue.start_us) {
+      this.timeError = null;
+    }
+  }
+
   #retimeField(index: number, field: CueTimeField, value: number): CueEdit {
     const cue = this.cues[index];
     return retimeCue(this.cues, index, {
@@ -202,6 +231,7 @@ export class CueEditor {
 
   #apply(edit: CueEdit, coalesceKey?: string): void {
     if (this.readOnly) return;
+    this.#closeEditOfRemovedCue(edit.cues);
     this.history.record(copyCues(this.cues), coalesceKey);
     this.cues = edit.cues;
     this.timeError = null;
@@ -290,6 +320,7 @@ export class CueEditor {
     const selectedIndex = Math.max(0, this.selectedCueIndex);
     this.cues = snapshot;
     this.timeError = null;
+    this.#closeEditOfRemovedCue(snapshot);
     if (!this.cues.some((cue) => cue.id === this.selectedCueId)) {
       this.selectedCueId =
         this.cues[Math.min(selectedIndex, this.cues.length - 1)]?.id ?? null;

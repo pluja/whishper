@@ -3,8 +3,10 @@
   import IconButton from "$lib/components/ui/IconButton.svelte";
   import { ToolbarFocus } from "$lib/components/ui/toolbar-focus.svelte";
   import type { IconName } from "$lib/components/icon-names";
+  import { charactersPerSecond } from "$lib/editor/cues";
   import type { CueEditor } from "$lib/editor/editor.svelte";
   import { pluralize } from "$lib/shared/format";
+  import { CUE_TIME_ERROR_ID } from "./cue-status";
 
   type ToolbarAction = {
     label: string;
@@ -19,6 +21,7 @@
 
   const saveState = $derived(editor.autosave.state);
   const editDisabled = $derived(editor.readOnly || !editor.hasSelection);
+  const selectedCue = $derived(editor.cues[editor.selectedCueIndex]);
 
   const actionGroups: ToolbarAction[][] = $derived([
     [
@@ -131,16 +134,37 @@
     </div>
   {/each}
 </div>
+<!-- One line at every width, so selection and errors never move the cue rows. -->
 <div
-  class="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-1 text-xs text-text-muted"
+  class="@container flex shrink-0 items-center gap-3 border-b border-border px-4 py-1 text-xs whitespace-nowrap text-text-muted"
 >
-  <span class={editor.issueCount > 0 ? "text-warning" : undefined}>
-    {editor.issueCount > 0
-      ? pluralize(editor.issueCount, "quality warning")
-      : "No timing or readability warnings"}
-  </span>
-  {#if !editor.readOnly}
-    <span class="hidden sm:inline">Ctrl/⌘ S to save · Ctrl/⌘ Z to undo</span>
+  {#if editor.timeError}
+    <span id={CUE_TIME_ERROR_ID} class="min-w-0 truncate text-danger">
+      {editor.timeError.message}
+    </span>
+  {:else}
+    <span class={["min-w-0 truncate", editor.issueCount > 0 && "text-warning"]}>
+      {editor.issueCount > 0
+        ? pluralize(editor.issueCount, "quality warning")
+        : "No timing or readability warnings"}
+    </span>
+    {#if selectedCue}
+      {@const cps = charactersPerSecond(selectedCue)}
+      <span class="ml-auto shrink-0 tabular-nums">
+        Cue {editor.selectedCueIndex + 1} ·
+        <span
+          class={selectedCue.text.length > editor.maxLineLength
+            ? "text-warning"
+            : undefined}
+          >{selectedCue.text.length}/{editor.maxLineLength} chars</span
+        >{#if cps !== null}{` · ${cps.toFixed(1)} CPS`}{/if}
+      </span>
+    {/if}
+    {#if !editor.readOnly}
+      <span class="hidden shrink-0 @min-[34rem]:inline"
+        >Ctrl/⌘ S to save · Ctrl/⌘ Z to undo</span
+      >
+    {/if}
   {/if}
 </div>
 {#if editor.autosave.message}
