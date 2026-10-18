@@ -204,6 +204,37 @@ describe("CueEditor session state", () => {
     expect(editor.cues.map((item) => item.text)).toEqual(typed);
   });
 
+  it("undoes a split made from the field, then the typing, inside the field", () => {
+    const editor = editorWithCue();
+    editor.nudgeSelected(100);
+    editor.beginEdit("a");
+    editor.setText(0, "first words here");
+    editor.rememberCursor("a", 5);
+    editor.splitSelected();
+
+    editor.undo();
+    expect(editor.cues.map((item) => item.text)).toEqual(["first words here"]);
+    editor.undo();
+    expect(editor.cues.map((item) => item.text)).toEqual(["first words"]);
+    editor.undo();
+    expect(editor.cues[0]).toMatchObject({
+      text: "first words",
+      start_us: 100_000,
+    });
+    expect(editor.editing).toBe(true);
+  });
+
+  it("merges held nudges inside a session into one undo step", () => {
+    const editor = editorWithCue();
+    editor.beginEdit("a");
+    editor.nudgeSelected(100);
+    editor.nudgeSelected(100);
+    editor.finishEdit();
+
+    expect(editor.cues[0].start_us).toBe(200_000);
+    expect(editor.history.undoStack).toHaveLength(1);
+  });
+
   it("keeps typing and a nudge while the field has focus as separate steps", () => {
     const editor = editorWithCue();
     editor.beginEdit("a");

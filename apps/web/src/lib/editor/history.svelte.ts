@@ -14,7 +14,7 @@ function pushBounded(
 
 // The undo and redo steps below an open session are compared by identity, so a
 // trimmed stack cannot shift them. Undo and redo inside the session stop there.
-type EditSession = {
+export type EditSession = {
   baseline: EditorCue[];
   cueId: string;
   cueSnapshot: string;
@@ -55,14 +55,21 @@ export class CueHistory {
     this.redoStack = [];
   }
 
-  beginEdit(current: readonly EditorCue[], cueId: string): void {
+  // A session reopened after an edit made from its field keeps the floors of
+  // the session it continues, so undo inside the field still reaches back to
+  // the moment the field was focused.
+  beginEdit(
+    current: readonly EditorCue[],
+    cueId: string,
+    continues?: EditSession,
+  ): void {
     if (this.#session) return;
     this.#session = {
       baseline: copyCues(current),
       cueId,
       cueSnapshot: cueSnapshot(current, cueId),
-      undoFloor: this.undoStack.at(-1),
-      redoFloor: this.redoStack.at(-1),
+      undoFloor: continues ? continues.undoFloor : this.undoStack.at(-1),
+      redoFloor: continues ? continues.redoFloor : this.redoStack.at(-1),
     };
   }
 
@@ -74,12 +81,13 @@ export class CueHistory {
     );
   }
 
-  finishEdit(current: readonly EditorCue[]): void {
+  finishEdit(current: readonly EditorCue[]): EditSession | null {
     const session = this.#session;
-    if (!session) return;
+    if (!session) return null;
     const changed = this.hasPendingEdit(current);
     this.#session = null;
     if (changed) this.record(session.baseline);
+    return session;
   }
 
   undo(current: readonly EditorCue[]): EditorCue[] | undefined {
@@ -112,14 +120,7 @@ export class CueHistory {
     this.finishEdit(current);
     this.#lastCoalesced = null;
     const restored = step(session);
-    if (session) {
-      this.beginEdit(restored ?? current, session.cueId);
-      this.#session = {
-        ...this.#session!,
-        undoFloor: session.undoFloor,
-        redoFloor: session.redoFloor,
-      };
-    }
+    if (session) this.beginEdit(restored ?? current, session.cueId, session);
     return restored;
   }
 }

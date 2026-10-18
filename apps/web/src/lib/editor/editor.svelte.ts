@@ -14,7 +14,7 @@ import {
   type CueTimeField,
   type EditorCue,
 } from "./cues";
-import { CueHistory } from "./history.svelte";
+import { CueHistory, type EditSession } from "./history.svelte";
 import { Transport, type TransportOptions } from "./transport.svelte";
 import type { TimingGesture } from "$lib/timeline/math";
 
@@ -162,11 +162,11 @@ export class CueEditor {
   // Keeps the session open on the edited cue after the cues changed. A
   // removed row takes its focused field with it, and Firefox and Safari fire
   // no blur then, so the session closes here instead.
-  #continueEdit(): void {
+  #continueEdit(closed?: EditSession | null): void {
     const cueId = this.#editedCueId;
     if (!cueId) return;
     if (this.cues.some((cue) => cue.id === cueId)) {
-      this.history.beginEdit(this.cues, cueId);
+      this.history.beginEdit(this.cues, cueId, closed ?? undefined);
     } else {
       this.finishEdit();
     }
@@ -238,10 +238,10 @@ export class CueEditor {
   #apply(edit: CueEdit, coalesceKey?: string): void {
     if (this.readOnly) return;
     // The open session becomes its own step first, so the two never overlap.
-    this.history.finishEdit(this.cues);
+    const closed = this.history.finishEdit(this.cues);
     this.history.record(copyCues(this.cues), coalesceKey);
     this.cues = edit.cues;
-    this.#continueEdit();
+    this.#continueEdit(closed);
     this.timeError = null;
     if (edit.selectedCueId !== undefined) {
       this.selectedCueId = edit.selectedCueId;
