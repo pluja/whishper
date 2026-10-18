@@ -166,6 +166,7 @@ describe("Autosave", () => {
     await puts[1].respond(200, { revision: 2 });
     expect(editor.autosave.blockedByTranscription).toBe(false);
     expect(editor.autosave.state).toBe("saved");
+    expect(editor.autosave.message).toBe("");
   });
 
   it("leaves no journal behind once its edits are discarded", async () => {
@@ -228,6 +229,7 @@ describe("Autosave", () => {
     await puts[1].respond(200, { revision: 2 });
     await retry;
     expect(editor.autosave.state).toBe("saved");
+    expect(editor.autosave.message).toBe("");
     expect(storage.has(journalKey)).toBe(false);
   });
 

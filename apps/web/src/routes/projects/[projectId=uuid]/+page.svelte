@@ -100,7 +100,7 @@
   });
 
   $effect(() => {
-    if (!editor.readOnly) untrack(() => editor.recoverDeferredJournal());
+    if (!editor.readOnly) untrack(() => editor.resumeEditing());
   });
 
   // Another tab started the run: reload the studio so the editor locks and

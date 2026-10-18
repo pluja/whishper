@@ -168,6 +168,7 @@ export class Autosave {
       }
       this.#revision = revision as number;
       this.blockedByTranscription = false;
+      this.message = "";
       return true;
     } catch (cause) {
       this.state = "error";

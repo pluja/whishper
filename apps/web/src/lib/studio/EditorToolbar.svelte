@@ -139,7 +139,9 @@
       ? pluralize(editor.issueCount, "quality warning")
       : "No timing or readability warnings"}
   </span>
-  <span class="hidden sm:inline">Ctrl/⌘ S to save · Ctrl/⌘ Z to undo</span>
+  {#if !editor.readOnly}
+    <span class="hidden sm:inline">Ctrl/⌘ S to save · Ctrl/⌘ Z to undo</span>
+  {/if}
 </div>
 {#if editor.autosave.message}
   {@const failed = saveState === "error" || saveState === "conflict"}
@@ -150,7 +152,7 @@
     ]}
   >
     <span class="min-w-0 py-1">{editor.autosave.message}</span>
-    {#if saveState === "error"}
+    {#if saveState === "error" && !editor.readOnly}
       <Button size="sm" onclick={() => void editor.autosave.flush()}
         >Retry</Button
       >

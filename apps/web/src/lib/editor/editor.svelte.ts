@@ -106,8 +106,12 @@ export class CueEditor {
     );
   }
 
-  recoverDeferredJournal(): void {
-    if (!this.#journalDeferred || this.readOnly) return;
+  // The lock lifted without a new track, so edits held back during the run
+  // can reach this track again.
+  resumeEditing(): void {
+    if (this.readOnly) return;
+    if (this.autosave.blockedByTranscription) void this.autosave.flush();
+    if (!this.#journalDeferred) return;
     this.#journalDeferred = false;
     const recovered = this.autosave.recoverJournal();
     if (recovered) this.#showCues(recovered);
