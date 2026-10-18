@@ -198,9 +198,9 @@ describe("timelineKeyAction", () => {
 
     it("does nothing for brackets", () => {
       expect(action(press("["), "whole", locked)).toEqual({ kind: "none" });
-      expect(
-        action(press("]", { altKey: true }), "whole", locked),
-      ).toEqual({ kind: "none" });
+      expect(action(press("]", { altKey: true }), "whole", locked)).toEqual({
+        kind: "none",
+      });
     });
   });
 });
