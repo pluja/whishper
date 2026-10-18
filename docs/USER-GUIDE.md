@@ -4,7 +4,7 @@ This guide follows a file from upload to export. For installation see [INSTALL.m
 
 ## Uploading media
 
-Create a project from the library by choosing a file. The project takes its name from the filename, and names do not need to be unique.
+Create a project from the library by choosing a file, or drop an audio or video file anywhere on the library page. A drop opens the same dialog with the file already chosen, and the upload starts when you confirm. A file that is not audio or video is flagged while you drag it and refused on drop. The project takes its name from the filename, and names do not need to be unique.
 
 - Audio and video files are accepted. If the browser reports a media type other than `audio/*`, `video/*`, `application/ogg`, or `application/mp4`, the upload is rejected. A file that reports no type at all is accepted.
 - Uploads go in 32 MiB chunks. If the connection drops or you reload the page, choosing the same file in the same browser resumes where it stopped.
@@ -56,13 +56,17 @@ After transcription and alignment, WhisperX splits long segments at nearby natur
 
 The project page shows the current stage and progress. On failure it shows the adapter error and lets you start another run. Retranscribing creates a new run and keeps the earlier output until you delete it.
 
+To transcribe a project again, choose **Re-transcribe** in the studio title bar. Anysub saves your pending edits first, and if they cannot be saved the run does not start. While the run works, the cue sheet and timeline are read-only and a notice says why. When the run finishes, the new transcript loads on its own. If the run fails, editing resumes on the current transcript, and edits that were waiting are saved.
+
+Edits that never reached the server, such as typing in a second tab after the run started, cannot move to the new transcript. Anysub discards them when the new transcript loads and shows a notice.
+
 The worker retries transient errors up to three attempts. Errors a retry cannot fix fail at once: FFmpeg timeouts, CUDA out-of-memory, and rejected requests. A worker that is stopped mid-job reports it as a retryable failure before exiting, so the job returns to the queue while attempts remain and fails once they run out.
 
 Deleting a transcript removes its cues and its run, including the job result and retry history, but keeps the project media.
 
 ## The studio
 
-Opening a project switches to the studio workspace, in the same light or dark theme as the rest of the app. A compact title bar replaces the project navigation, and it keeps export and save state in view. Destructive actions live in the overflow menu.
+Opening a project switches to the studio workspace, in the same light or dark theme as the rest of the app. Pick **Light**, **Dark**, or **System** from the theme menu in the library's top bar. **System** follows your operating system, and the choice is remembered in that browser. A compact title bar replaces the project navigation, and it keeps export and save state in view. Destructive actions live in the overflow menu.
 
 On desktop the media monitor sits beside the cue sheet, and you can drag the divider between them or move it with the left and right arrow keys. Your position is remembered in that browser. On narrow screens the panels stack and the cue sheet scrolls on its own.
 
@@ -119,7 +123,7 @@ Opening the shortcut guide suspends the studio shortcuts. Unmodified shortcuts n
 
 Changes autosave after a short pause. Each track has a revision number. The server compares your expected revision, validates the whole cue snapshot, and commits it in one database transaction. If another session saved first, Anysub refuses to overwrite that work and asks you to reload.
 
-While changes are unsaved, the browser keeps a local journal for the project and track. After a reload or crash, Anysub offers the journal back if it still matches the saved revision. A journal older than the saved track is discarded with a notice. PostgreSQL stays the source of truth.
+While changes are unsaved, the browser keeps a local journal for the project and track. After a reload or crash, Anysub offers the journal back if it still matches the saved revision. A journal older than the saved track is discarded with a notice. Only the latest transcript of a project can be edited, so once a newer one replaces it, unsaved edits to the old one are discarded with a notice too. PostgreSQL stays the source of truth.
 
 ## Quality warnings
 
