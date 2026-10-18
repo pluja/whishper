@@ -212,6 +212,13 @@ describe("handleStudioKeydown", () => {
     expect(setIn.preventDefault).toHaveBeenCalledOnce();
   });
 
+  it("ignores held I and O", () => {
+    const studio = commands();
+    press({ ...keydown("i"), repeat: true }, studio);
+    press({ ...keydown("o"), repeat: true }, studio);
+    expect(studio.setSelectedTimeToPlayhead).not.toHaveBeenCalled();
+  });
+
   it("leaves I and O alone while typing, in a menu or without a selection", () => {
     const studio = commands();
     press(keydown("i", { target: "textarea" }), studio);

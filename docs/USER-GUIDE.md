@@ -70,7 +70,7 @@ Opening a project switches to the studio workspace, in the same light or dark th
 
 On desktop the media monitor sits beside the cue sheet, and you can drag the divider between them or move it with the left and right arrow keys. Your position is remembered in that browser. On narrow screens the panels stack and the cue sheet scrolls on its own.
 
-Each cue row shows timing, text, duration, playback state, and quality warnings on one line.
+Each cue row shows timing, text, duration, playback state, and quality warnings. The status line under the cue toolbar shows the selected cue's character count and characters per second.
 
 ### Waveform timeline
 
@@ -106,13 +106,13 @@ Each start and end field always shows `HH:MM:SS.mmm`. Typing works like overtype
 
 - A digit replaces the digit under the caret and the caret moves on, skipping `:` and `.`. With a selection, typing starts at its first digit. Letters and other characters are ignored. Minutes and seconds refuse a first digit above 5.
 - `Backspace` sets the digit before the caret to zero and moves onto it. `Delete` sets the digit after the caret to zero and moves past it. With a selection, both set every selected digit to zero.
-- Up and down arrows add or remove one unit of the part under the caret: an hour, a minute, a second, or a millisecond. Hold `Shift` to step by ten. Steps carry into the next part, stop at zero, and apply at once, so the player and timeline follow.
+- Up and down arrows add or remove one unit of the part under the caret: an hour, a minute, a second, or a millisecond. Hold `Shift` to step by ten. Steps carry into the next part, stop at zero and at the end of the media, and apply at once, so the player and timeline follow.
 - Paste accepts looser forms such as `27`, `62.5`, `1:02.5`, `1:02:03`, or `00:01:02,500`.
 - `Enter` or leaving the field applies the typed time. `Escape` returns to the last applied time.
 
-A start later than the end, or an end earlier than the start, is refused. The field gets a red border and a message appears under it. The message goes away once the value is valid again, or when you press `Escape` or leave the field, which restores the last valid time. `I`, `O`, and the playhead buttons refuse the same cases with the same message.
+A start later than the end, or an end earlier than the start, is refused. The field gets a red border and the status line under the cue toolbar shows the reason. The message goes away once the value is valid again, or when you press `Escape` or leave the field, which restores the last valid time. `I`, `O`, and the playhead buttons refuse the same cases with the same message, and never set a time past the end of the media.
 
-Everything you change in one timing field, from focusing it until you leave it, is one undo step. `Ctrl/Command+Z` inside the field first drops digits you have not applied, then undoes applied changes.
+Everything you change in one timing field, from focusing it until you leave it, is one undo step. `Ctrl/Command+Z` inside the field first drops digits you have not applied, then undoes the changes made since you focused it. Earlier edits stay until you undo outside the field.
 
 ### Keyboard shortcuts
 

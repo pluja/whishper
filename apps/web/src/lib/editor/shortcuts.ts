@@ -139,12 +139,22 @@ export const shortcutGroups: readonly ShortcutGroup[] = [
     ],
   },
   {
-    title: "Timecode fields",
+    title: "Timing fields",
     shortcuts: [
       {
         id: "timecode-type",
         keys: ["0-9"],
         description: "Overwrite the digit under the caret",
+      },
+      {
+        id: "timecode-erase",
+        keys: ["Backspace / Delete"],
+        description: "Set the digit before or after the caret to zero",
+      },
+      {
+        id: "timecode-paste",
+        keys: ["Ctrl/Command", "V"],
+        description: "Paste a time such as 27, 1:02.5 or 00:01:02,500",
       },
       {
         id: "timecode-step",
@@ -307,7 +317,7 @@ export function handleStudioKeydown(
   const key = event.key.toLowerCase();
   if (
     event.repeat &&
-    (event.key === " " || key === "j" || key === "k" || key === "l")
+    (event.key === " " || ["j", "k", "l", "i", "o"].includes(key))
   ) {
     return;
   }
