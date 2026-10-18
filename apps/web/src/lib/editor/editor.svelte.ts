@@ -2,6 +2,7 @@ import { Autosave, type TrackRef } from "./autosave.svelte";
 import {
   copyCues,
   cueIssues,
+  cueTimeError,
   deleteCue,
   insertCueAfter,
   mergeCueWithNext,
@@ -10,6 +11,7 @@ import {
   retimeCue,
   splitCue,
   type CueEdit,
+  type CueTimeField,
   type EditorCue,
 } from "./cues";
 import { CueHistory } from "./history.svelte";
@@ -19,6 +21,12 @@ import type { TimingGesture } from "$lib/timeline/math";
 function nudgeHistoryKey(cueId: string): string {
   return `nudge:${cueId}`;
 }
+
+export type CueTimeError = {
+  cueId: string;
+  field: CueTimeField;
+  message: string;
+};
 
 type CueEditorOptions = {
   cues: EditorCue[];
@@ -31,6 +39,7 @@ export class CueEditor {
   cues = $state<EditorCue[]>([]);
   selectedCueId = $state<string | null>(null);
   editing = $state(false);
+  timeError = $state<CueTimeError | null>(null);
   autosave = $state.raw(new Autosave(null, 0, () => this.cues));
   readonly history = new CueHistory();
   readonly transport: Transport;
@@ -123,6 +132,7 @@ export class CueEditor {
     this.selectedCueId = this.cues[0]?.id ?? null;
     this.#cursorPositions.clear();
     this.editing = false;
+    this.timeError = null;
     this.history.reset();
     if (ordered.changed) this.autosave.markChanged();
   }
@@ -148,15 +158,42 @@ export class CueEditor {
     this.autosave.markChanged();
   }
 
-  setTime(index: number, field: "start_us" | "end_us", value: number): void {
+  setTime(index: number, field: CueTimeField, value: number): void {
     if (this.readOnly) return;
+    this.cues = this.#retimeField(index, field, value).cues;
+    this.autosave.markChanged();
+  }
+
+  setTimeToPlayhead(index: number, field: CueTimeField): void {
     const cue = this.cues[index];
-    this.cues = retimeCue(this.cues, index, {
+    if (!cue || this.readOnly) return;
+    const playheadUs = this.transport.playbackUs;
+    const message = cueTimeError(cue, field, playheadUs);
+    if (message) {
+      this.showTimeError(cue.id, field, message);
+      return;
+    }
+    if (cue[field] === playheadUs) return;
+    this.#apply(this.#retimeField(index, field, playheadUs));
+  }
+
+  showTimeError(cueId: string, field: CueTimeField, message: string): void {
+    this.timeError = { cueId, field, message };
+  }
+
+  clearTimeError(cueId: string, field: CueTimeField): void {
+    if (this.timeError?.cueId === cueId && this.timeError.field === field) {
+      this.timeError = null;
+    }
+  }
+
+  #retimeField(index: number, field: CueTimeField, value: number): CueEdit {
+    const cue = this.cues[index];
+    return retimeCue(this.cues, index, {
       start_us: cue.start_us,
       end_us: cue.end_us,
       [field]: value,
-    }).cues;
-    this.autosave.markChanged();
+    });
   }
 
   rememberCursor(cueId: string, position: number): void {
@@ -167,6 +204,7 @@ export class CueEditor {
     if (this.readOnly) return;
     this.history.record(copyCues(this.cues), coalesceKey);
     this.cues = edit.cues;
+    this.timeError = null;
     if (edit.selectedCueId !== undefined) {
       this.selectedCueId = edit.selectedCueId;
     }
@@ -251,6 +289,7 @@ export class CueEditor {
     if (!snapshot) return;
     const selectedIndex = Math.max(0, this.selectedCueIndex);
     this.cues = snapshot;
+    this.timeError = null;
     if (!this.cues.some((cue) => cue.id === this.selectedCueId)) {
       this.selectedCueId =
         this.cues[Math.min(selectedIndex, this.cues.length - 1)]?.id ?? null;

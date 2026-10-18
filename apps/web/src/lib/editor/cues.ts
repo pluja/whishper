@@ -40,9 +40,11 @@ export function charactersPerSecond(cue: EditorCue): number | null {
   return cue.text.replace(/\s/g, "").length / durationSeconds;
 }
 
+export type CueTimeField = "start_us" | "end_us";
+
 export function cueTimeError(
   cue: EditorCue,
-  field: "start_us" | "end_us",
+  field: CueTimeField,
   value: number,
 ): string | null {
   const startUs = field === "start_us" ? value : cue.start_us;
