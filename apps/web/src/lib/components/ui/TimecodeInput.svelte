@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { keepFocusThrough } from "$lib/browser/focus";
   import { parseEditorTime } from "$lib/shared/subtitles";
   import {
     eraseBackward,
@@ -72,18 +72,12 @@
 
   let changing = false;
 
-  // A change can re-sort the rows, and moving a focused element drops its
-  // focus. The field takes it back without ending the edit.
+  // A change can re-sort the rows. Blur handling waits until the field has
+  // taken its focus back, so the edit session keeps running.
   async function changeInPlace(microseconds: number): Promise<void> {
     const caret = input.selectionStart ?? 0;
     changing = true;
-    onchange(microseconds);
-    await tick();
-    const focusLost =
-      document.activeElement === null ||
-      document.activeElement === document.body;
-    if (focusLost && input.isConnected) {
-      input.focus();
+    if (await keepFocusThrough(input, () => onchange(microseconds))) {
       input.setSelectionRange(caret, caret);
     }
     changing = false;

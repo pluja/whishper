@@ -3,6 +3,7 @@
   import type { Attachment } from "svelte/attachments";
   import Icon from "$lib/components/Icon.svelte";
   import Badge from "$lib/components/ui/Badge.svelte";
+  import { keepFocusThrough } from "$lib/browser/focus";
   import Button from "$lib/components/ui/Button.svelte";
   import IconButton from "$lib/components/ui/IconButton.svelte";
   import TimecodeInput from "$lib/components/ui/TimecodeInput.svelte";
@@ -57,15 +58,29 @@
     return error?.cueId === cueId && error.field === field;
   }
 
-  // The row's index can change under a focused field when cues re-sort, so
-  // the cue is looked up again when the field commits.
+  // A row's index can change under focus when cues re-sort, so the cue is
+  // looked up again when its field or button acts.
+  function cueIndex(cueId: string): number {
+    return editor.cues.findIndex((cue) => cue.id === cueId);
+  }
+
   function setCueTime(
     cueId: string,
     field: CueTimeField,
     microseconds: number,
   ): void {
-    const index = editor.cues.findIndex((cue) => cue.id === cueId);
+    const index = cueIndex(cueId);
     if (index >= 0) editor.setTime(index, field, microseconds);
+  }
+
+  function setCueTimeToPlayhead(
+    button: HTMLElement,
+    cueId: string,
+    field: CueTimeField,
+  ): void {
+    void keepFocusThrough(button, () =>
+      editor.setTimeToPlayhead(cueIndex(cueId), field),
+    );
   }
 
   function reportTimeError(
@@ -124,7 +139,8 @@
       {shortcut}
       class={selected ? undefined : "invisible"}
       disabled={editor.readOnly}
-      onclick={() => editor.setTimeToPlayhead(index, field)}
+      onclick={(event) =>
+        setCueTimeToPlayhead(event.currentTarget, cue.id, field)}
     />
   </span>
 {/snippet}
