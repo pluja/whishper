@@ -151,7 +151,9 @@
     {#if selectedCue}
       {@const cps = charactersPerSecond(selectedCue)}
       <span class="ml-auto shrink-0 tabular-nums">
-        Cue {editor.selectedCueIndex + 1} ·
+        <span class="hidden @min-[24rem]:inline"
+          >Cue {editor.selectedCueIndex + 1} ·
+        </span>
         <span
           class={selectedCue.text.length > editor.maxLineLength
             ? "text-warning"
@@ -161,7 +163,7 @@
       </span>
     {/if}
     {#if !editor.readOnly}
-      <span class="hidden shrink-0 @min-[34rem]:inline"
+      <span class="hidden min-w-0 shrink-[999] truncate @min-[34rem]:block"
         >Ctrl/⌘ S to save · Ctrl/⌘ Z to undo</span
       >
     {/if}
