@@ -1,20 +1,32 @@
 <script lang="ts" generics="T">
-  import type { Snippet } from "svelte";
+  import { tick, type Snippet } from "svelte";
   import Icon from "../Icon.svelte";
-  import { groupIntoSections, nextPickerIndex, typeaheadIndex } from "./picker";
+  import {
+    groupIntoSections,
+    nextPickerIndex,
+    searchResultsAnnouncement,
+    typeaheadIndex,
+  } from "./picker";
   import { CONTROL_CLASSES } from "./variants";
 
-  type Props = {
+  type SearchProps = {
+    matches: (option: T, query: string) => boolean;
+    searchLabel?: string;
+    optionText?: never;
+  };
+  type TypeaheadProps = {
+    matches?: never;
+    searchLabel?: never;
+    optionText: (option: T) => string;
+  };
+  type Props = (SearchProps | TypeaheadProps) & {
     label: string;
     name: string;
     options: T[];
     key: (option: T) => string;
-    optionText: (option: T) => string;
     value?: string;
     title: string;
     subtitle?: string;
-    searchLabel?: string;
-    matches?: (option: T, query: string) => boolean;
     // Consecutive options sharing a non-empty group get a heading.
     group?: (option: T) => string;
     divided?: boolean;
@@ -42,6 +54,7 @@
   }: Props = $props();
 
   const TYPEAHEAD_RESET_MS = 500;
+  const ANNOUNCEMENT_SETTLE_MS = 400;
   const id = $props.id();
   let trigger: HTMLButtonElement;
   let panel: HTMLElement;
@@ -52,6 +65,8 @@
   let activeIndex = $state(-1);
   let typed = "";
   let typedAt = 0;
+  let announcement = $state("");
+  let announcementTimer: ReturnType<typeof setTimeout> | undefined;
 
   const searchable = $derived(matches !== undefined);
   const selected = $derived(options.find((entry) => key(entry) === value));
@@ -64,6 +79,8 @@
   $effect(() => {
     if (open && activeId) scrollIntoView(activeId);
   });
+
+  $effect(() => () => clearTimeout(announcementTimer));
 
   function filterOptions(text: string): T[] {
     if (!matches || !text.trim()) return options;
@@ -86,6 +103,17 @@
       selectedIndex >= 0 ? selectedIndex : visibleOptions.length ? 0 : -1;
   }
 
+  async function handleSearchInput(): Promise<void> {
+    resetActiveOption();
+    clearTimeout(announcementTimer);
+    announcementTimer = setTimeout(() => {
+      announcement = searchResultsAnnouncement(query, visibleOptions.length);
+    }, ANNOUNCEMENT_SETTLE_MS);
+    // The active index can stay the same while filtering moves its option.
+    await tick();
+    if (activeId) scrollIntoView(activeId);
+  }
+
   function selectOption(index: number): void {
     const picked = visibleOptions[index];
     if (picked === undefined) return;
@@ -97,12 +125,12 @@
     return typed !== "" && now - typedAt <= TYPEAHEAD_RESET_MS;
   }
 
-  function typeAhead(character: string): void {
+  function typeAhead(character: string, textOf: (option: T) => string): void {
     const now = Date.now();
     typed = isTypingAhead(now) ? typed + character : character;
     typedAt = now;
     const index = typeaheadIndex(
-      visibleOptions.map(optionText),
+      visibleOptions.map(textOf),
       activeIndex,
       typed,
     );
@@ -124,6 +152,8 @@
       resetActiveOption();
       return;
     }
+    clearTimeout(announcementTimer);
+    announcement = "";
     const focused = document.activeElement;
     if (!focused || focused === document.body || panel.contains(focused)) {
       trigger.focus();
@@ -137,6 +167,7 @@
   }
 
   function handleKeydown(event: KeyboardEvent): void {
+    if (event.isComposing) return;
     if (event.key === "Tab") {
       panel.hidePopover();
       return;
@@ -146,9 +177,7 @@
       panel.hidePopover();
       return;
     }
-    if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) {
-      return;
-    }
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
     const selectsWithSpace =
       event.key === " " && !searchable && !isTypingAhead(Date.now());
     if (event.key === "Enter" || selectsWithSpace) {
@@ -162,9 +191,9 @@
       activeIndex = next;
       return;
     }
-    if (!searchable && event.key.length === 1) {
+    if (optionText && event.key.length === 1) {
       event.preventDefault();
-      typeAhead(event.key);
+      typeAhead(event.key, optionText);
     }
   }
 </script>
@@ -193,6 +222,9 @@
 <div class="grid min-w-0 gap-1.5">
   <span id="{id}-label" class="text-sm font-medium text-text">{label}</span>
   <input type="hidden" {name} {value} />
+  {#if searchable}
+    <div class="sr-only" role="status">{announcement}</div>
+  {/if}
   <button
     bind:this={trigger}
     class="flex w-full min-w-0 items-center justify-between gap-3 rounded-md border border-border-strong bg-surface px-3 py-2.5 text-left transition-colors duration-150 hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus aria-expanded:border-accent motion-reduce:transition-none"
@@ -258,7 +290,7 @@
           aria-activedescendant={activeId}
           autocomplete="off"
           spellcheck="false"
-          oninput={resetActiveOption}
+          oninput={handleSearchInput}
         />
       </div>
     {/if}

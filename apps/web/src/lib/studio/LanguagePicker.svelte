@@ -20,6 +20,12 @@
 
   let value = $state(DETECT_LANGUAGE);
 
+  function matchesSearchedLanguage(language: Language, query: string): boolean {
+    return (
+      language !== DETECT_AUTOMATICALLY && matchesLanguage(language, query)
+    );
+  }
+
   function groupOf(language: Language): string {
     if (language.code === DETECT_LANGUAGE) return "";
     return language.common ? "Common" : "Other languages";
@@ -49,11 +55,10 @@
   name="language"
   options={OPTIONS}
   key={(language) => language.code}
-  optionText={(language) => language.name}
   bind:value
   title="Choose the spoken language"
   searchLabel="Search languages"
-  matches={matchesLanguage}
+  matches={matchesSearchedLanguage}
   group={groupOf}
 >
   {#snippet selection(language)}

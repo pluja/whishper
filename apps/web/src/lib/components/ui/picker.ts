@@ -20,8 +20,17 @@ export function nextPickerIndex(
   return nextMenuIndex(
     current,
     key,
-    Array<boolean>(count).fill(true),
+    Array.from({ length: count }, () => true),
   );
+}
+
+export function searchResultsAnnouncement(
+  query: string,
+  count: number,
+): string {
+  if (!query.trim()) return "";
+  if (count === 0) return "No matches";
+  return count === 1 ? "1 result" : `${count} results`;
 }
 
 // Typing one letter again cycles through the options sharing it, as native selects do.

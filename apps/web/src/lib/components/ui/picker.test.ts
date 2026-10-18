@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   groupIntoSections,
   nextPickerIndex,
+  searchResultsAnnouncement,
   typeaheadIndex,
 } from "./picker";
 
@@ -53,6 +54,20 @@ describe("typeaheadIndex", () => {
     expect(typeaheadIndex(labels, 0, "z")).toBeNull();
     expect(typeaheadIndex(labels, 0, "")).toBeNull();
     expect(typeaheadIndex([], -1, "a")).toBeNull();
+  });
+});
+
+describe("searchResultsAnnouncement", () => {
+  it("counts the results while searching", () => {
+    expect(searchResultsAnnouncement("span", 1)).toBe("1 result");
+    expect(searchResultsAnnouncement("e", 12)).toBe("12 results");
+  });
+  it("says when nothing matches", () => {
+    expect(searchResultsAnnouncement("zzz", 0)).toBe("No matches");
+  });
+  it("stays silent without a query", () => {
+    expect(searchResultsAnnouncement("", 100)).toBe("");
+    expect(searchResultsAnnouncement("   ", 100)).toBe("");
   });
 });
 
