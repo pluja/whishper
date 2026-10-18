@@ -5,7 +5,7 @@ export type TimelineKey = Pick<
   "key" | "altKey" | "shiftKey" | "ctrlKey" | "metaKey"
 >;
 
-export type HandleEdge = Exclude<TimingPart, "whole">;
+type HandleEdge = Exclude<TimingPart, "whole">;
 
 export type TimelineKeyAction =
   | { kind: "nudge"; edge: TimingPart; deltaUs: number }
