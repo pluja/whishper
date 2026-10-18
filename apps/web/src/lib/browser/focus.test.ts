@@ -18,12 +18,23 @@ describe("keepFocusThrough", () => {
 
   it("refocuses an element that lost focus during the update", async () => {
     const element = fakeElement();
-    stubActiveElement(null);
-    const update = vi.fn();
+    const page = { body: {}, activeElement: element as unknown };
+    vi.stubGlobal("document", page);
+    const update = vi.fn(() => {
+      page.activeElement = page.body;
+    });
 
     expect(await keepFocusThrough(element, update)).toBe(true);
     expect(update).toHaveBeenCalledOnce();
     expect(element.focus).toHaveBeenCalledOnce();
+  });
+
+  it("never focuses an element that had no focus before the update", async () => {
+    const element = fakeElement();
+    stubActiveElement(null);
+
+    expect(await keepFocusThrough(element, () => {})).toBe(false);
+    expect(element.focus).not.toHaveBeenCalled();
   });
 
   it("leaves focus alone when it moved to another element", async () => {
@@ -36,7 +47,7 @@ describe("keepFocusThrough", () => {
 
   it("does not focus an element the update removed", async () => {
     const element = fakeElement(false);
-    stubActiveElement(null);
+    stubActiveElement(element);
 
     expect(await keepFocusThrough(element, () => {})).toBe(false);
     expect(element.focus).not.toHaveBeenCalled();
