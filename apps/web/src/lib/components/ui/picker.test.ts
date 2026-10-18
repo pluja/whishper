@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   groupIntoSections,
-  matchesSearch,
   nextPickerIndex,
   typeaheadIndex,
 } from "./picker";
@@ -54,20 +53,6 @@ describe("typeaheadIndex", () => {
     expect(typeaheadIndex(labels, 0, "z")).toBeNull();
     expect(typeaheadIndex(labels, 0, "")).toBeNull();
     expect(typeaheadIndex([], -1, "a")).toBeNull();
-  });
-});
-
-describe("matchesSearch", () => {
-  it("matches any field as a case and accent insensitive substring", () => {
-    expect(matchesSearch("espa", ["Spanish", "Español"])).toBe(true);
-    expect(matchesSearch("ESPAÑ", ["Spanish", "Espanol"])).toBe(true);
-    expect(matchesSearch("francais", ["French", "Français"])).toBe(true);
-    expect(matchesSearch("  span ", ["Spanish"])).toBe(true);
-    expect(matchesSearch("german", ["Spanish", "Español"])).toBe(false);
-  });
-  it("matches everything for an empty query", () => {
-    expect(matchesSearch("", ["Spanish"])).toBe(true);
-    expect(matchesSearch("   ", ["Spanish"])).toBe(true);
   });
 });
 

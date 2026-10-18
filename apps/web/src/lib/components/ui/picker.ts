@@ -1,3 +1,4 @@
+import { normalizeSearchText } from "$lib/shared/search";
 import { nextMenuIndex } from "./menu-keyboard";
 
 const PAGE_SIZE = 10;
@@ -16,16 +17,11 @@ export function nextPickerIndex(
   const from = Math.max(current, 0);
   if (key === "PageDown") return Math.min(from + PAGE_SIZE, count - 1);
   if (key === "PageUp") return Math.max(from - PAGE_SIZE, 0);
-  return nextMenuIndex(current, key, Array<boolean>(count).fill(true));
-}
-
-export function normalizeSearchText(text: string): string {
-  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-}
-
-export function matchesSearch(query: string, fields: string[]): boolean {
-  const needle = normalizeSearchText(query);
-  return fields.some((field) => normalizeSearchText(field).includes(needle));
+  return nextMenuIndex(
+    current,
+    key,
+    Array<boolean>(count).fill(true),
+  );
 }
 
 // Typing one letter again cycles through the options sharing it, as native selects do.

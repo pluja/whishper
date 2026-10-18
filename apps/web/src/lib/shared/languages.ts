@@ -1,4 +1,4 @@
-import { matchesSearch } from "$lib/components/ui/picker";
+import { matchesSearch } from "./search";
 
 export type Language = {
   code: string;
