@@ -169,7 +169,8 @@
   </p>
   <p id={`${uid}-handle-keys`} class="sr-only">
     Alt with an arrow adjusts this edge by one millisecond, Alt and Shift by 100
-    milliseconds. Press Escape to return to the cue.
+    milliseconds. Arrow keys without Alt move the playhead. Press Escape to
+    return to the cue.
   </p>
 
   <div class="relative h-full min-h-0 min-w-0 overflow-hidden">

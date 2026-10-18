@@ -17,6 +17,7 @@
     releasePointer,
     type PointerCapture,
   } from "./pointer-drag";
+  import { timelineKeyAction } from "./key-action";
 
   type Props = {
     cue: CueTiming & { text: string };
@@ -47,9 +48,9 @@
 
   const FOCUS_RING =
     "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus";
+  // 8 px handles meet WCAG 2.5.8 through the equivalent-control exception:
+  // the cue list time inputs edit the same timing.
   const HANDLE_CLASSES = `pointer-events-auto absolute inset-y-0 z-3 w-2 cursor-ew-resize focus-visible:z-8 after:absolute after:top-1.5 after:h-4 after:w-0.5 after:rounded-full after:bg-text/75 ${FOCUS_RING}`;
-  const NUDGE_US = 1_000;
-  const LARGE_NUDGE_US = 100_000;
 
   let {
     cue,
@@ -175,23 +176,10 @@
     if (!isUnchanged(final, active.original)) oncommittiming(final, "drag");
   }
 
-  function nudge(event: KeyboardEvent, part: TimingPart): void {
-    claim(event);
-    if (!editable || !cueIsValid(cue, durationUs)) return;
-    const stepUs = event.shiftKey ? LARGE_NUDGE_US : NUDGE_US;
-    const next = timingAfterDelta(
-      cue,
-      part,
-      event.key === "ArrowLeft" ? -stepUs : stepUs,
-      neighbourBounds,
-    );
+  function nudge(edge: TimingPart, deltaUs: number): void {
+    if (!cueIsValid(cue, durationUs)) return;
+    const next = timingAfterDelta(cue, edge, deltaUs, neighbourBounds);
     if (!isUnchanged(next, cue)) oncommittiming(next, "nudge");
-  }
-
-  function handleTarget(key: string): HTMLButtonElement | undefined {
-    if (key === "[") return startHandle;
-    if (key === "]") return endHandle;
-    return undefined;
   }
 
   function claim(event: KeyboardEvent): void {
@@ -199,39 +187,33 @@
     event.stopPropagation();
   }
 
-  // Alt is the nudge modifier so plain arrows stay free for moving between
-  // cues; claiming it also keeps Alt+Arrow from navigating browser history.
   function handleKeydown(event: KeyboardEvent, part: TimingPart): void {
-    const { key } = event;
-    if (key === "Escape" && drag) {
-      cancelDrag(event);
-      return;
-    }
-    if (
-      event.altKey &&
-      !event.ctrlKey &&
-      !event.metaKey &&
-      (key === "ArrowLeft" || key === "ArrowRight")
-    ) {
-      nudge(event, part);
-      return;
-    }
-    const handle = handleTarget(key);
-    if (handle) {
-      claim(event);
-      handle.focus();
-      return;
-    }
-    if (part !== "whole") {
-      if (key === "Escape") {
+    const action = timelineKeyAction(event, part, editable, drag !== null);
+    switch (action.kind) {
+      case "cancel_drag":
+        cancelDrag(event);
+        return;
+      case "nudge":
+        claim(event);
+        nudge(action.edge, action.deltaUs);
+        return;
+      case "block":
+        claim(event);
+        return;
+      case "focus_handle":
+        claim(event);
+        (action.edge === "start" ? startHandle : endHandle)?.focus();
+        return;
+      case "return_to_body":
         claim(event);
         body?.focus();
-      }
-      return;
+        return;
+      case "navigate":
+        if (onnavigate(action.key)) claim(event);
+        return;
+      case "none":
+        return;
     }
-    const modified =
-      event.altKey || event.ctrlKey || event.metaKey || event.shiftKey;
-    if (!modified && onnavigate(key)) claim(event);
   }
 
   function interactions(part: TimingPart) {
