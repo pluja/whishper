@@ -1,4 +1,5 @@
 import { checkPickers } from "./pickers.mjs";
+import { checkTimecodeField } from "./timecode.mjs";
 import {
   axeViolations,
   focusedText,
@@ -217,6 +218,7 @@ export async function checkStudioCues(context, theme) {
     }
     await checkToolbarArrows(page);
     await checkTimelineKeys(page);
+    failures += await checkTimecodeField(page, theme);
     await showLongCueText(page);
     for (const width of [widths[0], widths.at(-1)]) {
       await page.setViewportSize({ width, height: 900 });
@@ -237,7 +239,7 @@ export async function checkStudioCues(context, theme) {
       failures += await checkShortcutGuide(page, theme);
     }
     console.log(
-      `${label}: toolbar and timeline keys, long cue text and shortcut guide ok`,
+      `${label}: toolbar and timeline keys, timecode field, long cue text and shortcut guide ok`,
     );
   } catch (error) {
     console.error(`${label}: ${error.message}`);
