@@ -78,7 +78,7 @@ export class CueEditor {
     return (
       !this.readOnly &&
       (this.history.undoStack.length > 0 ||
-        (this.editing && this.history.hasPendingEdit(this.cues)))
+        this.history.hasPendingEdit(this.cues))
     );
   }
 
@@ -150,7 +150,7 @@ export class CueEditor {
   beginEdit(cueId: string): void {
     this.editing = true;
     this.#editedCueId = cueId;
-    this.history.beginEdit(this.cues);
+    this.history.beginEdit(this.cues, cueId);
   }
 
   finishEdit(): void {
@@ -159,11 +159,17 @@ export class CueEditor {
     this.history.finishEdit(this.cues);
   }
 
-  // A removed row takes its focused field with it, and Firefox and Safari
-  // fire no blur then, so the session has to close here.
-  #closeEditOfRemovedCue(cues: readonly EditorCue[]): void {
+  // Keeps the session open on the edited cue after the cues changed. A
+  // removed row takes its focused field with it, and Firefox and Safari fire
+  // no blur then, so the session closes here instead.
+  #continueEdit(): void {
     const cueId = this.#editedCueId;
-    if (cueId && !cues.some((cue) => cue.id === cueId)) this.finishEdit();
+    if (!cueId) return;
+    if (this.cues.some((cue) => cue.id === cueId)) {
+      this.history.beginEdit(this.cues, cueId);
+    } else {
+      this.finishEdit();
+    }
   }
 
   setText(index: number, text: string): void {
@@ -231,9 +237,11 @@ export class CueEditor {
 
   #apply(edit: CueEdit, coalesceKey?: string): void {
     if (this.readOnly) return;
-    this.#closeEditOfRemovedCue(edit.cues);
+    // The open session becomes its own step first, so the two never overlap.
+    this.history.finishEdit(this.cues);
     this.history.record(copyCues(this.cues), coalesceKey);
     this.cues = edit.cues;
+    this.#continueEdit();
     this.timeError = null;
     if (edit.selectedCueId !== undefined) {
       this.selectedCueId = edit.selectedCueId;
@@ -320,7 +328,7 @@ export class CueEditor {
     const selectedIndex = Math.max(0, this.selectedCueIndex);
     this.cues = snapshot;
     this.timeError = null;
-    this.#closeEditOfRemovedCue(snapshot);
+    this.#continueEdit();
     if (!this.cues.some((cue) => cue.id === this.selectedCueId)) {
       this.selectedCueId =
         this.cues[Math.min(selectedIndex, this.cues.length - 1)]?.id ?? null;

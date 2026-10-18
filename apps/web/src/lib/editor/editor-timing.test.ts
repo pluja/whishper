@@ -139,6 +139,95 @@ describe("CueEditor time field sessions", () => {
   });
 });
 
+describe("CueEditor session state", () => {
+  function editorWithCue(): CueEditor {
+    const editor = newEditor();
+    editor.loadTrack(trackA, [cue("a", "first words")], 1);
+    return editor;
+  }
+
+  it("sees a value changed back to its original as no change", () => {
+    const editor = editorWithCue();
+    editor.beginEdit("a");
+    editor.setTime(0, "end_us", 1_200_000);
+    expect(editor.canUndo).toBe(true);
+    editor.setTime(0, "end_us", 1_000_000);
+    expect(editor.canUndo).toBe(false);
+    editor.setText(0, "first word");
+    expect(editor.canUndo).toBe(true);
+    editor.setText(0, "first words");
+    expect(editor.canUndo).toBe(false);
+
+    editor.finishEdit();
+    expect(editor.history.undoStack).toHaveLength(0);
+  });
+
+  it("keeps redo inside a session away from steps undone before it", () => {
+    const editor = editorWithCue();
+    editor.nudgeSelected(100);
+    editor.undo();
+    editor.beginEdit("a");
+    editor.redo();
+
+    expect(editor.cues[0].start_us).toBe(0);
+    expect(editor.history.redoStack).toHaveLength(1);
+
+    editor.finishEdit();
+    editor.redo();
+    expect(editor.cues[0].start_us).toBe(100_000);
+  });
+
+  it("keeps typing and a split from the same field as separate steps", () => {
+    const editor = editorWithCue();
+    editor.beginEdit("a");
+    editor.setText(0, "first words here");
+    editor.rememberCursor("a", 5);
+    editor.splitSelected();
+    editor.setText(0, "first!");
+    editor.finishEdit();
+    const typed = ["first!", "words here"];
+
+    expect(editor.cues.map((item) => item.text)).toEqual(typed);
+    editor.undo();
+    expect(editor.cues.map((item) => item.text)).toEqual([
+      "first",
+      "words here",
+    ]);
+    editor.undo();
+    expect(editor.cues.map((item) => item.text)).toEqual(["first words here"]);
+    editor.undo();
+    expect(editor.cues.map((item) => item.text)).toEqual(["first words"]);
+
+    editor.redo();
+    editor.redo();
+    editor.redo();
+    expect(editor.cues.map((item) => item.text)).toEqual(typed);
+  });
+
+  it("keeps typing and a nudge while the field has focus as separate steps", () => {
+    const editor = editorWithCue();
+    editor.beginEdit("a");
+    editor.setTime(0, "end_us", 1_500_000);
+    editor.nudgeSelected(100);
+    editor.finishEdit();
+
+    expect(editor.cues[0]).toMatchObject({
+      start_us: 100_000,
+      end_us: 1_600_000,
+    });
+    editor.undo();
+    expect(editor.cues[0]).toMatchObject({ start_us: 0, end_us: 1_500_000 });
+    editor.undo();
+    expect(editor.cues[0]).toMatchObject({ start_us: 0, end_us: 1_000_000 });
+    editor.redo();
+    editor.redo();
+    expect(editor.cues[0]).toMatchObject({
+      start_us: 100_000,
+      end_us: 1_600_000,
+    });
+  });
+});
+
 describe("CueEditor.setTimeToPlayhead", () => {
   function editorAt(
     playbackUs: number,

@@ -12,20 +12,33 @@ function pushBounded(
   return [...stack.slice(-(HISTORY_LIMIT - 1)), snapshot];
 }
 
+// The undo and redo steps below an open session are compared by identity, so a
+// trimmed stack cannot shift them. Undo and redo inside the session stop there.
+type EditSession = {
+  baseline: EditorCue[];
+  cueId: string;
+  cueSnapshot: string;
+  undoFloor: EditorCue[] | undefined;
+  redoFloor: EditorCue[] | undefined;
+};
+
+// Other edits close a session before they apply, so only the edited cue can
+// differ from the baseline and comparing that cue is enough.
+function cueSnapshot(cues: readonly EditorCue[], cueId: string): string {
+  return JSON.stringify(cues.find((cue) => cue.id === cueId) ?? null);
+}
+
 export class CueHistory {
   undoStack = $state<EditorCue[][]>([]);
   redoStack = $state<EditorCue[][]>([]);
-  #editBaseline: EditorCue[] | null = null;
-  // The undo step below the open edit session, compared by identity so a
-  // trimmed stack cannot shift it. Undo inside the session stops there.
-  #editFloor: EditorCue[] | undefined;
+  #session: EditSession | null = null;
   #lastCoalesced: { key: string; at: number } | null = null;
 
   reset(): void {
     this.undoStack = [];
     this.redoStack = [];
     this.#lastCoalesced = null;
-    this.#editBaseline = null;
+    this.#session = null;
   }
 
   // Consecutive records sharing a coalesce key keep only the first snapshot.
@@ -42,31 +55,37 @@ export class CueHistory {
     this.redoStack = [];
   }
 
-  beginEdit(current: readonly EditorCue[]): void {
-    if (this.#editBaseline) return;
-    this.#editBaseline = copyCues(current);
-    this.#editFloor = this.undoStack.at(-1);
+  beginEdit(current: readonly EditorCue[], cueId: string): void {
+    if (this.#session) return;
+    this.#session = {
+      baseline: copyCues(current),
+      cueId,
+      cueSnapshot: cueSnapshot(current, cueId),
+      undoFloor: this.undoStack.at(-1),
+      redoFloor: this.redoStack.at(-1),
+    };
   }
 
   hasPendingEdit(current: readonly EditorCue[]): boolean {
+    const session = this.#session;
     return (
-      this.#editBaseline !== null &&
-      JSON.stringify(this.#editBaseline) !== JSON.stringify(current)
+      session !== null &&
+      cueSnapshot(current, session.cueId) !== session.cueSnapshot
     );
   }
 
   finishEdit(current: readonly EditorCue[]): void {
-    if (!this.#editBaseline) return;
-    if (JSON.stringify(this.#editBaseline) !== JSON.stringify(current)) {
-      this.record(this.#editBaseline);
-    }
-    this.#editBaseline = null;
+    const session = this.#session;
+    if (!session) return;
+    const changed = this.hasPendingEdit(current);
+    this.#session = null;
+    if (changed) this.record(session.baseline);
   }
 
   undo(current: readonly EditorCue[]): EditorCue[] | undefined {
-    return this.#stepAcrossEdit(current, (floor) => {
+    return this.#stepAcrossEdit(current, (session) => {
       const previous = this.undoStack.at(-1);
-      if (!previous || previous === floor) return undefined;
+      if (!previous || previous === session?.undoFloor) return undefined;
       this.redoStack = pushBounded(this.redoStack, copyCues(current));
       this.undoStack = this.undoStack.slice(0, -1);
       return previous;
@@ -74,9 +93,9 @@ export class CueHistory {
   }
 
   redo(current: readonly EditorCue[]): EditorCue[] | undefined {
-    return this.#stepAcrossEdit(current, () => {
+    return this.#stepAcrossEdit(current, (session) => {
       const next = this.redoStack.at(-1);
-      if (!next) return undefined;
+      if (!next || next === session?.redoFloor) return undefined;
       this.undoStack = pushBounded(this.undoStack, copyCues(current));
       this.redoStack = this.redoStack.slice(0, -1);
       return next;
@@ -87,16 +106,19 @@ export class CueHistory {
   // as their own step, then continues the session from the restored cues.
   #stepAcrossEdit(
     current: readonly EditorCue[],
-    step: (floor: EditorCue[] | undefined) => EditorCue[] | undefined,
+    step: (session: EditSession | null) => EditorCue[] | undefined,
   ): EditorCue[] | undefined {
-    const editing = this.#editBaseline !== null;
-    const floor = editing ? this.#editFloor : undefined;
+    const session = this.#session;
     this.finishEdit(current);
     this.#lastCoalesced = null;
-    const restored = step(floor);
-    if (editing) {
-      this.beginEdit(restored ?? current);
-      this.#editFloor = floor;
+    const restored = step(session);
+    if (session) {
+      this.beginEdit(restored ?? current, session.cueId);
+      this.#session = {
+        ...this.#session!,
+        undoFloor: session.undoFloor,
+        redoFloor: session.redoFloor,
+      };
     }
     return restored;
   }

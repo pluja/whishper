@@ -112,7 +112,7 @@ Each start and end field always shows `HH:MM:SS.mmm`. Typing works like overtype
 
 A start later than the end, or an end earlier than the start, is refused. The field gets a red border and the status line under the cue toolbar shows the reason. The message goes away once the value is valid again, or when you press `Escape` or leave the field, which restores the last valid time. `I`, `O`, and the playhead buttons refuse the same cases with the same message, and never set a time past the end of the media.
 
-Everything you change in one timing field, from focusing it until you leave it, is one undo step. `Ctrl/Command+Z` inside the field first drops digits you have not applied, then undoes the changes made since you focused it. Earlier edits stay until you undo outside the field.
+Everything you change in one timing field, from focusing it until you leave it, is one undo step. `Ctrl/Command+Z` inside the field first drops digits you have not applied, then undoes the changes made since you focused it. `Ctrl/Command+Shift+Z` or `Ctrl/Command+Y` redoes them. Neither reaches past the moment you focused the field: undo and redo outside the field for earlier edits.
 
 ### Keyboard shortcuts
 
@@ -133,7 +133,7 @@ Press `?` outside a text field, or use the **Shortcuts** button, for the full ke
 | `Ctrl/Command+Shift+Z`, `Ctrl/Command+Y` | Redo                                                    |
 | `Ctrl/Command+S`                         | Save now                                                |
 
-Opening the shortcut guide suspends the studio shortcuts. Unmodified shortcuts never capture keystrokes inside text fields. Save and split keep their `Ctrl` or `Command` forms while you type. Undo and redo stay native in text fields, which keep their own history. Timing fields have no history of their own, so there they undo and redo cue edits. `Space` keeps its normal behaviour on a focused button, link, or disclosure.
+Opening the shortcut guide suspends the studio shortcuts. Unmodified shortcuts never capture keystrokes inside text fields. Save and split keep their `Ctrl` or `Command` forms while you type. Undo and redo stay native in text fields, which keep their own history. Timing fields have no history of their own, so there undo and redo act on the cue edits made in that field. `Space` keeps its normal behaviour on a focused button, link, or disclosure.
 
 ## Saving and recovery
 
