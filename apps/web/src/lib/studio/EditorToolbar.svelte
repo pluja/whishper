@@ -10,8 +10,8 @@
     label: string;
     icon?: IconName;
     keyshortcuts?: string;
+    shortcut?: string;
     disabled: boolean;
-    startsGroup?: boolean;
     run: () => void;
   };
 
@@ -27,61 +27,70 @@
   const saveState = $derived(editor.autosave.state);
   const editDisabled = $derived(editor.readOnly || !editor.hasSelection);
 
-  const actions: ToolbarAction[] = $derived([
-    {
-      label: "Undo",
-      icon: "undo",
-      keyshortcuts: "Control+Z Meta+Z",
-      disabled: !editor.canUndo,
-      run: () => editor.undo(),
-    },
-    {
-      label: "Redo",
-      icon: "redo",
-      keyshortcuts: "Control+Y Control+Shift+Z Meta+Shift+Z",
-      disabled: !editor.canRedo,
-      run: () => editor.redo(),
-    },
-    {
-      label: "Split cue",
-      icon: "scissors",
-      keyshortcuts: "Control+K Meta+K",
-      disabled: editDisabled,
-      startsGroup: true,
-      run: () => editor.splitSelected(),
-    },
-    {
-      label: "Merge with next cue",
-      icon: "merge",
-      disabled:
-        editDisabled || editor.selectedCueIndex >= editor.cues.length - 1,
-      run: () => editor.mergeSelected(),
-    },
-    {
-      label: "Insert cue",
-      icon: "plus",
-      disabled: editor.readOnly,
-      run: () => editor.insertAfterSelected(),
-    },
-    {
-      label: "Delete selected cue",
-      icon: "trash",
-      keyshortcuts: "Shift+Delete Shift+Backspace",
-      disabled: editDisabled,
-      run: () => editor.deleteSelected(),
-    },
-    {
-      label: "−100 ms",
-      disabled: editDisabled,
-      startsGroup: true,
-      run: () => editor.nudgeSelected(-100),
-    },
-    {
-      label: "+100 ms",
-      disabled: editDisabled,
-      run: () => editor.nudgeSelected(100),
-    },
+  const actionGroups: ToolbarAction[][] = $derived([
+    [
+      {
+        label: "Undo",
+        icon: "undo",
+        keyshortcuts: "Control+Z Meta+Z",
+        shortcut: "Ctrl/⌘+Z",
+        disabled: !editor.canUndo,
+        run: () => editor.undo(),
+      },
+      {
+        label: "Redo",
+        icon: "redo",
+        keyshortcuts: "Control+Y Control+Shift+Z Meta+Shift+Z",
+        shortcut: "Ctrl/⌘+Shift+Z",
+        disabled: !editor.canRedo,
+        run: () => editor.redo(),
+      },
+    ],
+    [
+      {
+        label: "Split cue",
+        icon: "scissors",
+        keyshortcuts: "Control+K Meta+K",
+        shortcut: "Ctrl/⌘+K",
+        disabled: editDisabled,
+        run: () => editor.splitSelected(),
+      },
+      {
+        label: "Merge with next cue",
+        icon: "merge",
+        disabled:
+          editDisabled || editor.selectedCueIndex >= editor.cues.length - 1,
+        run: () => editor.mergeSelected(),
+      },
+      {
+        label: "Insert cue",
+        icon: "plus",
+        disabled: editor.readOnly,
+        run: () => editor.insertAfterSelected(),
+      },
+      {
+        label: "Delete selected cue",
+        icon: "trash",
+        keyshortcuts: "Shift+Delete Shift+Backspace",
+        shortcut: "Shift+Delete",
+        disabled: editDisabled,
+        run: () => editor.deleteSelected(),
+      },
+    ],
+    [
+      {
+        label: "−100 ms",
+        disabled: editDisabled,
+        run: () => editor.nudgeSelected(-100),
+      },
+      {
+        label: "+100 ms",
+        disabled: editDisabled,
+        run: () => editor.nudgeSelected(100),
+      },
+    ],
   ]);
+  const actions = $derived(actionGroups.flat());
 
   let toolbar: HTMLElement;
   let focusedIndex = $state(0);
@@ -129,30 +138,36 @@
   onkeydown={moveFocus}
   onfocusin={rememberFocus}
 >
-  {#each actions as action, index (action.label)}
-    {#if action.startsGroup}
+  {#each actionGroups as group, groupIndex (groupIndex)}
+    {#if groupIndex > 0}
       <span class="mx-0.5 h-5 w-px bg-border" aria-hidden="true"></span>
     {/if}
-    {#if action.icon}
-      <IconButton
-        label={action.label}
-        icon={action.icon}
-        size="sm"
-        aria-keyshortcuts={action.keyshortcuts}
-        tabindex={index === tabStopIndex ? 0 : -1}
-        disabled={action.disabled}
-        onclick={action.run}
-      />
-    {:else}
-      <Button
-        variant="ghost"
-        size="sm"
-        class="font-mono tabular-nums"
-        tabindex={index === tabStopIndex ? 0 : -1}
-        disabled={action.disabled}
-        onclick={action.run}>{action.label}</Button
-      >
-    {/if}
+    <div class="flex shrink-0 items-center gap-0.5">
+      {#each group as action (action.label)}
+        {@const index = actions.indexOf(action)}
+        {#if action.icon}
+          <IconButton
+            label={action.label}
+            icon={action.icon}
+            shortcut={action.shortcut}
+            size="sm"
+            aria-keyshortcuts={action.keyshortcuts}
+            tabindex={index === tabStopIndex ? 0 : -1}
+            disabled={action.disabled}
+            onclick={action.run}
+          />
+        {:else}
+          <Button
+            variant="ghost"
+            size="sm"
+            class="font-mono tabular-nums"
+            tabindex={index === tabStopIndex ? 0 : -1}
+            disabled={action.disabled}
+            onclick={action.run}>{action.label}</Button
+          >
+        {/if}
+      {/each}
+    </div>
   {/each}
 </div>
 <div

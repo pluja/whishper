@@ -11,6 +11,7 @@
   type Props = Omit<HTMLButtonAttributes, "children" | "aria-label"> & {
     label: string;
     icon: IconName;
+    shortcut?: string;
     variant?: ButtonVariant;
     size?: ButtonSize;
   };
@@ -18,6 +19,7 @@
   let {
     label,
     icon,
+    shortcut,
     variant = "ghost",
     size = "md",
     class: extra = "",
@@ -32,7 +34,7 @@
   {...rest}
   class={classes}
   aria-label={label}
-  title={label}
+  title={shortcut ? `${label} (${shortcut})` : label}
 >
   <Icon name={icon} size={size === "sm" ? 16 : 18} />
 </button>

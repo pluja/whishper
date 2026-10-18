@@ -62,7 +62,7 @@
   }
 
   function fieldClasses(selected: boolean): string {
-    return `rounded border bg-transparent text-text hover:border-border-strong focus:border-accent focus:bg-surface ${FOCUS_RING} ${selected ? "border-border-strong" : "border-transparent"}`;
+    return `rounded border text-text hover:border-border-strong focus:border-accent focus:bg-surface ${FOCUS_RING} ${selected ? "border-border-strong bg-surface" : "border-transparent bg-transparent"}`;
   }
 
   function rememberCursor(cueId: string, event: Event): void {

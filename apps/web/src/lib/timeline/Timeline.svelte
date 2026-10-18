@@ -102,7 +102,7 @@
     onzoom={viewport.setZoom}
   />
 
-  <p id={`${uid}-instructions`} class="visually-hidden">
+  <p id={`${uid}-instructions`} class="sr-only">
     Click the timeline to seek. Drag empty space to pan. While zoomed, use the
     mouse wheel or trackpad to pan horizontally.
     {#if editable}
@@ -267,16 +267,6 @@
     height: 7px;
     background: #ff8a92;
     clip-path: polygon(0 0, 100% 0, 50% 100%);
-  }
-
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
 
   @media (max-width: 42rem) {
