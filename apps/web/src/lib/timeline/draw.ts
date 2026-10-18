@@ -8,6 +8,7 @@ const RULER_HEIGHT = 25;
 const WAVEFORM_TOP = 27;
 const WAVEFORM_BOTTOM = 83;
 const MAJOR_TICK_SPACING_PX = 80;
+export const RULER_FONT = '10px "Geist Mono Variable", ui-monospace, monospace';
 
 export type TimelineFrame = {
   canvas: HTMLCanvasElement;
@@ -69,7 +70,7 @@ function drawRuler(
 
   context.fillStyle = palette.ruler;
   context.strokeStyle = palette.line;
-  context.font = '10px ui-monospace, "SFMono-Regular", monospace';
+  context.font = RULER_FONT;
   context.textBaseline = "top";
   context.beginPath();
   for (let tickUs = firstMajorUs; tickUs <= endUs; tickUs += majorStepUs) {

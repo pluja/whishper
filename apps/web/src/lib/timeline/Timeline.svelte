@@ -5,7 +5,7 @@
   import TimelineCue from "./TimelineCue.svelte";
   import TimelineStatus from "./TimelineStatus.svelte";
   import TimelineToolbar from "./TimelineToolbar.svelte";
-  import { drawTimeline, TRACK_HEIGHT } from "./draw";
+  import { drawTimeline, RULER_FONT, TRACK_HEIGHT } from "./draw";
   import {
     clampInteger,
     neighbourBounds,
@@ -87,9 +87,19 @@
     }),
   );
 
+  // Canvas text does not repaint when a web font arrives, so the ruler is
+  // drawn again once its font has loaded.
+  let rulerFontLoaded = $state(false);
+  $effect(() => {
+    void document.fonts.load(RULER_FONT).then(() => {
+      rulerFontLoaded = true;
+    });
+  });
+
   $effect(() => {
     if (!canvas || !root || viewport.width <= 0) return;
     void themeRevision;
+    void rulerFontLoaded;
     drawTimeline({
       canvas,
       themeSource: root,
