@@ -6,7 +6,7 @@ import { projectForUser } from "$lib/server/projects/access";
 import { resolveDataPath } from "$lib/server/storage/paths";
 import { hasActiveTranscriptionRun } from "$lib/server/transcription/active-run";
 import { availableTranscriptionModels } from "$lib/server/transcription/models";
-import { activeWorkerManifests } from "$lib/server/workers/active";
+import { activeWorkerManifests } from "$lib/server/workers/presence";
 import { DETECT_LANGUAGE, LANGUAGE_TAG } from "$lib/shared/languages";
 import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
 

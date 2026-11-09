@@ -28,7 +28,7 @@ import {
   availableTranscriptionModels,
   detectedWorkerHardware,
 } from "$lib/server/transcription/models";
-import { activeWorkerManifests } from "$lib/server/workers/active";
+import { activeWorkerManifests } from "$lib/server/workers/presence";
 import { projectDerivativeUrl, projectPageUrl } from "$lib/shared/routes";
 import type { StudioData } from "$lib/shared/studio-data";
 import { isUuid } from "$lib/shared/uuid";

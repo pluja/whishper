@@ -30,7 +30,8 @@ from .progress import progress_span
 from .registry import AdapterLoadError, AdapterRegistry
 
 LOGGER = logging.getLogger(__name__)
-LEASE_HEARTBEAT_SECONDS = 20
+# The application drops workers it has not heard from in 45 s.
+LEASE_HEARTBEAT_SECONDS = 10
 # Compose stops containers after 10s, so the shutdown failure report must finish well before.
 SHUTDOWN_REPORT_SECONDS = 5
 MEDIA_DOWNLOAD_PROGRESS = 0.02

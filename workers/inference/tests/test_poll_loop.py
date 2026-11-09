@@ -147,6 +147,7 @@ async def test_an_abandoned_inference_thread_finishes_before_the_next_lease(
     transcription_lease: WorkerLease,
 ) -> None:
     monkeypatch.setattr(execution, "LEASE_HEARTBEAT_SECONDS", 0.01)
+    monkeypatch.setattr(runner, "PRESENCE_SECONDS", 0.01)
     started = threading.Event()
     release_thread = threading.Event()
     thread_finished = threading.Event()
@@ -176,12 +177,19 @@ async def test_an_abandoned_inference_thread_finishes_before_the_next_lease(
             self.thread_finished_at_second_lease = thread_finished.is_set()
             raise StopPolling
 
+        async def announce(self) -> None:
+            await super().announce()
+            if self.announcements == 1:
+                raise httpx.ConnectError("application restarting")
+
     client = LosingClient()
     polling = asyncio.create_task(
         runner.poll_forever(client, AdapterRegistry((ThreadedAdapter(),)))
     )
     await asyncio.to_thread(started.wait, 5)
     await wait_until(lambda: "waiting for 1 abandoned inference call" in caplog.text)
+    await wait_until(lambda: client.announcements >= 3)
+    assert "presence announcement failed" in caplog.text
     assert client.leases == 1
     assert not polling.done()
 

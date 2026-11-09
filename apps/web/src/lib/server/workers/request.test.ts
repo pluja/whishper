@@ -2,7 +2,11 @@ import { isHttpError, type RequestEvent } from "@sveltejs/kit";
 import { validateJobCompletionReport } from "@anysub/contracts";
 import { describe, expect, it, vi } from "vitest";
 
-import { authenticateWorkerReport, authenticateLeaseToken } from "./request";
+import {
+  authenticateLeaseToken,
+  authenticateWorkerManifest,
+  authenticateWorkerReport,
+} from "./request";
 
 vi.mock("$lib/server/workers/auth", () => ({ authenticateWorker: vi.fn() }));
 
@@ -94,5 +98,42 @@ describe("authenticateLeaseToken", () => {
     expect(() => authenticateLeaseToken(eventFor({}))).toThrowError(
       expect.objectContaining({ status: 400 }),
     );
+  });
+});
+
+describe("authenticateWorkerManifest", () => {
+  const manifest = {
+    protocolVersion: "1.0",
+    workerId: "6f9619ff-8b86-4d11-b42d-00c04fc964ff",
+    name: "local-worker",
+    version: "1.0.0",
+    architecture: "x86_64",
+    capabilities: { mediaPreparation: null },
+    adapters: [],
+    hardware: null,
+  };
+
+  it("returns a valid manifest", async () => {
+    const parsed = await authenticateWorkerManifest(
+      eventFor({ body: JSON.stringify(manifest) }),
+    );
+    expect(parsed).toEqual(manifest);
+  });
+
+  it("rejects an invalid manifest with 400", async () => {
+    const thrown = await rejectionOf(
+      authenticateWorkerManifest(
+        eventFor({ body: JSON.stringify({ ...manifest, name: 42 }) }),
+      ),
+    );
+    expect(thrown.status).toBe(400);
+    expect(thrown.body.message).toMatch(/^Invalid worker manifest: /);
+  });
+
+  it("rejects malformed JSON with 400", async () => {
+    const thrown = await rejectionOf(
+      authenticateWorkerManifest(eventFor({ body: "{not json" })),
+    );
+    expect(thrown.status).toBe(400);
   });
 });

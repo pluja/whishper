@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 import respx
@@ -19,6 +21,7 @@ from anysub_worker.registry import AdapterRegistry
 
 COMPLETE_URL = "http://app.test/api/internal/jobs/job-media/complete"
 LEASE_URL = "http://app.test/api/internal/workers/lease"
+PRESENCE_URL = "http://app.test/api/internal/workers/presence"
 
 COMPLETION = MediaPreparationJobCompletion(
     probe=MediaProbeArtifact(
@@ -146,3 +149,37 @@ async def test_hardware_is_detected_once_and_memory_refreshed_per_poll(
     assert route.call_count == 2
     assert len(detections) == 1
     assert len(memory_reads) == 2
+
+
+async def test_announce_posts_the_same_manifest_as_a_lease_request(
+    settings: WorkerSettings, respx_mock: respx.MockRouter
+) -> None:
+    client = make_client(settings, RecordedSleeps())
+    lease_route = respx_mock.post(LEASE_URL).mock(
+        return_value=httpx.Response(200, json={"lease": None, "pollAfterMs": 500})
+    )
+    presence_route = respx_mock.post(PRESENCE_URL).mock(return_value=httpx.Response(204))
+
+    try:
+        await client.lease()
+        await client.announce()
+    finally:
+        await client.close()
+
+    leased = json.loads(lease_route.calls.last.request.content)
+    announced = json.loads(presence_route.calls.last.request.content)
+    assert announced["workerId"] == leased["workerId"] == client.worker_id
+    assert announced["adapters"] == leased["adapters"]
+
+
+async def test_announce_raises_when_the_application_rejects_it(
+    settings: WorkerSettings, respx_mock: respx.MockRouter
+) -> None:
+    client = make_client(settings, RecordedSleeps())
+    respx_mock.post(PRESENCE_URL).mock(return_value=httpx.Response(401))
+
+    try:
+        with pytest.raises(httpx.HTTPStatusError):
+            await client.announce()
+    finally:
+        await client.close()

@@ -36,6 +36,10 @@ def _forget_abandoned_call(call: asyncio.Future[Any]) -> None:
         call.exception()
 
 
+def has_abandoned_threads() -> bool:
+    return bool(_abandoned_calls)
+
+
 async def wait_for_abandoned_threads() -> None:
     pending = set(_abandoned_calls)
     if not pending:

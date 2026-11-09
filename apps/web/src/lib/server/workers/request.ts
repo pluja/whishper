@@ -1,8 +1,9 @@
-import type { ProtocolValidator } from "@anysub/contracts";
+import type { ProtocolValidator, WorkerManifest } from "@anysub/contracts";
 import { parseProtocolMessage } from "@anysub/contracts";
 import { error, type RequestEvent } from "@sveltejs/kit";
 
 import { authenticateWorker } from "$lib/server/workers/auth";
+import { parseWorkerManifest } from "$lib/server/workers/manifest";
 
 const LEASE_TOKEN_HEADER = "x-anysub-lease-token";
 
@@ -23,6 +24,20 @@ export async function authenticateWorkerReport<T>(
     error(400, `Invalid ${description}: ${report.errors.join("; ")}`);
   }
   return report.value;
+}
+
+export async function authenticateWorkerManifest(
+  event: RequestEvent,
+): Promise<WorkerManifest> {
+  authenticateWorker(event);
+  try {
+    return parseWorkerManifest(await event.request.json());
+  } catch (cause) {
+    error(
+      400,
+      cause instanceof Error ? cause.message : "Invalid worker manifest",
+    );
+  }
 }
 
 export function authenticateLeaseToken(event: RequestEvent): string {

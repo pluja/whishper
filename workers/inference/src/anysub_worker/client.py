@@ -58,7 +58,20 @@ class ApplicationClient:
         await self._client.aclose()
 
     async def lease(self) -> LeaseResponse:
-        manifest = WorkerManifest(
+        response = await self._client.post(
+            "/api/internal/workers/lease", json=_wire(self._manifest())
+        )
+        response.raise_for_status()
+        return LeaseResponse.model_validate(response.json())
+
+    async def announce(self) -> None:
+        response = await self._client.post(
+            "/api/internal/workers/presence", json=_wire(self._manifest())
+        )
+        response.raise_for_status()
+
+    def _manifest(self) -> WorkerManifest:
+        return WorkerManifest(
             workerId=self.worker_id,
             name=self._settings.worker_name,
             version=WORKER_VERSION,
@@ -67,9 +80,6 @@ class ApplicationClient:
             adapters=tuple(adapter.manifest for adapter in self._registry.adapters),
             hardware=self._hardware.model_copy(update={"memory": detect_memory()}),
         )
-        response = await self._client.post("/api/internal/workers/lease", json=_wire(manifest))
-        response.raise_for_status()
-        return LeaseResponse.model_validate(response.json())
 
     async def progress(self, lease: WorkerLease, progress: float, message: str) -> None:
         await self._post_job_report(

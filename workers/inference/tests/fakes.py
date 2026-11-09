@@ -109,6 +109,10 @@ class RecordingClient:
         self.failures: list[JobFailure] = []
         self.downloads = 0
         self.uploads: list[tuple[str, bytes]] = []
+        self.announcements = 0
+
+    async def announce(self) -> None:
+        self.announcements += 1
 
     async def progress(self, lease: WorkerLease, progress: float, message: str) -> None:
         self.progress_updates.append((progress, message))

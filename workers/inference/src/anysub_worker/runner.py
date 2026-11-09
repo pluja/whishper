@@ -14,15 +14,18 @@ from pydantic import ValidationError
 from .client import ApplicationClient
 from .config import WorkerSettings
 from .errors import describe_error
-from .execution import JobClient, execute_job
+from .execution import LEASE_HEARTBEAT_SECONDS, JobClient, execute_job
 from .models import LeaseResponse
 from .registry import AdapterRegistry
 from .retry import APPLICATION_BACKOFF, Sleep
-from .threads import wait_for_abandoned_threads
+from .threads import has_abandoned_threads, wait_for_abandoned_threads
 
 LOGGER = logging.getLogger(__name__)
 SHUTDOWN_SIGNALS = (signal.SIGTERM, signal.SIGINT)
 LEASE_POLL_ERRORS = (httpx.HTTPError, ValidationError, json.JSONDecodeError)
+# A worker finishing abandoned inference takes no lease, so it announces itself
+# instead to stay visible to the application.
+PRESENCE_SECONDS = LEASE_HEARTBEAT_SECONDS
 
 
 async def run_forever(settings: WorkerSettings, registry: AdapterRegistry) -> None:
@@ -62,6 +65,8 @@ async def run_forever(settings: WorkerSettings, registry: AdapterRegistry) -> No
 class LeasingClient(JobClient, Protocol):
     async def lease(self) -> LeaseResponse: ...
 
+    async def announce(self) -> None: ...
+
 
 async def poll_forever(
     client: LeasingClient,
@@ -72,7 +77,7 @@ async def poll_forever(
 ) -> None:
     consecutive_failures = 0
     while True:
-        await wait_for_abandoned_threads()
+        await _wait_for_abandoned_threads(client)
         try:
             response = await client.lease()
         except LEASE_POLL_ERRORS as error:
@@ -95,3 +100,20 @@ async def poll_forever(
             await sleep(APPLICATION_BACKOFF.delay_seconds(consecutive_failures, jitter()))
         else:
             consecutive_failures = 0
+
+
+async def _wait_for_abandoned_threads(client: LeasingClient) -> None:
+    if not has_abandoned_threads():
+        return
+    waiting = asyncio.ensure_future(wait_for_abandoned_threads())
+    try:
+        while True:
+            try:
+                await client.announce()
+            except httpx.HTTPError as error:
+                LOGGER.warning("presence announcement failed: %s", describe_error(error))
+            done, _ = await asyncio.wait([waiting], timeout=PRESENCE_SECONDS)
+            if done:
+                return
+    finally:
+        waiting.cancel()

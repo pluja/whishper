@@ -4,8 +4,6 @@ import {
   type WorkerLease,
   type WorkerManifest,
 } from "@anysub/contracts";
-import type { PoolClient } from "pg";
-
 import { pool } from "$lib/server/db";
 import { withTransaction } from "$lib/server/db/transaction";
 import {
@@ -14,6 +12,7 @@ import {
 } from "$lib/server/jobs/failure";
 import { generateLeaseToken, hashToken } from "$lib/server/jobs/lease-token";
 import { IS_MEDIA_PREPARE_JOB } from "$lib/server/jobs/predicates";
+import { recordWorkerPresence } from "$lib/server/workers/presence";
 
 const LEASE_SECONDS = 60;
 export const WORKER_POLL_INTERVAL_MS = 2_000;
@@ -32,7 +31,7 @@ export async function leaseJob(
     manifest.capabilities.mediaPreparation === MEDIA_PREPARATION_VERSION;
   const { lease, reclaimedArtifactJobs } = await withTransaction(
     async (client) => {
-      await upsertWorker(client, manifest);
+      await recordWorkerPresence(client, manifest);
       const reclaimedArtifactJobs = await reclaimExpiredLeases(client);
 
       if (adapterIds.length === 0 && !supportsMediaPreparation) {
@@ -130,29 +129,4 @@ export async function reportProgress(
     [jobId, hashToken(leaseToken), progress, message, LEASE_SECONDS],
   );
   return result.rowCount === 1;
-}
-
-async function upsertWorker(
-  client: PoolClient,
-  manifest: WorkerManifest,
-): Promise<void> {
-  await client.query(
-    `insert into workers (id, name, version, architecture, protocol_version, manifest, last_seen_at)
-     values ($1, $2, $3, $4, $5, $6, now())
-     on conflict (id) do update set
-       name = excluded.name,
-       version = excluded.version,
-       architecture = excluded.architecture,
-       protocol_version = excluded.protocol_version,
-       manifest = excluded.manifest,
-       last_seen_at = now()`,
-    [
-      manifest.workerId,
-      manifest.name,
-      manifest.version,
-      manifest.architecture,
-      manifest.protocolVersion,
-      JSON.stringify(manifest),
-    ],
-  );
 }

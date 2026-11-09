@@ -115,7 +115,9 @@ Workers authenticate with the single shared `ANYSUB_WORKER_TOKEN`. Per-worker en
 - Supported pipeline stages.
 - Planned: current concurrency and health.
 
-The application grants a time-limited lease for one compatible stage. Workers renew leases through heartbeats. The application returns an expired lease to the queue after a safety window.
+The application grants a time-limited lease for one compatible stage. Workers renew leases through heartbeats every 10 seconds. The application returns an expired lease to the queue after a safety window.
+
+The application lists a worker as connected while it has heard from it in the last 45 seconds, through a lease request, a heartbeat, or a presence announcement. A worker that is waiting for cancelled inference to finish takes no lease, so it posts its manifest to `/api/internal/workers/presence` instead.
 
 Every stage operation must be idempotent. The application accepts a result once for the matching run, stage, attempt, and lease. Retries cannot create duplicate tracks.
 
