@@ -108,6 +108,7 @@ class RecordingClient:
         self.media_completions = 0
         self.failures: list[JobFailure] = []
         self.downloads = 0
+        self.download_names: list[str] = []
         self.uploads: list[tuple[str, bytes]] = []
         self.announcements = 0
 
@@ -117,9 +118,11 @@ class RecordingClient:
     async def progress(self, lease: WorkerLease, progress: float, message: str) -> None:
         self.progress_updates.append((progress, message))
 
-    async def download_source(self, lease: WorkerLease, destination: Path) -> None:
+    async def fetch_source(self, lease: WorkerLease, storage_key: str, download_to: Path) -> Path:
         self.downloads += 1
-        destination.write_bytes(b"source")
+        self.download_names.append(download_to.name)
+        download_to.write_bytes(b"source")
+        return download_to
 
     async def upload_artifact(self, lease: WorkerLease, kind: str, artifact_path: Path) -> None:
         self.uploads.append((kind, artifact_path.read_bytes()))

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
+import shutil
 from collections.abc import Coroutine
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, gettempdir
 from typing import Any, Protocol
 
 import httpx
@@ -35,6 +37,8 @@ LEASE_HEARTBEAT_SECONDS = 10
 # Compose stops containers after 10s, so the shutdown failure report must finish well before.
 SHUTDOWN_REPORT_SECONDS = 5
 MEDIA_DOWNLOAD_PROGRESS = 0.02
+WORK_DIRECTORY_PREFIX = "anysub-media-"
+SAFE_SUFFIX = re.compile(r"\.[a-z0-9]{1,16}")
 MEDIA_PREPARATION_SPAN = (0.1, 0.86)
 MEDIA_UPLOAD_SPAN = (0.86, 0.98)
 
@@ -42,7 +46,9 @@ MEDIA_UPLOAD_SPAN = (0.86, 0.98)
 class JobClient(Protocol):
     async def progress(self, lease: WorkerLease, progress: float, message: str) -> None: ...
 
-    async def download_source(self, lease: WorkerLease, destination: Path) -> None: ...
+    async def fetch_source(
+        self, lease: WorkerLease, storage_key: str, download_to: Path
+    ) -> Path: ...
 
     async def upload_artifact(
         self, lease: WorkerLease, kind: MediaDerivativeKind, artifact_path: Path
@@ -172,11 +178,14 @@ async def _run_media_preparation(
     report: ProgressReporter,
 ) -> None:
     await report(0.0, "Starting media preparation")
-    with TemporaryDirectory(prefix="anysub-media-") as temporary:
+    with TemporaryDirectory(prefix=WORK_DIRECTORY_PREFIX) as temporary:
         root = Path(temporary)
-        source_path = root / f"source{Path(payload.source_filename).suffix.lower()}"
-        await report(MEDIA_DOWNLOAD_PROGRESS, "Downloading source media")
-        await client.download_source(lease, source_path)
+        await report(MEDIA_DOWNLOAD_PROGRESS, "Fetching source media")
+        source_path = await client.fetch_source(
+            lease,
+            payload.source_storage_key,
+            root / f"source{_safe_suffix(payload.source_filename)}",
+        )
         prepared = await prepare_media(
             source_path,
             payload.source_filename,
@@ -217,3 +226,15 @@ async def _run_transcription(
             ),
         ),
     )
+
+
+def _safe_suffix(filename: str) -> str:
+    suffix = Path(filename).suffix.lower()
+    return suffix if SAFE_SUFFIX.fullmatch(suffix) else ""
+
+
+def remove_stale_work_directories(temporary_root: Path | None = None) -> None:
+    root = temporary_root or Path(gettempdir())
+    for leftover in root.glob(f"{WORK_DIRECTORY_PREFIX}*"):
+        shutil.rmtree(leftover, ignore_errors=True)
+        LOGGER.info("removed leftover media work directory %s", leftover.name)

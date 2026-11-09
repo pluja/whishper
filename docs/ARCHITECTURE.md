@@ -121,7 +121,7 @@ The application lists a worker as connected while it has heard from it in the la
 
 Every stage operation must be idempotent. The application accepts a result once for the matching run, stage, attempt, and lease. Retries cannot create duplicate tracks.
 
-Workers read transcription media through a read-only shared mount. Media preparation already downloads its source and uploads derivatives through authenticated transfer endpoints. Planned: transcription moves to the same endpoints so remote workers become possible, and a later object-storage adapter can replace transfers with short-lived object URLs.
+Workers read media through a read-only shared mount. Media preparation falls back to downloading its source through an authenticated transfer endpoint when the file is not on a mount, and it uploads derivatives through the same API. Work files live in the container's temporary directory, and the worker deletes any a crash left behind when it starts. Planned: transcription moves to the same endpoints so remote workers become possible, and a later object-storage adapter can replace transfers with short-lived object URLs.
 
 ## Queue model
 

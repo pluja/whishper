@@ -14,7 +14,12 @@ from pydantic import ValidationError
 from .client import ApplicationClient
 from .config import WorkerSettings
 from .errors import describe_error
-from .execution import LEASE_HEARTBEAT_SECONDS, JobClient, execute_job
+from .execution import (
+    LEASE_HEARTBEAT_SECONDS,
+    JobClient,
+    execute_job,
+    remove_stale_work_directories,
+)
 from .models import LeaseResponse
 from .registry import AdapterRegistry
 from .retry import APPLICATION_BACKOFF, Sleep
@@ -29,6 +34,7 @@ PRESENCE_SECONDS = LEASE_HEARTBEAT_SECONDS
 
 
 async def run_forever(settings: WorkerSettings, registry: AdapterRegistry) -> None:
+    remove_stale_work_directories()
     client = ApplicationClient(settings, registry)
     LOGGER.info(
         "worker started id=%s %s adapters=%s",

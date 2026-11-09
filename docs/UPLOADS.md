@@ -33,7 +33,7 @@ The original display filename stays in PostgreSQL. Paths never contain a project
 
 ## Media preparation
 
-Completing an upload queues a durable `media_prepare` job. A compatible worker downloads the canonical source through its active lease, probes it with FFprobe, and returns derivatives through resumable, offset-checked artifact uploads.
+Completing an upload queues a durable `media_prepare` job. A compatible worker reads the canonical source from the shared data mount, or downloads it through its active lease when it has no mount, probes it with FFprobe, and returns derivatives through resumable, offset-checked artifact uploads.
 
 The worker produces:
 

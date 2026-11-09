@@ -92,7 +92,14 @@ class ApplicationClient:
             JobProgressReport(leaseToken=lease.lease_token, progress=progress, message=message),
         )
 
-    async def download_source(self, lease: WorkerLease, destination: Path) -> None:
+    async def fetch_source(self, lease: WorkerLease, storage_key: str, download_to: Path) -> Path:
+        shared = _shared_data_file(self._settings.runtime.data_root, storage_key)
+        if shared is not None:
+            return shared
+        await self._download_source(lease, download_to)
+        return download_to
+
+    async def _download_source(self, lease: WorkerLease, destination: Path) -> None:
         async with self._client.stream(
             "GET",
             f"/api/internal/jobs/{lease.job_id}/source",
@@ -164,3 +171,14 @@ def _load_or_create_worker_id(path: Path) -> str:
     worker_id = str(uuid.uuid4())
     path.write_text(worker_id, encoding="utf-8")
     return worker_id
+
+
+# The worker mounts the application's data volume read-only. Reading the source
+# from it avoids copying hours of media into the container; a worker without
+# the mount downloads instead.
+def _shared_data_file(data_root: Path, storage_key: str) -> Path | None:
+    root = data_root.resolve()
+    path = (root / storage_key).resolve()
+    if not path.is_relative_to(root) or not path.is_file():
+        return None
+    return path

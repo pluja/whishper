@@ -90,6 +90,7 @@ async def test_media_job_uploads_derivatives_before_completion(
     await execution.execute_job(recording_client, AdapterRegistry(()), media_lease)
 
     assert recording_client.downloads == 1
+    assert recording_client.download_names == ["source.wav"]
     assert recording_client.uploads == [("waveform", b"waveform")]
     assert recording_client.media_completions == 1
     assert recording_client.transcription_completions == 0
@@ -222,3 +223,16 @@ async def test_unprocessable_completion_fails_the_job_permanently_with_its_reaso
         "message": "HTTPStatusError: 422 Unprocessable Entity: Adapter cues are not ordered.",
         "retryable": False,
     }
+
+
+def test_stale_work_directories_are_removed_at_startup(tmp_path: Path) -> None:
+    leftover = tmp_path / f"{execution.WORK_DIRECTORY_PREFIX}abc123"
+    (leftover / "artifacts").mkdir(parents=True)
+    (leftover / "artifacts" / "proxy.mp4").write_bytes(b"proxy")
+    unrelated = tmp_path / "other-tool-xyz"
+    unrelated.mkdir()
+
+    execution.remove_stale_work_directories(tmp_path)
+
+    assert not leftover.exists()
+    assert unrelated.exists()

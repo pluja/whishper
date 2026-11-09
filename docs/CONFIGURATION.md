@@ -193,4 +193,4 @@ The application builds the absolute media path it hands to the worker from its o
 
 ## Workers on other machines
 
-Not supported yet. The worker reads media through the shared data mount described under [Data root](#data-root), so it has to run on the same host as the application. The job protocol was built with remote workers in mind and the artifact upload path already goes through the API, but the media path has not moved to downloads yet.
+Not supported yet. The worker reads media through the shared data mount described under [Data root](#data-root), so it has to run on the same host as the application. The job protocol was built with remote workers in mind: media preparation can already download its source and upload derivatives through the API, but transcription still reads the source from the mount.

@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -22,6 +23,7 @@ from anysub_worker.registry import AdapterRegistry
 COMPLETE_URL = "http://app.test/api/internal/jobs/job-media/complete"
 LEASE_URL = "http://app.test/api/internal/workers/lease"
 PRESENCE_URL = "http://app.test/api/internal/workers/presence"
+SOURCE_URL = "http://app.test/api/internal/jobs/job-media/source"
 
 COMPLETION = MediaPreparationJobCompletion(
     probe=MediaProbeArtifact(
@@ -181,5 +183,45 @@ async def test_announce_raises_when_the_application_rejects_it(
     try:
         with pytest.raises(httpx.HTTPStatusError):
             await client.announce()
+    finally:
+        await client.close()
+
+
+async def test_fetch_source_reads_the_shared_data_mount_without_downloading(
+    settings: WorkerSettings, media_lease: WorkerLease, respx_mock: respx.MockRouter
+) -> None:
+    client = make_client(settings, RecordedSleeps())
+    shared = settings.runtime.data_root / "projects" / "source.wav"
+    shared.parent.mkdir()
+    shared.write_bytes(b"shared")
+    route = respx_mock.get(SOURCE_URL).mock(return_value=httpx.Response(200, content=b"x"))
+
+    try:
+        path = await client.fetch_source(
+            media_lease, "projects/source.wav", settings.runtime.data_root / "copy.wav"
+        )
+    finally:
+        await client.close()
+
+    assert path == shared.resolve()
+    assert not route.called
+
+
+async def test_fetch_source_downloads_when_the_mount_lacks_the_file(
+    settings: WorkerSettings,
+    media_lease: WorkerLease,
+    respx_mock: respx.MockRouter,
+    tmp_path: Path,
+) -> None:
+    client = make_client(settings, RecordedSleeps())
+    respx_mock.get(SOURCE_URL).mock(return_value=httpx.Response(200, content=b"remote"))
+    destination = tmp_path / "work" / "source.wav"
+    destination.parent.mkdir()
+
+    try:
+        for storage_key in ("projects/missing.wav", "../outside.wav"):
+            path = await client.fetch_source(media_lease, storage_key, destination)
+            assert path == destination
+            assert destination.read_bytes() == b"remote"
     finally:
         await client.close()
