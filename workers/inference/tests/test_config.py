@@ -26,13 +26,15 @@ def test_short_worker_token_fails_at_startup_with_the_variable_name() -> None:
         WorkerSettings(worker_token="t" * (MINIMUM_WORKER_TOKEN_LENGTH - 1))
 
 
-def test_missing_worker_token_fails_at_startup_with_the_variable_name(
+def test_an_unset_worker_token_uses_the_published_file(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("ANYSUB_WORKER_TOKEN", raising=False)
 
-    with pytest.raises(ValidationError, match="ANYSUB_WORKER_TOKEN is not set"):
-        WorkerSettings()
+    settings = WorkerSettings()
+
+    assert settings.worker_token is None
+    assert settings.worker_token_file == Path("/data/.anysub/worker-token")
 
 
 def test_runtime_settings_read_the_same_environment(

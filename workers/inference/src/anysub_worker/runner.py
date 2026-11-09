@@ -24,10 +24,16 @@ from .models import LeaseResponse
 from .registry import AdapterRegistry
 from .retry import APPLICATION_BACKOFF, Sleep
 from .threads import has_abandoned_threads, wait_for_abandoned_threads
+from .token import WorkerTokenMissing
 
 LOGGER = logging.getLogger(__name__)
 SHUTDOWN_SIGNALS = (signal.SIGTERM, signal.SIGINT)
-LEASE_POLL_ERRORS = (httpx.HTTPError, ValidationError, json.JSONDecodeError)
+LEASE_POLL_ERRORS = (
+    httpx.HTTPError,
+    ValidationError,
+    json.JSONDecodeError,
+    WorkerTokenMissing,
+)
 # A worker finishing abandoned inference takes no lease, so it announces itself
 # instead to stay visible to the application.
 PRESENCE_SECONDS = LEASE_HEARTBEAT_SECONDS

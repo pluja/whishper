@@ -28,6 +28,7 @@ from .models import (
 )
 from .registry import AdapterRegistry
 from .retry import Sleep, is_transient, retry
+from .token import WorkerTokenAuth
 from .uploads import upload_artifact
 
 LOGGER = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ class ApplicationClient:
         self.worker_id = _load_or_create_worker_id(settings.worker_id_file)
         self._client = httpx.AsyncClient(
             base_url=str(settings.app_url).rstrip("/"),
-            headers={"Authorization": f"Bearer {settings.worker_token}"},
+            auth=WorkerTokenAuth(settings.worker_token, settings.worker_token_file),
             timeout=settings.request_timeout_seconds,
         )
 

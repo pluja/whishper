@@ -38,8 +38,9 @@ class WorkerSettings(BaseSettings):
     model_config = ENVIRONMENT
 
     app_url: AnyHttpUrl = AnyHttpUrl("http://web:3000")
-    # Unset reads as empty, so the validator can name the variable to fix.
-    worker_token: str = Field(default="", validate_default=True)
+    # Unset means the token the application publishes on the shared volume.
+    worker_token: str | None = None
+    worker_token_file: Path = Path("/data/.anysub/worker-token")
     worker_name: str = "local-worker"
     worker_id_file: Path = Path("/models/.worker-id")
     request_timeout_seconds: float = 30.0
@@ -47,15 +48,10 @@ class WorkerSettings(BaseSettings):
 
     @field_validator("worker_token")
     @classmethod
-    def _worker_token_is_long_enough(cls, token: str) -> str:
-        if len(token) < MINIMUM_WORKER_TOKEN_LENGTH:
-            problem = (
-                f"is shorter than {MINIMUM_WORKER_TOKEN_LENGTH} characters"
-                if token
-                else "is not set"
-            )
+    def _worker_token_is_long_enough(cls, token: str | None) -> str | None:
+        if token is not None and len(token) < MINIMUM_WORKER_TOKEN_LENGTH:
             raise ValueError(
-                f"ANYSUB_WORKER_TOKEN {problem}. It must match the web application's token. "
-                "Run scripts/init-env.sh to generate one."
+                f"ANYSUB_WORKER_TOKEN is shorter than {MINIMUM_WORKER_TOKEN_LENGTH} "
+                "characters. Remove it to use the token the application publishes."
             )
         return token
