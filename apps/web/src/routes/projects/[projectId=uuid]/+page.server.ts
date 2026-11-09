@@ -20,6 +20,7 @@ import {
 import { listTrackCues } from "$lib/server/subtitles/cues";
 import { latestTrackForProject } from "$lib/server/subtitles/tracks";
 import { deleteTranscriptForUser } from "$lib/server/subtitles/transcripts";
+import { cancelTranscriptionForUser } from "$lib/server/transcription/cancel";
 import {
   enqueueTranscription,
   parseTranscriptionRequest,
@@ -106,6 +107,21 @@ export const actions: Actions = {
           user.id,
           parseTranscriptionRequest(values),
         );
+        redirect(303, projectPageUrl(params.projectId));
+      },
+    );
+  },
+  cancelTranscription: async ({ locals, params }) => {
+    const user = requireUserOrLogin(locals);
+    return runAction(
+      "cancel transcription",
+      "The transcription could not be cancelled.",
+      async () => {
+        if (!(await cancelTranscriptionForUser(params.projectId, user.id))) {
+          return fail(409, {
+            message: "The transcription is no longer active.",
+          });
+        }
         redirect(303, projectPageUrl(params.projectId));
       },
     );

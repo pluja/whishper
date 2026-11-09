@@ -19,7 +19,7 @@ export class TrackRevisionConflict extends Error {
 export class TrackLockedByTranscription extends Error {
   constructor() {
     super(
-      "A new transcription is running for this project. Editing resumes when it finishes.",
+      "A new transcription is running for this project. Editing resumes when it finishes or is cancelled.",
     );
   }
 }

@@ -60,6 +60,7 @@
     "Transcription",
     run.progressMessage ?? "Waiting for a compatible worker",
     run.progress,
+    "?/cancelTranscription",
   )}
 {:else if run?.status === "failed"}
   {@render failure(

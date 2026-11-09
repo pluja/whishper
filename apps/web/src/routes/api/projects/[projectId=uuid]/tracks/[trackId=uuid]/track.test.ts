@@ -75,7 +75,7 @@ describe("track update route", () => {
     expect(await response.json()).toEqual({
       code: "transcription_running",
       message:
-        "A new transcription is running for this project. Editing resumes when it finishes.",
+        "A new transcription is running for this project. Editing resumes when it finishes or is cancelled.",
     });
   });
 

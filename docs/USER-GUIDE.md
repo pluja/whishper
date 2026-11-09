@@ -27,7 +27,7 @@ The library search box matches project names. Tick **Subtitle text** to match cu
 2. Leave **Accurate word alignment** on for editing and word-level timings.
 3. Under **Advanced options**, change the maximum line length if 42 characters does not suit your platform, or the batch size if the worker runs out of memory. The batch size defaults to 4 on CPU and 16 on CUDA. A higher value can raise throughput and also raises peak memory.
 4. Choose the spoken language, or leave it on **Detect automatically**. The list offers every language Whisper knows, with the most used ones first. Type in its search field to filter by English name, native name or code; accents are optional, so `espanol` finds Spanish.
-5. Start the transcription and leave the worker running.
+5. Start the transcription and leave the worker running. **Cancel** next to the progress bar stops waiting for the run, for example when no connected worker offers the model.
 
 The first run with a model downloads its weights. Accurate alignment then downloads a smaller model for the language. Both land in the `model-cache` volume and survive rebuilds. A network connection is needed only for files that are not cached yet. Telemetry from Hugging Face and Pyannote is disabled, and transcript text is never written to worker logs.
 
@@ -56,11 +56,11 @@ After transcription and alignment, WhisperX splits long segments at nearby natur
 
 The project page shows the current stage and progress. On failure it shows the adapter error and lets you start another run. Retranscribing creates a new run and keeps the earlier output until you delete it.
 
-To transcribe a project again, choose **Re-transcribe** in the studio title bar. Anysub saves your pending edits first, and if they cannot be saved the run does not start. While the run works, the cue sheet and timeline are read-only and a notice says why. When the run finishes, the new transcript loads on its own. If the run fails, editing resumes on the current transcript, and edits that were waiting are saved.
+To transcribe a project again, choose **Re-transcribe** in the studio title bar. Anysub saves your pending edits first, and if they cannot be saved the run does not start. While the run works, the cue sheet and timeline are read-only and a notice says why. When the run finishes, the new transcript loads on its own. If the run fails or you cancel it, editing resumes on the current transcript, and edits that were waiting are saved.
 
 Edits that never reached the server, such as typing in a second tab after the run started, cannot move to the new transcript. Anysub discards them when the new transcript loads and shows a notice.
 
-The worker retries transient errors up to three attempts. Errors a retry cannot fix fail at once: FFmpeg timeouts, CUDA out-of-memory, and rejected requests. A worker that is stopped mid-job reports it as a retryable failure before exiting, so the job returns to the queue while attempts remain and fails once they run out.
+The worker retries transient errors up to three attempts. Errors a retry cannot fix fail at once: FFmpeg timeouts, CUDA out-of-memory, and rejected requests. A worker that is stopped mid-job reports it as a retryable failure before exiting, so the job returns to the queue while attempts remain and fails once they run out. A worker that disappears without reporting loses its lease after a minute, and the application returns the job to the queue even when no other worker is polling.
 
 Deleting a transcript removes its cues and its run, including the job result and retry history, but keeps the project media.
 

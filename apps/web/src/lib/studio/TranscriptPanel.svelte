@@ -59,7 +59,8 @@
       <p
         class="border-b border-border bg-accent-soft px-4 py-2 text-sm text-text"
       >
-        A new transcription is running. Editing resumes when it finishes.
+        A new transcription is running. Editing resumes when it finishes or you
+        cancel it.
       </p>
     {/if}
   </div>

@@ -1,6 +1,7 @@
 import { building, dev } from "$app/environment";
 import { announceSetupCode } from "$lib/server/auth/setup-code";
 import { pool } from "$lib/server/db";
+import { startJobMaintenance } from "$lib/server/jobs/maintenance";
 import { assertSecureRuntimeConfiguration } from "$lib/server/env";
 import {
   authenticateWorkers,
@@ -18,6 +19,7 @@ export const init: ServerInit = () => {
   assertSecureRuntimeConfiguration({ dev });
   if (building) return;
   startUploadCleanup();
+  startJobMaintenance();
   announceSetupCode().catch((cause) =>
     console.error("Could not check whether setup is needed", cause),
   );
