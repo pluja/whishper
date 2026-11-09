@@ -139,7 +139,7 @@ Opening the shortcut guide suspends the studio shortcuts. Unmodified shortcuts n
 
 Changes autosave after a short pause. Each track has a revision number. The server compares your expected revision, validates the whole cue snapshot, and commits it in one database transaction. If another session saved first, Anysub refuses to overwrite that work and asks you to reload.
 
-While changes are unsaved, the browser keeps a local journal for the project and track. After a reload or crash, Anysub offers the journal back if it still matches the saved revision. A journal older than the saved track is discarded with a notice. Only the latest transcript of a project can be edited, so once a newer one replaces it, unsaved edits to the old one are discarded with a notice too. PostgreSQL stays the source of truth.
+While changes are unsaved, the browser keeps a local journal for the project and track. After a reload or crash, Anysub offers the journal back if it still matches the saved revision. A journal older than the saved track is discarded with a notice. Only the latest transcript of a project can be edited, so once a newer one replaces it, unsaved edits to the old one are discarded with a notice too. The server's database stays the source of truth.
 
 ## Quality warnings
 

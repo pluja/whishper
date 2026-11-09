@@ -1,34 +1,46 @@
-import type { Queryable } from "$lib/server/db/types";
+import { and, desc, eq, sql } from "drizzle-orm";
 
+import type { Executor } from "$lib/server/db";
+import { subtitleTracks } from "$lib/server/db/schema";
 import type { SubtitleTrack } from "$lib/shared/subtitles";
 
-const TRACK_COLUMNS = "id, name, language, metadata, revision";
+const TRACK_COLUMNS = {
+  id: subtitleTracks.id,
+  name: subtitleTracks.name,
+  language: subtitleTracks.language,
+  metadata: subtitleTracks.metadata,
+  revision: subtitleTracks.revision,
+};
 
-export async function trackForProject(
-  executor: Queryable,
+export function trackForProject(
+  executor: Executor,
   projectId: string,
   trackId: string,
-): Promise<SubtitleTrack | null> {
-  const result = await executor.query<SubtitleTrack>(
-    `select ${TRACK_COLUMNS}
-       from subtitle_tracks
-      where project_id = $1 and id = $2`,
-    [projectId, trackId],
-  );
-  return result.rows[0] ?? null;
+): SubtitleTrack | null {
+  const track = executor
+    .select(TRACK_COLUMNS)
+    .from(subtitleTracks)
+    .where(
+      and(
+        eq(subtitleTracks.projectId, projectId),
+        eq(subtitleTracks.id, trackId),
+      ),
+    )
+    .get();
+  return track ?? null;
 }
 
-export async function latestTrackForProject(
-  executor: Queryable,
+// Two tracks can share a millisecond, so insertion order breaks the tie.
+export function latestTrackForProject(
+  executor: Executor,
   projectId: string,
-): Promise<SubtitleTrack | null> {
-  const result = await executor.query<SubtitleTrack>(
-    `select ${TRACK_COLUMNS}
-       from subtitle_tracks
-      where project_id = $1
-      order by created_at desc
-      limit 1`,
-    [projectId],
-  );
-  return result.rows[0] ?? null;
+): SubtitleTrack | null {
+  const track = executor
+    .select(TRACK_COLUMNS)
+    .from(subtitleTracks)
+    .where(eq(subtitleTracks.projectId, projectId))
+    .orderBy(desc(subtitleTracks.createdAt), desc(sql`rowid`))
+    .limit(1)
+    .get();
+  return track ?? null;
 }

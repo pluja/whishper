@@ -1,16 +1,31 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
+import { jobs, transcriptionRuns } from "$lib/server/db/schema";
 import {
   seedLeasedTranscriptionJob,
   seedProject,
 } from "$lib/server/db/testing/fixtures";
 import { reclaimAbandonedJobs } from "$lib/server/jobs/maintenance";
 
+function jobAndRun(jobId: string) {
+  return db
+    .select({
+      state: jobs.state,
+      status: transcriptionRuns.status,
+      progressMessage: jobs.progressMessage,
+    })
+    .from(jobs)
+    .innerJoin(transcriptionRuns, eq(transcriptionRuns.id, jobs.runId))
+    .where(eq(jobs.id, jobId))
+    .get();
+}
+
 describe("reclaimAbandonedJobs", () => {
   it("requeues a job whose worker stopped heartbeating without any worker polling", async () => {
-    const project = await seedProject();
-    const job = await seedLeasedTranscriptionJob(project, {
+    const project = seedProject();
+    const job = seedLeasedTranscriptionJob(project, {
       attempts: 1,
       maxAttempts: 3,
       expiresInSeconds: -1,
@@ -18,26 +33,16 @@ describe("reclaimAbandonedJobs", () => {
 
     await reclaimAbandonedJobs();
 
-    const reclaimed = await pool.query<{
-      state: string;
-      status: string;
-      progress_message: string;
-    }>(
-      `select j.state, r.status, j.progress_message
-         from jobs j join transcription_runs r on r.id = j.run_id
-        where j.id = $1`,
-      [job.jobId],
-    );
-    expect(reclaimed.rows[0]).toEqual({
+    expect(jobAndRun(job.jobId)).toEqual({
       state: "queued",
       status: "queued",
-      progress_message: "The worker stopped before finishing. Trying again.",
+      progressMessage: "The worker stopped before finishing. Trying again.",
     });
   });
 
   it("leaves a live lease alone", async () => {
-    const project = await seedProject();
-    const job = await seedLeasedTranscriptionJob(project, {
+    const project = seedProject();
+    const job = seedLeasedTranscriptionJob(project, {
       attempts: 1,
       maxAttempts: 3,
       expiresInSeconds: 60,
@@ -45,10 +50,6 @@ describe("reclaimAbandonedJobs", () => {
 
     await reclaimAbandonedJobs();
 
-    const live = await pool.query<{ state: string }>(
-      `select state from jobs where id = $1`,
-      [job.jobId],
-    );
-    expect(live.rows[0].state).toBe("leased");
+    expect(jobAndRun(job.jobId)?.state).toBe("leased");
   });
 });

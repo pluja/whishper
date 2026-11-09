@@ -1,4 +1,4 @@
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
 import { projectForUser } from "$lib/server/projects/access";
 import { requireUser } from "$lib/server/auth/session";
 import { listTrackCues } from "$lib/server/subtitles/cues";
@@ -9,11 +9,11 @@ import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ locals, params }) => {
   const user = requireUser(locals);
-  const project = await projectForUser(pool, params.projectId, user.id);
+  const project = projectForUser(db, params.projectId, user.id);
   if (!project) error(404, "Captions not found");
 
-  const track = await latestTrackForProject(pool, project.id);
-  const cues = track ? await listTrackCues(pool, track.id) : [];
+  const track = latestTrackForProject(db, project.id);
+  const cues = track ? listTrackCues(db, track.id) : [];
   if (cues.length === 0) error(404, "Captions not found");
 
   return new Response(renderWebVtt(cues), {

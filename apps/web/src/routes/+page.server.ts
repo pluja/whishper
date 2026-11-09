@@ -1,6 +1,6 @@
 import { auth } from "$lib/server/auth/auth";
 import { requireUserOrLogin } from "$lib/server/auth/session";
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
 import { isInstanceInitialized } from "$lib/server/auth/instance";
 import {
   listLibraryProjects,
@@ -18,13 +18,13 @@ export const load: PageServerLoad = async ({
   locals,
   url,
 }): Promise<LibraryData> => {
-  if (!(await isInstanceInitialized())) redirect(303, "/setup");
+  if (!isInstanceInitialized()) redirect(303, "/setup");
   const user = requireUserOrLogin(locals);
   const search = parseProjectLibrarySearch(url.searchParams);
 
-  const workspace = await primaryWorkspaceForUser(pool, user.id);
+  const workspace = primaryWorkspaceForUser(db, user.id);
   const projects = workspace
-    ? await listLibraryProjects(pool, workspace.id, search)
+    ? listLibraryProjects(db, workspace.id, search)
     : [];
   return { workspace, projects, search };
 };
@@ -49,7 +49,7 @@ export const actions: Actions = {
     }
 
     try {
-      if (!(await renameProjectForUser(pool, projectId, user.id, name))) {
+      if (!renameProjectForUser(db, projectId, user.id, name)) {
         return fail(404, {
           renameProjectId: projectId,
           renameError: "That project could not be found.",

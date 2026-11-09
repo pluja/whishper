@@ -6,31 +6,21 @@ name: anysub-dev
 x-dev-url: &dev-url http://localhost:${ANYSUB_DEV_PORT:-5174}
 
 services:
-  migrate:
+  web:
     image: anysub-web-dev
     build:
       target: development
     # The source bind mount hides every node_modules directory baked into the
     # image, so each workspace package keeps its own in a named volume.
-    volumes: &web-volumes
+    volumes:
       - .:/workspace:z
       - web-node-modules:/workspace/node_modules
       - web-app-node-modules:/workspace/apps/web/node_modules
       - web-contracts-node-modules:/workspace/packages/contracts/node_modules
-    # Named node_modules volumes are only seeded from the image once. CI makes
-    # pnpm reinstall them non-interactively when the lockfile moves on.
-    environment: &pnpm-non-interactive
-      CI: "true"
-    working_dir: /workspace/apps/web
-    command: ["pnpm", "migrate"]
-
-  web:
-    image: anysub-web-dev
-    build:
-      target: development
-    volumes: *web-volumes
     environment:
-      <<: *pnpm-non-interactive
+      # Named node_modules volumes are only seeded from the image once. CI makes
+      # pnpm reinstall them non-interactively when the lockfile moves on.
+      CI: "true"
       BETTER_AUTH_URL: *dev-url
     working_dir: /workspace
     command: ["pnpm", "--filter", "@anysub/web", "dev", "--host", "0.0.0.0"]

@@ -1,5 +1,6 @@
 import type { TranscriptionJobPayload } from "@anysub/contracts";
 
+import { jobs, transcriptionRuns } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { badRequest, conflict, notFound } from "$lib/server/http/errors";
 import { projectForUser } from "$lib/server/projects/access";
@@ -69,27 +70,23 @@ export function parseTranscriptionRequest(
   };
 }
 
-export async function enqueueTranscription(
+export function enqueueTranscription(
   projectId: string,
   userId: string,
   request: TranscriptionRequest,
-): Promise<void> {
-  await withTransaction(async (client) => {
-    const project = await projectForUser(client, projectId, userId, {
-      lock: true,
-    });
+): void {
+  withTransaction((tx) => {
+    const project = projectForUser(tx, projectId, userId);
     if (!project) throw notFound("Project not found.");
     if (!project.mediaOriginalKey) {
       throw conflict("The source upload is not complete yet.");
     }
 
-    if (await hasActiveTranscriptionRun(client, project.id)) {
+    if (hasActiveTranscriptionRun(tx, project.id)) {
       throw conflict("This project is already being transcribed.");
     }
 
-    const available = availableTranscriptionModels(
-      await activeWorkerManifests(client),
-    );
+    const available = availableTranscriptionModels(activeWorkerManifests(tx));
     if (
       !available.some(
         (model) =>
@@ -100,33 +97,35 @@ export async function enqueueTranscription(
       throw conflict("That model is not available on a connected worker.");
     }
 
-    const run = await client.query<{ id: string }>(
-      `insert into transcription_runs
-         (project_id, adapter_id, model_id, options, created_by)
-       values ($1, $2, $3, $4, $5)
-       returning id`,
-      [
-        project.id,
-        request.adapterId,
-        request.modelId,
-        JSON.stringify(request.options),
-        userId,
-      ],
-    );
+    const run = tx
+      .insert(transcriptionRuns)
+      .values({
+        projectId: project.id,
+        adapterId: request.adapterId,
+        modelId: request.modelId,
+        options: request.options,
+        createdBy: userId,
+      })
+      .returning({ id: transcriptionRuns.id })
+      .get();
     const payload: TranscriptionJobPayload = {
       kind: "transcribe",
       adapterId: request.adapterId,
       modelId: request.modelId,
       projectId: project.id,
-      runId: run.rows[0].id,
+      runId: run.id,
       mediaPath: resolveDataPath(project.mediaOriginalKey),
       ...(request.language === null ? {} : { language: request.language }),
       options: request.options,
     };
-    await client.query(
-      `insert into jobs (workspace_id, project_id, run_id, kind, payload)
-       values ($1, $2, $3, 'transcribe', $4)`,
-      [project.workspaceId, project.id, payload.runId, JSON.stringify(payload)],
-    );
+    tx.insert(jobs)
+      .values({
+        workspaceId: project.workspaceId,
+        projectId: project.id,
+        runId: run.id,
+        kind: "transcribe",
+        payload,
+      })
+      .run();
   });
 }

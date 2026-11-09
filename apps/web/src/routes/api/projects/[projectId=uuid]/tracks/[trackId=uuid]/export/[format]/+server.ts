@@ -3,7 +3,7 @@ import {
   type MemberProject,
 } from "$lib/server/projects/access";
 import { requireUser } from "$lib/server/auth/session";
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
 import { listTrackCues } from "$lib/server/subtitles/cues";
 import { trackForProject } from "$lib/server/subtitles/tracks";
 import {
@@ -24,12 +24,12 @@ export const GET: RequestHandler = async ({ locals, params }) => {
     error(404, "Export format not found");
   }
 
-  const project = await projectForUser(pool, params.projectId, user.id);
+  const project = projectForUser(db, params.projectId, user.id);
   if (!project) error(404, "Subtitle track not found");
 
-  const track = await trackForProject(pool, project.id, params.trackId);
+  const track = trackForProject(db, project.id, params.trackId);
   if (!track) error(404, "Subtitle track not found");
-  const cues = await listTrackCues(pool, track.id, { includeWords: true });
+  const cues = listTrackCues(db, track.id, { includeWords: true });
 
   const baseName = safeFilename(`${project.name}-${track.language}`);
   const asciiName =

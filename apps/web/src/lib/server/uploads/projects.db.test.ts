@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
+import { mediaUploads } from "$lib/server/db/schema";
 import { seedProject } from "$lib/server/db/testing/fixtures";
 import { completeUpload } from "$lib/server/uploads/projects";
 
@@ -15,30 +17,34 @@ describe("completeUpload", () => {
   it("stamps the first finalize attempt before filesystem setup can fail", async () => {
     const project = await seedProject();
     const uploadId = randomUUID();
-    await pool.query(
-      `insert into media_uploads
-         (id, workspace_id, project_id, created_by, original_filename, size_bytes)
-       values ($1, $2, $3, $4, 'clip.mp4', 1024)`,
-      [uploadId, project.workspaceId, project.projectId, project.userId],
-    );
+    db.insert(mediaUploads)
+      .values({
+        id: uploadId,
+        workspaceId: project.workspaceId,
+        projectId: project.projectId,
+        createdBy: project.userId,
+        originalFilename: "clip.mp4",
+        sizeBytes: 1024,
+      })
+      .run();
 
     await expect(completeUpload(uploadId, project.userId)).rejects.toThrow(
       "EACCES",
     );
 
-    const upload = await pool.query<{
-      status: string;
-      error: string | null;
-      first_finalize_attempt_at: Date | null;
-    }>(
-      `select status, error, first_finalize_attempt_at
-         from media_uploads where id = $1`,
-      [uploadId],
-    );
-    expect(upload.rows[0]).toMatchObject({
+    const upload = db
+      .select({
+        status: mediaUploads.status,
+        error: mediaUploads.error,
+        firstFinalizeAttemptAt: mediaUploads.firstFinalizeAttemptAt,
+      })
+      .from(mediaUploads)
+      .where(eq(mediaUploads.id, uploadId))
+      .get();
+    expect(upload).toMatchObject({
       status: "uploading",
       error: "EACCES",
-      first_finalize_attempt_at: expect.any(Date),
+      firstFinalizeAttemptAt: expect.any(Date),
     });
   });
 });

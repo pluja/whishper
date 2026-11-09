@@ -16,12 +16,12 @@ import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async () => {
-  if (await isInstanceInitialized()) redirect(303, "/login");
+  if (isInstanceInitialized()) redirect(303, "/login");
 };
 
 export const actions: Actions = {
   default: async ({ request, getClientAddress }) => {
-    if (await isInstanceInitialized()) redirect(303, "/login");
+    if (isInstanceInitialized()) redirect(303, "/login");
     const form = await request.formData();
     const name = String(form.get("name") ?? "").trim();
     const email = String(form.get("email") ?? "")
@@ -66,7 +66,7 @@ export const actions: Actions = {
     const authContext = await auth.$context;
     let outcome;
     try {
-      outcome = await createInstanceOwner({
+      outcome = createInstanceOwner({
         name,
         email,
         passwordHash: await authContext.password.hash(password),

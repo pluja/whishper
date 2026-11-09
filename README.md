@@ -25,11 +25,10 @@ Anysub is a ground-up rewrite of [Whishper](https://github.com/pluja/whishper). 
 ```sh
 git clone -b v4 https://github.com/pluja/whishper.git anysub
 cd anysub
-./scripts/init-env.sh
 docker compose up --build
 ```
 
-`init-env.sh` writes a `.env` file with secrets unique to your installation. Anysub refuses to start with the placeholder values from `.env.example`.
+There is nothing to configure first. Anysub generates its secrets on first start and keeps them in its database. To change an optional setting such as the port, copy `.env.example` to `.env` and uncomment the line.
 
 Open `http://localhost:5173`, or `http://<server-address>:5173` from another machine, and create the owner account on the setup page. The page asks for a setup code that Anysub prints in its log at startup. It shows in the `docker compose up` output, or run `docker compose logs web`. The owner is the only account: public sign-up is disabled and there is no way to add users yet.
 
@@ -39,7 +38,6 @@ On Fedora with rootless Podman, use Docker Compose as the provider:
 sudo dnf install podman docker-compose
 systemctl --user enable --now podman.socket
 export PODMAN_COMPOSE_PROVIDER=/usr/libexec/docker/cli-plugins/docker-compose
-./scripts/init-env.sh
 podman compose up --build -d
 ```
 

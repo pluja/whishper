@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { pool } from "$lib/server/db";
+import { eq } from "drizzle-orm";
+
+import { db } from "$lib/server/db";
+import { memberships } from "$lib/server/db/schema";
 import { seedMember, seedProject } from "$lib/server/db/testing/fixtures";
 import {
   manageableProjectForUser,
@@ -12,9 +15,7 @@ describe("projectForUser", () => {
     const project = await seedProject({ mediaOriginalKey: "media/source.mp4" });
     const member = await seedMember(project.workspaceId, "member");
 
-    await expect(
-      projectForUser(pool, project.projectId, member),
-    ).resolves.toEqual({
+    expect(projectForUser(db, project.projectId, member)).toEqual({
       id: project.projectId,
       workspaceId: project.workspaceId,
       name: "Project",
@@ -27,9 +28,7 @@ describe("projectForUser", () => {
     const project = await seedProject();
     const outsider = await seedProject();
 
-    await expect(
-      projectForUser(pool, project.projectId, outsider.userId),
-    ).resolves.toBeNull();
+    expect(projectForUser(db, project.projectId, outsider.userId)).toBeNull();
   });
 });
 
@@ -40,30 +39,28 @@ describe("manageableProjectForUser", () => {
       const project = await seedProject();
       const manager = await seedMember(project.workspaceId, role);
 
-      await expect(
-        manageableProjectForUser(pool, project.projectId, manager),
-      ).resolves.toMatchObject({ id: project.projectId, canManage: true });
+      expect(
+        manageableProjectForUser(db, project.projectId, manager),
+      ).toMatchObject({ id: project.projectId, canManage: true });
     },
   );
 
   it("lets the creator manage their project without an elevated role", async () => {
     const project = await seedProject();
-    await pool.query(
-      `update memberships set role = 'member' where user_id = $1`,
-      [project.userId],
-    );
+    db.update(memberships)
+      .set({ role: "member" })
+      .where(eq(memberships.userId, project.userId))
+      .run();
 
-    await expect(
-      manageableProjectForUser(pool, project.projectId, project.userId),
-    ).resolves.toMatchObject({ canManage: true });
+    expect(
+      manageableProjectForUser(db, project.projectId, project.userId),
+    ).toMatchObject({ canManage: true });
   });
 
   it("refuses a plain member who did not create the project", async () => {
     const project = await seedProject();
     const member = await seedMember(project.workspaceId, "member");
 
-    await expect(
-      manageableProjectForUser(pool, project.projectId, member),
-    ).resolves.toBeNull();
+    expect(manageableProjectForUser(db, project.projectId, member)).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
 import { seedProject, seedTrack } from "$lib/server/db/testing/fixtures";
 import { withTransaction } from "$lib/server/db/transaction";
 import { insertCues, listTrackCues } from "$lib/server/subtitles/cues";
@@ -18,8 +18,8 @@ describe("insertCues and listTrackCues", () => {
   it("stores provided ids with positions in order and reads them back", async () => {
     const trackId = await seededTrack();
 
-    await withTransaction((client) =>
-      insertCues(client, trackId, {
+    withTransaction((tx) =>
+      insertCues(tx, trackId, {
         ids: "provided",
         cues: [
           { id: FIRST_CUE_ID, startUs: 0, endUs: 10, text: "one", words: [] },
@@ -34,9 +34,7 @@ describe("insertCues and listTrackCues", () => {
       }),
     );
 
-    await expect(
-      listTrackCues(pool, trackId, { includeWords: true }),
-    ).resolves.toEqual([
+    expect(listTrackCues(db, trackId, { includeWords: true })).toEqual([
       {
         id: FIRST_CUE_ID,
         position: 0,
@@ -59,8 +57,8 @@ describe("insertCues and listTrackCues", () => {
   it("generates ids when asked and leaves words out by default", async () => {
     const trackId = await seededTrack();
 
-    await withTransaction((client) =>
-      insertCues(client, trackId, {
+    withTransaction((tx) =>
+      insertCues(tx, trackId, {
         ids: "generate",
         cues: [
           {
@@ -73,7 +71,7 @@ describe("insertCues and listTrackCues", () => {
       }),
     );
 
-    const [cue] = await listTrackCues(pool, trackId);
+    const [cue] = listTrackCues(db, trackId);
     expect(isUuid(cue.id)).toBe(true);
     expect(cue).toEqual({
       id: cue.id,
@@ -82,5 +80,31 @@ describe("insertCues and listTrackCues", () => {
       endUs: 5_000_000_000,
       text: "one",
     });
+  });
+
+  it("refuses provided ids that are not UUIDs and stores nothing", async () => {
+    const trackId = await seededTrack();
+
+    expect(() =>
+      withTransaction((tx) =>
+        insertCues(tx, trackId, {
+          ids: "provided",
+          cues: [
+            { id: "cue-1", startUs: 0, endUs: 10, text: "one", words: [] },
+          ],
+        }),
+      ),
+    ).toThrow("Cue ids must be UUIDs.");
+    expect(listTrackCues(db, trackId)).toEqual([]);
+  });
+
+  it("accepts an empty batch", async () => {
+    const trackId = await seededTrack();
+
+    withTransaction((tx) =>
+      insertCues(tx, trackId, { ids: "generate", cues: [] }),
+    );
+
+    expect(listTrackCues(db, trackId)).toEqual([]);
   });
 });

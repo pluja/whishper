@@ -1,6 +1,8 @@
 import { rm } from "node:fs/promises";
 
-import { lockForTransaction, lockKeys } from "$lib/server/db/locks";
+import { eq } from "drizzle-orm";
+
+import { jobs, mediaUploads, projects } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { manageableProjectForUser } from "$lib/server/projects/access";
 import {
@@ -10,37 +12,29 @@ import {
   workerArtifactsPath,
 } from "$lib/server/storage/paths";
 
-// The unlocked check keeps an outsider from waiting behind, or holding up,
-// work on a project they cannot touch. Media preparation also starts with the
-// advisory lock, which serializes the two; the check then repeats under the
-// project row lock in case access was revoked while waiting.
 export async function deleteProjectForUser(
   projectId: string,
   userId: string,
 ): Promise<boolean> {
-  const deleted = await withTransaction(async (client) => {
-    if (!(await manageableProjectForUser(client, projectId, userId))) {
-      return null;
-    }
-
-    await lockForTransaction(client, lockKeys.projectMedia(projectId));
-    const jobs = await client.query<{ id: string }>(
-      `select id from jobs where project_id = $1 for update`,
-      [projectId],
-    );
-    const project = await manageableProjectForUser(client, projectId, userId, {
-      lock: true,
-    });
+  const deleted = withTransaction((tx) => {
+    const project = manageableProjectForUser(tx, projectId, userId);
     if (!project) return null;
-    const upload = await client.query<{ id: string }>(
-      `select id from media_uploads where project_id = $1`,
-      [projectId],
-    );
-    await client.query("delete from projects where id = $1", [projectId]);
+    const jobIds = tx
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(eq(jobs.projectId, projectId))
+      .all()
+      .map((job) => job.id);
+    const upload = tx
+      .select({ id: mediaUploads.id })
+      .from(mediaUploads)
+      .where(eq(mediaUploads.projectId, projectId))
+      .get();
+    tx.delete(projects).where(eq(projects.id, projectId)).run();
     return {
       workspaceId: project.workspaceId,
-      uploadId: upload.rows[0]?.id ?? null,
-      jobIds: jobs.rows.map((job) => job.id),
+      uploadId: upload?.id ?? null,
+      jobIds,
     };
   });
   if (!deleted) return false;

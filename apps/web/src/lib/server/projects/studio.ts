@@ -1,5 +1,15 @@
-import type { Queryable } from "$lib/server/db/types";
-import { IS_MEDIA_PREPARE_JOB } from "$lib/server/jobs/predicates";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
+
+import type { Executor } from "$lib/server/db";
+import {
+  jobs,
+  mediaDerivatives,
+  mediaUploads,
+  projects,
+  transcriptionRuns,
+  workspaces,
+} from "$lib/server/db/schema";
+import { isMediaPrepareJob } from "$lib/server/jobs/predicates";
 import type {
   StudioDerivative,
   StudioPreparation,
@@ -7,85 +17,112 @@ import type {
   StudioRun,
 } from "$lib/shared/studio-data";
 
-export async function studioProject(
-  executor: Queryable,
+const JOB_PROGRESS = {
+  progress: jobs.progress,
+  progressMessage: jobs.progressMessage,
+  error: jobs.error,
+};
+
+// Rows written within one millisecond keep their insertion order.
+const NEWEST_FIRST = [desc(sql`created_at`), desc(sql`rowid`)];
+
+export function studioProject(
+  executor: Executor,
   projectId: string,
-): Promise<StudioProject | null> {
-  const result = await executor.query<StudioProject>(
-    `select p.id, p.name, p.created_at as "createdAt",
-            w.name as "workspaceName",
-            p.media_filename as "mediaFilename",
-            p.media_original_key as "mediaOriginalKey",
-            upload.media_type as "mediaType",
-            upload.status as "uploadStatus",
-            upload.size_bytes as "sizeBytes",
-            p.media_duration_us as "mediaDurationUs",
-            p.media_preparation_status as "mediaPreparationStatus",
-            p.media_probe as "mediaProbe",
-            p.media_frame_rate_num as "mediaFrameRateNum",
-            p.media_frame_rate_den as "mediaFrameRateDen",
-            p.media_seekable as "mediaSeekable",
-            p.media_proxy_recommended as "mediaProxyRecommended"
-       from projects p
-       join workspaces w on w.id = p.workspace_id
-       left join media_uploads upload on upload.project_id = p.id
-      where p.id = $1`,
-    [projectId],
-  );
-  return result.rows[0] ?? null;
+): StudioProject | null {
+  const project = executor
+    .select({
+      id: projects.id,
+      name: projects.name,
+      createdAt: projects.createdAt,
+      workspaceName: workspaces.name,
+      mediaFilename: projects.mediaFilename,
+      mediaOriginalKey: projects.mediaOriginalKey,
+      mediaType: mediaUploads.mediaType,
+      uploadStatus: mediaUploads.status,
+      sizeBytes: mediaUploads.sizeBytes,
+      mediaDurationUs: projects.mediaDurationUs,
+      mediaPreparationStatus: projects.mediaPreparationStatus,
+      mediaProbe: projects.mediaProbe,
+      mediaFrameRateNum: projects.mediaFrameRateNum,
+      mediaFrameRateDen: projects.mediaFrameRateDen,
+      mediaSeekable: projects.mediaSeekable,
+      mediaProxyRecommended: projects.mediaProxyRecommended,
+    })
+    .from(projects)
+    .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
+    .leftJoin(mediaUploads, eq(mediaUploads.projectId, projects.id))
+    .where(eq(projects.id, projectId))
+    .get();
+  return project ?? null;
 }
 
-export async function latestRun(
-  executor: Queryable,
+export function latestRun(
+  executor: Executor,
   projectId: string,
-): Promise<StudioRun | null> {
-  const result = await executor.query<StudioRun>(
-    `select r.id, r.status, r.adapter_id as "adapterId",
-            r.model_id as "modelId", r.created_at as "createdAt",
-            j.state as "jobState", j.progress,
-            j.progress_message as "progressMessage", j.error
-       from transcription_runs r
-       left join lateral (
-         select state, progress, progress_message, error
-           from jobs
-          where run_id = r.id
-          order by created_at desc
-          limit 1
-       ) j on true
-      where r.project_id = $1
-      order by r.created_at desc
-      limit 1`,
-    [projectId],
-  );
-  return result.rows[0] ?? null;
+): StudioRun | null {
+  const run = executor
+    .select({
+      id: transcriptionRuns.id,
+      status: transcriptionRuns.status,
+      adapterId: transcriptionRuns.adapterId,
+      modelId: transcriptionRuns.modelId,
+      createdAt: transcriptionRuns.createdAt,
+    })
+    .from(transcriptionRuns)
+    .where(eq(transcriptionRuns.projectId, projectId))
+    .orderBy(...NEWEST_FIRST)
+    .limit(1)
+    .get();
+  if (!run) return null;
+  const job = executor
+    .select({ jobState: jobs.state, ...JOB_PROGRESS })
+    .from(jobs)
+    .where(eq(jobs.runId, run.id))
+    .orderBy(...NEWEST_FIRST)
+    .limit(1)
+    .get();
+  return {
+    ...run,
+    jobState: job?.jobState ?? null,
+    progress: job?.progress ?? null,
+    progressMessage: job?.progressMessage ?? null,
+    error: job?.error ?? null,
+  };
 }
 
-export async function latestMediaPreparation(
-  executor: Queryable,
+export function latestMediaPreparation(
+  executor: Executor,
   projectId: string,
-): Promise<StudioPreparation | null> {
-  const result = await executor.query<StudioPreparation>(
-    `select state, progress, progress_message as "progressMessage", error
-       from jobs
-      where project_id = $1 and ${IS_MEDIA_PREPARE_JOB}
-      order by created_at desc
-      limit 1`,
-    [projectId],
-  );
-  return result.rows[0] ?? null;
+): StudioPreparation | null {
+  const job = executor
+    .select({ state: jobs.state, ...JOB_PROGRESS })
+    .from(jobs)
+    .where(and(eq(jobs.projectId, projectId), isMediaPrepareJob))
+    .orderBy(...NEWEST_FIRST)
+    .limit(1)
+    .get();
+  return job ?? null;
 }
 
-export async function readyDerivatives(
-  executor: Queryable,
+export function readyDerivatives(
+  executor: Executor,
   projectId: string,
-): Promise<StudioDerivative[]> {
-  const result = await executor.query<StudioDerivative>(
-    `select kind, media_type as "mediaType", size_bytes as "sizeBytes",
-            metadata
-       from media_derivatives
-      where project_id = $1 and status = 'ready'
-      order by kind`,
-    [projectId],
-  );
-  return result.rows;
+): StudioDerivative[] {
+  return executor
+    .select({
+      kind: mediaDerivatives.kind,
+      mediaType: mediaDerivatives.mediaType,
+      sizeBytes: mediaDerivatives.sizeBytes,
+      metadata: mediaDerivatives.metadata,
+    })
+    .from(mediaDerivatives)
+    .where(
+      and(
+        eq(mediaDerivatives.projectId, projectId),
+        eq(mediaDerivatives.status, "ready"),
+      ),
+    )
+    .orderBy(asc(mediaDerivatives.kind))
+    .all();
 }

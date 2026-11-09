@@ -1,41 +1,10 @@
 name: anysub
 
-# Compose interpolates every service, even one that is not started, so a
-# required variable needs its :? check only where it first appears.
-x-app-url: &app-url ${BETTER_AUTH_URL:-http://localhost:5173}
-x-worker-token: &worker-token ${ANYSUB_WORKER_TOKEN:?not set. Run scripts/init-env.sh to generate .env}
-x-database-url: &database-url postgresql://${POSTGRES_USER:-anysub}:${POSTGRES_PASSWORD:?not set. Run scripts/init-env.sh to generate .env}@postgres:5432/${POSTGRES_DB:-anysub}
+# Nothing here needs configuring. Anysub generates its secrets on first start
+# and keeps them in the database. See docs/CONFIGURATION.md for the optional
+# settings a .env file next to this one can change.
 
 services:
-  postgres:
-    image: docker.io/library/postgres:17.5-bookworm
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-anysub}
-      POSTGRES_USER: ${POSTGRES_USER:-anysub}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-
-  migrate:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      target: runtime
-    command: ["node", "scripts/migrate.mjs"]
-    environment:
-      DATABASE_URL: *database-url
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: "no"
-
   web:
     build:
       context: .
@@ -43,22 +12,20 @@ services:
       target: runtime
     restart: unless-stopped
     environment:
-      DATABASE_URL: *database-url
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?not set. Run scripts/init-env.sh to generate .env}
-      BETTER_AUTH_URL: *app-url
-      ANYSUB_WORKER_TOKEN: *worker-token
       DATA_ROOT: /data
+      ANYSUB_DATABASE_FILE: /database/anysub.db
+      # Only an HTTPS reverse proxy needs this, to mark session cookies Secure.
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:5173}
       # adapter-node reads BODY_SIZE_LIMIT. The ANYSUB_ name is the documented one.
       BODY_SIZE_LIMIT: ${ANYSUB_BODY_SIZE_LIMIT:-64M}
+      ANYSUB_MAX_UPLOAD_BYTES: ${ANYSUB_MAX_UPLOAD_BYTES:-536870912000}
       # adapter-node reads ADDRESS_HEADER. Empty means the socket address.
       ADDRESS_HEADER: ${ANYSUB_ADDRESS_HEADER:-}
-      ANYSUB_MAX_UPLOAD_BYTES: ${ANYSUB_MAX_UPLOAD_BYTES:-536870912000}
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
     ports:
       - "${ANYSUB_PORT:-5173}:3000"
     volumes:
+      # SQLite needs local disk: keep this volume off network shares.
+      - database:/database
       - app-data:/data
     healthcheck:
       test: ["CMD", "node", "scripts/healthcheck.mjs"]
@@ -80,7 +47,6 @@ services:
     restart: unless-stopped
     environment:
       ANYSUB_APP_URL: http://web:3000
-      ANYSUB_WORKER_TOKEN: *worker-token
       ANYSUB_WORKER_NAME: ${ANYSUB_WORKER_NAME:-local-worker}
       ANYSUB_DATA_ROOT: /data
       ANYSUB_MODEL_ROOT: /models
@@ -93,10 +59,12 @@ services:
       web:
         condition: service_healthy
     volumes:
+      # The web service writes the worker token here, so the worker needs no
+      # configuration to authenticate.
       - app-data:/data:ro
       - model-cache:/models
 
 volumes:
-  postgres-data:
+  database:
   app-data:
   model-cache:

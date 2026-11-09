@@ -7,9 +7,10 @@ import type {
   MediaPreparationJobCompletion,
   MediaPreparationJobPayload,
 } from "@anysub/contracts";
-import type { PoolClient } from "pg";
+import { and, eq, notInArray } from "drizzle-orm";
 
-import { withTransaction } from "$lib/server/db/transaction";
+import type { Executor } from "$lib/server/db";
+import { mediaDerivatives, projects } from "$lib/server/db/schema";
 import { unprocessable } from "$lib/server/http/errors";
 import {
   ARTIFACT_DIRECTORIES,
@@ -29,67 +30,31 @@ import {
   workerArtifactsPath,
 } from "$lib/server/storage/paths";
 
+export type MediaFinalizationInput = {
+  jobId: string;
+  attempt: number;
+  workspaceId: string;
+  payload: MediaPreparationJobPayload;
+  completion: MediaPreparationJobCompletion;
+};
+
 export type MediaFinalizationPlan = {
+  artifacts: MediaDerivativeUpload[];
+  finalKeys: Map<MediaDerivativeKind, string>;
   createdPaths: string[];
-  obsoletePaths: string[];
   stagingRoot: string;
 };
 
-export async function finalizeMediaPreparation(
-  client: PoolClient,
-  input: {
-    jobId: string;
-    attempt: number;
-    workspaceId: string;
-    payload: MediaPreparationJobPayload;
-    completion: MediaPreparationJobCompletion;
-  },
+// Links the staged derivatives into project storage before the database
+// records them, because a transaction cannot wait on the filesystem.
+export async function linkMediaArtifacts(
+  input: MediaFinalizationInput,
 ): Promise<MediaFinalizationPlan> {
-  const { completion } = input;
-  assertDerivativesAllowed(completion);
-  const requiredKinds = requiredArtifactKinds(completion.probe);
-  const artifacts = new Map<MediaDerivativeKind, MediaDerivativeUpload>();
-  for (const artifact of completion.artifacts) {
-    if (artifacts.has(artifact.kind)) {
-      throw unprocessable(
-        `Worker returned duplicate ${artifact.kind} derivatives.`,
-      );
-    }
-    artifacts.set(artifact.kind, artifact);
-  }
-  for (const kind of requiredKinds) {
-    if (!artifacts.has(kind)) {
-      throw unprocessable(
-        `Worker did not upload the required ${kind} derivative.`,
-      );
-    }
-  }
-
-  const project = await client.query<{
-    media_original_key: string | null;
-  }>("select media_original_key from projects where id = $1 for update", [
-    input.payload.projectId,
-  ]);
-  if (project.rows[0]?.media_original_key !== input.payload.sourceStorageKey) {
-    throw unprocessable(
-      "Project source changed before media preparation completed.",
-    );
-  }
-
-  const previous = await client.query<{
-    kind: MediaDerivativeKind;
-    storage_key: string;
-  }>(`select kind, storage_key from media_derivatives where project_id = $1`, [
-    input.payload.projectId,
-  ]);
-  const previousKeys = new Map(
-    previous.rows.map((row) => [row.kind, row.storage_key]),
-  );
+  const artifacts = validatedArtifacts(input.completion);
   const createdPaths: string[] = [];
   const finalKeys = new Map<MediaDerivativeKind, string>();
-
   try {
-    for (const artifact of artifacts.values()) {
+    for (const artifact of artifacts) {
       const stagedPath = stagedArtifactPath(
         input.jobId,
         input.attempt,
@@ -101,7 +66,6 @@ export async function finalizeMediaPreparation(
           `Staged ${artifact.kind} derivative is incomplete.`,
         );
       }
-
       const storageKey = artifactStorageKey(
         input.workspaceId,
         input.payload.projectId,
@@ -115,93 +79,106 @@ export async function finalizeMediaPreparation(
       }
       finalKeys.set(artifact.kind, storageKey);
     }
-
-    const frameRate = primaryFrameRate(completion.probe);
-    await client.query(
-      `update projects
-          set media_duration_us = $2,
-              media_preparation_status = 'completed',
-              media_probe = $3,
-              media_frame_rate_num = $4,
-              media_frame_rate_den = $5,
-              media_seekable = $6,
-              media_proxy_recommended = $7,
-              updated_at = now()
-        where id = $1`,
-      [
-        input.payload.projectId,
-        completion.probe.durationUs,
-        JSON.stringify(completion.probe),
-        frameRate?.numerator ?? null,
-        frameRate?.denominator ?? null,
-        completion.probe.seekable,
-        completion.probe.proxyRecommended,
-      ],
-    );
-
-    await client.query(
-      `delete from media_derivatives
-        where project_id = $1 and not (kind = any($2::text[]))`,
-      [input.payload.projectId, [...artifacts.keys()]],
-    );
-
-    for (const artifact of artifacts.values()) {
-      await client.query(
-        `insert into media_derivatives
-          (project_id, job_id, kind, status, storage_key, source_storage_key,
-           media_type, size_bytes, schema_version, generator_version, metadata)
-         values ($1, $2, $3, 'ready', $4, $5, $6, $7, $8, $9, $10)
-         on conflict (project_id, kind) do update set
-           job_id = excluded.job_id,
-           status = 'ready',
-           storage_key = excluded.storage_key,
-           source_storage_key = excluded.source_storage_key,
-           media_type = excluded.media_type,
-           size_bytes = excluded.size_bytes,
-           schema_version = excluded.schema_version,
-           generator_version = excluded.generator_version,
-           metadata = excluded.metadata,
-           created_at = now(),
-           updated_at = now()`,
-        [
-          input.payload.projectId,
-          input.jobId,
-          artifact.kind,
-          finalKeys.get(artifact.kind),
-          input.payload.sourceStorageKey,
-          artifact.mediaType,
-          artifact.sizeBytes,
-          artifact.schemaVersion,
-          artifact.generatorVersion,
-          JSON.stringify({
-            ...artifact.metadata,
-            generator: completion.generator,
-          }),
-        ],
-      );
-    }
   } catch (cause) {
-    await Promise.all(
-      createdPaths.map((path) => unlink(path).catch(() => undefined)),
-    );
+    await removePaths(createdPaths);
     throw cause;
   }
-
-  const obsoletePaths = [...previousKeys.entries()]
-    .filter(([kind, key]) => finalKeys.get(kind) !== key)
-    .map(([, key]) => resolveDataPath(key));
   return {
+    artifacts,
+    finalKeys,
     createdPaths,
-    obsoletePaths,
     stagingRoot: workerArtifactsPath(input.jobId),
   };
 }
 
+// Returns the files of replaced derivatives, to delete once this commits.
+export function recordMediaFinalization(
+  tx: Executor,
+  input: MediaFinalizationInput,
+  plan: MediaFinalizationPlan,
+): string[] {
+  const { completion, payload } = input;
+  const project = tx
+    .select({ mediaOriginalKey: projects.mediaOriginalKey })
+    .from(projects)
+    .where(eq(projects.id, payload.projectId))
+    .get();
+  if (project?.mediaOriginalKey !== payload.sourceStorageKey) {
+    throw unprocessable(
+      "Project source changed before media preparation completed.",
+    );
+  }
+
+  const previous = tx
+    .select({
+      kind: mediaDerivatives.kind,
+      storageKey: mediaDerivatives.storageKey,
+    })
+    .from(mediaDerivatives)
+    .where(eq(mediaDerivatives.projectId, payload.projectId))
+    .all();
+
+  const frameRate = primaryFrameRate(completion.probe);
+  tx.update(projects)
+    .set({
+      mediaDurationUs: completion.probe.durationUs,
+      mediaPreparationStatus: "completed",
+      mediaProbe: { ...completion.probe },
+      mediaFrameRateNum: frameRate?.numerator ?? null,
+      mediaFrameRateDen: frameRate?.denominator ?? null,
+      mediaSeekable: completion.probe.seekable,
+      mediaProxyRecommended: completion.probe.proxyRecommended,
+    })
+    .where(eq(projects.id, payload.projectId))
+    .run();
+
+  tx.delete(mediaDerivatives)
+    .where(
+      and(
+        eq(mediaDerivatives.projectId, payload.projectId),
+        notInArray(
+          mediaDerivatives.kind,
+          plan.artifacts.map((artifact) => artifact.kind),
+        ),
+      ),
+    )
+    .run();
+
+  const now = new Date();
+  for (const artifact of plan.artifacts) {
+    const row = {
+      jobId: input.jobId,
+      status: "ready" as const,
+      storageKey: plan.finalKeys.get(artifact.kind) ?? "",
+      sourceStorageKey: payload.sourceStorageKey,
+      mediaType: artifact.mediaType,
+      sizeBytes: artifact.sizeBytes,
+      schemaVersion: artifact.schemaVersion,
+      generatorVersion: artifact.generatorVersion,
+      metadata: { ...artifact.metadata, generator: completion.generator },
+      createdAt: now,
+      updatedAt: now,
+    };
+    tx.insert(mediaDerivatives)
+      .values({ projectId: payload.projectId, kind: artifact.kind, ...row })
+      .onConflictDoUpdate({
+        target: [mediaDerivatives.projectId, mediaDerivatives.kind],
+        set: row,
+      })
+      .run();
+  }
+
+  return previous
+    .filter(({ kind, storageKey }) => plan.finalKeys.get(kind) !== storageKey)
+    .map(({ storageKey }) => resolveDataPath(storageKey));
+}
+
 export async function commitMediaFinalization(
   plan: MediaFinalizationPlan,
+  obsoletePaths: string[],
 ): Promise<void> {
   await Promise.all([
-    ...plan.obsoletePaths.map((path) => unlink(path).catch(() => undefined)),
+    removePaths(obsoletePaths),
     rm(plan.stagingRoot, { recursive: true, force: true }),
   ]);
 }
@@ -209,9 +186,34 @@ export async function commitMediaFinalization(
 export async function rollbackMediaFinalization(
   plan: MediaFinalizationPlan,
 ): Promise<void> {
-  await Promise.all(
-    plan.createdPaths.map((path) => unlink(path).catch(() => undefined)),
-  );
+  await removePaths(plan.createdPaths);
+}
+
+async function removePaths(paths: string[]): Promise<void> {
+  await Promise.all(paths.map((path) => unlink(path).catch(() => undefined)));
+}
+
+function validatedArtifacts(
+  completion: MediaPreparationJobCompletion,
+): MediaDerivativeUpload[] {
+  assertDerivativesAllowed(completion);
+  const artifacts = new Map<MediaDerivativeKind, MediaDerivativeUpload>();
+  for (const artifact of completion.artifacts) {
+    if (artifacts.has(artifact.kind)) {
+      throw unprocessable(
+        `Worker returned duplicate ${artifact.kind} derivatives.`,
+      );
+    }
+    artifacts.set(artifact.kind, artifact);
+  }
+  for (const kind of requiredArtifactKinds(completion.probe)) {
+    if (!artifacts.has(kind)) {
+      throw unprocessable(
+        `Worker did not upload the required ${kind} derivative.`,
+      );
+    }
+  }
+  return [...artifacts.values()];
 }
 
 function artifactStorageKey(

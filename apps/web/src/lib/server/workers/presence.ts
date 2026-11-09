@@ -1,44 +1,37 @@
 import type { WorkerManifest } from "@anysub/contracts";
+import { gt } from "drizzle-orm";
 
-import type { Queryable } from "$lib/server/db/types";
+import type { Executor } from "$lib/server/db";
+import { workers } from "$lib/server/db/schema";
 
 // Must exceed the worker's heartbeat interval plus its request timeout, or a
 // worker busy with a job drops out of the model picker between heartbeats.
-const LIVENESS_WINDOW = "45 seconds";
+const LIVENESS_WINDOW_MS = 45_000;
 
-export async function recordWorkerPresence(
-  executor: Queryable,
+export function recordWorkerPresence(
+  executor: Executor,
   manifest: WorkerManifest,
-): Promise<void> {
-  await executor.query(
-    `insert into workers (id, name, version, architecture, protocol_version, manifest, last_seen_at)
-     values ($1, $2, $3, $4, $5, $6, now())
-     on conflict (id) do update set
-       name = excluded.name,
-       version = excluded.version,
-       architecture = excluded.architecture,
-       protocol_version = excluded.protocol_version,
-       manifest = excluded.manifest,
-       last_seen_at = now()`,
-    [
-      manifest.workerId,
-      manifest.name,
-      manifest.version,
-      manifest.architecture,
-      manifest.protocolVersion,
-      JSON.stringify(manifest),
-    ],
-  );
+): void {
+  const announced = {
+    name: manifest.name,
+    version: manifest.version,
+    architecture: manifest.architecture,
+    protocolVersion: manifest.protocolVersion,
+    manifest,
+    lastSeenAt: new Date(),
+  };
+  executor
+    .insert(workers)
+    .values({ id: manifest.workerId, ...announced })
+    .onConflictDoUpdate({ target: workers.id, set: announced })
+    .run();
 }
 
-export async function activeWorkerManifests(
-  executor: Queryable,
-): Promise<unknown[]> {
-  const result = await executor.query<{ manifest: unknown }>(
-    `select manifest
-       from workers
-      where last_seen_at > now() - $1::interval`,
-    [LIVENESS_WINDOW],
-  );
-  return result.rows.map((worker) => worker.manifest);
+export function activeWorkerManifests(executor: Executor): WorkerManifest[] {
+  return executor
+    .select({ manifest: workers.manifest })
+    .from(workers)
+    .where(gt(workers.lastSeenAt, new Date(Date.now() - LIVENESS_WINDOW_MS)))
+    .all()
+    .map((worker) => worker.manifest);
 }

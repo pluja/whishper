@@ -1,19 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+
+import { user } from "$lib/server/auth/schema";
+import { db } from "$lib/server/db";
 
 import { auth } from "./auth";
-
-// An unreachable database, so a regression fails here instead of creating an
-// account in whatever database the test container is wired to.
-vi.mock("$lib/server/env", async (importOriginal) => {
-  const original = await importOriginal<typeof import("$lib/server/env")>();
-  return {
-    ...original,
-    privateEnv: {
-      ...original.privateEnv,
-      databaseUrl: "postgresql://unreachable@127.0.0.1:1/unreachable",
-    },
-  };
-});
 
 describe("better-auth configuration", () => {
   it("rejects public sign-up", async () => {
@@ -33,5 +23,6 @@ describe("better-auth configuration", () => {
     expect(await response.json()).toMatchObject({
       code: "EMAIL_PASSWORD_SIGN_UP_DISABLED",
     });
+    expect(db.select().from(user).all()).toEqual([]);
   });
 });

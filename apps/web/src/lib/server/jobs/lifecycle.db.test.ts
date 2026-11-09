@@ -7,7 +7,16 @@ import type {
 } from "@anysub/contracts";
 import { describe, expect, it } from "vitest";
 
-import { pool } from "$lib/server/db";
+import { asc, eq } from "drizzle-orm";
+
+import { db } from "$lib/server/db";
+import {
+  cues as cuesTable,
+  jobs,
+  subtitleTracks,
+  transcriptionRuns,
+  workers,
+} from "$lib/server/db/schema";
 import {
   seedLeasedTranscriptionJob,
   seedProject,
@@ -57,21 +66,32 @@ function transcriptCompletion(): TranscriptionJobCompletion {
   };
 }
 
-async function jobRow(jobId: string) {
-  const result = await pool.query<{
-    state: string;
-    error: unknown;
-    leased_by: string | null;
-  }>(`select state, error, leased_by from jobs where id = $1`, [jobId]);
-  return result.rows[0];
+function jobRow(jobId: string) {
+  const job = db
+    .select({ state: jobs.state, error: jobs.error, leasedBy: jobs.leasedBy })
+    .from(jobs)
+    .where(eq(jobs.id, jobId))
+    .get();
+  if (!job) throw new Error(`Job ${jobId} is missing`);
+  return job;
 }
 
-async function runStatus(runId: string): Promise<string> {
-  const result = await pool.query<{ status: string }>(
-    `select status from transcription_runs where id = $1`,
-    [runId],
-  );
-  return result.rows[0].status;
+function runStatus(runId: string): string {
+  const run = db
+    .select({ status: transcriptionRuns.status })
+    .from(transcriptionRuns)
+    .where(eq(transcriptionRuns.id, runId))
+    .get();
+  if (!run) throw new Error(`Run ${runId} is missing`);
+  return run.status;
+}
+
+function tracksOfRun(runId: string) {
+  return db
+    .select({ id: subtitleTracks.id })
+    .from(subtitleTracks)
+    .where(eq(subtitleTracks.sourceRunId, runId))
+    .all();
 }
 
 describe("completeJob", () => {
@@ -83,23 +103,22 @@ describe("completeJob", () => {
       completeJob(job.jobId, job.leaseToken, transcriptCompletion()),
     ).resolves.toBe("completed");
 
-    const cues = await pool.query<{
-      id: string;
-      text: string;
-      words: unknown[];
-    }>(
-      `select cue.id, cue.text, cue.words
-         from cues cue
-         join subtitle_tracks track on track.id = cue.track_id
-        where track.source_run_id = $1
-        order by cue.position`,
-      [job.runId],
-    );
-    expect(cues.rows.map((cue) => cue.text)).toEqual(["One", "Two"]);
-    expect(cues.rows.every((cue) => isUuid(cue.id))).toBe(true);
-    expect(cues.rows[1].words).toHaveLength(1);
-    expect((await jobRow(job.jobId)).state).toBe("completed");
-    expect(await runStatus(job.runId)).toBe("completed");
+    const cues = db
+      .select({
+        id: cuesTable.id,
+        text: cuesTable.text,
+        words: cuesTable.words,
+      })
+      .from(cuesTable)
+      .innerJoin(subtitleTracks, eq(subtitleTracks.id, cuesTable.trackId))
+      .where(eq(subtitleTracks.sourceRunId, job.runId))
+      .orderBy(asc(cuesTable.position))
+      .all();
+    expect(cues.map((cue) => cue.text)).toEqual(["One", "Two"]);
+    expect(cues.every((cue) => isUuid(cue.id))).toBe(true);
+    expect(cues[1].words).toHaveLength(1);
+    expect(jobRow(job.jobId).state).toBe("completed");
+    expect(runStatus(job.runId)).toBe("completed");
   });
 
   it("rejects a completion carrying the wrong lease token", async () => {
@@ -110,12 +129,8 @@ describe("completeJob", () => {
       completeJob(job.jobId, randomUUID(), transcriptCompletion()),
     ).resolves.toBe("lease-rejected");
 
-    expect((await jobRow(job.jobId)).state).toBe("leased");
-    const tracks = await pool.query(
-      `select 1 from subtitle_tracks where source_run_id = $1`,
-      [job.runId],
-    );
-    expect(tracks.rowCount).toBe(0);
+    expect(jobRow(job.jobId).state).toBe("leased");
+    expect(tracksOfRun(job.runId)).toHaveLength(0);
   });
 
   it("rejects a transcript with invalid cue timing as unprocessable", async () => {
@@ -130,7 +145,7 @@ describe("completeJob", () => {
       statusCode: 422,
       message: "Adapter returned invalid cue timing.",
     });
-    expect((await jobRow(job.jobId)).state).toBe("leased");
+    expect(jobRow(job.jobId).state).toBe("leased");
   });
 
   it("rejects a completion of the wrong kind as unprocessable", async () => {
@@ -142,7 +157,7 @@ describe("completeJob", () => {
         kind: "media_prepare",
       } as unknown as TranscriptionJobCompletion),
     ).rejects.toMatchObject({ statusCode: 422 });
-    expect((await jobRow(job.jobId)).state).toBe("leased");
+    expect(jobRow(job.jobId).state).toBe("leased");
   });
 
   it("rejects a completion for an unknown job", async () => {
@@ -159,11 +174,7 @@ describe("completeJob", () => {
     await expect(
       completeJob(job.jobId, job.leaseToken, transcriptCompletion()),
     ).resolves.toBe("already-completed");
-    const tracks = await pool.query(
-      `select 1 from subtitle_tracks where source_run_id = $1`,
-      [job.runId],
-    );
-    expect(tracks.rowCount).toBe(1);
+    expect(tracksOfRun(job.runId)).toHaveLength(1);
   });
 
   it("rejects a completion after the lease expired", async () => {
@@ -176,7 +187,7 @@ describe("completeJob", () => {
     await expect(
       completeJob(job.jobId, job.leaseToken, transcriptCompletion()),
     ).resolves.toBe("lease-rejected");
-    expect((await jobRow(job.jobId)).state).toBe("leased");
+    expect(jobRow(job.jobId).state).toBe("leased");
   });
 });
 
@@ -204,13 +215,13 @@ describe("leaseJob reclaim", () => {
 
     await expect(leaseJob(idleWorker())).resolves.toBeNull();
 
-    const reclaimed = await jobRow(job.jobId);
+    const reclaimed = jobRow(job.jobId);
     expect(reclaimed.state).toBe("failed");
     expect(reclaimed.error).toMatchObject({
       code: "lease_expired",
       message: expect.stringContaining("ran out of memory"),
     });
-    expect(await runStatus(job.runId)).toBe("failed");
+    expect(runStatus(job.runId)).toBe("failed");
   });
 
   it("requeues the job and its run while attempts remain", async () => {
@@ -222,8 +233,8 @@ describe("leaseJob reclaim", () => {
 
     await expect(leaseJob(idleWorker())).resolves.toBeNull();
 
-    expect((await jobRow(job.jobId)).state).toBe("queued");
-    expect(await runStatus(job.runId)).toBe("queued");
+    expect(jobRow(job.jobId).state).toBe("queued");
+    expect(runStatus(job.runId)).toBe("queued");
   });
 });
 
@@ -238,27 +249,28 @@ describe("failJob", () => {
     const project = await seedProject();
     const job = await seedLeasedTranscriptionJob(project, ACTIVE_LEASE);
     const workerId = randomUUID();
-    await pool.query(
-      `insert into workers (id, name, version, architecture, protocol_version, manifest)
-       values ($1, 'worker', '1.0.0', 'x86_64', '1.0', '{}')`,
-      [workerId],
-    );
-    await pool.query(`update jobs set leased_by = $2 where id = $1`, [
-      job.jobId,
-      workerId,
-    ]);
+    db.insert(workers)
+      .values({
+        id: workerId,
+        name: "worker",
+        version: "1.0.0",
+        architecture: "x86_64",
+        protocolVersion: "1.0",
+        manifest: {} as never,
+      })
+      .run();
+    db.update(jobs)
+      .set({ leasedBy: workerId })
+      .where(eq(jobs.id, job.jobId))
+      .run();
 
-    try {
-      await expect(failJob(job.jobId, job.leaseToken, FAILURE)).resolves.toBe(
-        true,
-      );
-      const failed = await jobRow(job.jobId);
-      expect(failed.state).toBe("queued");
-      expect(failed.leased_by).toBeNull();
-      expect(await runStatus(job.runId)).toBe("queued");
-    } finally {
-      await pool.query(`delete from workers where id = $1`, [workerId]);
-    }
+    await expect(failJob(job.jobId, job.leaseToken, FAILURE)).resolves.toBe(
+      true,
+    );
+    const failed = jobRow(job.jobId);
+    expect(failed.state).toBe("queued");
+    expect(failed.leasedBy).toBeNull();
+    expect(runStatus(job.runId)).toBe("queued");
   });
 
   it("fails the job and its run on a terminal failure", async () => {
@@ -269,8 +281,8 @@ describe("failJob", () => {
       failJob(job.jobId, job.leaseToken, { ...FAILURE, retryable: false }),
     ).resolves.toBe(true);
 
-    expect((await jobRow(job.jobId)).state).toBe("failed");
-    expect(await runStatus(job.runId)).toBe("failed");
+    expect(jobRow(job.jobId).state).toBe("failed");
+    expect(runStatus(job.runId)).toBe("failed");
   });
 
   it("rejects a failure report after the lease expired", async () => {
@@ -283,6 +295,6 @@ describe("failJob", () => {
     await expect(failJob(job.jobId, job.leaseToken, FAILURE)).resolves.toBe(
       false,
     );
-    expect((await jobRow(job.jobId)).state).toBe("leased");
+    expect(jobRow(job.jobId).state).toBe("leased");
   });
 });

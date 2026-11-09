@@ -37,7 +37,7 @@ describe("track update route", () => {
   });
 
   it("answers 404 when the track does not exist", async () => {
-    updateTrackForUser.mockResolvedValue(null);
+    updateTrackForUser.mockReturnValue(null);
 
     await expect(callPut({ revision: 1, cues: [] })).rejects.toMatchObject({
       status: 404,
@@ -55,7 +55,9 @@ describe("track update route", () => {
   });
 
   it("answers 409 with the current revision on a conflict", async () => {
-    updateTrackForUser.mockRejectedValue(new TrackRevisionConflict(4));
+    updateTrackForUser.mockImplementation(() => {
+      throw new TrackRevisionConflict(4);
+    });
 
     const response = await callPut({ revision: 1, cues: [] });
 
@@ -67,7 +69,9 @@ describe("track update route", () => {
   });
 
   it("answers 409 with the reason while a transcription is running", async () => {
-    updateTrackForUser.mockRejectedValue(new TrackLockedByTranscription());
+    updateTrackForUser.mockImplementation(() => {
+      throw new TrackLockedByTranscription();
+    });
 
     const response = await callPut({ revision: 1, cues: [] });
 
@@ -81,7 +85,9 @@ describe("track update route", () => {
 
   it("hands unexpected failures to the error hook with a safe message", async () => {
     const failure = new Error("password=hunter2");
-    updateTrackForUser.mockRejectedValue(failure);
+    updateTrackForUser.mockImplementation(() => {
+      throw failure;
+    });
 
     await expect(callPut({ revision: 1, cues: [] })).rejects.toMatchObject({
       name: "ServerFailure",

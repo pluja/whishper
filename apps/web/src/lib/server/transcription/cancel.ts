@@ -1,37 +1,45 @@
+import { and, eq, inArray } from "drizzle-orm";
+
+import { jobs, transcriptionRuns } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
+import { isActiveJob } from "$lib/server/jobs/predicates";
 import { projectForUser } from "$lib/server/projects/access";
 
-export async function cancelTranscriptionForUser(
+export function cancelTranscriptionForUser(
   projectId: string,
   userId: string,
-): Promise<boolean> {
-  return withTransaction(async (client) => {
-    if (!(await projectForUser(client, projectId, userId))) return false;
-    const active = await client.query<{ id: string }>(
-      `select id from transcription_runs
-        where project_id = $1 and status in ('queued', 'running')`,
-      [projectId],
-    );
-    if (active.rowCount === 0) return false;
-    const runIds = active.rows.map((run) => run.id);
-    // Jobs before runs, the order leasing locks them in.
-    await client.query(
-      `select id from jobs where run_id = any($1::uuid[]) for update`,
-      [runIds],
-    );
-    await client.query(
-      `update transcription_runs set status = 'cancelled'
-        where id = any($1::uuid[]) and status in ('queued', 'running')`,
-      [runIds],
-    );
-    await client.query(
-      `update jobs
-          set state = 'cancelled', lease_token_hash = null,
-              lease_expires_at = null, progress_message = 'Cancelled',
-              updated_at = now()
-        where run_id = any($1::uuid[]) and state in ('queued', 'leased')`,
-      [runIds],
-    );
+): boolean {
+  return withTransaction((tx) => {
+    if (!projectForUser(tx, projectId, userId)) return false;
+    const active = tx
+      .update(transcriptionRuns)
+      .set({ status: "cancelled" })
+      .where(
+        and(
+          eq(transcriptionRuns.projectId, projectId),
+          inArray(transcriptionRuns.status, ["queued", "running"]),
+        ),
+      )
+      .returning({ id: transcriptionRuns.id })
+      .all();
+    if (active.length === 0) return false;
+    tx.update(jobs)
+      .set({
+        state: "cancelled",
+        leaseTokenHash: null,
+        leaseExpiresAt: null,
+        progressMessage: "Cancelled",
+      })
+      .where(
+        and(
+          inArray(
+            jobs.runId,
+            active.map((run) => run.id),
+          ),
+          isActiveJob,
+        ),
+      )
+      .run();
     return true;
   });
 }

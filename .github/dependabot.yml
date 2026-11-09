@@ -36,11 +36,7 @@ updates:
       - dependency-name: "*python"
         update-types: [version-update:semver-minor]
 
-  # A new PostgreSQL major version cannot read the existing data directory.
   - package-ecosystem: docker-compose
     directory: /
     schedule:
       interval: weekly
-    ignore:
-      - dependency-name: "*postgres"
-        update-types: [version-update:semver-major]

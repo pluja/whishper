@@ -1,3 +1,6 @@
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
+
+import { cues, projects, subtitleTracks } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { projectForUser } from "$lib/server/projects/access";
 import { insertCues, listTrackCues } from "$lib/server/subtitles/cues";
@@ -75,7 +78,8 @@ export function parseTrackUpdate(value: unknown): TrackUpdate {
     ) {
       throw new TrackValidationError(`Cue ${position + 1} has invalid text.`);
     }
-    // PostgreSQL text cannot hold NUL, and jsonb rejects unpaired surrogates.
+    // SQLite string functions and the subtitle exports stop at NUL, and an
+    // unpaired surrogate has no UTF-8 encoding.
     if (candidate.text.includes("\u0000") || !candidate.text.isWellFormed()) {
       throw new TrackValidationError(
         `Cue ${position + 1} contains characters that cannot be saved. Retype its text.`,
@@ -96,41 +100,35 @@ export function parseTrackUpdate(value: unknown): TrackUpdate {
   return { revision: Number(value.revision), cues };
 }
 
-export async function updateTrackForUser(
+export function updateTrackForUser(
   projectId: string,
   trackId: string,
   userId: string,
   update: TrackUpdate,
-): Promise<number | null> {
-  return withTransaction(async (client) => {
-    // Locking the project serializes this check with enqueueTranscription,
-    // which takes the same lock before it inserts a run.
-    if (!(await projectForUser(client, projectId, userId, { lock: true }))) {
-      return null;
-    }
-    if (await hasActiveTranscriptionRun(client, projectId)) {
+): number | null {
+  return withTransaction((tx) => {
+    if (!projectForUser(tx, projectId, userId)) return null;
+    if (hasActiveTranscriptionRun(tx, projectId)) {
       throw new TrackLockedByTranscription();
     }
-    const track = await client.query<{
-      revision: number;
-      duration_us: number | null;
-    }>(
-      `select track.revision,
-              case when track.metadata ? 'durationUs'
-                then (track.metadata->>'durationUs')::bigint
-                else p.media_duration_us
-              end as duration_us
-         from subtitle_tracks track
-         join projects p on p.id = track.project_id
-        where track.id = $1 and p.id = $2
-        for update of track`,
-      [trackId, projectId],
-    );
-    if (!track.rows[0]) return null;
-    if (track.rows[0].revision !== update.revision) {
-      throw new TrackRevisionConflict(track.rows[0].revision);
+    const track = tx
+      .select({
+        revision: subtitleTracks.revision,
+        metadata: subtitleTracks.metadata,
+        mediaDurationUs: projects.mediaDurationUs,
+      })
+      .from(subtitleTracks)
+      .innerJoin(projects, eq(projects.id, subtitleTracks.projectId))
+      .where(and(eq(subtitleTracks.id, trackId), eq(projects.id, projectId)))
+      .get();
+    if (!track) return null;
+    if (track.revision !== update.revision) {
+      throw new TrackRevisionConflict(track.revision);
     }
-    const durationUs = track.rows[0].duration_us;
+    const durationUs =
+      typeof track.metadata.durationUs === "number"
+        ? track.metadata.durationUs
+        : track.mediaDurationUs;
     if (
       durationUs !== null &&
       update.cues.some((cue) => cue.endUs > durationUs)
@@ -140,21 +138,31 @@ export async function updateTrackForUser(
       );
     }
 
-    const existing = await listTrackCues(client, trackId, {
-      includeWords: true,
-    });
-    const existingById = new Map(existing.map((cue) => [cue.id, cue]));
-    const foreign = await client.query(
-      `select 1 from cues
-        where id = any($1::uuid[]) and track_id <> $2
-        limit 1`,
-      [update.cues.map((cue) => cue.id), trackId],
-    );
-    if (foreign.rowCount) {
+    const foreign = tx
+      .select({ id: cues.id })
+      .from(cues)
+      .where(
+        and(
+          inArray(
+            cues.id,
+            update.cues.map((cue) => cue.id),
+          ),
+          ne(cues.trackId, trackId),
+        ),
+      )
+      .limit(1)
+      .get();
+    if (foreign) {
       throw new TrackValidationError(
         "Some cues belong to another subtitle track. Reload the editor and try again.",
       );
     }
+    const existingById = new Map(
+      listTrackCues(tx, trackId, { includeWords: true }).map((cue) => [
+        cue.id,
+        cue,
+      ]),
+    );
     const storedCues = update.cues.map((cue) => {
       const previous = existingById.get(cue.id);
       return {
@@ -163,15 +171,13 @@ export async function updateTrackForUser(
       };
     });
 
-    await client.query("delete from cues where track_id = $1", [trackId]);
-    await insertCues(client, trackId, { ids: "provided", cues: storedCues });
-    const updated = await client.query<{ revision: number }>(
-      `update subtitle_tracks
-          set revision = revision + 1, updated_at = now()
-        where id = $1
-        returning revision`,
-      [trackId],
-    );
-    return updated.rows[0].revision;
+    tx.delete(cues).where(eq(cues.trackId, trackId)).run();
+    insertCues(tx, trackId, { ids: "provided", cues: storedCues });
+    return tx
+      .update(subtitleTracks)
+      .set({ revision: sql`${subtitleTracks.revision} + 1` })
+      .where(eq(subtitleTracks.id, trackId))
+      .returning({ revision: subtitleTracks.revision })
+      .get().revision;
   });
 }

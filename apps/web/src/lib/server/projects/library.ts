@@ -1,4 +1,17 @@
-import type { Queryable } from "$lib/server/db/types";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+
+import type { Executor } from "$lib/server/db";
+import {
+  cues,
+  jobs,
+  mediaDerivatives,
+  mediaUploads,
+  memberships,
+  projects,
+  subtitleTracks,
+  transcriptionRuns,
+  workspaces,
+} from "$lib/server/db/schema";
 import type {
   LibrarySearch,
   ProjectSummary,
@@ -31,139 +44,269 @@ export function normalizeProjectTitle(
     .slice(0, PROJECT_TITLE_MAX_LENGTH);
 }
 
-export async function primaryWorkspaceForUser(
-  executor: Queryable,
+export function primaryWorkspaceForUser(
+  executor: Executor,
   userId: string,
-): Promise<WorkspaceSummary | null> {
-  const result = await executor.query<WorkspaceSummary>(
-    `select w.id,
-            w.name,
-            count(distinct p.id) as "projectCount",
-            count(distinct p.id)
-              filter (where upload.status = 'completed')
-              as "readySourceCount"
-       from workspaces w
-       join memberships m on m.workspace_id = w.id
-       left join projects p on p.workspace_id = w.id
-       left join media_uploads upload on upload.project_id = p.id
-      where m.user_id = $1
-      group by w.id
-      order by w.created_at asc
-      limit 1`,
-    [userId],
-  );
-  return result.rows[0] ?? null;
+): WorkspaceSummary | null {
+  const workspace = executor
+    .select({
+      id: workspaces.id,
+      name: workspaces.name,
+      projectCount: sql<number>`count(distinct ${projects.id})`,
+      readySourceCount: sql<number>`count(distinct case when ${mediaUploads.status} = 'completed' then ${projects.id} end)`,
+    })
+    .from(workspaces)
+    .innerJoin(memberships, eq(memberships.workspaceId, workspaces.id))
+    .leftJoin(projects, eq(projects.workspaceId, workspaces.id))
+    .leftJoin(mediaUploads, eq(mediaUploads.projectId, projects.id))
+    .where(eq(memberships.userId, userId))
+    .groupBy(workspaces.id)
+    .orderBy(asc(workspaces.createdAt))
+    .limit(1)
+    .get();
+  return workspace ?? null;
 }
 
-export async function listLibraryProjects(
-  executor: Queryable,
+type SubtitleSummary = {
+  trackCount: number;
+  cueCount: number;
+  languages: string[];
+  updatedAt: Date | null;
+  subtitleMatch: boolean;
+};
+
+const NO_SUBTITLES: SubtitleSummary = {
+  trackCount: 0,
+  cueCount: 0,
+  languages: [],
+  updatedAt: null,
+  subtitleMatch: false,
+};
+
+function containsFolded(text: string, query: string): boolean {
+  return query !== "" && text.toLowerCase().includes(query.toLowerCase());
+}
+
+function subtitleSummaries(
+  executor: Executor,
+  workspaceId: string,
+  query: string,
+): Map<string, SubtitleSummary> {
+  const matches =
+    query === ""
+      ? sql<number>`0`
+      : sql<number>`max(instr(unicode_lower(${cues.text}), unicode_lower(${query})) > 0)`;
+  const rows = executor
+    .select({
+      projectId: subtitleTracks.projectId,
+      trackCount: sql<number>`count(distinct ${subtitleTracks.id})`,
+      cueCount: sql<number>`count(${cues.id})`,
+      languages: sql<
+        string | null
+      >`group_concat(distinct nullif(${subtitleTracks.language}, ''))`,
+      updatedAt: sql<number | null>`max(${subtitleTracks.updatedAt})`,
+      subtitleMatch: matches,
+    })
+    .from(subtitleTracks)
+    .innerJoin(projects, eq(projects.id, subtitleTracks.projectId))
+    .leftJoin(cues, eq(cues.trackId, subtitleTracks.id))
+    .where(eq(projects.workspaceId, workspaceId))
+    .groupBy(subtitleTracks.projectId)
+    .all();
+  return new Map(
+    rows.map((row) => [
+      row.projectId,
+      {
+        trackCount: row.trackCount,
+        cueCount: row.cueCount,
+        languages: (row.languages?.split(",") ?? []).toSorted(),
+        updatedAt: row.updatedAt === null ? null : new Date(row.updatedAt),
+        subtitleMatch: Boolean(row.subtitleMatch),
+      },
+    ]),
+  );
+}
+
+type RunProgress = Pick<
+  ProjectSummary,
+  "runStatus" | "jobState" | "progress" | "progressMessage"
+>;
+
+function latestRunProgress(
+  executor: Executor,
+  projectIds: string[],
+): Map<string, RunProgress> {
+  const latestRuns = new Map<string, { id: string; status: string }>();
+  for (const run of executor
+    .select({
+      id: transcriptionRuns.id,
+      projectId: transcriptionRuns.projectId,
+      status: transcriptionRuns.status,
+    })
+    .from(transcriptionRuns)
+    .where(inArray(transcriptionRuns.projectId, projectIds))
+    .orderBy(desc(transcriptionRuns.createdAt), desc(sql`rowid`))
+    .all()) {
+    if (!latestRuns.has(run.projectId)) latestRuns.set(run.projectId, run);
+  }
+
+  const latestJobs = new Map<string, RunProgress>();
+  const runIds = [...latestRuns.values()].map((run) => run.id);
+  for (const job of executor
+    .select({
+      runId: jobs.runId,
+      state: jobs.state,
+      progress: jobs.progress,
+      progressMessage: jobs.progressMessage,
+    })
+    .from(jobs)
+    .where(inArray(jobs.runId, runIds))
+    .orderBy(desc(jobs.createdAt), desc(sql`rowid`))
+    .all()) {
+    if (job.runId && !latestJobs.has(job.runId)) {
+      latestJobs.set(job.runId, {
+        runStatus: null,
+        jobState: job.state,
+        progress: job.progress,
+        progressMessage: job.progressMessage,
+      });
+    }
+  }
+
+  const progress = new Map<string, RunProgress>();
+  for (const [projectId, run] of latestRuns) {
+    const job = latestJobs.get(run.id);
+    progress.set(projectId, {
+      runStatus: run.status,
+      jobState: job?.jobState ?? null,
+      progress: job?.progress ?? null,
+      progressMessage: job?.progressMessage ?? null,
+    });
+  }
+  return progress;
+}
+
+function thumbnailProjects(executor: Executor, projectIds: string[]) {
+  return new Set(
+    executor
+      .select({ projectId: mediaDerivatives.projectId })
+      .from(mediaDerivatives)
+      .where(
+        and(
+          inArray(mediaDerivatives.projectId, projectIds),
+          eq(mediaDerivatives.kind, "thumbnail"),
+          eq(mediaDerivatives.status, "ready"),
+        ),
+      )
+      .all()
+      .map((row) => row.projectId),
+  );
+}
+
+type ProbeStream = {
+  type?: unknown;
+  video?: { width?: unknown; height?: unknown; attachedPicture?: unknown };
+};
+
+function videoDimensions(probe: Record<string, unknown> | null) {
+  const streams = Array.isArray(probe?.streams)
+    ? (probe.streams as ProbeStream[])
+    : [];
+  const video = streams.find(
+    (stream) =>
+      stream.type === "video" && stream.video?.attachedPicture !== true,
+  )?.video;
+  return {
+    videoWidth: video?.width == null ? null : String(video.width),
+    videoHeight: video?.height == null ? null : String(video.height),
+  };
+}
+
+const NO_RUN: RunProgress = {
+  runStatus: null,
+  jobState: null,
+  progress: null,
+  progressMessage: null,
+};
+
+export function listLibraryProjects(
+  executor: Executor,
   workspaceId: string,
   search: LibrarySearch,
-): Promise<ProjectSummary[]> {
-  const result = await executor.query<ProjectSummary>(
-    `select p.id, p.name, p.created_at as "createdAt",
-            greatest(
-              p.updated_at,
-              coalesce(subtitle_summary.updated_at, p.updated_at)
-            ) as "activityAt",
-            p.media_duration_us as "mediaDurationUs",
-            p.media_preparation_status as "mediaPreparationStatus",
-            latest_run.status as "runStatus",
-            latest_job.state as "jobState",
-            latest_job.progress,
-            latest_job.progress_message as "progressMessage",
-            upload.status as "uploadStatus",
-            upload.original_filename as "originalFilename",
-            upload.media_type as "mediaType",
-            upload.size_bytes as "sizeBytes",
-            upload.received_bytes as "receivedBytes",
-            exists (
-              select 1
-                from media_derivatives derivative
-               where derivative.project_id = p.id
-                 and derivative.kind = 'thumbnail'
-                 and derivative.status = 'ready'
-            ) as "hasThumbnail",
-            coalesce(subtitle_summary.track_count, 0) as "trackCount",
-            coalesce(subtitle_summary.cue_count, 0) as "cueCount",
-            coalesce(subtitle_summary.languages, array[]::text[]) as languages,
-            coalesce(subtitle_summary.subtitle_match, false) as "subtitleMatch",
-            video_stream.video_width as "videoWidth",
-            video_stream.video_height as "videoHeight"
-       from projects p
-       left join media_uploads upload on upload.project_id = p.id
-       left join lateral (
-         select count(distinct track.id) as track_count,
-                count(cue.id) as cue_count,
-                coalesce(
-                  array_agg(distinct track.language order by track.language)
-                    filter (where track.language <> ''),
-                  array[]::text[]
-                ) as languages,
-                max(track.updated_at) as updated_at,
-                coalesce(
-                  bool_or(
-                    $2 <> ''
-                    and strpos(lower(cue.text), lower($2)) > 0
-                  ),
-                  false
-                ) as subtitle_match
-           from subtitle_tracks track
-           left join cues cue on cue.track_id = track.id
-          where track.project_id = p.id
-       ) subtitle_summary on true
-       left join lateral (
-         select stream->'video'->>'width' as video_width,
-                stream->'video'->>'height' as video_height
-           from jsonb_array_elements(
-             coalesce(p.media_probe->'streams', '[]'::jsonb)
-           ) stream
-          where stream->>'type' = 'video'
-            and stream->'video'->>'attachedPicture' is distinct from 'true'
-          limit 1
-       ) video_stream on true
-       left join lateral (
-         select r.id, r.status
-           from transcription_runs r
-          where r.project_id = p.id
-          order by r.created_at desc
-          limit 1
-       ) latest_run on true
-       left join lateral (
-         select j.state, j.progress, j.progress_message
-           from jobs j
-          where j.run_id = latest_run.id
-          order by j.created_at desc
-          limit 1
-       ) latest_job on true
-      where p.workspace_id = $1
-        and (
-          $2 = ''
-          or strpos(lower(p.name), lower($2)) > 0
-          or ($3 and subtitle_summary.subtitle_match)
-        )
-      order by "activityAt" desc, p.created_at desc`,
-    [workspaceId, search.query, search.includeSubtitles],
-  );
-  return result.rows;
+): ProjectSummary[] {
+  const rows = executor
+    .select({
+      id: projects.id,
+      name: projects.name,
+      createdAt: projects.createdAt,
+      updatedAt: projects.updatedAt,
+      mediaDurationUs: projects.mediaDurationUs,
+      mediaPreparationStatus: projects.mediaPreparationStatus,
+      mediaProbe: projects.mediaProbe,
+      uploadStatus: mediaUploads.status,
+      originalFilename: mediaUploads.originalFilename,
+      mediaType: mediaUploads.mediaType,
+      sizeBytes: mediaUploads.sizeBytes,
+      receivedBytes: mediaUploads.receivedBytes,
+    })
+    .from(projects)
+    .leftJoin(mediaUploads, eq(mediaUploads.projectId, projects.id))
+    .where(eq(projects.workspaceId, workspaceId))
+    .all();
+  const projectIds = rows.map((row) => row.id);
+  const subtitles = subtitleSummaries(executor, workspaceId, search.query);
+  const runs = latestRunProgress(executor, projectIds);
+  const thumbnails = thumbnailProjects(executor, projectIds);
+
+  return rows
+    .map(({ mediaProbe, updatedAt, ...row }) => {
+      const summary = subtitles.get(row.id) ?? NO_SUBTITLES;
+      const activityAt =
+        summary.updatedAt && summary.updatedAt > updatedAt
+          ? summary.updatedAt
+          : updatedAt;
+      return {
+        ...row,
+        ...(runs.get(row.id) ?? NO_RUN),
+        ...videoDimensions(mediaProbe),
+        activityAt,
+        hasThumbnail: thumbnails.has(row.id),
+        trackCount: summary.trackCount,
+        cueCount: summary.cueCount,
+        languages: summary.languages,
+        subtitleMatch: summary.subtitleMatch,
+      };
+    })
+    .filter(
+      (project) =>
+        search.query === "" ||
+        containsFolded(project.name, search.query) ||
+        (search.includeSubtitles && project.subtitleMatch),
+    )
+    .toSorted(
+      (a, b) =>
+        b.activityAt.getTime() - a.activityAt.getTime() ||
+        b.createdAt.getTime() - a.createdAt.getTime(),
+    );
 }
 
-export async function renameProjectForUser(
-  executor: Queryable,
+export function renameProjectForUser(
+  executor: Executor,
   projectId: string,
   userId: string,
   name: string,
-): Promise<boolean> {
-  const result = await executor.query(
-    `update projects
-        set name = $3, updated_at = now()
-      where id = $1
-        and exists (
-          select 1
-            from memberships m
-           where m.workspace_id = projects.workspace_id and m.user_id = $2
-        )`,
-    [projectId, userId, name],
-  );
-  return result.rowCount === 1;
+): boolean {
+  const member = executor
+    .select({ workspaceId: memberships.workspaceId })
+    .from(memberships)
+    .innerJoin(projects, eq(projects.workspaceId, memberships.workspaceId))
+    .where(and(eq(projects.id, projectId), eq(memberships.userId, userId)))
+    .get();
+  if (!member) return false;
+  executor
+    .update(projects)
+    .set({ name })
+    .where(eq(projects.id, projectId))
+    .run();
+  return true;
 }

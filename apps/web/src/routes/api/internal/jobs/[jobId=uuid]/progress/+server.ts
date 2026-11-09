@@ -14,12 +14,17 @@ export const POST: RequestHandler = async (event) => {
     validateJobProgressReport,
     "progress update",
   );
-  const accepted = await reportProgress(
-    event.params.jobId,
-    report.leaseToken,
-    report.progress,
-    report.message,
-  ).catch(httpErrorFrom);
+  let accepted: boolean;
+  try {
+    accepted = reportProgress(
+      event.params.jobId,
+      report.leaseToken,
+      report.progress,
+      report.message,
+    );
+  } catch (cause) {
+    httpErrorFrom(cause);
+  }
   if (!accepted) rejectLease();
   return json({ accepted: true });
 };

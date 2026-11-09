@@ -1,39 +1,38 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
+import { mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
+import Database from "better-sqlite3";
+import type { RunResult } from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+
+import * as authSchema from "$lib/server/auth/schema";
+import * as appSchema from "$lib/server/db/schema";
 import { privateEnv } from "$lib/server/env";
 
-import { schema } from "$lib/server/auth/schema";
+const schema = { ...authSchema, ...appSchema };
+const IN_MEMORY = ":memory:";
 
-const { Pool, types } = pg;
+function open() {
+  const file = privateEnv.databaseFile;
+  if (file !== IN_MEMORY) mkdirSync(dirname(file), { recursive: true });
+  const sqlite = new Database(file);
+  // WAL lets reads proceed while a write commits.
+  sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("foreign_keys = ON");
+  sqlite.pragma("busy_timeout = 5000");
+  // SQLite's own lower() folds ASCII only.
+  sqlite.function("unicode_lower", { deterministic: true }, (value) =>
+    typeof value === "string" ? value.toLowerCase() : value,
+  );
+  const database = drizzle({ client: sqlite, schema });
+  // The working directory is apps/web in development and tests, and /app in
+  // the image, which both hold the generated migrations folder.
+  migrate(database, { migrationsFolder: resolve("migrations") });
+  return database;
+}
 
-const STATEMENT_TIMEOUT_MS = 30_000;
-const IDLE_IN_TRANSACTION_TIMEOUT_MS = 60_000;
+export const db = open();
 
-// Every bigint column holds microsecond durations, byte sizes bounded by the
-// upload limit, or revision counters, all far below 2^53. The check turns a
-// broken invariant into an error instead of silently rounded data.
-types.setTypeParser(types.builtins.INT8, (value) => {
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed)) {
-    throw new RangeError(`bigint ${value} is outside the safe integer range`);
-  }
-  return parsed;
-});
-
-export const pool = new Pool({
-  connectionString: privateEnv.databaseUrl,
-  max: 10,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
-  statement_timeout: STATEMENT_TIMEOUT_MS,
-  idle_in_transaction_session_timeout: IDLE_IN_TRANSACTION_TIMEOUT_MS,
-});
-
-// An idle client can lose its connection (a database restart, a network
-// drop). Without a listener the pool re-emits that as an uncaught exception.
-pool.on("error", (cause) => {
-  console.error("An idle database connection failed", cause);
-});
-
-export const db = drizzle({ client: pool, schema });
+export type Executor = BaseSQLiteDatabase<"sync", RunResult, typeof schema>;

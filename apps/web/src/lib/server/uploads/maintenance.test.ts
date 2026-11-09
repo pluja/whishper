@@ -1,7 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("$lib/server/db", () => ({ pool: { query: vi.fn() } }));
-
 import {
   decideUploadAction,
   runUploadSweep,
@@ -124,48 +122,44 @@ describe("sweepUploads", () => {
   });
 });
 
-describe("runUploadSweep lock handling", () => {
-  async function setup(unlockFails: boolean) {
-    const { pool } = await import("$lib/server/db");
-    const release = vi.fn();
-    const query = vi.fn(async (sql: string) => {
-      if (sql.includes("pg_try_advisory_lock")) {
-        return { rows: [{ locked: true }] };
-      }
-      if (sql.includes("pg_advisory_unlock") && unlockFails) {
-        throw new Error("unlock failed");
-      }
-      return { rows: [] };
-    });
-    vi.mocked(pool.query).mockResolvedValue({ rows: [] } as never);
-    (pool as unknown as { connect: unknown }).connect = vi.fn(async () => ({
-      query,
-      release,
-    }));
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+describe("runUploadSweep", () => {
+  it("skips a sweep that would overlap one still running", async () => {
     vi.spyOn(console, "info").mockImplementation(() => undefined);
-    return { release };
-  }
-
-  it("returns the connection to the pool after a clean unlock", async () => {
-    const { release } = await setup(false);
-    await runUploadSweep({
+    let finishFirst = () => {};
+    const deleteExpiredTusFiles = vi
+      .fn()
+      .mockImplementationOnce(
+        () => new Promise<void>((resolve) => (finishFirst = resolve)),
+      )
+      .mockResolvedValue(undefined);
+    const options = {
       finalizeUpload: vi.fn(),
       removeTusUpload: vi.fn(),
-      deleteExpiredTusFiles: vi.fn(),
-    });
-    expect(release).toHaveBeenCalledWith(false);
+      deleteExpiredTusFiles,
+    };
+
+    const first = runUploadSweep(options);
+    await vi.waitFor(() => expect(deleteExpiredTusFiles).toHaveBeenCalled());
+    await runUploadSweep(options);
+    finishFirst();
+    await first;
+    await runUploadSweep(options);
+
+    expect(deleteExpiredTusFiles).toHaveBeenCalledTimes(2);
   });
 
-  it("destroys the connection and keeps the sweep error when unlock fails", async () => {
-    const { release } = await setup(true);
-    await expect(
-      runUploadSweep({
-        finalizeUpload: vi.fn(),
-        removeTusUpload: vi.fn(),
-        deleteExpiredTusFiles: vi.fn().mockRejectedValue(new Error("sweep")),
-      }),
-    ).rejects.toThrow("sweep");
-    expect(release).toHaveBeenCalledWith(true);
+  it("lets the next sweep run after one fails", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const options = {
+      finalizeUpload: vi.fn(),
+      removeTusUpload: vi.fn(),
+      deleteExpiredTusFiles: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("sweep"))
+        .mockResolvedValue(undefined),
+    };
+
+    await expect(runUploadSweep(options)).rejects.toThrow("sweep");
+    await expect(runUploadSweep(options)).resolves.toBeUndefined();
   });
 });

@@ -89,18 +89,6 @@ describe("toolchain versions", () => {
     expect(fromTags(dockerfile, "uv")).toEqual([setupUvVersion]);
   });
 
-  it("tests against the PostgreSQL image Compose runs", async () => {
-    const [compose, workflow] = await Promise.all([
-      repositoryFile("compose.yaml"),
-      repositoryFile(".github/workflows/ci.yml"),
-    ]);
-    const postgresImage = (content: string) =>
-      /image:\s*(\S*postgres:\S+)/.exec(content)?.[1];
-
-    expect(postgresImage(workflow)).toBeDefined();
-    expect(postgresImage(workflow)).toBe(postgresImage(compose));
-  });
-
   it("runs ui-check in the Playwright image that matches the pinned package", async () => {
     const [compose, packageJson] = await Promise.all([
       repositoryFile("compose.dev.yaml"),

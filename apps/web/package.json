@@ -7,10 +7,9 @@
     "dev": "vite dev",
     "build": "vite build",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "test": "vitest run --project unit",
-    "test:db": "vitest run --project db",
+    "test": "vitest run",
     "format:check": "prettier --check .",
-    "migrate": "node scripts/migrate.mjs"
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@anysub/contracts": "workspace:*",
@@ -19,9 +18,9 @@
     "@tus/file-store": "2.1.0",
     "@tus/server": "2.4.1",
     "better-auth": "1.6.23",
+    "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.2",
     "flag-icons": "7.6.0",
-    "pg": "^8.16.3",
     "tus-js-client": "4.3.1",
     "zod": "^4.4.3"
   },
@@ -31,8 +30,9 @@
     "@sveltejs/kit": "^2.37.0",
     "@sveltejs/vite-plugin-svelte": "^6.1.2",
     "@tailwindcss/vite": "^4.1.12",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^24.3.0",
-    "@types/pg": "^8.15.5",
+    "drizzle-kit": "^0.31.11",
     "playwright": "1.64.1",
     "prettier": "catalog:",
     "prettier-plugin-svelte": "^3.4.0",

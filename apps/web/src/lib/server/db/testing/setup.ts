@@ -1,19 +1,16 @@
-import { afterAll, afterEach, vi } from "vitest";
+import { sql } from "drizzle-orm";
+import { afterEach } from "vitest";
 
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
 
-import { assertTestDatabaseUrl } from "./database-url";
-import { deleteSeededRows } from "./fixtures";
-
-vi.mock("$env/dynamic/private", async () => {
-  const { testDatabaseUrl } = await import("./database-url");
-  return { env: { DATABASE_URL: testDatabaseUrl() } };
+afterEach(() => {
+  const tables = db.all<{ name: string }>(
+    sql`select name from sqlite_master
+         where type = 'table'
+           and name not like 'sqlite_%'
+           and name not like '__drizzle%'`,
+  );
+  db.run(sql`pragma foreign_keys = off`);
+  for (const { name } of tables) db.run(sql.raw(`delete from "${name}"`));
+  db.run(sql`pragma foreign_keys = on`);
 });
-
-// The pool reads its URL through the mocked environment above. Checking the
-// live connection string catches a pool that bypassed that mock.
-assertTestDatabaseUrl(pool.options.connectionString ?? "");
-
-afterEach(() => deleteSeededRows());
-
-afterAll(() => pool.end());

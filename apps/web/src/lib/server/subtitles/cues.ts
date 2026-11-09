@@ -1,7 +1,9 @@
-import type { PoolClient } from "pg";
+import { randomUUID } from "node:crypto";
 
-import type { Queryable } from "$lib/server/db/types";
+import { asc, eq } from "drizzle-orm";
 
+import type { Executor } from "$lib/server/db";
+import { cues } from "$lib/server/db/schema";
 import type { SubtitleCueSnapshot } from "$lib/shared/subtitles";
 import { isUuid } from "$lib/shared/uuid";
 
@@ -18,54 +20,54 @@ export type CueBatch =
   | { ids: "generate"; cues: CueContent[] }
   | { ids: "provided"; cues: (CueContent & { id: string })[] };
 
-export async function insertCues(
-  client: PoolClient,
+// Large tracks are inserted in slices to stay under SQLite's limit on bound
+// parameters per statement.
+const INSERT_SLICE = 500;
+
+export function insertCues(
+  tx: Executor,
   trackId: string,
   batch: CueBatch,
-): Promise<void> {
-  if (batch.cues.length === 0) return;
+): void {
   const rows = batch.cues.map((cue, position) => ({
     id: cueId(batch, cue),
+    trackId,
     position,
-    start_us: cue.startUs,
-    end_us: cue.endUs,
+    startUs: cue.startUs,
+    endUs: cue.endUs,
     text: cue.text,
-    words: cue.words,
+    words: cue.words as Record<string, unknown>[],
   }));
-  await client.query(
-    `insert into cues (id, track_id, position, start_us, end_us, text, words)
-     select coalesce(value.id, gen_random_uuid()), $1, value.position,
-            value.start_us, value.end_us, value.text, value.words
-       from jsonb_to_recordset($2::jsonb) as value(
-         id uuid, position integer, start_us bigint, end_us bigint,
-         text text, words jsonb
-       )`,
-    [trackId, JSON.stringify(rows)],
-  );
+  for (let start = 0; start < rows.length; start += INSERT_SLICE) {
+    tx.insert(cues)
+      .values(rows.slice(start, start + INSERT_SLICE))
+      .run();
+  }
 }
 
-function cueId(
-  batch: CueBatch,
-  cue: CueContent & { id?: string },
-): string | null {
-  if (batch.ids === "generate") return null;
+function cueId(batch: CueBatch, cue: CueContent & { id?: string }): string {
+  if (batch.ids === "generate") return randomUUID();
   if (!isUuid(cue.id)) throw new Error("Cue ids must be UUIDs.");
   return cue.id;
 }
 
 // Words are opt-in: they can outweigh the cue text many times over.
-export async function listTrackCues(
-  executor: Queryable,
+export function listTrackCues(
+  executor: Executor,
   trackId: string,
   { includeWords = false }: { includeWords?: boolean } = {},
-): Promise<SubtitleCueSnapshot[]> {
-  const result = await executor.query<SubtitleCueSnapshot>(
-    `select id, position, start_us as "startUs", end_us as "endUs", text
-            ${includeWords ? ", words" : ""}
-       from cues
-      where track_id = $1
-      order by position asc`,
-    [trackId],
-  );
-  return result.rows;
+): SubtitleCueSnapshot[] {
+  const columns = {
+    id: cues.id,
+    position: cues.position,
+    startUs: cues.startUs,
+    endUs: cues.endUs,
+    text: cues.text,
+  };
+  return executor
+    .select(includeWords ? { ...columns, words: cues.words } : columns)
+    .from(cues)
+    .where(eq(cues.trackId, trackId))
+    .orderBy(asc(cues.position))
+    .all();
 }

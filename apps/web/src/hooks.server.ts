@@ -1,7 +1,6 @@
-import { building, dev } from "$app/environment";
+import { building } from "$app/environment";
 import { announceSetupCode } from "$lib/server/auth/setup-code";
-import { pool } from "$lib/server/db";
-import { startJobMaintenance } from "$lib/server/jobs/maintenance";
+import { db } from "$lib/server/db";
 import { assertSecureRuntimeConfiguration } from "$lib/server/env";
 import {
   authenticateWorkers,
@@ -11,19 +10,20 @@ import {
   rejectCrossOriginRequests,
   requireProjectApiSession,
 } from "$lib/server/http/hooks";
+import { startJobMaintenance } from "$lib/server/jobs/maintenance";
 import { startUploadCleanup } from "$lib/server/uploads/tus-server";
+import { publishWorkerToken } from "$lib/server/workers/token";
 import type { ServerInit } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 
-export const init: ServerInit = () => {
-  assertSecureRuntimeConfiguration({ dev });
+export const init: ServerInit = async () => {
+  assertSecureRuntimeConfiguration();
   if (building) return;
+  await publishWorkerToken();
   startUploadCleanup();
   startJobMaintenance();
-  announceSetupCode().catch((cause) =>
-    console.error("Could not check whether setup is needed", cause),
-  );
-  process.once("sveltekit:shutdown", () => void pool.end());
+  announceSetupCode();
+  process.once("sveltekit:shutdown", () => db.$client.close());
 };
 
 export const handle = sequence(

@@ -5,9 +5,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const dataRoot = vi.hoisted(() => ({ path: "" }));
 
-vi.mock("$lib/server/db", () => ({ pool: { query: vi.fn() } }));
 vi.mock("$lib/server/env", () => ({
   privateEnv: {
+    databaseFile: ":memory:",
     maxUploadBytes: 1024 * 1024 * 1024,
     get dataRoot() {
       return dataRoot.path;
@@ -22,7 +22,6 @@ import {
   stagedArtifactOffset,
   stagedArtifactPath,
   type MediaPreparationLease,
-  withKeyedLock,
 } from "./artifact-staging";
 
 const lease = {
@@ -135,24 +134,5 @@ describe("openMediaPreparationSource", () => {
         payload: { sourceStorageKey: "originals/missing.mp4" },
       } as MediaPreparationLease),
     ).rejects.toMatchObject({ statusCode: 404 });
-  });
-});
-
-describe("withKeyedLock", () => {
-  it("runs same-key work one at a time and keeps going after a failure", async () => {
-    const order: string[] = [];
-    const slow = withKeyedLock("k", async () => {
-      order.push("slow:start");
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      order.push("slow:end");
-      throw new Error("boom");
-    });
-    const next = withKeyedLock("k", async () => {
-      order.push("next");
-      return "ok";
-    });
-    await expect(slow).rejects.toThrow("boom");
-    await expect(next).resolves.toBe("ok");
-    expect(order).toEqual(["slow:start", "slow:end", "next"]);
   });
 });

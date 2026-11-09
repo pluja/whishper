@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
+import { mediaUploads, projects } from "$lib/server/db/schema";
 import {
   seedProject,
   type SeededProject,
@@ -12,20 +14,28 @@ import {
   UPLOAD_EXPIRATION_MS,
 } from "$lib/server/uploads/maintenance";
 
-async function seedFailedUpload(project: SeededProject): Promise<void> {
-  await pool.query(
-    `insert into media_uploads
-       (id, workspace_id, project_id, created_by, original_filename, size_bytes, status)
-     values ($1, $2, $3, $4, 'clip.mp4', 1024, 'failed')`,
-    [randomUUID(), project.workspaceId, project.projectId, project.userId],
-  );
+function seedFailedUpload(project: SeededProject): void {
+  db.insert(mediaUploads)
+    .values({
+      id: randomUUID(),
+      workspaceId: project.workspaceId,
+      projectId: project.projectId,
+      createdBy: project.userId,
+      originalFilename: "clip.mp4",
+      sizeBytes: 1024,
+      status: "failed",
+    })
+    .run();
 }
 
-async function projectExists(projectId: string): Promise<boolean> {
-  const result = await pool.query(`select 1 from projects where id = $1`, [
-    projectId,
-  ]);
-  return result.rowCount === 1;
+function projectExists(projectId: string): boolean {
+  return (
+    db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .get() !== undefined
+  );
 }
 
 describe("runUploadSweep", () => {
@@ -34,8 +44,8 @@ describe("runUploadSweep", () => {
     const completed = await seedProject({
       mediaOriginalKey: "media/original.mp4",
     });
-    await seedFailedUpload(abandoned);
-    await seedFailedUpload(completed);
+    seedFailedUpload(abandoned);
+    seedFailedUpload(completed);
     const removeTusUpload = vi.fn().mockResolvedValue(undefined);
     vi.spyOn(console, "info").mockImplementation(() => undefined);
 
@@ -49,7 +59,7 @@ describe("runUploadSweep", () => {
     );
 
     expect(removeTusUpload).toHaveBeenCalledTimes(2);
-    expect(await projectExists(abandoned.projectId)).toBe(false);
-    expect(await projectExists(completed.projectId)).toBe(true);
+    expect(projectExists(abandoned.projectId)).toBe(false);
+    expect(projectExists(completed.projectId)).toBe(true);
   });
 });

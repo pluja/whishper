@@ -9,12 +9,16 @@ import type {
   MediaPreparationJobPayload,
 } from "@anysub/contracts";
 
-import { pool } from "$lib/server/db";
+import { and, eq, gt } from "drizzle-orm";
+
+import { db } from "$lib/server/db";
+import { jobs, mediaUploads, projects } from "$lib/server/db/schema";
 import { isNodeError } from "$lib/server/guards";
 import { badRequest, conflict, notFound } from "$lib/server/http/errors";
 import { hashToken } from "$lib/server/jobs/lease-token";
-import { IS_MEDIA_PREPARE_JOB } from "$lib/server/jobs/predicates";
+import { isMediaPrepareJob } from "$lib/server/jobs/predicates";
 import { ARTIFACT_LIMITS } from "$lib/server/media/derivatives";
+import { withKeyedLock } from "$lib/server/storage/keyed-lock";
 import {
   resolveDataPath,
   workerArtifactsPath,
@@ -22,23 +26,6 @@ import {
 } from "$lib/server/storage/paths";
 
 const MAX_ARTIFACT_CHUNK_BYTES = 32 * 1024 * 1024;
-
-const keyedLockTails = new Map<string, Promise<unknown>>();
-
-export async function withKeyedLock<T>(
-  key: string,
-  work: () => Promise<T>,
-): Promise<T> {
-  const previous = keyedLockTails.get(key) ?? Promise.resolve();
-  const run = previous.then(work, work);
-  const tail = run.catch(() => undefined);
-  keyedLockTails.set(key, tail);
-  try {
-    return await run;
-  } finally {
-    if (keyedLockTails.get(key) === tail) keyedLockTails.delete(key);
-  }
-}
 
 export type MediaPreparationLease = {
   jobId: string;
@@ -54,43 +41,44 @@ export class ArtifactOffsetError extends Error {
   }
 }
 
-export async function requireMediaPreparationLease(
+export function requireMediaPreparationLease(
   jobId: string,
   leaseToken: string,
-): Promise<MediaPreparationLease> {
-  const result = await pool.query<{
-    attempts: number;
-    workspace_id: string;
-    payload: MediaPreparationJobPayload;
-    media_type: string | null;
-    media_original_key: string | null;
-  }>(
-    `select j.attempts, j.workspace_id, j.payload, upload.media_type,
-            p.media_original_key
-       from jobs j
-       join projects p on p.id = j.project_id
-       left join media_uploads upload on upload.project_id = p.id
-      where j.id = $1
-        and j.state = 'leased'
-        and j.lease_token_hash = $2
-        and j.lease_expires_at > now()
-        and ${IS_MEDIA_PREPARE_JOB}`,
-    [jobId, hashToken(leaseToken)],
-  );
-  const row = result.rows[0];
+): MediaPreparationLease {
+  const row = db
+    .select({
+      attempts: jobs.attempts,
+      workspaceId: jobs.workspaceId,
+      payload: jobs.payload,
+      mediaType: mediaUploads.mediaType,
+      mediaOriginalKey: projects.mediaOriginalKey,
+    })
+    .from(jobs)
+    .innerJoin(projects, eq(projects.id, jobs.projectId))
+    .leftJoin(mediaUploads, eq(mediaUploads.projectId, projects.id))
+    .where(
+      and(
+        eq(jobs.id, jobId),
+        eq(jobs.state, "leased"),
+        eq(jobs.leaseTokenHash, hashToken(leaseToken)),
+        gt(jobs.leaseExpiresAt, new Date()),
+        isMediaPrepareJob,
+      ),
+    )
+    .get();
   if (
     !row ||
     row.payload.kind !== "media_prepare" ||
-    row.media_original_key !== row.payload.sourceStorageKey
+    row.mediaOriginalKey !== row.payload.sourceStorageKey
   ) {
     throw conflict("Media preparation lease is no longer active.");
   }
   return {
     jobId,
     attempt: row.attempts,
-    workspaceId: row.workspace_id,
+    workspaceId: row.workspaceId,
     payload: row.payload,
-    mediaType: row.media_type,
+    mediaType: row.mediaType,
   };
 }
 

@@ -1,5 +1,5 @@
 import { requireUserOrLogin } from "$lib/server/auth/session";
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
 import { clientFailure } from "$lib/server/http/errors";
 import {
   deleteDerivativeForUser,
@@ -68,16 +68,16 @@ export const load: PageServerLoad = async ({
   params,
 }): Promise<StudioData> => {
   const user = requireUserOrLogin(locals);
-  const access = await projectForUser(pool, params.projectId, user.id);
-  const project = access && (await studioProject(pool, access.id));
+  const access = projectForUser(db, params.projectId, user.id);
+  const project = access && studioProject(db, access.id);
   if (!access || !project) error(404, "Project not found");
 
-  const run = await latestRun(pool, project.id);
-  const preparation = await latestMediaPreparation(pool, project.id);
-  const derivatives = await readyDerivatives(pool, project.id);
-  const track = await latestTrackForProject(pool, project.id);
-  const workerManifests = await activeWorkerManifests(pool);
-  const cues = track ? await listTrackCues(pool, track.id) : [];
+  const run = latestRun(db, project.id);
+  const preparation = latestMediaPreparation(db, project.id);
+  const derivatives = readyDerivatives(db, project.id);
+  const track = latestTrackForProject(db, project.id);
+  const workerManifests = activeWorkerManifests(db);
+  const cues = track ? listTrackCues(db, track.id) : [];
 
   return {
     project: { ...project, canManage: access.canManage },
@@ -102,7 +102,7 @@ export const actions: Actions = {
       "enqueue transcription",
       "The transcription could not be queued.",
       async () => {
-        await enqueueTranscription(
+        enqueueTranscription(
           params.projectId,
           user.id,
           parseTranscriptionRequest(values),
@@ -117,7 +117,7 @@ export const actions: Actions = {
       "cancel transcription",
       "The transcription could not be cancelled.",
       async () => {
-        if (!(await cancelTranscriptionForUser(params.projectId, user.id))) {
+        if (!cancelTranscriptionForUser(params.projectId, user.id)) {
           return fail(409, {
             message: "The transcription is no longer active.",
           });
@@ -132,9 +132,7 @@ export const actions: Actions = {
       "queue media preparation",
       "Media preparation could not be queued.",
       async () => {
-        if (
-          !(await requestMediaPreparationForUser(params.projectId, user.id))
-        ) {
+        if (!requestMediaPreparationForUser(params.projectId, user.id)) {
           return fail(404, { message: "Project media was not found." });
         }
         redirect(303, projectPageUrl(params.projectId));
@@ -183,9 +181,7 @@ export const actions: Actions = {
       "delete transcript",
       "The transcript could not be deleted.",
       async () => {
-        if (
-          !(await deleteTranscriptForUser(params.projectId, trackId, user.id))
-        ) {
+        if (!deleteTranscriptForUser(params.projectId, trackId, user.id)) {
           return fail(404, {
             message: "The transcript was not found or cannot be deleted.",
           });

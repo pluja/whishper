@@ -1,6 +1,8 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
+import { projects as projectsTable } from "$lib/server/db/schema";
 import { seedProject } from "$lib/server/db/testing/fixtures";
 import {
   listLibraryProjects,
@@ -8,51 +10,49 @@ import {
   renameProjectForUser,
 } from "$lib/server/projects/library";
 
-async function projectName(projectId: string): Promise<string> {
-  const result = await pool.query<{ name: string }>(
-    `select name from projects where id = $1`,
-    [projectId],
-  );
-  return result.rows[0].name;
+function projectName(projectId: string): string | undefined {
+  return db
+    .select({ name: projectsTable.name })
+    .from(projectsTable)
+    .where(eq(projectsTable.id, projectId))
+    .get()?.name;
 }
 
 describe("renameProjectForUser", () => {
   it("renames a project for a workspace member", async () => {
     const project = await seedProject();
 
-    await expect(
-      renameProjectForUser(pool, project.projectId, project.userId, "Final"),
-    ).resolves.toBe(true);
-    expect(await projectName(project.projectId)).toBe("Final");
+    expect(
+      renameProjectForUser(db, project.projectId, project.userId, "Final"),
+    ).toBe(true);
+    expect(projectName(project.projectId)).toBe("Final");
   });
 
   it("leaves a project of another workspace untouched", async () => {
     const project = await seedProject();
     const outsider = await seedProject();
 
-    await expect(
-      renameProjectForUser(pool, project.projectId, outsider.userId, "Mine"),
-    ).resolves.toBe(false);
-    expect(await projectName(project.projectId)).toBe("Project");
+    expect(
+      renameProjectForUser(db, project.projectId, outsider.userId, "Mine"),
+    ).toBe(false);
+    expect(projectName(project.projectId)).toBe("Project");
   });
 });
 
 describe("project library", () => {
   it("counts and lists the projects of the user's workspace", async () => {
     const project = await seedProject();
-    await pool.query(
-      `update projects set media_duration_us = 7200000000 where id = $1`,
-      [project.projectId],
-    );
+    db.update(projectsTable)
+      .set({ mediaDurationUs: 7_200_000_000 })
+      .where(eq(projectsTable.id, project.projectId))
+      .run();
 
-    await expect(
-      primaryWorkspaceForUser(pool, project.userId),
-    ).resolves.toMatchObject({
+    expect(primaryWorkspaceForUser(db, project.userId)).toMatchObject({
       id: project.workspaceId,
       projectCount: 1,
       readySourceCount: 0,
     });
-    const projects = await listLibraryProjects(pool, project.workspaceId, {
+    const projects = listLibraryProjects(db, project.workspaceId, {
       query: "",
       includeSubtitles: false,
     });

@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 
+import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
+import { cues, subtitleTracks, transcriptionRuns } from "$lib/server/db/schema";
 import { seedProject, seedTrack } from "$lib/server/db/testing/fixtures";
 import {
   TrackLockedByTranscription,
@@ -12,20 +14,31 @@ import {
 
 const WORDS = [{ id: "word-1", text: "Kept" }];
 
+function seedCue(trackId: string, position: number, text: string): string {
+  const id = randomUUID();
+  db.insert(cues)
+    .values({
+      id,
+      trackId,
+      position,
+      startUs: position * 1000,
+      endUs: position * 1000 + 1000,
+      text,
+      words: WORDS,
+    })
+    .run();
+  return id;
+}
+
 describe("updateTrackForUser", () => {
-  it("replaces the cues with the editor's ids and keeps words of unchanged text", async () => {
-    const project = await seedProject();
-    const trackId = await seedTrack(project.projectId);
-    const keptId = randomUUID();
-    const editedId = randomUUID();
-    await pool.query(
-      `insert into cues (id, track_id, position, start_us, end_us, text, words)
-       values ($1, $3, 0, 0, 1000, 'Kept', $4), ($2, $3, 1, 1000, 2000, 'Old', $4)`,
-      [keptId, editedId, trackId, JSON.stringify(WORDS)],
-    );
+  it("replaces the cues with the editor's ids and keeps words of unchanged text", () => {
+    const project = seedProject();
+    const trackId = seedTrack(project.projectId);
+    const keptId = seedCue(trackId, 0, "Kept");
+    const editedId = seedCue(trackId, 1, "Old");
     const addedId = randomUUID();
 
-    const revision = await updateTrackForUser(
+    const revision = updateTrackForUser(
       project.projectId,
       trackId,
       project.userId,
@@ -46,67 +59,65 @@ describe("updateTrackForUser", () => {
     );
 
     expect(revision).toBe(1);
-    const stored = await pool.query<{
-      id: string;
-      text: string;
-      words: unknown[];
-    }>(
-      `select id, text, words from cues where track_id = $1 order by position`,
-      [trackId],
-    );
-    expect(stored.rows).toEqual([
+    expect(
+      db
+        .select({ id: cues.id, text: cues.text, words: cues.words })
+        .from(cues)
+        .where(eq(cues.trackId, trackId))
+        .orderBy(asc(cues.position))
+        .all(),
+    ).toEqual([
       { id: addedId, text: "New", words: [] },
       { id: keptId, text: "Kept", words: WORDS },
       { id: editedId, text: "Edited", words: [] },
     ]);
   });
 
-  it("refuses a cue id that belongs to another track", async () => {
-    const project = await seedProject();
-    const trackId = await seedTrack(project.projectId);
-    const otherTrackId = await seedTrack(project.projectId);
-    const foreignId = randomUUID();
-    await pool.query(
-      `insert into cues (id, track_id, position, start_us, end_us, text, words)
-       values ($1, $2, 0, 0, 1000, 'Other', '[]')`,
-      [foreignId, otherTrackId],
-    );
+  it("refuses a cue id that belongs to another track", () => {
+    const project = seedProject();
+    const trackId = seedTrack(project.projectId);
+    const foreignId = seedCue(seedTrack(project.projectId), 0, "Other");
 
-    await expect(
+    expect(() =>
       updateTrackForUser(project.projectId, trackId, project.userId, {
         revision: 0,
         cues: [
           { id: foreignId, position: 0, startUs: 0, endUs: 500, text: "Mine" },
         ],
       }),
-    ).rejects.toBeInstanceOf(TrackValidationError);
+    ).toThrow(TrackValidationError);
 
-    const other = await pool.query<{ text: string }>(
-      `select text from cues where id = $1`,
-      [foreignId],
-    );
-    expect(other.rows[0].text).toBe("Other");
+    expect(
+      db
+        .select({ text: cues.text })
+        .from(cues)
+        .where(eq(cues.id, foreignId))
+        .get()?.text,
+    ).toBe("Other");
   });
 
   describe("while a transcription runs on the project", () => {
-    async function seedTrackWithCue() {
-      const project = await seedProject();
-      const trackId = await seedTrack(project.projectId);
-      const cueId = randomUUID();
-      await pool.query(
-        `insert into cues (id, track_id, position, start_us, end_us, text)
-         values ($1, $2, 0, 0, 1000, 'Before')`,
-        [cueId, trackId],
-      );
+    function seedTrackWithCue() {
+      const project = seedProject();
+      const trackId = seedTrack(project.projectId);
+      const cueId = seedCue(trackId, 0, "Before");
       return { ...project, trackId, cueId };
     }
 
-    async function startRun(projectId: string, userId: string, status: string) {
-      await pool.query(
-        `insert into transcription_runs (project_id, status, adapter_id, model_id, created_by)
-         values ($1, $2, 'whisperx', 'small', $3)`,
-        [projectId, status, userId],
-      );
+    function startRun(
+      projectId: string,
+      userId: string,
+      status: "queued" | "running" | "completed",
+    ) {
+      db.insert(transcriptionRuns)
+        .values({
+          projectId,
+          status,
+          adapterId: "whisperx",
+          modelId: "small",
+          createdBy: userId,
+        })
+        .run();
     }
 
     function edit(cueId: string) {
@@ -118,41 +129,40 @@ describe("updateTrackForUser", () => {
       };
     }
 
-    async function storedState(trackId: string) {
-      const result = await pool.query<{ text: string; revision: number }>(
-        `select c.text, t.revision
-           from cues c join subtitle_tracks t on t.id = c.track_id
-          where c.track_id = $1`,
-        [trackId],
-      );
-      return result.rows;
+    function storedState(trackId: string) {
+      return db
+        .select({ text: cues.text, revision: subtitleTracks.revision })
+        .from(cues)
+        .innerJoin(subtitleTracks, eq(subtitleTracks.id, cues.trackId))
+        .where(eq(cues.trackId, trackId))
+        .all();
     }
 
-    it.each(["queued", "running"])(
+    it.each(["queued", "running"] as const)(
       "refuses the save and writes nothing while the run is %s",
-      async (status) => {
-        const seeded = await seedTrackWithCue();
-        await startRun(seeded.projectId, seeded.userId, status);
+      (status) => {
+        const seeded = seedTrackWithCue();
+        startRun(seeded.projectId, seeded.userId, status);
 
-        await expect(
+        expect(() =>
           updateTrackForUser(
             seeded.projectId,
             seeded.trackId,
             seeded.userId,
             edit(seeded.cueId),
           ),
-        ).rejects.toBeInstanceOf(TrackLockedByTranscription);
-        expect(await storedState(seeded.trackId)).toEqual([
+        ).toThrow(TrackLockedByTranscription);
+        expect(storedState(seeded.trackId)).toEqual([
           { text: "Before", revision: 0 },
         ]);
       },
     );
 
-    it("saves again once the run has finished", async () => {
-      const seeded = await seedTrackWithCue();
-      await startRun(seeded.projectId, seeded.userId, "completed");
+    it("saves again once the run has finished", () => {
+      const seeded = seedTrackWithCue();
+      startRun(seeded.projectId, seeded.userId, "completed");
 
-      const revision = await updateTrackForUser(
+      const revision = updateTrackForUser(
         seeded.projectId,
         seeded.trackId,
         seeded.userId,
@@ -160,7 +170,7 @@ describe("updateTrackForUser", () => {
       );
 
       expect(revision).toBe(1);
-      expect(await storedState(seeded.trackId)).toEqual([
+      expect(storedState(seeded.trackId)).toEqual([
         { text: "After", revision: 1 },
       ]);
     });

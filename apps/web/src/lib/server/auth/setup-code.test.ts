@@ -17,10 +17,10 @@ beforeEach(() => isInstanceInitialized.mockReset());
 
 describe("setup code", () => {
   it("prints a code that the setup form then accepts", async () => {
-    isInstanceInitialized.mockResolvedValue(false);
+    isInstanceInitialized.mockReturnValue(false);
     const log = vi.fn();
 
-    await announceSetupCode(log);
+    announceSetupCode(log);
 
     const code = announcedCode(log);
     expect(isSetupCode(code)).toBe(true);
@@ -29,10 +29,10 @@ describe("setup code", () => {
   });
 
   it("prints nothing once the owner exists", async () => {
-    isInstanceInitialized.mockResolvedValue(true);
+    isInstanceInitialized.mockReturnValue(true);
     const log = vi.fn();
 
-    await announceSetupCode(log);
+    announceSetupCode(log);
 
     expect(log).not.toHaveBeenCalled();
   });

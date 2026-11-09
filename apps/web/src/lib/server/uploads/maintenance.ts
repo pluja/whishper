@@ -1,11 +1,9 @@
 import { stat } from "node:fs/promises";
 
-import { pool } from "$lib/server/db";
-import {
-  lockKeys,
-  tryLockForSession,
-  unlockForSession,
-} from "$lib/server/db/locks";
+import { and, eq, inArray, ne } from "drizzle-orm";
+
+import { db } from "$lib/server/db";
+import { mediaUploads } from "$lib/server/db/schema";
 import { stagedUploadPath } from "$lib/server/storage/paths";
 import { deleteUnfinishedUploadProject } from "$lib/server/uploads/projects";
 
@@ -112,15 +110,22 @@ async function finalizeOrFail(
 function databasePorts(options: UploadMaintenanceOptions): SweepPorts {
   return {
     async listCandidates() {
-      const result = await pool.query<SweepCandidate>(
-        `select u.id, u.project_id as "projectId", u.created_by as "createdBy",
-                u.status, u.size_bytes as "sizeBytes",
-                u.first_finalize_attempt_at as "firstFinalizeAttemptAt",
-                u.created_at as "createdAt", u.updated_at as "updatedAt"
-           from media_uploads u
-          where u.status in ('uploading', 'finalizing', 'failed')`,
-      );
-      return result.rows;
+      return db
+        .select({
+          id: mediaUploads.id,
+          projectId: mediaUploads.projectId,
+          createdBy: mediaUploads.createdBy,
+          status: mediaUploads.status,
+          sizeBytes: mediaUploads.sizeBytes,
+          firstFinalizeAttemptAt: mediaUploads.firstFinalizeAttemptAt,
+          createdAt: mediaUploads.createdAt,
+          updatedAt: mediaUploads.updatedAt,
+        })
+        .from(mediaUploads)
+        .where(
+          inArray(mediaUploads.status, ["uploading", "finalizing", "failed"]),
+        )
+        .all() as SweepCandidate[];
     },
     async stagedBytes(uploadId) {
       const file = await stat(stagedUploadPath(uploadId)).catch(() => null);
@@ -130,47 +135,39 @@ function databasePorts(options: UploadMaintenanceOptions): SweepPorts {
       await options.finalizeUpload(candidate.id, candidate.createdBy);
     },
     async markFailed(uploadId, reason) {
-      await pool.query(
-        `update media_uploads
-            set status = 'failed', error = $2, updated_at = now()
-          where id = $1 and status <> 'completed'`,
-        [uploadId, reason],
-      );
+      db.update(mediaUploads)
+        .set({ status: "failed", error: reason })
+        .where(
+          and(
+            eq(mediaUploads.id, uploadId),
+            ne(mediaUploads.status, "completed"),
+          ),
+        )
+        .run();
     },
     async deleteUpload(candidate) {
       await options.removeTusUpload(candidate.id);
-      await deleteUnfinishedUploadProject(candidate.projectId);
+      deleteUnfinishedUploadProject(candidate.projectId);
     },
     deleteExpiredTusFiles: options.deleteExpiredTusFiles,
   };
 }
 
+let sweepRunning = false;
+
+// Only this process touches the database, so skipping a sweep that overlaps a
+// running one is all the exclusion needed.
 export async function runUploadSweep(
   options: UploadMaintenanceOptions,
   now: Date = new Date(),
 ): Promise<void> {
-  const ports = databasePorts(options);
-  const client = await pool.connect();
-  // A connection that may still hold the session lock must not return to the pool.
-  let lockMayBeHeld = true;
+  if (sweepRunning) return;
+  sweepRunning = true;
   try {
-    if (!(await tryLockForSession(client, lockKeys.uploadSweep))) {
-      lockMayBeHeld = false;
-      return;
-    }
-    try {
-      const summary = await sweepUploads(ports, now);
-      console.info("Upload sweep finished", summary);
-    } finally {
-      try {
-        await unlockForSession(client, lockKeys.uploadSweep);
-        lockMayBeHeld = false;
-      } catch (cause) {
-        console.error("Could not release the upload sweep lock", cause);
-      }
-    }
+    const summary = await sweepUploads(databasePorts(options), now);
+    console.info("Upload sweep finished", summary);
   } finally {
-    client.release(lockMayBeHeld);
+    sweepRunning = false;
   }
 }
 

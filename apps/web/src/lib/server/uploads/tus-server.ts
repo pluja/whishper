@@ -137,11 +137,11 @@ async function createServer(): Promise<Server> {
         !uploadId
       )
         return;
-      await requireOwnedUpload(uploadId, requireUserId(request)).catch(
-        (cause) => {
-          throw tusError(cause, "Upload lookup failed.");
-        },
-      );
+      try {
+        requireOwnedUpload(uploadId, requireUserId(request));
+      } catch (cause) {
+        throw tusError(cause, "Upload lookup failed.");
+      }
     },
     onUploadCreate: async (request, upload) => {
       const workspaceId = upload.metadata?.workspaceId;
@@ -156,17 +156,20 @@ async function createServer(): Promise<Server> {
         );
       }
       const mediaType = declaredUploadMediaType(upload.metadata?.filetype);
-      const projectId = await createUploadProject({
-        uploadId: upload.id,
-        workspaceId,
-        userId: requireUserId(request),
-        filename,
-        projectName: upload.metadata?.projectName ?? null,
-        mediaType,
-        sizeBytes: upload.size,
-      }).catch((cause) => {
+      let projectId: string;
+      try {
+        projectId = createUploadProject({
+          uploadId: upload.id,
+          workspaceId,
+          userId: requireUserId(request),
+          filename,
+          projectName: upload.metadata?.projectName ?? null,
+          mediaType,
+          sizeBytes: upload.size,
+        });
+      } catch (cause) {
         throw tusError(cause, "Upload creation failed.");
-      });
+      }
       return {
         metadata: { ...upload.metadata, projectId },
       };
@@ -189,14 +192,18 @@ async function createServer(): Promise<Server> {
   });
 
   server.on(EVENTS.POST_RECEIVE, (_request, upload: Upload) => {
-    void updateUploadProgress(upload.id, upload.offset).catch((cause) => {
+    try {
+      updateUploadProgress(upload.id, upload.offset);
+    } catch (cause) {
       console.warn("Could not persist upload progress", cause);
-    });
+    }
   });
   server.on(EVENTS.POST_TERMINATE, (request, _response, uploadId) => {
-    void cancelUpload(uploadId, requireUserId(request)).catch((cause) => {
+    try {
+      cancelUpload(uploadId, requireUserId(request));
+    } catch (cause) {
       console.warn("Could not cancel upload project", cause);
-    });
+    }
   });
   return server;
 }

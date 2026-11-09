@@ -17,11 +17,14 @@ async function activeArtifactLease(event: RequestEvent) {
   if (!isMediaDerivativeKind(kind)) {
     error(400, "A valid derivative kind is required");
   }
-  const lease = await requireMediaPreparationLease(
-    event.params.jobId,
-    leaseToken,
-  ).catch(httpErrorFrom);
-  return { kind, lease };
+  try {
+    return {
+      kind,
+      lease: requireMediaPreparationLease(event.params.jobId, leaseToken),
+    };
+  } catch (cause) {
+    httpErrorFrom(cause);
+  }
 }
 
 export const HEAD: RequestHandler = async (event) => {

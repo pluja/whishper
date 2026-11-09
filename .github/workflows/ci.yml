@@ -17,21 +17,6 @@ jobs:
     name: Web checks
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # A fresh container per run, so the database tests need no cleanup.
-    services:
-      postgres:
-        image: docker.io/library/postgres:17.5-bookworm # Matches compose.yaml.
-        env:
-          POSTGRES_USER: anysub
-          POSTGRES_PASSWORD: anysub-ci
-          POSTGRES_DB: anysub_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U anysub -d anysub_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -47,12 +32,9 @@ jobs:
 
       - run: pnpm check
 
-      # Includes the check that src/generated matches the committed protocol schema.
+      # Includes the checks that src/generated matches the committed protocol
+      # schema and that the database migrations match the Drizzle schema.
       - run: pnpm test
-
-      - run: pnpm --filter @anysub/web test:db
-        env:
-          ANYSUB_TEST_DATABASE_URL: postgresql://anysub:anysub-ci@localhost:5432/anysub_test
 
       - run: pnpm format:check
 

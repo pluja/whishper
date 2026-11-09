@@ -1,37 +1,29 @@
 import type { MediaPreparationJobPayload } from "@anysub/contracts";
-import type { PoolClient } from "pg";
+import { and, desc, eq } from "drizzle-orm";
 
-import { lockForTransaction, lockKeys } from "$lib/server/db/locks";
+import type { Executor } from "$lib/server/db";
+import { jobs, mediaUploads, projects } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
-import {
-  IS_ACTIVE_JOB,
-  IS_MEDIA_PREPARE_JOB,
-} from "$lib/server/jobs/predicates";
+import { isActiveJob, isMediaPrepareJob } from "$lib/server/jobs/predicates";
 import { cleanupStagedMediaArtifacts } from "$lib/server/media/artifact-staging";
 import { projectForUser } from "$lib/server/projects/access";
 
-// The payload is built from the locked project row, so it always describes
-// the source the job will read.
-export async function enqueueMediaPreparation(
-  client: PoolClient,
+// The payload is built from the project row read in the same transaction, so
+// it always describes the source the job will read.
+export function enqueueMediaPreparation(
+  tx: Executor,
   input: { workspaceId: string; projectId: string; sourceStorageKey: string },
-): Promise<string> {
-  await lockForTransaction(client, lockKeys.projectMedia(input.projectId));
-  const project = await client.query<{
-    storageKey: string | null;
-    filename: string | null;
-    mediaType: string | null;
-  }>(
-    `select p.media_original_key as "storageKey",
-            p.media_filename as filename,
-            upload.media_type as "mediaType"
-       from projects p
-       left join media_uploads upload on upload.project_id = p.id
-      where p.id = $1
-      for update of p`,
-    [input.projectId],
-  );
-  const source = project.rows[0];
+): string {
+  const source = tx
+    .select({
+      storageKey: projects.mediaOriginalKey,
+      filename: projects.mediaFilename,
+      mediaType: mediaUploads.mediaType,
+    })
+    .from(projects)
+    .leftJoin(mediaUploads, eq(mediaUploads.projectId, projects.id))
+    .where(eq(projects.id, input.projectId))
+    .get();
   if (
     !source ||
     source.storageKey !== input.sourceStorageKey ||
@@ -39,17 +31,16 @@ export async function enqueueMediaPreparation(
   ) {
     throw new Error("Project source changed before media preparation queued.");
   }
-  const existing = await client.query<{ id: string }>(
-    `select id
-       from jobs
-      where project_id = $1
-        and ${IS_MEDIA_PREPARE_JOB}
-        and ${IS_ACTIVE_JOB}
-      order by created_at desc
-      limit 1`,
-    [input.projectId],
-  );
-  if (existing.rows[0]) return existing.rows[0].id;
+  const existing = tx
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(
+      and(eq(jobs.projectId, input.projectId), isMediaPrepareJob, isActiveJob),
+    )
+    .orderBy(desc(jobs.createdAt))
+    .limit(1)
+    .get();
+  if (existing) return existing.id;
 
   const payload: MediaPreparationJobPayload = {
     kind: "media_prepare",
@@ -58,29 +49,31 @@ export async function enqueueMediaPreparation(
     sourceFilename: source.filename,
     ...(source.mediaType ? { sourceMediaType: source.mediaType } : {}),
   };
-  const job = await client.query<{ id: string }>(
-    `insert into jobs (workspace_id, project_id, kind, payload)
-     values ($1, $2, 'media_prepare', $3)
-     returning id`,
-    [input.workspaceId, input.projectId, JSON.stringify(payload)],
-  );
-  await client.query(
-    `update projects
-        set media_preparation_status = 'queued', updated_at = now()
-      where id = $1`,
-    [input.projectId],
-  );
-  return job.rows[0].id;
+  const job = tx
+    .insert(jobs)
+    .values({
+      workspaceId: input.workspaceId,
+      projectId: input.projectId,
+      kind: "media_prepare",
+      payload,
+    })
+    .returning({ id: jobs.id })
+    .get();
+  tx.update(projects)
+    .set({ mediaPreparationStatus: "queued" })
+    .where(eq(projects.id, input.projectId))
+    .run();
+  return job.id;
 }
 
-export async function requestMediaPreparationForUser(
+export function requestMediaPreparationForUser(
   projectId: string,
   userId: string,
-): Promise<boolean> {
-  return withTransaction(async (client) => {
-    const project = await projectForUser(client, projectId, userId);
+): boolean {
+  return withTransaction((tx) => {
+    const project = projectForUser(tx, projectId, userId);
     if (!project?.mediaOriginalKey) return false;
-    await enqueueMediaPreparation(client, {
+    enqueueMediaPreparation(tx, {
       workspaceId: project.workspaceId,
       projectId,
       sourceStorageKey: project.mediaOriginalKey,
@@ -93,36 +86,33 @@ export async function cancelMediaPreparationForUser(
   projectId: string,
   userId: string,
 ): Promise<boolean> {
-  const jobId = await withTransaction(async (client) => {
-    if (!(await projectForUser(client, projectId, userId))) return null;
-    const active = await client.query<{ id: string; prepared: boolean }>(
-      `select j.id, (p.media_probe is not null) as prepared
-         from jobs j
-         join projects p on p.id = j.project_id
-        where j.project_id = $1
-          and ${IS_MEDIA_PREPARE_JOB}
-          and ${IS_ACTIVE_JOB}
-        order by j.created_at desc
-        limit 1
-        for update of j, p`,
-      [projectId],
-    );
-    const job = active.rows[0];
+  const jobId = withTransaction((tx) => {
+    if (!projectForUser(tx, projectId, userId)) return null;
+    const job = tx
+      .select({ id: jobs.id, probe: projects.mediaProbe })
+      .from(jobs)
+      .innerJoin(projects, eq(projects.id, jobs.projectId))
+      .where(and(eq(jobs.projectId, projectId), isMediaPrepareJob, isActiveJob))
+      .orderBy(desc(jobs.createdAt))
+      .limit(1)
+      .get();
     if (!job) return null;
-    await client.query(
-      `update jobs
-          set state = 'cancelled', lease_token_hash = null,
-              lease_expires_at = null, progress_message = 'Cancelled',
-              updated_at = now()
-        where id = $1`,
-      [job.id],
-    );
-    await client.query(
-      `update projects
-          set media_preparation_status = $2, updated_at = now()
-        where id = $1`,
-      [projectId, job.prepared ? "completed" : "not_started"],
-    );
+    tx.update(jobs)
+      .set({
+        state: "cancelled",
+        leaseTokenHash: null,
+        leaseExpiresAt: null,
+        progressMessage: "Cancelled",
+      })
+      .where(eq(jobs.id, job.id))
+      .run();
+    tx.update(projects)
+      .set({
+        mediaPreparationStatus:
+          job.probe === null ? "not_started" : "completed",
+      })
+      .where(eq(projects.id, projectId))
+      .run();
     return job.id;
   });
   if (!jobId) return false;

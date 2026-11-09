@@ -17,7 +17,7 @@ import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (!(await isInstanceInitialized())) redirect(303, "/setup");
+  if (!isInstanceInitialized()) redirect(303, "/setup");
   if (locals.user) redirect(303, "/account");
   return {};
 };

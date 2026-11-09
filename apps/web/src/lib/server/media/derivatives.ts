@@ -1,8 +1,10 @@
 import { unlink } from "node:fs/promises";
 
 import type { MediaDerivativeKind } from "@anysub/contracts";
+import { and, eq } from "drizzle-orm";
 
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
+import { mediaDerivatives } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { privateEnv } from "$lib/server/env";
 import { projectForUser } from "$lib/server/projects/access";
@@ -52,17 +54,25 @@ export function isMediaDerivativeKind(
   return value === "waveform" || value === "thumbnail" || value === "proxy";
 }
 
-export async function readyDerivativeFile(
+export function readyDerivativeFile(
   projectId: string,
   kind: MediaDerivativeKind,
-): Promise<{ storageKey: string; mediaType: string } | null> {
-  const result = await pool.query<{ storageKey: string; mediaType: string }>(
-    `select storage_key as "storageKey", media_type as "mediaType"
-       from media_derivatives
-      where project_id = $1 and kind = $2 and status = 'ready'`,
-    [projectId, kind],
-  );
-  return result.rows[0] ?? null;
+): { storageKey: string; mediaType: string } | null {
+  const derivative = db
+    .select({
+      storageKey: mediaDerivatives.storageKey,
+      mediaType: mediaDerivatives.mediaType,
+    })
+    .from(mediaDerivatives)
+    .where(
+      and(
+        eq(mediaDerivatives.projectId, projectId),
+        eq(mediaDerivatives.kind, kind),
+        eq(mediaDerivatives.status, "ready"),
+      ),
+    )
+    .get();
+  return derivative ?? null;
 }
 
 export async function deleteDerivativeForUser(
@@ -70,15 +80,19 @@ export async function deleteDerivativeForUser(
   kind: MediaDerivativeKind,
   userId: string,
 ): Promise<boolean> {
-  const storageKey = await withTransaction(async (client) => {
-    if (!(await projectForUser(client, projectId, userId))) return null;
-    const derivative = await client.query<{ storage_key: string }>(
-      `delete from media_derivatives
-        where project_id = $1 and kind = $2
-        returning storage_key`,
-      [projectId, kind],
-    );
-    return derivative.rows[0]?.storage_key ?? null;
+  const storageKey = withTransaction((tx) => {
+    if (!projectForUser(tx, projectId, userId)) return null;
+    const derivative = tx
+      .delete(mediaDerivatives)
+      .where(
+        and(
+          eq(mediaDerivatives.projectId, projectId),
+          eq(mediaDerivatives.kind, kind),
+        ),
+      )
+      .returning({ storageKey: mediaDerivatives.storageKey })
+      .get();
+    return derivative?.storageKey ?? null;
   });
   if (!storageKey) return false;
   await unlink(resolveDataPath(storageKey)).catch(() => undefined);

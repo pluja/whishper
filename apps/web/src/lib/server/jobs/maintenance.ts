@@ -9,10 +9,7 @@ import {
 const RECLAIM_INTERVAL_MS = 30_000;
 
 export async function reclaimAbandonedJobs(): Promise<void> {
-  const reclaimed = await withTransaction((client) =>
-    reclaimExpiredLeases(client),
-  );
-  await cleanupReclaimedArtifacts(reclaimed);
+  await cleanupReclaimedArtifacts(withTransaction(reclaimExpiredLeases));
 }
 
 let started = false;

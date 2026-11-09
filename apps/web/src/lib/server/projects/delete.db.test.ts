@@ -1,109 +1,68 @@
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { pool } from "$lib/server/db";
-import { lockForTransaction, lockKeys } from "$lib/server/db/locks";
+import { db } from "$lib/server/db";
+import { jobs, projects } from "$lib/server/db/schema";
 import {
   seedLeasedTranscriptionJob,
+  seedMember,
   seedProject,
 } from "$lib/server/db/testing/fixtures";
 import { deleteProjectForUser } from "$lib/server/projects/delete";
 
 const ACTIVE_LEASE = { attempts: 1, maxAttempts: 3, expiresInSeconds: 60 };
 
-async function rowExists(table: "projects" | "jobs", id: string) {
-  const result = await pool.query(`select 1 from ${table} where id = $1`, [id]);
-  return result.rowCount === 1;
+function projectExists(id: string): boolean {
+  return (
+    db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.id, id))
+      .get() !== undefined
+  );
 }
 
-// Polls until another session queues behind an advisory lock, which proves
-// the deletion has passed its unlocked authorization.
-async function waitForAdvisoryLockWaiter(): Promise<void> {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    const waiting = await pool.query(
-      `select 1 from pg_locks where locktype = 'advisory' and not granted`,
-    );
-    if (waiting.rowCount) return;
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-  throw new Error("The deletion never waited for the advisory lock.");
+function jobExists(id: string): boolean {
+  return (
+    db.select({ id: jobs.id }).from(jobs).where(eq(jobs.id, id)).get() !==
+    undefined
+  );
 }
 
 describe("deleteProjectForUser", () => {
   it("refuses a user outside the workspace and keeps the project", async () => {
-    const project = await seedProject();
-    const job = await seedLeasedTranscriptionJob(project, ACTIVE_LEASE);
+    const project = seedProject();
+    const job = seedLeasedTranscriptionJob(project, ACTIVE_LEASE);
 
     await expect(
       deleteProjectForUser(project.projectId, randomUUID()),
     ).resolves.toBe(false);
 
-    expect(await rowExists("projects", project.projectId)).toBe(true);
-    expect(await rowExists("jobs", job.jobId)).toBe(true);
+    expect(projectExists(project.projectId)).toBe(true);
+    expect(jobExists(job.jobId)).toBe(true);
   });
 
-  it("refuses a non-member without waiting on the project's locks", async () => {
-    const project = await seedProject();
-    const holder = await pool.connect();
-    let blockedTimer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      await holder.query("begin");
-      await lockForTransaction(
-        holder,
-        lockKeys.projectMedia(project.projectId),
-      );
-      await holder.query("select 1 from projects where id = $1 for update", [
-        project.projectId,
-      ]);
+  it("refuses a plain member who did not create the project", async () => {
+    const project = seedProject();
+    const member = seedMember(project.workspaceId, "member");
 
-      const outcome = await Promise.race([
-        deleteProjectForUser(project.projectId, randomUUID()),
-        new Promise((resolve) => {
-          blockedTimer = setTimeout(resolve, 2_000, "blocked");
-        }),
-      ]);
-      expect(outcome).toBe(false);
-    } finally {
-      clearTimeout(blockedTimer);
-      await holder.query("rollback");
-      holder.release();
-    }
-  });
-
-  it("refuses a user whose access is revoked while waiting for the lock", async () => {
-    const project = await seedProject();
-    const holder = await pool.connect();
-    let deletion: Promise<boolean> | undefined;
-    try {
-      await holder.query("begin");
-      await lockForTransaction(
-        holder,
-        lockKeys.projectMedia(project.projectId),
-      );
-      deletion = deleteProjectForUser(project.projectId, project.userId);
-      await waitForAdvisoryLockWaiter();
-      await holder.query(`delete from memberships where user_id = $1`, [
-        project.userId,
-      ]);
-      await holder.query("commit");
-    } finally {
-      holder.release();
-    }
-
-    await expect(deletion).resolves.toBe(false);
-    expect(await rowExists("projects", project.projectId)).toBe(true);
+    await expect(deleteProjectForUser(project.projectId, member)).resolves.toBe(
+      false,
+    );
+    expect(projectExists(project.projectId)).toBe(true);
   });
 
   it("deletes the project together with its active jobs", async () => {
-    const project = await seedProject();
-    const job = await seedLeasedTranscriptionJob(project, ACTIVE_LEASE);
+    const project = seedProject();
+    const job = seedLeasedTranscriptionJob(project, ACTIVE_LEASE);
 
     await expect(
       deleteProjectForUser(project.projectId, project.userId),
     ).resolves.toBe(true);
 
-    expect(await rowExists("projects", project.projectId)).toBe(false);
-    expect(await rowExists("jobs", job.jobId)).toBe(false);
+    expect(projectExists(project.projectId)).toBe(false);
+    expect(jobExists(job.jobId)).toBe(false);
   });
 });

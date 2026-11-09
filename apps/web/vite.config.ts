@@ -3,6 +3,7 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vitest/config";
 
 const DATABASE_TESTS = "src/**/*.db.test.ts";
+const TEST_ENVIRONMENT = "src/lib/server/db/testing/environment.ts";
 
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit()],
@@ -18,6 +19,7 @@ export default defineConfig({
           name: "unit",
           include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
           exclude: [DATABASE_TESTS],
+          setupFiles: [TEST_ENVIRONMENT],
         },
       },
       {
@@ -25,12 +27,7 @@ export default defineConfig({
         test: {
           name: "db",
           include: [DATABASE_TESTS],
-          globalSetup: ["src/lib/server/db/testing/global-setup.ts"],
-          setupFiles: ["src/lib/server/db/testing/setup.ts"],
-          // Lease reclaim and the upload sweep act on every matching row, so
-          // files sharing the database must not run concurrently.
-          pool: "forks",
-          poolOptions: { forks: { singleFork: true } },
+          setupFiles: [TEST_ENVIRONMENT, "src/lib/server/db/testing/setup.ts"],
         },
       },
     ],

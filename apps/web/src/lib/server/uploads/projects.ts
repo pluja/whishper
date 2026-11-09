@@ -1,13 +1,16 @@
 import { mkdir, unlink } from "node:fs/promises";
 import { basename, dirname, extname } from "node:path";
 
-import { pool } from "$lib/server/db";
-import { lockForTransaction, lockKeys } from "$lib/server/db/locks";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
+
+import { db } from "$lib/server/db";
+import { mediaUploads, memberships, projects } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { badRequest, notFound } from "$lib/server/http/errors";
 import { enqueueMediaPreparation } from "$lib/server/media/preparation";
 import { normalizeProjectTitle } from "$lib/server/projects/library";
 import { linkIdempotent } from "$lib/server/storage/files";
+import { withKeyedLock } from "$lib/server/storage/keyed-lock";
 import {
   originalStorageKey,
   resolveDataPath,
@@ -51,7 +54,7 @@ export function projectNameFor(
   return (stem.trim() || filename).slice(0, PROJECT_TITLE_MAX_LENGTH);
 }
 
-export async function createUploadProject(input: {
+export function createUploadProject(input: {
   uploadId: string;
   workspaceId: string;
   userId: string;
@@ -59,170 +62,187 @@ export async function createUploadProject(input: {
   mediaType: string | null;
   projectName?: string | null;
   sizeBytes: number;
-}): Promise<string> {
+}): string {
   if (!SAFE_ID.test(input.uploadId)) throw badRequest("Invalid upload ID.");
   const filename = normalizeFilename(input.filename);
-  return withTransaction(async (client) => {
-    const membership = await client.query(
-      `select 1 from memberships where workspace_id = $1 and user_id = $2`,
-      [input.workspaceId, input.userId],
-    );
-    if (membership.rowCount !== 1) {
-      throw notFound("Workspace not found.");
-    }
-    const project = await client.query<{ id: string }>(
-      `insert into projects (workspace_id, name, media_filename, created_by)
-       values ($1, $2, $3, $4)
-       returning id`,
-      [
-        input.workspaceId,
-        projectNameFor(filename, input.projectName),
-        filename,
-        input.userId,
-      ],
-    );
-    await client.query(
-      `insert into media_uploads
-        (id, workspace_id, project_id, created_by, original_filename, media_type, size_bytes)
-       values ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        input.uploadId,
-        input.workspaceId,
-        project.rows[0].id,
-        input.userId,
-        filename,
-        input.mediaType,
-        input.sizeBytes,
-      ],
-    );
-    return project.rows[0].id;
+  return withTransaction((tx) => {
+    const membership = tx
+      .select({ userId: memberships.userId })
+      .from(memberships)
+      .where(
+        and(
+          eq(memberships.workspaceId, input.workspaceId),
+          eq(memberships.userId, input.userId),
+        ),
+      )
+      .get();
+    if (!membership) throw notFound("Workspace not found.");
+    const project = tx
+      .insert(projects)
+      .values({
+        workspaceId: input.workspaceId,
+        name: projectNameFor(filename, input.projectName),
+        mediaFilename: filename,
+        createdBy: input.userId,
+      })
+      .returning({ id: projects.id })
+      .get();
+    tx.insert(mediaUploads)
+      .values({
+        id: input.uploadId,
+        workspaceId: input.workspaceId,
+        projectId: project.id,
+        createdBy: input.userId,
+        originalFilename: filename,
+        mediaType: input.mediaType,
+        sizeBytes: input.sizeBytes,
+      })
+      .run();
+    return project.id;
   });
 }
 
-export async function requireOwnedUpload(
+export function requireOwnedUpload(
   uploadId: string,
   userId: string,
-): Promise<UploadProject> {
-  const result = await pool.query<UploadProject>(
-    `select project_id as "projectId", workspace_id as "workspaceId",
-            original_filename as "originalFilename", media_type as "mediaType",
-            storage_key as "storageKey", status
-       from media_uploads where id = $1 and created_by = $2`,
-    [uploadId, userId],
-  );
-  const upload = result.rows[0];
-  if (!upload) {
-    throw notFound("Upload not found.");
-  }
+): UploadProject {
+  const upload = db
+    .select({
+      projectId: mediaUploads.projectId,
+      workspaceId: mediaUploads.workspaceId,
+      originalFilename: mediaUploads.originalFilename,
+      mediaType: mediaUploads.mediaType,
+      storageKey: mediaUploads.storageKey,
+      status: mediaUploads.status,
+    })
+    .from(mediaUploads)
+    .where(
+      and(eq(mediaUploads.id, uploadId), eq(mediaUploads.createdBy, userId)),
+    )
+    .get();
+  if (!upload) throw notFound("Upload not found.");
   return upload;
 }
 
-export async function uploadMediaType(
-  projectId: string,
-): Promise<string | null> {
-  const result = await pool.query<{ mediaType: string | null }>(
-    `select media_type as "mediaType" from media_uploads where project_id = $1`,
-    [projectId],
+export function uploadMediaType(projectId: string): string | null {
+  return (
+    db
+      .select({ mediaType: mediaUploads.mediaType })
+      .from(mediaUploads)
+      .where(eq(mediaUploads.projectId, projectId))
+      .get()?.mediaType ?? null
   );
-  return result.rows[0]?.mediaType ?? null;
 }
 
-export async function updateUploadProgress(
+export function updateUploadProgress(
   uploadId: string,
   receivedBytes: number,
-): Promise<void> {
-  await pool.query(
-    `update media_uploads
-        set received_bytes = least(size_bytes, $2), updated_at = now()
-      where id = $1 and status = 'uploading'`,
-    [uploadId, receivedBytes],
-  );
+): void {
+  db.update(mediaUploads)
+    .set({
+      receivedBytes: sql`min(${mediaUploads.sizeBytes}, ${receivedBytes})`,
+    })
+    .where(
+      and(eq(mediaUploads.id, uploadId), eq(mediaUploads.status, "uploading")),
+    )
+    .run();
 }
 
+// The lock keeps a retried finalization from linking or recording the file
+// while the first attempt is still at it.
 export async function completeUpload(
   uploadId: string,
   userId: string,
 ): Promise<{ projectId: string; storageKey: string }> {
-  const upload = await requireOwnedUpload(uploadId, userId);
-  if (upload.status === "completed" && upload.storageKey) {
-    return { projectId: upload.projectId, storageKey: upload.storageKey };
-  }
+  return withKeyedLock(`upload:${uploadId}`, async () => {
+    const upload = requireOwnedUpload(uploadId, userId);
+    if (upload.status === "completed" && upload.storageKey) {
+      return { projectId: upload.projectId, storageKey: upload.storageKey };
+    }
 
-  const storageKey = originalStorageKey(
-    upload.workspaceId,
-    upload.projectId,
-    upload.originalFilename,
-  );
-  const stagingPath = stagedUploadPath(uploadId);
-  const canonicalPath = resolveDataPath(storageKey);
-  await pool.query(
-    `update media_uploads
-        set status = 'finalizing', error = null, updated_at = now(),
-            first_finalize_attempt_at = coalesce(first_finalize_attempt_at, now())
-      where id = $1 and status <> 'completed'`,
-    [uploadId],
-  );
+    const storageKey = originalStorageKey(
+      upload.workspaceId,
+      upload.projectId,
+      upload.originalFilename,
+    );
+    const stagingPath = stagedUploadPath(uploadId);
+    const canonicalPath = resolveDataPath(storageKey);
+    const notCompleted = and(
+      eq(mediaUploads.id, uploadId),
+      ne(mediaUploads.status, "completed"),
+    );
+    db.update(mediaUploads)
+      .set({
+        status: "finalizing",
+        error: null,
+        firstFinalizeAttemptAt: sql`coalesce(${mediaUploads.firstFinalizeAttemptAt}, ${Date.now()})`,
+      })
+      .where(notCompleted)
+      .run();
 
-  let linked = false;
-  try {
-    await mkdir(dirname(canonicalPath), { recursive: true });
-    linked = await linkIdempotent(stagingPath, canonicalPath);
+    let linked = false;
+    try {
+      await mkdir(dirname(canonicalPath), { recursive: true });
+      linked = await linkIdempotent(stagingPath, canonicalPath);
 
-    await withTransaction(async (client) => {
-      await lockForTransaction(client, lockKeys.projectMedia(upload.projectId));
-      await client.query(
-        `update projects
-            set media_original_key = $2, media_filename = $3, updated_at = now()
-          where id = $1`,
-        [upload.projectId, storageKey, upload.originalFilename],
-      );
-      await client.query(
-        `update media_uploads
-            set status = 'completed', storage_key = $2, received_bytes = size_bytes,
-                completed_at = now(), updated_at = now()
-          where id = $1`,
-        [uploadId, storageKey],
-      );
-      await enqueueMediaPreparation(client, {
-        workspaceId: upload.workspaceId,
-        projectId: upload.projectId,
-        sourceStorageKey: storageKey,
+      withTransaction((tx) => {
+        tx.update(projects)
+          .set({
+            mediaOriginalKey: storageKey,
+            mediaFilename: upload.originalFilename,
+          })
+          .where(eq(projects.id, upload.projectId))
+          .run();
+        tx.update(mediaUploads)
+          .set({
+            status: "completed",
+            storageKey,
+            receivedBytes: sql`${mediaUploads.sizeBytes}`,
+            completedAt: new Date(),
+          })
+          .where(eq(mediaUploads.id, uploadId))
+          .run();
+        enqueueMediaPreparation(tx, {
+          workspaceId: upload.workspaceId,
+          projectId: upload.projectId,
+          sourceStorageKey: storageKey,
+        });
       });
-    });
-  } catch (cause) {
-    if (linked) await unlink(canonicalPath).catch(() => undefined);
-    await pool
-      .query(
-        `update media_uploads
-            set status = 'uploading', error = $2, updated_at = now()
-          where id = $1 and status <> 'completed'`,
-        [
-          uploadId,
-          cause instanceof Error ? cause.message : "Finalization failed.",
-        ],
-      )
-      .catch(() => undefined);
-    throw cause;
+    } catch (cause) {
+      if (linked) await unlink(canonicalPath).catch(() => undefined);
+      try {
+        db.update(mediaUploads)
+          .set({
+            status: "uploading",
+            error:
+              cause instanceof Error ? cause.message : "Finalization failed.",
+          })
+          .where(notCompleted)
+          .run();
+      } catch {
+        // The original failure is the one worth reporting.
+      }
+      throw cause;
+    }
+
+    await unlink(stagingPath).catch(() => undefined);
+    return { projectId: upload.projectId, storageKey };
+  });
+}
+
+export function cancelUpload(uploadId: string, userId: string): void {
+  let upload: UploadProject;
+  try {
+    upload = requireOwnedUpload(uploadId, userId);
+  } catch {
+    return;
   }
-
-  await unlink(stagingPath).catch(() => undefined);
-  return { projectId: upload.projectId, storageKey };
+  if (upload.status === "completed") return;
+  deleteUnfinishedUploadProject(upload.projectId);
 }
 
-export async function cancelUpload(
-  uploadId: string,
-  userId: string,
-): Promise<void> {
-  const upload = await requireOwnedUpload(uploadId, userId).catch(() => null);
-  if (!upload || upload.status === "completed") return;
-  await deleteUnfinishedUploadProject(upload.projectId);
-}
-
-export async function deleteUnfinishedUploadProject(
-  projectId: string,
-): Promise<void> {
-  await pool.query(
-    `delete from projects where id = $1 and media_original_key is null`,
-    [projectId],
-  );
+export function deleteUnfinishedUploadProject(projectId: string): void {
+  db.delete(projects)
+    .where(and(eq(projects.id, projectId), isNull(projects.mediaOriginalKey)))
+    .run();
 }

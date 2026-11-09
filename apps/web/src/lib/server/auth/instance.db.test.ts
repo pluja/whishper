@@ -1,12 +1,16 @@
-import type { PoolClient } from "pg";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { sql } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
 
-import { pool } from "$lib/server/db";
-import type { Connectable } from "$lib/server/db/types";
+import { account, user } from "$lib/server/auth/schema";
 import {
   createInstanceOwner,
+  isInstanceInitialized,
+  isValidOwnerEmail,
+  workspaceSlug,
   type InstanceOwner,
 } from "$lib/server/auth/instance";
+import { db } from "$lib/server/db";
+import { memberships, workspaces } from "$lib/server/db/schema";
 
 function owner(name: string): InstanceOwner {
   return {
@@ -16,67 +20,67 @@ function owner(name: string): InstanceOwner {
   };
 }
 
-async function countRows(table: "auth_users" | "auth_accounts") {
-  const result = await pool.query<{ count: number }>(
-    `select count(*) as count from ${table}`,
-  );
-  return result.rows[0].count;
-}
-
-// Wraps a real pooled connection so every other statement still runs in Postgres.
-function failingOn(statement: string): Connectable {
-  return {
-    connect: async () => {
-      const client = await pool.connect();
-      return {
-        query: (text: string, values?: unknown[]) => {
-          if (text.includes(statement)) {
-            return Promise.reject(new Error("injected failure"));
-          }
-          return client.query(text, values);
-        },
-        release: (destroy?: boolean) => client.release(destroy),
-      } as unknown as PoolClient;
-    },
-  } as Connectable;
-}
-
-beforeEach(async () => {
-  expect(await countRows("auth_users")).toBe(0);
-});
-
-afterEach(async () => {
-  await pool.query(
-    `delete from workspaces
-      where id in (select workspace_id from memberships m
-                     join auth_users u on u.id = m.user_id
-                    where u.email like '%@example.test')`,
-  );
-  await pool.query(`delete from auth_users where email like '%@example.test'`);
-});
-
 describe("createInstanceOwner", () => {
-  it("creates exactly one owner when two setups race", async () => {
-    const outcomes = await Promise.all([
-      createInstanceOwner(owner("Ada")),
-      createInstanceOwner(owner("Grace")),
-    ]);
+  it("creates the owner, a credential, a workspace and an owner membership", () => {
+    expect(isInstanceInitialized()).toBe(false);
 
-    expect(outcomes.sort()).toEqual(["already-initialized", "created"]);
-    expect(await countRows("auth_users")).toBe(1);
-    expect(await countRows("auth_accounts")).toBe(1);
-    const memberships = await pool.query<{ role: string }>(
-      `select role from memberships`,
+    expect(createInstanceOwner(owner("Ada"))).toBe("created");
+
+    expect(isInstanceInitialized()).toBe(true);
+    const created = db.select().from(user).get();
+    expect(db.select().from(account).get()).toMatchObject({
+      userId: created?.id,
+      providerId: "credential",
+      password: "hashed",
+    });
+    expect(db.select().from(workspaces).get()).toMatchObject({
+      name: "Ada's workspace",
+      slug: workspaceSlug(created?.id ?? ""),
+    });
+    expect(db.select().from(memberships).get()).toMatchObject({
+      userId: created?.id,
+      role: "owner",
+    });
+  });
+
+  it("refuses a second owner", () => {
+    createInstanceOwner(owner("Ada"));
+
+    expect(createInstanceOwner(owner("Grace"))).toBe("already-initialized");
+    expect(db.select().from(user).all()).toHaveLength(1);
+  });
+
+  it("leaves no user or credential behind when the workspace insert fails", () => {
+    db.run(
+      sql`create temp trigger fail_workspace before insert on workspaces
+          begin select raise(abort, 'injected failure'); end`,
     );
-    expect(memberships.rows).toEqual([{ role: "owner" }]);
+
+    expect(() => createInstanceOwner(owner("Ada"))).toThrow("injected failure");
+
+    db.run(sql`drop trigger fail_workspace`);
+    expect(db.select().from(user).all()).toEqual([]);
+    expect(db.select().from(account).all()).toEqual([]);
+  });
+});
+
+describe("workspaceSlug", () => {
+  it("keeps only letters and digits of the user id", () => {
+    expect(workspaceSlug("1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed")).toBe(
+      "workspace-1b9d6bcdbbfd4b2d9b5dab8d",
+    );
+  });
+});
+
+describe("owner email validation", () => {
+  it("accepts an address better-auth can sign in with", () => {
+    expect(isValidOwnerEmail("ada@example.com")).toBe(true);
   });
 
-  it("leaves no user or credential behind when the workspace insert fails", async () => {
-    await expect(
-      createInstanceOwner(owner("Ada"), failingOn("insert into workspaces")),
-    ).rejects.toThrow("injected failure");
-
-    expect(await countRows("auth_users")).toBe(0);
-    expect(await countRows("auth_accounts")).toBe(0);
-  });
+  it.each(["admin@localhost", "a@b", "no-at-sign", "ada@example"])(
+    "rejects %s, which better-auth sign-in would refuse",
+    (email) => {
+      expect(isValidOwnerEmail(email)).toBe(false);
+    },
+  );
 });

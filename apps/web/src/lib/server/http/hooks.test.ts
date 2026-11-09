@@ -8,7 +8,8 @@ const { WORKER_TOKEN, getSession, handleUploadRequest } = vi.hoisted(() => ({
 }));
 vi.mock("$lib/server/env", () => ({
   privateEnv: {
-    workerToken: WORKER_TOKEN,
+    databaseFile: ":memory:",
+    workerTokenOverride: WORKER_TOKEN,
     authUrl: "https://anysub.example",
   },
 }));

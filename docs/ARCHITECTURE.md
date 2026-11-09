@@ -10,13 +10,13 @@ The architecture favors explicit boundaries, durable state, inspectable storage,
 
 ## System overview
 
-The default installation runs three long-lived containers, plus a migration job that exits after it applies pending migrations:
+The default installation runs two containers: the application, which owns an SQLite database file, and a worker:
 
 ```text
 Browser
    |
    v
-SvelteKit application  <---->  PostgreSQL
+SvelteKit application  <---->  SQLite database
    ^                          projects, tracks,
    |                          revisions, jobs, leases
    |
@@ -28,7 +28,7 @@ Python worker  <---->  project storage and model cache
 
 A future optional LibreTranslate container may provide local translation. Administrators may add workers on the same host. Planned: workers on remote machines, which today cannot read the shared `/data` mount they need (see CONFIGURATION.md).
 
-The default stack does not include Redis, MongoDB, a search service, a reverse proxy, or object storage.
+The default stack does not include a database server, Redis, a search service, a reverse proxy, or object storage.
 
 ## Technology choices
 
@@ -37,8 +37,9 @@ The default stack does not include Redis, MongoDB, a search service, a reverse p
 - SvelteKit and TypeScript.
 - SvelteKit Node adapter for the production server.
 - Svelte 5 client code.
-- PostgreSQL.
-- Drizzle ORM with `node-postgres`. Migrations are hand-written SQL files in `apps/web/migrations`, applied by `apps/web/scripts/migrate.mjs`.
+- SQLite through `better-sqlite3`, in write-ahead logging mode. Only the application process opens the database; workers go through the worker API.
+- Drizzle ORM for every query. drizzle-kit generates the SQL migrations in `apps/web/migrations` from the schema, and the application applies pending ones when it starts.
+- Transactions are short synchronous functions. One cannot interleave with another request, so the application needs no row or advisory locks, and file work happens outside them.
 - Better Auth for identity and database-backed sessions.
 - Planned: Bits UI for accessible headless primitives.
 - Tailwind CSS v4 with a custom Anysub token and component system.
@@ -106,7 +107,7 @@ Custom adapters are trusted worker code. Administrators install them by building
 
 ## Worker protocol
 
-Workers authenticate with the single shared `ANYSUB_WORKER_TOKEN`. Per-worker enrollment with one-time administrator tokens and revocable credentials is planned and not built. The worker reports:
+Workers authenticate with one shared token that the application generates on first start, stores in its database, and writes to `/data/.anysub/worker-token`. The local worker reads it from its read-only mount of that volume and reads it again after a rejection. Per-worker enrollment with one-time administrator tokens and revocable credentials is planned and not built. The worker reports:
 
 - Protocol and worker version.
 - CPU architecture and thread capacity.
@@ -125,7 +126,7 @@ Workers read media through a read-only shared mount. Media preparation falls bac
 
 ## Queue model
 
-PostgreSQL stores durable runs, jobs, attempts, leases, progress, cancellations, and errors. Planned: separate durable stages. The application performs lease transactions and exposes them through the worker API.
+The database stores durable runs, jobs, attempts, leases, progress, cancellations, and errors. Planned: separate durable stages. The application performs lease transactions and exposes them through the worker API.
 
 The built jobs are `transcribe` and `media_prepare`. A `transcribe` job runs ASR and alignment as one job. Planned: separate durable stages, with diarization as an optional one:
 
@@ -171,7 +172,7 @@ The server will create checkpoints around editing sessions, destructive bulk ope
 
 ## Storage
 
-PostgreSQL stores structured metadata and subtitle content. Project storage holds large media and processing artifacts.
+The database stores structured metadata and subtitle content. Project storage holds large media and processing artifacts. The database file must sit on local disk, not a network share.
 
 The local adapter uses relative keys under an application-managed root:
 
@@ -193,7 +194,7 @@ Planned: `audio/` derivatives, `runs/<run-id>/raw/` output, `attachments/`, `exp
 
 IDs define directories because project titles can change or collide. Users may inspect and back up this layout, but Anysub manages its contents. Planned: users place files in watched inboxes instead of modifying project directories.
 
-Resumable browser uploads use `/data/staging/uploads` and durable PostgreSQL records. On completion, the local storage adapter hard-links the finished staging file into the project directory, commits the canonical key, and removes the staging name. This avoids a second full-file copy while keeping staging recoverable until the database commit succeeds. Staging and canonical project storage therefore remain on the same filesystem in the default deployment.
+Resumable browser uploads use `/data/staging/uploads` and durable database records. On completion, the local storage adapter hard-links the finished staging file into the project directory, commits the canonical key, and removes the staging name. This avoids a second full-file copy while keeping staging recoverable until the database commit succeeds. Staging and canonical project storage therefore remain on the same filesystem in the default deployment.
 
 The storage interface uses relative object keys and streaming operations. A later S3-compatible adapter can map the same keys to object prefixes.
 
@@ -281,7 +282,7 @@ Media metadata records detected frame rates and variable-frame-rate behavior. Th
 
 ## Search and organization
 
-Built: the library does a case-insensitive substring match over project names and, when the subtitle scope is chosen, over cue text. Planned: PostgreSQL provides workspace-scoped search over projects, cues, speakers, languages, and tags. Full-text indexes handle supported languages. Language-neutral tokenization and trigram indexes provide a multilingual fallback.
+Built: the library does a case-insensitive substring match over project names and, when the subtitle scope is chosen, over cue text. Case folding is Unicode-aware, through a function the application registers with SQLite. Planned: workspace-scoped search over projects, cues, speakers, languages, and tags, using SQLite's FTS5 full-text index with its trigram tokenizer as the multilingual fallback.
 
 Results include context and media timestamps. Filters cover project, owner, date, language, speaker, track type, tag, and run state.
 
@@ -304,7 +305,7 @@ A monotonic track revision rejects a save made against an older copy, so concurr
 - Workers share one installation-wide token. Planned: remote workers enroll through the administrator and receive narrowly scoped credentials.
 - Planned: remote worker traffic requires HTTPS outside the Compose network.
 - Passwords and job lease tokens use one-way hashing.
-- Planned: integration secrets receive encryption with an installation key kept outside PostgreSQL.
+- Planned: integration secrets receive encryption with an installation key kept outside the database.
 - Project media and database content use host-level storage encryption rather than application encryption.
 - Documentation states the storage, transport, and remote-worker trust boundaries.
 - Workers count as installation-wide trusted compute in self-hosted v1.
@@ -321,11 +322,11 @@ The editor may use private endpoints while patch and collaboration semantics mat
 
 The default Compose stack exposes one HTTP application port. Anysub does not manage TLS or certificates. Planned: tested configurations for common reverse proxies.
 
-Administrators perform explicit upgrades with matching, immutable application and worker image versions. The migration script applies pending migrations in order under a PostgreSQL advisory lock, so concurrent starts cannot apply the same migration twice. It does not check upgrade paths yet.
+Administrators perform explicit upgrades with matching, immutable application and worker image versions. The application applies pending migrations in order when it starts, before it serves requests. It does not check upgrade paths yet.
 
 Anysub does not claim rollback after an incompatible database migration. Administrators restore a backup when rollback requires older data structures.
 
-Backup tooling starts as a CLI enhancement after the core workflow. A supported backup pairs a PostgreSQL dump with a storage manifest and optionally canonical media. Model caches, proxies, thumbnails, and staging remain excluded by default.
+Backup tooling starts as a CLI enhancement after the core workflow. A supported backup pairs a consistent copy of the database file with a storage manifest and optionally canonical media. Model caches, proxies, thumbnails, and staging remain excluded by default.
 
 ## Localization
 

@@ -32,7 +32,7 @@ Out of scope:
 
 - Adapters you install yourself. They run as trusted code inside the worker.
 - A deployment that exposes Anysub without TLS, or runs behind a misconfigured reverse proxy.
-- Anyone with access to the host, the Docker socket, the `.env` file, or the database volumes.
+- Anyone with access to the host, the Docker socket, or the database and data volumes.
 - Weaknesses in third-party dependencies with no demonstrable effect on Anysub. Report those upstream.
 - Denial of service through resource exhaustion by the signed-in owner, since there is only one account.
 - Missing hardening in the single shared worker token. Per-worker credentials are not built yet.
@@ -40,7 +40,7 @@ Out of scope:
 ## Deployment notes
 
 - Anysub does not terminate TLS. Put it behind a reverse proxy that does when it is reachable from outside your machine. See [docs/INSTALL.md](docs/INSTALL.md#reverse-proxy).
-- Run `scripts/init-env.sh` so `BETTER_AUTH_SECRET`, `ANYSUB_WORKER_TOKEN`, and the database password are unique. Anysub refuses to start with the published placeholders.
+- Anysub generates its session secret and worker token on first start and keeps them in its database, so every installation has its own. Secrets set through environment variables must be long enough, and Anysub refuses to start with placeholders published in this repository's history.
 - Anysub accepts requests on any address it is reached by and blocks cross-site requests with the browser's `Sec-Fetch-Site` and `Origin` headers. It does not pin a hostname, so a DNS-rebinding page can reach the sign-in and setup forms, but not a signed-in session.
 - Failed sign-ins are slowed down per client address and per account, up to one minute between attempts. Behind a reverse proxy, forward the client address as described in [docs/CONFIGURATION.md](docs/CONFIGURATION.md#network).
 - Anysub sends no telemetry. Network access is needed only to download model files.

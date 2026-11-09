@@ -1,6 +1,6 @@
 import { projectForUser } from "$lib/server/projects/access";
 import { requireUser } from "$lib/server/auth/session";
-import { pool } from "$lib/server/db";
+import { db } from "$lib/server/db";
 import { streamMediaFile } from "$lib/server/media/stream";
 import {
   derivativeMediaType,
@@ -16,10 +16,10 @@ export const GET: RequestHandler = async ({ locals, params, request }) => {
   const kind = params.kind;
   if (!kind || !isMediaDerivativeKind(kind)) error(404, "Derivative not found");
 
-  const project = await projectForUser(pool, params.projectId, user.id);
+  const project = projectForUser(db, params.projectId, user.id);
   if (!project) error(404, "Derivative not found");
 
-  const derivative = await readyDerivativeFile(project.id, kind);
+  const derivative = readyDerivativeFile(project.id, kind);
   if (!derivative) error(404, "Derivative not found");
 
   const response = await streamMediaFile(

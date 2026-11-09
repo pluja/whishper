@@ -1,6 +1,6 @@
 # Configuration
 
-Anysub reads its settings from `.env` in the repository root. Run `scripts/init-env.sh` once to generate that file with unique secrets, then edit the values below to suit your machine.
+Anysub needs no configuration to run. Every setting below is optional: copy `.env.example` to `.env` in the repository root and uncomment the lines you want to change.
 
 Apply a change by recreating the services:
 
@@ -14,15 +14,14 @@ This page is the only place that lists settings. Other documents link here.
 
 ## Secrets
 
-Anysub refuses to start when any of these is missing or still holds a placeholder from `.env.example`.
+Anysub generates its secrets on first start and stores them in its database: a secret that signs session cookies, and a token that authenticates workers. The web service writes the worker token to `/data/.anysub/worker-token` on every start, and the worker reads it from its read-only mount of the same volume. Because the secrets live in the database, a backup and restore keeps them with the data they protect. Losing them only signs everyone out and makes the worker fetch the new token.
 
-| Variable              | Purpose                                                                        |
-| --------------------- | ------------------------------------------------------------------------------ |
-| `POSTGRES_PASSWORD`   | Database password. Read once at first start, when the volume is created.       |
-| `BETTER_AUTH_SECRET`  | Signs session cookies. At least 32 characters. Rotating it signs everyone out. |
-| `ANYSUB_WORKER_TOKEN` | Authenticates workers against the job API. At least 24 characters.             |
+Setting a secret yourself is possible but rarely useful. Compose does not forward these, so add them to the services' environment in a `compose.override.yaml`:
 
-`POSTGRES_DB` and `POSTGRES_USER` default to `anysub` and only matter at first start.
+| Variable              | Service        | Notes                                                           |
+| --------------------- | -------------- | --------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET`  | web            | At least 32 characters. Changing it signs everyone out.         |
+| `ANYSUB_WORKER_TOKEN` | web and worker | At least 24 characters. Both services must hold the same value. |
 
 ## Network
 
@@ -88,17 +87,17 @@ The [user guide](USER-GUIDE.md#choosing-a-model) describes what each model is go
 
 `compose.yaml` derives these from the settings above. Change them only for a custom deployment.
 
-| Variable             | Value in Compose                        | Notes                                                                                   |
-| -------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
-| `ANYSUB_ACCELERATOR` | `cpu`, or `cuda` with compose.cuda.yaml | Build argument that selects the PyTorch wheels in the worker image.                     |
-| `ANYSUB_DEVICE`      | Same as `ANYSUB_ACCELERATOR`            | Worker device. With `cuda`, the worker refuses to start when it cannot use the GPU.     |
-| `ANYSUB_APP_URL`     | `http://web:3000`                       | How the worker reaches the application. The development overlay uses `http://web:5173`. |
-| `ANYSUB_DATA_ROOT`   | `/data`                                 | Worker side of the media mount. See [Data root](#data-root).                            |
-| `DATA_ROOT`          | `/data`                                 | Application side of the media mount. See [Data root](#data-root).                       |
-| `ANYSUB_MODEL_ROOT`  | `/models`                               | Model cache location in the worker.                                                     |
-| `DATABASE_URL`       | Built from the `POSTGRES_*` values      | Connection string for the application and the migration job.                            |
-| `BODY_SIZE_LIMIT`    | Same as `ANYSUB_BODY_SIZE_LIMIT`        | The name SvelteKit's Node adapter reads.                                                |
-| `ADDRESS_HEADER`     | Same as `ANYSUB_ADDRESS_HEADER`         | The name SvelteKit's Node adapter reads. It takes the last address in the header.       |
+| Variable               | Value in Compose                        | Notes                                                                                   |
+| ---------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
+| `ANYSUB_ACCELERATOR`   | `cpu`, or `cuda` with compose.cuda.yaml | Build argument that selects the PyTorch wheels in the worker image.                     |
+| `ANYSUB_DEVICE`        | Same as `ANYSUB_ACCELERATOR`            | Worker device. With `cuda`, the worker refuses to start when it cannot use the GPU.     |
+| `ANYSUB_APP_URL`       | `http://web:3000`                       | How the worker reaches the application. The development overlay uses `http://web:5173`. |
+| `ANYSUB_DATA_ROOT`     | `/data`                                 | Worker side of the media mount. See [Data root](#data-root).                            |
+| `DATA_ROOT`            | `/data`                                 | Application side of the media mount. See [Data root](#data-root).                       |
+| `ANYSUB_MODEL_ROOT`    | `/models`                               | Model cache location in the worker.                                                     |
+| `ANYSUB_DATABASE_FILE` | `/database/anysub.db`                   | The SQLite database, in the `database` volume.                                          |
+| `BODY_SIZE_LIMIT`      | Same as `ANYSUB_BODY_SIZE_LIMIT`        | The name SvelteKit's Node adapter reads.                                                |
+| `ADDRESS_HEADER`       | Same as `ANYSUB_ADDRESS_HEADER`         | The name SvelteKit's Node adapter reads. It takes the last address in the header.       |
 
 ### Worker defaults
 
@@ -180,11 +179,13 @@ Not supported. The dependency stack targets CUDA, and the worker reports a ROCm 
 
 Anysub keeps everything in Docker-managed volumes, named `anysub_<volume>` under the default project:
 
+- `database`: the SQLite database with projects, transcripts, cues, accounts, and the generated secrets.
 - `app-data`: uploaded media, waveforms, and other derived files.
-- `postgres-data`: projects, transcripts, cues, and accounts.
 - `model-cache`: downloaded speech models, reused across rebuilds.
 
-Media and the database have to be backed up together. A transcript in PostgreSQL without its media is not much use, and the reverse is worse.
+Keep the `database` volume on local disk. SQLite relies on file locking that network shares such as NFS and SMB do not provide reliably, and a database on one can be corrupted. Media in `app-data` can live on a share.
+
+Media and the database have to be backed up together. A transcript without its media is not much use, and the reverse is worse. Stop the stack before copying the volumes, so the database file is consistent.
 
 `docker compose down` keeps all three. `docker compose down --volumes` deletes all three, including every project you have created.
 

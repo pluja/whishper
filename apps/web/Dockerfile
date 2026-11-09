@@ -13,6 +13,12 @@ RUN corepack enable && corepack install
 
 FROM base AS deps
 
+# better-sqlite3 compiles its native addon during install. The runtime stage
+# receives the compiled module, not the toolchain.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends g++ make python3 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
@@ -33,10 +39,11 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000
 
+# Docker copies these owners into empty named volumes on first mount.
 RUN groupadd --system --gid 10001 anysub \
     && useradd --system --uid 10001 --gid anysub --home-dir /app anysub \
-    && mkdir -p /app /data \
-    && chown -R anysub:anysub /app /data
+    && mkdir -p /app /data /database \
+    && chown -R anysub:anysub /app /data /database
 
 COPY --from=builder --chown=anysub:anysub /opt/anysub /app
 COPY --from=builder --chown=anysub:anysub /workspace/apps/web/build /app/build

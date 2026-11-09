@@ -9,7 +9,7 @@ Anysub owns the canonical copy of project media. An upload first lands in stagin
 1. The browser opens a project dialog, then creates a tus upload with the project name, source filename, media type, byte length, and workspace ID.
 2. The application checks the signed-in user's workspace membership, normalizes the project name, and creates a draft project plus a durable upload record.
 3. The browser sends 32 MiB chunks. tus fingerprints the local file so an interrupted upload resumes after a reload.
-4. The application checks ownership on every request and persists coarse progress in PostgreSQL.
+4. The application checks ownership on every request and persists coarse progress in the database.
 5. On completion, the application hard-links the staging file into the canonical project directory, commits the final storage key, then removes the staging name and tus metadata.
 
 The hard link is constant-time and does not duplicate a multi-gigabyte file. Both names stay valid until the database commit succeeds, so recovery code always has a staging file if finalization is interrupted. This requires staging and project storage on one filesystem, which the default `app-data` volume provides.
@@ -29,7 +29,7 @@ data/
     uploads/
 ```
 
-The original display filename stays in PostgreSQL. Paths never contain a project title or a browser-supplied directory component.
+The original display filename stays in the database. Paths never contain a project title or a browser-supplied directory component.
 
 ## Media preparation
 
@@ -41,7 +41,7 @@ The worker produces:
 - A JPEG thumbnail for every source with a video stream.
 - An H.264/AAC MP4 editing proxy only when the browser cannot play the source directly or FFmpeg detects variable frame timing.
 
-PostgreSQL stores normalized stream metadata, integer-microsecond duration, rational frame rate, seekability, preparation status, and one record per derivative. Derivatives live under the project directory. Incomplete artifacts stay in `staging/worker-artifacts/<job-id>` until completion, failure, cancellation, or lease recovery removes them.
+The database stores normalized stream metadata, integer-microsecond duration, rational frame rate, seekability, preparation status, and one record per derivative. Derivatives live under the project directory. Incomplete artifacts stay in `staging/worker-artifacts/<job-id>` until completion, failure, cancellation, or lease recovery removes them.
 
 A member can cancel or retry the active job and delete an individual derivative without touching the source. Regeneration keeps existing ready derivatives available until the replacement commits.
 
@@ -57,7 +57,7 @@ Deleting a project removes its database records, its canonical directory, and an
 
 ## Maintenance sweep
 
-A sweep starts with the server and then runs every 15 minutes. A PostgreSQL advisory lock lets one sweep run at a time across several application instances. Each pass:
+A sweep starts with the server and then runs every 15 minutes. A sweep that would overlap one still running is skipped. Each pass:
 
 - retries finalization for uploads whose tus file is complete but whose row is not `completed`, once the row has been idle for 10 minutes;
 - marks an upload `failed` when its staged file is missing, or when finalization still fails 24 hours after its first attempt;

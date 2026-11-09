@@ -20,7 +20,7 @@ async function readTrackUpdate(request: Request) {
 export const PUT: RequestHandler = async ({ locals, params, request }) => {
   const user = requireUser(locals);
   try {
-    const revision = await updateTrackForUser(
+    const revision = updateTrackForUser(
       params.projectId,
       params.trackId,
       user.id,
