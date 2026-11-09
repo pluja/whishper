@@ -68,7 +68,9 @@ export async function streamMediaFile(
     if (range) {
       headers.set("Content-Range", `bytes ${start}-${end}/${file.size}`);
     }
-    if (file.size === 0) return new Response(null, { status: 200, headers });
+    if (file.size === 0 || request.method === "HEAD") {
+      return new Response(null, { status: range ? 206 : 200, headers });
+    }
 
     const stream = handle.createReadStream({ start, end });
     streaming = true;

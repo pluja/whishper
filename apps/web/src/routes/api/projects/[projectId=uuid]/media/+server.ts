@@ -20,3 +20,6 @@ export const GET: RequestHandler = async ({ locals, params, request }) => {
   if (!response) error(404, "Media not found");
   return response;
 };
+
+// Without its own export, SvelteKit answers HEAD by reading the whole file.
+export const HEAD = GET;

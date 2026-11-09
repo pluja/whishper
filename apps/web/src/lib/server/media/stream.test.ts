@@ -67,6 +67,18 @@ describe("streamMediaFile", () => {
     expect(await response?.text()).toBe("0123456789");
   });
 
+  it("answers HEAD with the headers and no body", async () => {
+    const response = await streamMediaFile(
+      path,
+      "video/mp4",
+      new Request("http://localhost/media", { method: "HEAD" }),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(response?.headers.get("content-length")).toBe("10");
+    expect(response?.body).toBeNull();
+  });
+
   it("serves a satisfiable range as 206", async () => {
     const response = await streamMediaFile(
       path,
