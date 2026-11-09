@@ -51,6 +51,8 @@ services:
       DATA_ROOT: /data
       # adapter-node reads BODY_SIZE_LIMIT. The ANYSUB_ name is the documented one.
       BODY_SIZE_LIMIT: ${ANYSUB_BODY_SIZE_LIMIT:-64M}
+      # adapter-node reads ADDRESS_HEADER. Empty means the socket address.
+      ADDRESS_HEADER: ${ANYSUB_ADDRESS_HEADER:-}
       ANYSUB_MAX_UPLOAD_BYTES: ${ANYSUB_MAX_UPLOAD_BYTES:-536870912000}
     depends_on:
       migrate:

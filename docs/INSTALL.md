@@ -59,11 +59,14 @@ location / {
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     client_max_body_size 64m;
     proxy_request_buffering off;
     proxy_read_timeout 300s;
 }
 ```
+
+With that header forwarded, set `ANYSUB_ADDRESS_HEADER=X-Forwarded-For` in `.env` so sign-in throttling tells clients apart. See [Network](CONFIGURATION.md#network).
 
 ## Upgrading
 

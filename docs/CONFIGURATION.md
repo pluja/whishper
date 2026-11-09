@@ -32,6 +32,8 @@ Anysub refuses to start when any of these is missing or still holds a placeholde
 | `BETTER_AUTH_URL` | `http://localhost:5173` | The address people type in the browser. |
 | `ANYSUB_DEV_PORT` | `5174`                  | Port of the development stack only.     |
 
+Anysub slows down repeated failed sign-ins from one client address or for one account, up to one minute between attempts. Behind a reverse proxy, every request comes from the proxy's address, so set `ANYSUB_ADDRESS_HEADER=X-Forwarded-For` to throttle each client on its own. Set it only when every request passes through the proxy: a direct request without the header fails.
+
 Set `BETTER_AUTH_URL` to the public origin when Anysub sits behind a reverse proxy, including a non-default port. Anysub rejects sign-ins and uploads whose origin does not match, so a wrong value here looks like a broken login. [INSTALL.md](INSTALL.md#reverse-proxy) covers the proxy side.
 
 ## Uploads
@@ -97,6 +99,7 @@ The [user guide](USER-GUIDE.md#choosing-a-model) describes what each model is go
 | `DATABASE_URL`      | Built from the `POSTGRES_*` values | Connection string for the application and the migration job.                            |
 | `ORIGIN`            | Same as `BETTER_AUTH_URL`          | Read by the SvelteKit Node server.                                                      |
 | `BODY_SIZE_LIMIT`   | Same as `ANYSUB_BODY_SIZE_LIMIT`   | The name SvelteKit's Node adapter reads.                                                |
+| `ADDRESS_HEADER`    | Same as `ANYSUB_ADDRESS_HEADER`    | The name SvelteKit's Node adapter reads. It takes the last address in the header.       |
 
 ### Worker defaults
 
