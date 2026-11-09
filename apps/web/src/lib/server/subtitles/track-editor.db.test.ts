@@ -6,6 +6,7 @@ import { pool } from "$lib/server/db";
 import { seedProject, seedTrack } from "$lib/server/db/testing/fixtures";
 import {
   TrackLockedByTranscription,
+  TrackValidationError,
   updateTrackForUser,
 } from "$lib/server/subtitles/track-editor";
 
@@ -58,6 +59,33 @@ describe("updateTrackForUser", () => {
       { id: keptId, text: "Kept", words: WORDS },
       { id: editedId, text: "Edited", words: [] },
     ]);
+  });
+
+  it("refuses a cue id that belongs to another track", async () => {
+    const project = await seedProject();
+    const trackId = await seedTrack(project.projectId);
+    const otherTrackId = await seedTrack(project.projectId);
+    const foreignId = randomUUID();
+    await pool.query(
+      `insert into cues (id, track_id, position, start_us, end_us, text, words)
+       values ($1, $2, 0, 0, 1000, 'Other', '[]')`,
+      [foreignId, otherTrackId],
+    );
+
+    await expect(
+      updateTrackForUser(project.projectId, trackId, project.userId, {
+        revision: 0,
+        cues: [
+          { id: foreignId, position: 0, startUs: 0, endUs: 500, text: "Mine" },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(TrackValidationError);
+
+    const other = await pool.query<{ text: string }>(
+      `select text from cues where id = $1`,
+      [foreignId],
+    );
+    expect(other.rows[0].text).toBe("Other");
   });
 
   describe("while a transcription runs on the project", () => {

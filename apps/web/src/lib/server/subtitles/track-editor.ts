@@ -75,6 +75,12 @@ export function parseTrackUpdate(value: unknown): TrackUpdate {
     ) {
       throw new TrackValidationError(`Cue ${position + 1} has invalid text.`);
     }
+    // PostgreSQL text cannot hold NUL, and jsonb rejects unpaired surrogates.
+    if (candidate.text.includes("\u0000") || !candidate.text.isWellFormed()) {
+      throw new TrackValidationError(
+        `Cue ${position + 1} contains characters that cannot be saved. Retype its text.`,
+      );
+    }
     totalText += candidate.text.length;
     if (totalText > MAX_TOTAL_TEXT)
       throw new TrackValidationError("The subtitle track is too large.");
@@ -138,6 +144,17 @@ export async function updateTrackForUser(
       includeWords: true,
     });
     const existingById = new Map(existing.map((cue) => [cue.id, cue]));
+    const foreign = await client.query(
+      `select 1 from cues
+        where id = any($1::uuid[]) and track_id <> $2
+        limit 1`,
+      [update.cues.map((cue) => cue.id), trackId],
+    );
+    if (foreign.rowCount) {
+      throw new TrackValidationError(
+        "Some cues belong to another subtitle track. Reload the editor and try again.",
+      );
+    }
     const storedCues = update.cues.map((cue) => {
       const previous = existingById.get(cue.id);
       return {

@@ -50,4 +50,23 @@ describe("subtitle track updates", () => {
       }),
     ).toThrow("unique");
   });
+
+  it("rejects text that the database cannot store", () => {
+    const cue = {
+      id: "b14d765a-0cb2-4fa8-af80-c563ab57c959",
+      startUs: 0,
+      endUs: 100,
+    };
+    for (const text of ["before\u0000after", "lone \ud800 surrogate"]) {
+      expect(() =>
+        parseTrackUpdate({ revision: 0, cues: [{ ...cue, text }] }),
+      ).toThrow("Cue 1 contains characters that cannot be saved");
+    }
+    expect(
+      parseTrackUpdate({
+        revision: 0,
+        cues: [{ ...cue, text: "Emoji 🎬 and accents é" }],
+      }).cues[0].text,
+    ).toBe("Emoji 🎬 and accents é");
+  });
 });
