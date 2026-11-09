@@ -23,6 +23,7 @@ const LONG_PROJECT_NAME = "An unusually long project name that keeps going "
 
 const screens = [
   { name: "login", path: "/login", signedIn: false },
+  { name: "recover", path: "/recover", signedIn: false },
   {
     name: "setup",
     path: setupPath,
@@ -30,6 +31,7 @@ const screens = [
     skipReason: "an owner already exists",
   },
   { name: "library", path: "/", signedIn: true },
+  { name: "account", path: "/account", signedIn: true },
   {
     name: "library-empty",
     path: emptyLibraryPath,

@@ -19,6 +19,11 @@
   <title>Create owner · Anysub</title>
 </svelte:head>
 
+{#snippet setupCodeHint()}
+  Anysub prints it in its log at startup. On the server, run
+  <code class="font-mono text-text">docker compose logs web</code> to see it.
+{/snippet}
+
 <AuthLayout
   title="Create the owner account"
   description="Your media, transcripts, and account data stay on this Anysub server."
@@ -26,7 +31,7 @@
   <form class="grid gap-4" method="POST">
     <Field
       label="Setup code"
-      hint="Anysub prints it in its log at startup. Run docker compose logs web on the server to see it."
+      hint={setupCodeHint}
       error={errorFor("setupCode")}
     >
       {#snippet control({ id, describedBy, invalid })}

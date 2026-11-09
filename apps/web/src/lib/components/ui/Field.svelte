@@ -8,7 +8,7 @@
   };
   type Props = {
     label: string;
-    hint?: string;
+    hint?: string | Snippet;
     error?: string;
     control: Snippet<[ControlArgs]>;
   };
@@ -27,6 +27,8 @@
   {#if error}
     <p id="{id}-error" class="text-sm text-danger" role="alert">{error}</p>
   {:else if hint}
-    <p id="{id}-hint" class="text-sm text-text-muted">{hint}</p>
+    <p id="{id}-hint" class="text-sm text-text-muted">
+      {#if typeof hint === "string"}{hint}{:else}{@render hint()}{/if}
+    </p>
   {/if}
 </div>
