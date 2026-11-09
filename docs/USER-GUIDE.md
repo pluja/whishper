@@ -60,7 +60,7 @@ To transcribe a project again, choose **Re-transcribe** in the studio title bar.
 
 Edits that never reached the server, such as typing in a second tab after the run started, cannot move to the new transcript. Anysub discards them when the new transcript loads and shows a notice.
 
-The worker retries transient errors up to three attempts. Errors a retry cannot fix fail at once: FFmpeg timeouts, CUDA out-of-memory, and rejected requests. A worker that is stopped mid-job reports it as a retryable failure before exiting, so the job returns to the queue while attempts remain and fails once they run out. A worker that disappears without reporting loses its lease after a minute, and the application returns the job to the queue even when no other worker is polling.
+The worker retries transient errors up to three attempts. Errors a retry cannot fix fail at once: FFmpeg timeouts, running out of memory on the CPU or the graphics card, and rejected requests. A worker that is stopped mid-job reports it as a retryable failure before exiting, so the job returns to the queue while attempts remain and fails once they run out. A worker that disappears without reporting loses its lease after a minute, and the application returns the job to the queue even when no other worker is polling. When that happens on every attempt, the worker is usually being killed for running out of memory, and the run fails with a message that says so.
 
 Deleting a transcript removes its cues and its run, including the job result and retry history, but keeps the project media.
 

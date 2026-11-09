@@ -376,3 +376,39 @@ async def test_an_unreachable_hub_is_a_retryable_download_error(
     assert raised.value.retryable is True
     assert "huggingface.co" in str(raised.value)
     assert "ANYSUB_COMPUTE_TYPE" not in str(raised.value)
+
+
+@pytest.mark.parametrize(
+    ("error", "device", "hardware"),
+    [
+        (RuntimeError("CUDA failed with error out of memory"), "cuda", "graphics card"),
+        (RuntimeError("DefaultCPUAllocator: can't allocate memory"), "cpu", "worker"),
+        (MemoryError(), "cpu", "worker"),
+    ],
+)
+async def test_out_of_memory_from_any_library_is_terminal(
+    settings: WorkerSettings,
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    device: str,
+    hardware: str,
+) -> None:
+    media = settings.runtime.data_root / "audio.wav"
+    media.touch()
+    monkeypatch.setitem(sys.modules, "whisperx", StubWhisperX(asr_error=error))
+    runtime = settings.runtime.model_copy(update={"device": device})
+    request = TranscriptionRequest(
+        jobId="job",
+        projectId="project",
+        runId="run",
+        mediaPath=str(media),
+        modelId="small",
+        language=None,
+        options={},
+    )
+
+    with pytest.raises(AdapterExecutionError) as raised:
+        await WhisperXAdapter(runtime).transcribe(request, noop_progress)
+
+    assert raised.value.retryable is False
+    assert f"The {hardware} ran out of memory" in str(raised.value)

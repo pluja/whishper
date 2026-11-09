@@ -93,9 +93,10 @@ class WhisperXAdapter:
             raise
         except Exception as error:
             self._release_all_models()
-            if is_cuda_out_of_memory(error):
+            if is_out_of_memory(error):
+                hardware = "graphics card" if self._runtime.device == "cuda" else "worker"
                 raise AdapterExecutionError(
-                    "The graphics card ran out of memory. Choose a smaller model or lower "
+                    f"The {hardware} ran out of memory. Choose a smaller model or lower "
                     "the batch size.",
                     retryable=False,
                 ) from error
@@ -164,7 +165,7 @@ class WhisperXAdapter:
                 return_char_alignments=False,
             )
         except Exception as error:
-            if is_cuda_out_of_memory(error):
+            if is_out_of_memory(error):
                 raise
             self._release_align_model()
             fallback = describe_error(error)
@@ -305,13 +306,25 @@ def _release_memory() -> None:
         return
 
 
-def is_cuda_out_of_memory(error: BaseException) -> bool:
+# CTranslate2 and the PyTorch CPU allocator report exhaustion as a plain
+# RuntimeError, so only the message tells it apart from other failures.
+OUT_OF_MEMORY_MESSAGES = ("out of memory", "can't allocate memory", "bad_alloc")
+
+
+def is_out_of_memory(error: BaseException) -> bool:
+    if isinstance(error, MemoryError):
+        return True
     try:
         torch = import_module("torch")
     except ImportError:
-        return False
+        torch = None
     out_of_memory_type = getattr(getattr(torch, "cuda", None), "OutOfMemoryError", None)
-    return isinstance(out_of_memory_type, type) and isinstance(error, out_of_memory_type)
+    if isinstance(out_of_memory_type, type) and isinstance(error, out_of_memory_type):
+        return True
+    message = str(error).lower()
+    return isinstance(error, RuntimeError) and any(
+        text in message for text in OUT_OF_MEMORY_MESSAGES
+    )
 
 
 async def _run_in_thread[Result](

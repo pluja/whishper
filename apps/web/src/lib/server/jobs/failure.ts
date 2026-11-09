@@ -6,11 +6,16 @@ import { hashToken } from "$lib/server/jobs/lease-token";
 import { cleanupStagedMediaAttempt } from "$lib/server/media/artifact-staging";
 
 // Stored like a worker failure, but the application raises it, so it is not a JobFailureCode.
+// A worker that vanishes without reporting was usually killed for running out
+// of memory, so the message points at the settings that use less of it.
 const LEASE_EXPIRED_FAILURE = {
   code: "lease_expired",
-  message: "Worker lease expired",
+  message:
+    "The worker stopped before finishing, often because it ran out of memory. Try a smaller model or a lower batch size.",
   retryable: false,
 };
+const LEASE_EXPIRED_RETRY_MESSAGE =
+  "The worker stopped before finishing. Trying again.";
 
 type ReclaimedMediaAttempt = {
   jobId: string;
@@ -79,7 +84,10 @@ export async function reclaimExpiredLeases(
             leased_by = null,
             lease_token_hash = null,
             lease_expires_at = null,
-            progress_message = 'Worker lease expired',
+            progress_message = case
+              when attempts < max_attempts then $2
+              else $1::jsonb ->> 'message'
+            end,
             error = case
               when attempts < max_attempts then error
               else $1::jsonb
@@ -87,7 +95,7 @@ export async function reclaimExpiredLeases(
             updated_at = now()
       where state = 'leased' and lease_expires_at <= now()
       returning id, run_id, state, attempts, payload`,
-    [JSON.stringify(LEASE_EXPIRED_FAILURE)],
+    [JSON.stringify(LEASE_EXPIRED_FAILURE), LEASE_EXPIRED_RETRY_MESSAGE],
   );
   for (const job of reclaimed.rows) await syncJobSubject(client, job);
   const mediaJobs = reclaimed.rows.filter(

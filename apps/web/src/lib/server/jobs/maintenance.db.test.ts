@@ -18,13 +18,21 @@ describe("reclaimAbandonedJobs", () => {
 
     await reclaimAbandonedJobs();
 
-    const reclaimed = await pool.query<{ state: string; status: string }>(
-      `select j.state, r.status
+    const reclaimed = await pool.query<{
+      state: string;
+      status: string;
+      progress_message: string;
+    }>(
+      `select j.state, r.status, j.progress_message
          from jobs j join transcription_runs r on r.id = j.run_id
         where j.id = $1`,
       [job.jobId],
     );
-    expect(reclaimed.rows[0]).toEqual({ state: "queued", status: "queued" });
+    expect(reclaimed.rows[0]).toEqual({
+      state: "queued",
+      status: "queued",
+      progress_message: "The worker stopped before finishing. Trying again.",
+    });
   });
 
   it("leaves a live lease alone", async () => {

@@ -206,7 +206,10 @@ describe("leaseJob reclaim", () => {
 
     const reclaimed = await jobRow(job.jobId);
     expect(reclaimed.state).toBe("failed");
-    expect(reclaimed.error).toMatchObject({ code: "lease_expired" });
+    expect(reclaimed.error).toMatchObject({
+      code: "lease_expired",
+      message: expect.stringContaining("ran out of memory"),
+    });
     expect(await runStatus(job.runId)).toBe("failed");
   });
 
