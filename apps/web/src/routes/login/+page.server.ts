@@ -8,10 +8,10 @@ import {
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
   if (!(await isInstanceInitialized())) redirect(303, "/setup");
   if (locals.user) redirect(303, "/");
-  return {};
+  return { passwordReset: url.searchParams.get("reset") === "1" };
 };
 
 export const actions: Actions = {

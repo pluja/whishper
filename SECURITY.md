@@ -21,7 +21,7 @@ Only the `v4` branch and its latest commit receive fixes. Version 3 is unmaintai
 
 In scope:
 
-- Authentication, sessions, and the first-run owner setup, including its log-printed setup code.
+- Authentication, sessions, the first-run owner setup, and password recovery, including their log-printed codes.
 - Authorization between workspaces and projects.
 - The upload endpoint, media serving, and storage paths, including path traversal and writes outside the data root.
 - The internal worker API under `/api/internal` and its token handling.

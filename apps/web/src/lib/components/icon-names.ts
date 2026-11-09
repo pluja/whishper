@@ -35,4 +35,5 @@ export type IconName =
   | "zoom-out"
   | "fit-width"
   | "globe"
-  | "playhead";
+  | "playhead"
+  | "key";

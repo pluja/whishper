@@ -4,17 +4,14 @@ import {
   isInstanceInitialized,
   isValidOwnerEmail,
 } from "$lib/server/auth/instance";
+import { passwordLengthProblem } from "$lib/server/auth/password";
 import { isSetupCode } from "$lib/server/auth/setup-code";
 import {
   attemptKeys,
   hostCodeThrottle,
   retryMessage,
 } from "$lib/server/auth/throttle";
-import {
-  OWNER_NAME_MAX_LENGTH,
-  PASSWORD_MAX_LENGTH,
-  PASSWORD_MIN_LENGTH,
-} from "$lib/shared/limits";
+import { OWNER_NAME_MAX_LENGTH } from "$lib/shared/limits";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -63,15 +60,8 @@ export const actions: Actions = {
     if (!isValidOwnerEmail(email)) {
       return rejected("email", "Enter a valid email address.");
     }
-    if (
-      password.length < PASSWORD_MIN_LENGTH ||
-      password.length > PASSWORD_MAX_LENGTH
-    ) {
-      return rejected(
-        "password",
-        `Use between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters for your password.`,
-      );
-    }
+    const passwordProblem = passwordLengthProblem(password);
+    if (passwordProblem) return rejected("password", passwordProblem);
 
     const authContext = await auth.$context;
     let outcome;

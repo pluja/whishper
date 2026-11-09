@@ -4,7 +4,7 @@
   import Field from "$lib/components/ui/Field.svelte";
   import Input from "$lib/components/ui/Input.svelte";
 
-  let { form } = $props();
+  let { data, form } = $props();
 </script>
 
 <svelte:head>
@@ -15,6 +15,15 @@
   title="Sign in"
   description="Use the credentials for this installation."
 >
+  {#if data.passwordReset}
+    <p
+      class="mb-4 rounded-md bg-accent-soft px-3 py-2 text-sm text-text"
+      role="status"
+    >
+      Your password was changed and every device was signed out. Sign in with
+      the new password.
+    </p>
+  {/if}
   <form class="grid gap-4" method="POST">
     <Field label="Email address">
       {#snippet control({ id, describedBy, invalid })}
@@ -46,4 +55,12 @@
 
     <Button variant="primary" type="submit" class="mt-2 w-full">Sign in</Button>
   </form>
+  <p class="mt-4 text-center text-sm">
+    <a
+      href="/recover"
+      class="text-accent underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+    >
+      Forgot your password?
+    </a>
+  </p>
 </AuthLayout>

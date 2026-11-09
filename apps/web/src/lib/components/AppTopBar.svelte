@@ -52,6 +52,10 @@
             {email}
           </p>
           <div role="separator" class="-mx-1 mb-1 border-t border-border"></div>
+          <MenuItem href="/account">
+            <Icon name="key" size={16} />
+            Change password
+          </MenuItem>
           <MenuItem form={signOutFormId}>
             <Icon name="logout" size={16} />
             Sign out

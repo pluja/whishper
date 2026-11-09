@@ -163,6 +163,18 @@ Download the active track as:
 
 Exports use the latest saved revision. Wait for the **Saved** indicator before downloading if you just edited.
 
+## Your account
+
+Choose **Change password** in the account menu to set a new password. Every other device is signed out when it changes.
+
+If you forget the password, choose **Forgot your password?** on the sign-in page, then **Print a recovery code**. Anysub sends no email, so it prints the code in its log instead, which only someone with access to the server can read:
+
+```sh
+docker compose logs web
+```
+
+Enter the code with your email address and a new password within 15 minutes. Anysub signs the account out everywhere and returns you to the sign-in page.
+
 ## Troubleshooting
 
 Check the services first:

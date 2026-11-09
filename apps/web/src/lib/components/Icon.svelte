@@ -46,12 +46,17 @@
     "fit-width": fitWidth,
     globe,
     playhead,
+    key,
   };
 </script>
 
 {#snippet file()}
   <path d="M6.5 3.5h7l4 4v13h-11z" />
   <path d="M13.5 3.5v4h4M9 12h6M9 15.5h4" />
+{/snippet}
+{#snippet key()}
+  <circle cx="8" cy="15.5" r="4" />
+  <path d="m10.8 12.7 8.7-8.7M16.5 7l2.5 2.5M14 9.5l2 2" />
 {/snippet}
 {#snippet check()}
   <path d="m6.5 12.5 3.5 3.5 7.5-8" />
