@@ -2,7 +2,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from anysub_worker.config import AdapterRuntimeSettings
-from anysub_worker.hardware import detect_hardware
+from anysub_worker.hardware import cuda_problem, describe_hardware, detect_hardware
 from anysub_worker.models import WorkerDevice
 
 GIB = 1024**3
@@ -78,3 +78,84 @@ def test_detect_hardware_reports_usable_cuda_memory(tmp_path: Path) -> None:
     assert hardware.gpus[0].name == "Test GPU"
     assert hardware.gpus[0].backend == "cuda"
     assert hardware.gpus[0].total_memory_bytes == 12 * GIB
+
+
+def fake_cuda_torch(
+    *,
+    cuda_version: str | None = "12.8",
+    capabilities: tuple[tuple[int, int], ...] = ((8, 6),),
+    architectures: tuple[str, ...] = ("sm_70", "sm_75", "sm_80", "sm_86", "sm_90", "sm_120"),
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        version=SimpleNamespace(cuda=cuda_version, hip=None),
+        cuda=SimpleNamespace(
+            is_available=lambda: bool(capabilities),
+            device_count=lambda: len(capabilities),
+            get_arch_list=lambda: list(architectures),
+            get_device_capability=lambda index: capabilities[index],
+            get_device_name=lambda index: f"Test GPU {index}",
+        ),
+    )
+
+
+def test_cuda_check_ignores_cpu_workers() -> None:
+    assert cuda_problem(runtime_settings(), torch_module=fake_cuda_torch(capabilities=())) is None
+
+
+def test_cuda_check_accepts_a_supported_gpu() -> None:
+    torch = fake_cuda_torch(capabilities=((8, 6), (12, 0)))
+    assert cuda_problem(runtime_settings(device="cuda"), torch_module=torch) is None
+
+
+def test_cuda_check_rejects_a_cpu_image() -> None:
+    problem = cuda_problem(
+        runtime_settings(device="cuda"), torch_module=fake_cuda_torch(cuda_version=None)
+    )
+    assert problem is not None
+    assert "built for CPU" in problem
+
+
+def test_cuda_check_rejects_a_container_without_a_gpu() -> None:
+    problem = cuda_problem(
+        runtime_settings(device="cuda"), torch_module=fake_cuda_torch(capabilities=())
+    )
+    assert problem is not None
+    assert "NVIDIA Container Toolkit" in problem
+
+
+def test_cuda_check_rejects_a_gpu_older_than_the_compiled_kernels() -> None:
+    problem = cuda_problem(
+        runtime_settings(device="cuda"), torch_module=fake_cuda_torch(capabilities=((6, 1),))
+    )
+    assert problem is not None
+    assert "Test GPU 0 has compute capability 6.1" in problem
+
+
+def test_cuda_check_accepts_a_newer_gpu_through_ptx() -> None:
+    torch = fake_cuda_torch(capabilities=((13, 0),), architectures=("sm_90", "compute_90"))
+    assert cuda_problem(runtime_settings(device="cuda"), torch_module=torch) is None
+
+
+def test_describe_hardware_names_the_device_and_gpus(tmp_path: Path) -> None:
+    write_host_files(tmp_path)
+    torch = SimpleNamespace(
+        version=SimpleNamespace(cuda="12.8", hip=None),
+        cuda=SimpleNamespace(
+            is_available=lambda: True,
+            device_count=lambda: 1,
+            get_device_properties=lambda index: SimpleNamespace(
+                name="Test RTX", total_memory=12 * GIB
+            ),
+        ),
+    )
+    hardware = detect_hardware(
+        runtime_settings(device="cuda"),
+        proc_root=tmp_path / "proc",
+        cgroup_root=tmp_path / "missing",
+        torch_module=torch,
+    )
+
+    summary = describe_hardware(hardware)
+
+    assert "device=cuda compute_type=float16" in summary
+    assert "gpus=Test RTX (12.0 GiB)" in summary

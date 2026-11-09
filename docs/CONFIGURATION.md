@@ -8,7 +8,7 @@ Apply a change by recreating the services:
 docker compose up -d
 ```
 
-Changing `ANYSUB_ACCELERATOR` also rebuilds the worker image, so add `--build` for that one. With Podman, replace `docker compose` with `podman compose` throughout.
+After switching between CPU and GPU, add `--build` so Compose builds the matching worker image. With Podman, replace `docker compose` with `podman compose` throughout.
 
 This page is the only place that lists settings. Other documents link here.
 
@@ -51,13 +51,12 @@ A declared media type must be `audio/*`, `video/*`, `application/ogg`, or `appli
 
 ## Worker
 
-| Variable              | Default                                     | Notes                                                                                                          |
-| --------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `ANYSUB_ACCELERATOR`  | `cpu`                                       | `cpu` or `cuda`. Selects the PyTorch wheels compiled into the worker image, and the device the worker runs on. |
-| `ANYSUB_COMPUTE_TYPE` | `int8`, or `float16` with compose.cuda.yaml | Model precision. See below.                                                                                    |
-| `ANYSUB_WORKER_NAME`  | `local-worker`                              | Shown in the model picker when several workers are connected.                                                  |
+| Variable              | Default                                                | Notes                                                         |
+| --------------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
+| `ANYSUB_COMPUTE_TYPE` | `int8`, or `float16` with compose.cuda.yaml            | Model precision. See below.                                   |
+| `ANYSUB_WORKER_NAME`  | `local-worker`, or `local-cuda` with compose.cuda.yaml | Shown in the model picker when several workers are connected. |
 
-These three arrive commented out in `.env`. Each mode already picks a working default, and a value set here applies to every mode, so uncomment one only when you want to override it.
+These arrive commented out in `.env`. Each mode already picks a working default, and a value set here applies to every mode, so uncomment one only when you want to override it.
 
 ### Choosing a precision
 
@@ -89,16 +88,17 @@ The [user guide](USER-GUIDE.md#choosing-a-model) describes what each model is go
 
 `compose.yaml` derives these from the settings above. Change them only for a custom deployment.
 
-| Variable            | Value in Compose                   | Notes                                                                                   |
-| ------------------- | ---------------------------------- | --------------------------------------------------------------------------------------- |
-| `ANYSUB_DEVICE`     | Same as `ANYSUB_ACCELERATOR`       | Worker device. The image and the device cannot disagree.                                |
-| `ANYSUB_APP_URL`    | `http://web:3000`                  | How the worker reaches the application. The development overlay uses `http://web:5173`. |
-| `ANYSUB_DATA_ROOT`  | `/data`                            | Worker side of the media mount. See [Data root](#data-root).                            |
-| `DATA_ROOT`         | `/data`                            | Application side of the media mount. See [Data root](#data-root).                       |
-| `ANYSUB_MODEL_ROOT` | `/models`                          | Model cache location in the worker.                                                     |
-| `DATABASE_URL`      | Built from the `POSTGRES_*` values | Connection string for the application and the migration job.                            |
-| `BODY_SIZE_LIMIT`   | Same as `ANYSUB_BODY_SIZE_LIMIT`   | The name SvelteKit's Node adapter reads.                                                |
-| `ADDRESS_HEADER`    | Same as `ANYSUB_ADDRESS_HEADER`    | The name SvelteKit's Node adapter reads. It takes the last address in the header.       |
+| Variable             | Value in Compose                        | Notes                                                                                   |
+| -------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
+| `ANYSUB_ACCELERATOR` | `cpu`, or `cuda` with compose.cuda.yaml | Build argument that selects the PyTorch wheels in the worker image.                     |
+| `ANYSUB_DEVICE`      | Same as `ANYSUB_ACCELERATOR`            | Worker device. With `cuda`, the worker refuses to start when it cannot use the GPU.     |
+| `ANYSUB_APP_URL`     | `http://web:3000`                       | How the worker reaches the application. The development overlay uses `http://web:5173`. |
+| `ANYSUB_DATA_ROOT`   | `/data`                                 | Worker side of the media mount. See [Data root](#data-root).                            |
+| `DATA_ROOT`          | `/data`                                 | Application side of the media mount. See [Data root](#data-root).                       |
+| `ANYSUB_MODEL_ROOT`  | `/models`                               | Model cache location in the worker.                                                     |
+| `DATABASE_URL`       | Built from the `POSTGRES_*` values      | Connection string for the application and the migration job.                            |
+| `BODY_SIZE_LIMIT`    | Same as `ANYSUB_BODY_SIZE_LIMIT`        | The name SvelteKit's Node adapter reads.                                                |
+| `ADDRESS_HEADER`     | Same as `ANYSUB_ADDRESS_HEADER`         | The name SvelteKit's Node adapter reads. It takes the last address in the header.       |
 
 ### Worker defaults
 
@@ -124,7 +124,10 @@ Compose reads the override automatically when you run it without `-f`. If you pa
 
 An NVIDIA GPU transcribes several times faster than a CPU. Support is written but not yet verified on real hardware, so treat this section as a path to try rather than a guarantee. Please report what happens.
 
-You need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host, and a driver recent enough for CUDA 12.8.
+You need:
+
+- A card of the Volta generation or newer (compute capability 7.0 and up), such as a GTX 16xx, an RTX 20xx to 50xx, or a data-center card from the V100 on. Pascal and older cards, including the GTX 10xx series, cannot run the CUDA image. Use the CPU on those.
+- The [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the host, and a driver recent enough for CUDA 12.8.
 
 Confirm Docker can reach the GPU before changing anything:
 
@@ -132,23 +135,25 @@ Confirm Docker can reach the GPU before changing anything:
 docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu24.04 nvidia-smi
 ```
 
-If that prints your card, start with the NVIDIA overlay:
+If that prints your card, add this line to `.env` so every `docker compose` command includes the NVIDIA overlay, then rebuild:
 
 ```sh
-docker compose -f compose.yaml -f compose.cuda.yaml up --build
+COMPOSE_FILE=compose.yaml:compose.cuda.yaml
 ```
 
-The overlay switches the worker to CUDA, picks `float16`, and grants access to every GPU on the host. No `.env` change is needed. Keep passing both files on later commands, including `docker compose down`, or Compose will fall back to the CPU definition.
+```sh
+docker compose up --build -d
+```
 
-The first build downloads the CUDA PyTorch wheels, which are several gigabytes larger than the CPU ones. Expect a long build and a worker image around 10 GB.
+The overlay switches the worker to CUDA, picks `float16`, grants access to every GPU on the host, and names the image `anysub-worker-cuda` so a CPU build never replaces it. The first build downloads the CUDA PyTorch wheels, which are several gigabytes larger than the CPU ones. Expect a long build and a worker image around 10 GB.
 
 Check that the worker found the card:
 
 ```sh
-docker compose logs worker | grep -i cuda
+docker compose logs worker | grep "worker started"
 ```
 
-The model picker also reports detected hardware, so a card that registers correctly appears there.
+The line shows `device=cuda` and the card's name. When the worker cannot use the GPU, it stops at startup and logs why: the image was built for CPU, the container cannot see a GPU, or the card is too old for the image. The model picker also reports detected hardware.
 
 ### When the GPU path fails
 
@@ -158,13 +163,13 @@ The model picker also reports detected hardware, so a card that registers correc
 docker compose exec worker ldconfig -p | grep -E 'libcudnn|libcublas'
 ```
 
-No output means the image was built without `ANYSUB_ACCELERATOR=cuda`. Rebuild with the overlay and `--build`.
+No output means the image was built for CPU. Check the `COMPOSE_FILE` line in `.env` and rebuild with `--build`.
 
 **Out of memory.** Choose a smaller model, or set `ANYSUB_COMPUTE_TYPE=int8_float16` to cut VRAM use.
 
 **`could not select device driver`.** The NVIDIA Container Toolkit is missing or the Docker daemon has not picked it up. Restart Docker after installing it.
 
-To go back to CPU, set `ANYSUB_ACCELERATOR=cpu`, drop the overlay, and rebuild.
+To go back to CPU, remove the `COMPOSE_FILE` line from `.env` and run `docker compose up --build -d`.
 
 ## AMD GPUs
 

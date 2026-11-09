@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 
 from .config import WorkerSettings
+from .hardware import cuda_problem
 from .protocol_schema import write_protocol_schema
 from .registry import AdapterRegistry
 from .runner import run_forever
@@ -18,6 +19,10 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
     settings = WorkerSettings()
+    problem = cuda_problem(settings.runtime)
+    if problem:
+        logging.getLogger(__name__).error(problem)
+        raise SystemExit(1)
     registry = AdapterRegistry.discover()
     asyncio.run(run_forever(settings, registry))
 

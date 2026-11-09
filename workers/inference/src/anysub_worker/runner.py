@@ -31,8 +31,9 @@ PRESENCE_SECONDS = LEASE_HEARTBEAT_SECONDS
 async def run_forever(settings: WorkerSettings, registry: AdapterRegistry) -> None:
     client = ApplicationClient(settings, registry)
     LOGGER.info(
-        "worker started id=%s adapters=%s",
+        "worker started id=%s %s adapters=%s",
         client.worker_id,
+        client.hardware_summary,
         ",".join(adapter.manifest.id for adapter in registry.adapters),
     )
     worker = asyncio.current_task()

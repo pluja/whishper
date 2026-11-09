@@ -124,3 +124,63 @@ def _detect_gpus(torch: Any | None) -> tuple[WorkerGpu, ...]:
         )
     except (AttributeError, RuntimeError, TypeError, ValueError):
         return ()
+
+
+def cuda_problem(runtime: AdapterRuntimeSettings, *, torch_module: Any | None = None) -> str | None:
+    if runtime.device != "cuda":
+        return None
+    torch = torch_module if torch_module is not None else _optional_torch()
+    if torch is None or getattr(torch.version, "cuda", None) is None:
+        return (
+            "ANYSUB_DEVICE=cuda, but this worker image was built for CPU. Rebuild it with "
+            "docker compose -f compose.yaml -f compose.cuda.yaml up --build -d"
+        )
+    try:
+        device_count = int(torch.cuda.device_count()) if torch.cuda.is_available() else 0
+    except RuntimeError as error:
+        return f"ANYSUB_DEVICE=cuda, but CUDA failed to start: {error}"
+    if device_count == 0:
+        return (
+            "ANYSUB_DEVICE=cuda, but no NVIDIA GPU is visible in the worker container. "
+            "Install the NVIDIA Container Toolkit on the host and start Anysub with "
+            "compose.cuda.yaml, which gives the worker the GPU."
+        )
+    compiled = list(torch.cuda.get_arch_list())
+    for index in range(device_count):
+        capability = tuple(torch.cuda.get_device_capability(index))
+        if not _runs_on(capability, compiled):
+            name = torch.cuda.get_device_name(index)
+            return (
+                f"{name} has compute capability {capability[0]}.{capability[1]}, which this "
+                f"worker image does not support (built for {', '.join(compiled)}). The CUDA "
+                "image needs a Volta or newer GPU. Run Anysub without compose.cuda.yaml to use "
+                "the CPU."
+            )
+    return None
+
+
+def _runs_on(capability: tuple[int, ...], compiled_architectures: list[str]) -> bool:
+    major, minor = capability[0], capability[1]
+    device = major * 10 + minor
+    for architecture in compiled_architectures:
+        kind, _, number = architecture.partition("_")
+        if not number.isdigit():
+            continue
+        version = int(number)
+        # Kernels run on later minor versions of their major version, and PTX
+        # is compiled just in time for any newer GPU.
+        if kind == "sm" and version // 10 == major and version <= device:
+            return True
+        if kind == "compute" and version <= device:
+            return True
+    return False
+
+
+def describe_hardware(hardware: WorkerHardware) -> str:
+    gpus = ", ".join(
+        f"{gpu.name} ({gpu.total_memory_bytes / 1024**3:.1f} GiB)" for gpu in hardware.gpus
+    )
+    return (
+        f"device={hardware.device} compute_type={hardware.compute_type} "
+        f"gpus={gpus or 'none'} cores={hardware.cpu.logical_cores}"
+    )

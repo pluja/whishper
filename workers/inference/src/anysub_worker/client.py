@@ -11,7 +11,7 @@ import httpx
 
 from .config import WorkerSettings
 from .errors import LeaseLostError, describe_error
-from .hardware import detect_hardware, detect_memory
+from .hardware import describe_hardware, detect_hardware, detect_memory
 from .models import (
     MEDIA_PREPARATION_VERSION,
     JobCompletion,
@@ -53,6 +53,10 @@ class ApplicationClient:
             headers={"Authorization": f"Bearer {settings.worker_token}"},
             timeout=settings.request_timeout_seconds,
         )
+
+    @property
+    def hardware_summary(self) -> str:
+        return describe_hardware(self._hardware)
 
     async def close(self) -> None:
         await self._client.aclose()

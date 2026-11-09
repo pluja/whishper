@@ -75,6 +75,7 @@ async def test_sigterm_stops_the_worker_and_closes_the_client(
 ) -> None:
     class IdleClient:
         worker_id = "worker-1"
+        hardware_summary = "device=cpu"
         closed = False
 
         def __init__(self, *_args: object) -> None:

@@ -1,15 +1,16 @@
-# NVIDIA overlay. Use together with the base file:
+# NVIDIA overlay. Enable it for every command with this line in .env:
 #
-#   docker compose -f compose.yaml -f compose.cuda.yaml up --build
+#   COMPOSE_FILE=compose.yaml:compose.cuda.yaml
 #
-# This switches the worker to CUDA on its own, so no .env change is required.
 # GPU reservations are structural and cannot be toggled by an environment
 # variable, which is why they live in an overlay rather than in compose.yaml.
+# The image gets its own name so a CPU build never replaces the CUDA one.
 #
 # Requires the NVIDIA Container Toolkit on the host.
 
 services:
   worker:
+    image: anysub-worker-cuda
     build:
       args:
         ANYSUB_ACCELERATOR: cuda

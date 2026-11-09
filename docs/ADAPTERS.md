@@ -122,7 +122,7 @@ services:
     build: !reset null
 ```
 
-Save it as `compose.override.yaml` next to `compose.yaml`. Compose reads that file automatically only when you run `docker compose up -d` without `-f`. If you pass explicit files, for example with `compose.cuda.yaml`, add `-f compose.override.yaml` yourself as the last `-f` file, because later files override earlier ones.
+Save it as `compose.override.yaml` next to `compose.yaml`. Compose reads that file automatically only when neither `-f` nor `COMPOSE_FILE` names the files. If `.env` sets `COMPOSE_FILE` for an NVIDIA GPU, append it there as the last file, because later files override earlier ones: `COMPOSE_FILE=compose.yaml:compose.cuda.yaml:compose.override.yaml`.
 
 After a `git pull`, rebuild both the base image and the derived image, in that order. Otherwise the worker keeps running the old code.
 
