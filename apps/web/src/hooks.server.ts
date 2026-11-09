@@ -1,4 +1,5 @@
 import { building, dev } from "$app/environment";
+import { announceSetupCode } from "$lib/server/auth/setup-code";
 import { pool } from "$lib/server/db";
 import { assertSecureRuntimeConfiguration } from "$lib/server/env";
 import {
@@ -17,6 +18,9 @@ export const init: ServerInit = () => {
   assertSecureRuntimeConfiguration({ dev });
   if (building) return;
   startUploadCleanup();
+  announceSetupCode().catch((cause) =>
+    console.error("Could not check whether setup is needed", cause),
+  );
   process.once("sveltekit:shutdown", () => void pool.end());
 };
 

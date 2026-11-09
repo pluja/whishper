@@ -81,3 +81,4 @@ export function retryMessage(waitMs: number): string {
 }
 
 export const signInThrottle = createAttemptThrottle();
+export const hostCodeThrottle = createAttemptThrottle();

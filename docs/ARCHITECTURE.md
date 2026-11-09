@@ -289,7 +289,7 @@ Projects use flat collections and tags. V1 does not implement nested folders or 
 
 ## Authentication and authorization
 
-Authentication stays enabled in every deployment. Public sign-up is disabled. The first-run setup page creates the single owner in one transaction, and no other way to create accounts exists yet. Planned: later users join by expiring invitation.
+Authentication stays enabled in every deployment. Public sign-up is disabled. The first-run setup page creates the single owner in one transaction, and no other way to create accounts exists yet. It requires a one-time code that the web service prints to its log at startup while no owner exists. The code lives in memory and changes on every restart. Planned: later users join by expiring invitation.
 
 Better Auth manages identities, password credentials, secure cookies, and database sessions. Anysub owns workspaces, memberships, and authorization checks. Invitations are planned.
 

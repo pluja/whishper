@@ -19,7 +19,13 @@ docker compose up --build
 
 `scripts/init-env.sh` copies `.env.example` to `.env` and replaces every `change-this` value with a generated secret. It refuses to overwrite an existing `.env`. Anysub does not start with the placeholder values, because they are published in this repository.
 
-Open `http://localhost:5173`, or `http://<server-address>:5173` from another machine, and create the owner account on the setup page. Public sign-up is disabled, so that is the only account.
+Open `http://localhost:5173`, or `http://<server-address>:5173` from another machine, and create the owner account on the setup page. It asks for the setup code that Anysub prints in its log at startup, so only someone with access to the server can claim the instance:
+
+```sh
+docker compose logs web
+```
+
+Restarting the web service prints a new code. Public sign-up is disabled, so the owner is the only account.
 
 Add `-d` to run in the background. Follow the logs with `docker compose logs -f`.
 

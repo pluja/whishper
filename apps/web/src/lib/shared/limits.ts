@@ -3,3 +3,4 @@ export const PROJECT_SEARCH_MAX_LENGTH = 200;
 export const DEFAULT_MAX_LINE_LENGTH = 42;
 export const PASSWORD_MIN_LENGTH = 10;
 export const PASSWORD_MAX_LENGTH = 128;
+export const OWNER_NAME_MAX_LENGTH = 100;

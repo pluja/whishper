@@ -3,9 +3,16 @@
   import Button from "$lib/components/ui/Button.svelte";
   import Field from "$lib/components/ui/Field.svelte";
   import Input from "$lib/components/ui/Input.svelte";
-  import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "$lib/shared/limits";
+  import {
+    OWNER_NAME_MAX_LENGTH,
+    PASSWORD_MAX_LENGTH,
+    PASSWORD_MIN_LENGTH,
+  } from "$lib/shared/limits";
 
   let { form } = $props();
+
+  const errorFor = (field: string) =>
+    form?.field === field ? form.message : undefined;
 </script>
 
 <svelte:head>
@@ -18,8 +25,30 @@
 >
   <form class="grid gap-4" method="POST">
     <Field
+      label="Setup code"
+      hint="Anysub prints it in its log at startup. Run docker compose logs web on the server to see it."
+      error={errorFor("setupCode")}
+    >
+      {#snippet control({ id, describedBy, invalid })}
+        <Input
+          {id}
+          name="setupCode"
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false"
+          required
+          placeholder="XXXX-XXXX-XXXX"
+          class="font-mono"
+          aria-describedby={describedBy}
+          aria-invalid={invalid}
+        />
+      {/snippet}
+    </Field>
+
+    <Field
       label="Your name"
       hint="Shown in workspace ownership and activity history."
+      error={errorFor("name")}
     >
       {#snippet control({ id, describedBy, invalid })}
         <Input
@@ -28,6 +57,8 @@
           autocomplete="name"
           required
           minlength={2}
+          maxlength={OWNER_NAME_MAX_LENGTH}
+          value={form?.name ?? ""}
           aria-describedby={describedBy}
           aria-invalid={invalid}
         />
@@ -37,6 +68,7 @@
     <Field
       label="Email address"
       hint="Used to sign in. Anysub does not send email yet."
+      error={errorFor("email")}
     >
       {#snippet control({ id, describedBy, invalid })}
         <Input
@@ -45,6 +77,7 @@
           type="email"
           autocomplete="email"
           required
+          value={form?.email ?? ""}
           aria-describedby={describedBy}
           aria-invalid={invalid}
         />
@@ -54,7 +87,7 @@
     <Field
       label="Password"
       hint={`Use at least ${PASSWORD_MIN_LENGTH} characters.`}
-      error={form?.message}
+      error={errorFor("password")}
     >
       {#snippet control({ id, describedBy, invalid })}
         <Input
