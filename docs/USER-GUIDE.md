@@ -176,6 +176,6 @@ docker compose logs -f worker
 - **A model download fails.** Check outbound access to Hugging Face and run the transcription again.
 - **The worker is killed or reports out-of-memory.** Lower the batch size under **Advanced options**, or pick a smaller model. See [Choosing a precision](CONFIGURATION.md#choosing-a-precision).
 - **Forced alignment is unavailable for a language.** Anysub keeps the unaligned cues and records the reason in the run metadata.
-- **Sign-in or upload is rejected behind a proxy.** `BETTER_AUTH_URL` does not match the address in your browser. See [Reverse proxy](INSTALL.md#reverse-proxy).
+- **Sign-in returns to the login page without an error.** `BETTER_AUTH_URL` is an HTTPS address and you opened Anysub over plain HTTP, so the browser refused the Secure session cookie. Use the HTTPS address, or remove `BETTER_AUTH_URL`. See [Reverse proxy](INSTALL.md#reverse-proxy).
 - **Every upload fails.** `ANYSUB_BODY_SIZE_LIMIT` is below 32 MiB, or your proxy limits the request body.
 - **GPU problems.** See [When the GPU path fails](CONFIGURATION.md#when-the-gpu-path-fails).

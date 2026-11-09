@@ -41,5 +41,6 @@ Out of scope:
 
 - Anysub does not terminate TLS. Put it behind a reverse proxy that does when it is reachable from outside your machine. See [docs/INSTALL.md](docs/INSTALL.md#reverse-proxy).
 - Run `scripts/init-env.sh` so `BETTER_AUTH_SECRET`, `ANYSUB_WORKER_TOKEN`, and the database password are unique. Anysub refuses to start with the published placeholders.
+- Anysub accepts requests on any address it is reached by and blocks cross-site requests with the browser's `Sec-Fetch-Site` and `Origin` headers. It does not pin a hostname, so a DNS-rebinding page can reach the sign-in and setup forms, but not a signed-in session.
 - Failed sign-ins are slowed down per client address and per account, up to one minute between attempts. Behind a reverse proxy, forward the client address as described in [docs/CONFIGURATION.md](docs/CONFIGURATION.md#network).
 - Anysub sends no telemetry. Network access is needed only to download model files.

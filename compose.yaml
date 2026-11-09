@@ -46,7 +46,6 @@ services:
       DATABASE_URL: *database-url
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?not set. Run scripts/init-env.sh to generate .env}
       BETTER_AUTH_URL: *app-url
-      ORIGIN: *app-url
       ANYSUB_WORKER_TOKEN: *worker-token
       DATA_ROOT: /data
       # adapter-node reads BODY_SIZE_LIMIT. The ANYSUB_ name is the documented one.

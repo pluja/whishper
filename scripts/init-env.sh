@@ -39,4 +39,4 @@ trap 'rm -f "$staging"' EXIT
 mv "$staging" "$env_file"
 
 echo "Wrote $env_file with generated secrets."
-echo "Set BETTER_AUTH_URL to the browser-facing origin before exposing Anysub."
+echo "Behind an HTTPS reverse proxy, set BETTER_AUTH_URL to the address people type."

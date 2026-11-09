@@ -6,6 +6,9 @@ const config = {
   preprocess: vitePreprocess(),
   kit: {
     adapter: adapter({ precompress: true }),
+    // Anysub answers on whatever address the browser used, so the fixed-origin
+    // check is replaced by the Sec-Fetch-Site check in lib/server/http.
+    csrf: { trustedOrigins: ["*"] },
     typescript: {
       config: (config) => ({
         ...config,

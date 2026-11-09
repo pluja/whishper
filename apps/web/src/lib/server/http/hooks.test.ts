@@ -24,6 +24,7 @@ import {
   handleUploads,
   loadSession,
   logServerErrors,
+  rejectCrossOriginRequests,
   requireProjectApiSession,
 } from "./hooks";
 
@@ -136,15 +137,7 @@ describe("handleUploads", () => {
     expect(handleUploadRequest).not.toHaveBeenCalled();
   });
 
-  it("refuses a foreign origin", async () => {
-    const event = eventFor("/api/uploads", { origin: "https://evil.example" });
-    event.locals.user = user as App.Locals["user"];
-    const response = await handleUploads({ event, resolve: resolveOk() });
-
-    expect(response.status).toBe(403);
-  });
-
-  it("hands a same-origin upload to tus with the user id", async () => {
+  it("hands an upload to tus with the user id", async () => {
     handleUploadRequest.mockResolvedValue(new Response(null, { status: 201 }));
     const event = eventFor("/api/uploads", {
       origin: "https://anysub.example",
@@ -154,6 +147,37 @@ describe("handleUploads", () => {
 
     expect(response.status).toBe(201);
     expect(handleUploadRequest).toHaveBeenCalledWith(event.request, "user-1");
+  });
+});
+
+describe("rejectCrossOriginRequests", () => {
+  function postFor(path: string, headers: HeadersInit): RequestEvent {
+    const url = new URL(path, "https://anysub.example");
+    return {
+      url,
+      request: new Request(url, { method: "POST", headers }),
+      locals: {},
+    } as RequestEvent;
+  }
+
+  it("refuses a cross-site request before any other hook runs", async () => {
+    const resolve = resolveOk();
+    const response = await rejectCrossOriginRequests({
+      event: postFor("/api/uploads", { "sec-fetch-site": "cross-site" }),
+      resolve,
+    });
+
+    expect(response.status).toBe(403);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("passes a same-origin request on", async () => {
+    const response = await rejectCrossOriginRequests({
+      event: postFor("/login", { "sec-fetch-site": "same-origin" }),
+      resolve: resolveOk(),
+    });
+
+    expect(await response.text()).toBe("resolved");
   });
 });
 

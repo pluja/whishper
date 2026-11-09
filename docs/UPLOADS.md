@@ -14,7 +14,7 @@ Anysub owns the canonical copy of project media. An upload first lands in stagin
 
 The hard link is constant-time and does not duplicate a multi-gigabyte file. Both names stay valid until the database commit succeeds, so recovery code always has a staging file if finalization is interrupted. This requires staging and project storage on one filesystem, which the default `app-data` volume provides.
 
-The upload endpoint rejects requests without a session and requests whose browser `Origin` does not match `BETTER_AUTH_URL`. Only audio and video media types are accepted, and deferred-length uploads are refused. Media is served back with its type and `X-Content-Type-Options: nosniff`. tus returns relative upload locations, so it does not trust forwarded host headers.
+The upload endpoint rejects requests without a session, and the application rejects cross-site requests that a browser marks through `Sec-Fetch-Site` or an `Origin` from another host. Only audio and video media types are accepted, and deferred-length uploads are refused. Media is served back with its type and `X-Content-Type-Options: nosniff`. tus returns relative upload locations, so it does not trust forwarded host headers.
 
 Canonical files use stable IDs and a normalized source name:
 

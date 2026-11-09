@@ -19,7 +19,7 @@ docker compose up --build
 
 `scripts/init-env.sh` copies `.env.example` to `.env` and replaces every `change-this` value with a generated secret. It refuses to overwrite an existing `.env`. Anysub does not start with the placeholder values, because they are published in this repository.
 
-Open `http://localhost:5173` and create the owner account on the setup page. Public sign-up is disabled, so that is the only account.
+Open `http://localhost:5173`, or `http://<server-address>:5173` from another machine, and create the owner account on the setup page. Public sign-up is disabled, so that is the only account.
 
 Add `-d` to run in the background. Follow the logs with `docker compose logs -f`.
 
@@ -47,9 +47,11 @@ The NVIDIA overlay `compose.cuda.yaml` uses Docker GPU reservations and is meant
 
 Anysub does not ship a reverse proxy or manage TLS. To serve it on a hostname:
 
-1. Set `BETTER_AUTH_URL` in `.env` to the exact origin people type in the browser, for example `https://subtitles.example.org`. Compose passes it to the application as `ORIGIN`. Sign-in and uploads reject requests from any other origin, so a wrong value looks like a broken login.
+1. Set `BETTER_AUTH_URL` in `.env` to the HTTPS address people type, for example `https://subtitles.example.org`. Anysub then marks session cookies Secure. Browsers refuse Secure cookies over plain HTTP, so after this change sign in through the HTTPS address only, not a LAN address.
 2. Recreate the services with `docker compose up -d`.
 3. Configure the proxy to forward to `ANYSUB_PORT` (default `5173`).
+
+Anysub needs no list of allowed hostnames. It answers on whatever address the browser used and blocks cross-site requests with the browser's `Sec-Fetch-Site` and `Origin` headers.
 
 Uploads arrive as `PATCH` chunks. The proxy must allow `POST`, `HEAD`, `PATCH`, `DELETE`, and `OPTIONS`, accept the request body size from [Uploads](CONFIGURATION.md#uploads), and stream bodies instead of buffering a whole upload. A minimal nginx location:
 

@@ -31,7 +31,7 @@ docker compose up --build
 
 `init-env.sh` writes a `.env` file with secrets unique to your installation. Anysub refuses to start with the placeholder values from `.env.example`.
 
-Open `http://localhost:5173` and create the owner account on the setup page. It is the only account: public sign-up is disabled and there is no way to add users yet.
+Open `http://localhost:5173`, or `http://<server-address>:5173` from another machine, and create the owner account on the setup page. It is the only account: public sign-up is disabled and there is no way to add users yet.
 
 On Fedora with rootless Podman, use Docker Compose as the provider:
 

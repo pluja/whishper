@@ -1,7 +1,7 @@
 import { json, type Handle, type HandleServerError } from "@sveltejs/kit";
 
 import { auth } from "$lib/server/auth/auth";
-import { privateEnv } from "$lib/server/env";
+import { isCrossOriginRequest } from "$lib/server/http/cross-origin";
 import { ServerFailure } from "$lib/server/http/errors";
 import {
   handleUploadRequest,
@@ -16,6 +16,13 @@ const HEALTH_API = "/api/health";
 function isWithin(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
+
+export const rejectCrossOriginRequests: Handle = ({ event, resolve }) => {
+  if (isCrossOriginRequest(event.request)) {
+    return new Response("Cross-origin request blocked.\n", { status: 403 });
+  }
+  return resolve(event);
+};
 
 export const authenticateWorkers: Handle = ({ event, resolve }) => {
   if (!isWithin(event.url.pathname, WORKER_API)) return resolve(event);
@@ -51,10 +58,6 @@ export const handleUploads: Handle = ({ event, resolve }) => {
   if (!isUploadPath(event.url.pathname)) return resolve(event);
   if (!event.locals.user) {
     return new Response("Authentication required.\n", { status: 401 });
-  }
-  const origin = event.request.headers.get("origin");
-  if (origin && origin !== new URL(privateEnv.authUrl).origin) {
-    return new Response("Origin not allowed.\n", { status: 403 });
   }
   return handleUploadRequest(event.request, event.locals.user.id);
 };

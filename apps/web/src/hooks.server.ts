@@ -6,6 +6,7 @@ import {
   handleUploads,
   loadSession,
   logServerErrors,
+  rejectCrossOriginRequests,
   requireProjectApiSession,
 } from "$lib/server/http/hooks";
 import { startUploadCleanup } from "$lib/server/uploads/tus-server";
@@ -20,6 +21,7 @@ export const init: ServerInit = () => {
 };
 
 export const handle = sequence(
+  rejectCrossOriginRequests,
   authenticateWorkers,
   loadSession,
   requireProjectApiSession,
