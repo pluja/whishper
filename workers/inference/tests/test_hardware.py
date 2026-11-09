@@ -1,8 +1,16 @@
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from anysub_worker.config import AdapterRuntimeSettings
-from anysub_worker.hardware import cuda_problem, describe_hardware, detect_hardware
+from anysub_worker.hardware import (
+    cuda_problem,
+    describe_hardware,
+    detect_hardware,
+    usable_cpu_count,
+)
 from anysub_worker.models import WorkerDevice
 
 GIB = 1024**3
@@ -159,3 +167,22 @@ def test_describe_hardware_names_the_device_and_gpus(tmp_path: Path) -> None:
 
     assert "device=cuda compute_type=float16" in summary
     assert "gpus=Test RTX (12.0 GiB)" in summary
+
+
+def test_usable_cpu_count_honours_a_container_cpu_limit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(os, "sched_getaffinity", lambda _pid: set(range(16)))
+    (tmp_path / "cpu.max").write_text("250000 100000\n", encoding="utf-8")
+
+    assert usable_cpu_count(cgroup_root=tmp_path) == 3
+
+
+def test_usable_cpu_count_uses_the_affinity_without_a_limit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(os, "sched_getaffinity", lambda _pid: set(range(6)))
+    (tmp_path / "cpu.max").write_text("max 100000\n", encoding="utf-8")
+
+    assert usable_cpu_count(cgroup_root=tmp_path) == 6
+    assert usable_cpu_count(cgroup_root=tmp_path / "missing") == 6

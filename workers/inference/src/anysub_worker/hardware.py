@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 from importlib import import_module
 from pathlib import Path
@@ -97,6 +98,26 @@ def _logical_cores() -> int:
     except (AttributeError, OSError):
         pass
     return max(1, os.cpu_count() or 1)
+
+
+def usable_cpu_count(*, cgroup_root: Path = Path("/sys/fs/cgroup")) -> int:
+    cores = _logical_cores()
+    quota = _cpu_quota(cgroup_root)
+    return min(cores, quota) if quota else cores
+
+
+# A docker --cpus limit shows up only as a cgroup quota, not in the CPU affinity.
+def _cpu_quota(cgroup_root: Path) -> int | None:
+    try:
+        fields = (cgroup_root / "cpu.max").read_text(encoding="utf-8").split()
+    except OSError:
+        return None
+    if len(fields) != 2 or not fields[0].isdigit() or not fields[1].isdigit():
+        return None
+    quota, period = int(fields[0]), int(fields[1])
+    if period == 0:
+        return None
+    return max(1, math.ceil(quota / period))
 
 
 def _optional_torch() -> Any | None:

@@ -12,6 +12,7 @@ from typing import Any, NamedTuple
 from anysub_worker.adapter import AdapterExecutionError, ProgressReporter
 from anysub_worker.config import AdapterRuntimeSettings
 from anysub_worker.errors import describe_error
+from anysub_worker.hardware import usable_cpu_count
 from anysub_worker.models import (
     AdapterCapability,
     AdapterManifest,
@@ -185,6 +186,7 @@ class WhisperXAdapter:
         kwargs: dict[str, Any] = {
             "compute_type": self._runtime.compute_type,
             "download_root": str(self._model_root),
+            "threads": self._runtime.cpu_threads or usable_cpu_count(),
         }
         if language:
             kwargs["language"] = language

@@ -104,10 +104,11 @@ The [user guide](USER-GUIDE.md#choosing-a-model) describes what each model is go
 
 Compose does not forward these from `.env`, so setting them there has no effect. The worker reads them from its own environment and falls back to the defaults below.
 
-| Variable                         | Default              | Notes                                                                          |
-| -------------------------------- | -------------------- | ------------------------------------------------------------------------------ |
-| `ANYSUB_WORKER_ID_FILE`          | `/models/.worker-id` | Where the worker stores its generated ID, so it keeps its identity on restart. |
-| `ANYSUB_REQUEST_TIMEOUT_SECONDS` | `30`                 | Timeout for requests from the worker to the application.                       |
+| Variable                         | Default                          | Notes                                                                                                                                           |
+| -------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANYSUB_WORKER_ID_FILE`          | `/models/.worker-id`             | Where the worker stores its generated ID, so it keeps its identity on restart.                                                                  |
+| `ANYSUB_REQUEST_TIMEOUT_SECONDS` | `30`                             | Timeout for requests from the worker to the application.                                                                                        |
+| `ANYSUB_CPU_THREADS`             | Every core the container may use | CPU threads for speech recognition. The worker honours a Compose `cpus` limit on its own, so set this only to leave cores free without a limit. |
 
 To change one, add it to the worker's environment in a `compose.override.yaml` next to `compose.yaml`:
 

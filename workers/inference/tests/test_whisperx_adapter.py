@@ -81,6 +81,20 @@ async def test_explicit_language_is_part_of_the_cached_model_key(
     assert whisperx.languages == ["en", "es"]
 
 
+async def test_model_load_uses_the_configured_cpu_threads(settings: WorkerSettings) -> None:
+    class RecordingWhisperX:
+        threads: int | None = None
+
+        def load_model(self, model_id: str, device: str, **kwargs: Any) -> object:
+            RecordingWhisperX.threads = kwargs.get("threads")
+            return object()
+
+    runtime = settings.runtime.model_copy(update={"cpu_threads": 3})
+    await WhisperXAdapter(runtime)._load_model(RecordingWhisperX(), "small", None)
+
+    assert RecordingWhisperX.threads == 3
+
+
 class StubWhisperX:
     def __init__(
         self,

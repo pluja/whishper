@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Self
 
-from pydantic import AnyHttpUrl, Field, field_validator, model_validator
+from pydantic import AnyHttpUrl, Field, PositiveInt, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .models import WorkerDevice
@@ -21,6 +21,8 @@ class AdapterRuntimeSettings(BaseSettings):
     compute_type: str = "int8"
     data_root: Path = Path("/data")
     model_root: Path = Path("/models")
+    # None uses every core the container may run on.
+    cpu_threads: PositiveInt | None = None
 
     @model_validator(mode="after")
     def _compute_type_matches_device(self) -> Self:
