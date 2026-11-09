@@ -318,3 +318,61 @@ async def test_download_errors_on_model_load_stay_retryable(transcribe_setup: In
 
     with pytest.raises(ConnectionError):
         await adapter.transcribe(request, noop_progress)
+
+
+def install_fake_hub_errors(monkeypatch: pytest.MonkeyPatch) -> type[Exception]:
+    class FakeLocalEntryNotFoundError(FileNotFoundError, ValueError):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules,
+        "huggingface_hub.errors",
+        SimpleNamespace(LocalEntryNotFoundError=FakeLocalEntryNotFoundError),
+    )
+    return FakeLocalEntryNotFoundError
+
+
+async def test_a_cached_model_loads_without_contacting_hugging_face(
+    settings: WorkerSettings,
+) -> None:
+    snapshot = (
+        settings.runtime.model_root
+        / "whisperx"
+        / "models--Systran--faster-whisper-small"
+        / "snapshots"
+        / "revision"
+    )
+    snapshot.mkdir(parents=True)
+    for filename in ("config.json", "model.bin", "tokenizer.json"):
+        (snapshot / filename).touch()
+
+    class RecordingWhisperX:
+        def __init__(self) -> None:
+            self.local_files_only: list[bool] = []
+
+        def load_model(self, model_id: str, device: str, **kwargs: Any) -> object:
+            self.local_files_only.append(kwargs["local_files_only"])
+            return object()
+
+    whisperx = RecordingWhisperX()
+    adapter = WhisperXAdapter(settings.runtime)
+    await adapter._load_model(whisperx, "small", None)
+    await adapter._load_model(whisperx, "tiny", None)
+
+    assert whisperx.local_files_only == [True, False]
+
+
+async def test_an_unreachable_hub_is_a_retryable_download_error(
+    transcribe_setup: InstallStub, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    missing = install_fake_hub_errors(monkeypatch)
+    adapter, request = transcribe_setup(
+        StubWhisperX(load_error=missing("Cannot find the requested files in the local cache"))
+    )
+
+    with pytest.raises(AdapterExecutionError) as raised:
+        await adapter.transcribe(request, noop_progress)
+
+    assert raised.value.retryable is True
+    assert "huggingface.co" in str(raised.value)
+    assert "ANYSUB_COMPUTE_TYPE" not in str(raised.value)

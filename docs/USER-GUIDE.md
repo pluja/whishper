@@ -29,7 +29,7 @@ The library search box matches project names. Tick **Subtitle text** to match cu
 4. Choose the spoken language, or leave it on **Detect automatically**. The list offers every language Whisper knows, with the most used ones first. Type in its search field to filter by English name, native name or code; accents are optional, so `espanol` finds Spanish.
 5. Start the transcription and leave the worker running. **Cancel** next to the progress bar stops waiting for the run, for example when no connected worker offers the model.
 
-The first run with a model downloads its weights. Accurate alignment then downloads a smaller model for the language. Both land in the `model-cache` volume and survive rebuilds. A network connection is needed only for files that are not cached yet. Telemetry from Hugging Face and Pyannote is disabled, and transcript text is never written to worker logs.
+The first run with a model downloads its weights. Accurate alignment then downloads a smaller model for the language. Both land in the `model-cache` volume and survive rebuilds. A network connection is needed only for files that are not cached yet: a downloaded speech model loads without contacting Hugging Face, so a worker can transcribe offline with the models it already has. Telemetry from Hugging Face and Pyannote is disabled, and transcript text is never written to worker logs.
 
 ### Choosing a model
 

@@ -187,6 +187,8 @@ class WhisperXAdapter:
             "compute_type": self._runtime.compute_type,
             "download_root": str(self._model_root),
             "threads": self._runtime.cpu_threads or usable_cpu_count(),
+            # A cached model loads without contacting Hugging Face, so it works offline.
+            "local_files_only": _is_cached(model_id, self._model_root),
         }
         if language:
             kwargs["language"] = language
@@ -197,6 +199,13 @@ class WhisperXAdapter:
                 self._runtime.device,
                 **kwargs,
             )
+        except _model_download_errors() as error:
+            raise AdapterExecutionError(
+                f"The {model_id} model is not downloaded yet, and the worker could not fetch it "
+                f"from Hugging Face ({describe_error(error)}). Check that the worker can reach "
+                "huggingface.co, then try again.",
+                retryable=True,
+            ) from error
         except ValueError as error:
             raise AdapterExecutionError(
                 f"The {model_id} model could not be loaded: {error}. Check ANYSUB_COMPUTE_TYPE "
@@ -264,6 +273,26 @@ def _import_whisperx() -> Any:
             "with the speech and CPU or CUDA extras.",
             retryable=False,
         ) from cause
+
+
+def _is_cached(model_id: str, model_root: Path) -> bool:
+    return any(
+        profile.id == model_id and profile.is_downloaded(model_root) for profile in MODEL_PROFILES
+    )
+
+
+def _model_download_errors() -> tuple[type[Exception], ...]:
+    try:
+        errors = import_module("huggingface_hub.errors")
+    except ImportError:
+        return ()
+    names = ("LocalEntryNotFoundError", "HfHubHTTPError", "OfflineModeIsEnabled")
+    return tuple(
+        error_type
+        for name in names
+        if isinstance(error_type := getattr(errors, name, None), type)
+        and issubclass(error_type, Exception)
+    )
 
 
 def _release_memory() -> None:
