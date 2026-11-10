@@ -8,7 +8,7 @@
   import Input from "$lib/components/ui/Input.svelte";
   import Progress from "$lib/components/ui/Progress.svelte";
   import { buttonClasses } from "$lib/components/ui/variants";
-  import { formatBytes } from "$lib/shared/format";
+  import { formatBytes, truncateText } from "$lib/shared/format";
   import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/limits";
   import { projectPageUrl } from "$lib/shared/routes";
   import { selectedFileProblem } from "./upload-messages";
@@ -103,7 +103,7 @@
   function suggestedProjectName(filename: string): string {
     const finalDot = filename.lastIndexOf(".");
     const extensionless = finalDot > 0 ? filename.slice(0, finalDot) : filename;
-    return extensionless.trim().slice(0, PROJECT_TITLE_MAX_LENGTH);
+    return truncateText(extensionless.trim(), PROJECT_TITLE_MAX_LENGTH);
   }
 
   function selectFile(file: File | null) {

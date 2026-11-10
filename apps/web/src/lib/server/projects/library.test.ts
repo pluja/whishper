@@ -41,4 +41,9 @@ describe("project library inputs", () => {
       normalizeProjectTitle("x".repeat(PROJECT_TITLE_MAX_LENGTH + 1)),
     ).toHaveLength(PROJECT_TITLE_MAX_LENGTH);
   });
+
+  it("never cuts an emoji in half at the title limit", () => {
+    const fill = "x".repeat(PROJECT_TITLE_MAX_LENGTH - 1);
+    expect(normalizeProjectTitle(`${fill}\u{1F600}`)).toBe(fill);
+  });
 });

@@ -16,6 +16,7 @@ import {
   resolveDataPath,
   stagedUploadPath,
 } from "$lib/server/storage/paths";
+import { truncateText } from "$lib/shared/format";
 import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/limits";
 
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -51,7 +52,7 @@ export function projectNameFor(
     0,
     Math.max(0, filename.length - extension.length),
   );
-  return (stem.trim() || filename).slice(0, PROJECT_TITLE_MAX_LENGTH);
+  return truncateText(stem.trim() || filename, PROJECT_TITLE_MAX_LENGTH);
 }
 
 export function createUploadProject(input: {

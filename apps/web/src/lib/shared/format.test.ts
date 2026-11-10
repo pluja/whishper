@@ -7,6 +7,7 @@ import {
   formatDuration,
   formatRelativeTime,
   pluralize,
+  truncateText,
 } from "./format";
 
 describe("formatBytes", () => {
@@ -64,5 +65,16 @@ describe("formatCompactNumber", () => {
     [809_000_000, "809M"],
   ])("shortens %d to %s", (value, expected) => {
     expect(formatCompactNumber(value)).toBe(expected);
+  });
+});
+
+describe("truncateText", () => {
+  it("keeps text within the limit unchanged", () => {
+    expect(truncateText("short", 10)).toBe("short");
+  });
+
+  it("drops an emoji the limit would cut in half", () => {
+    expect(truncateText("ab\u{1F600}c", 3)).toBe("ab");
+    expect(truncateText("ab\u{1F600}c", 4)).toBe("ab\u{1F600}");
   });
 });

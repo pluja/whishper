@@ -33,6 +33,15 @@ export function formatDuration(microseconds: number): string {
   return formatClock(Math.round(microseconds / 1_000_000));
 }
 
+// Limits count UTF-16 units like an input's maxlength, but the cut never
+// splits a surrogate pair, so an emoji is kept whole or dropped.
+export function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  const lastKept = text.charCodeAt(maxLength - 1);
+  const splitsPair = lastKept >= 0xd800 && lastKept <= 0xdbff;
+  return text.slice(0, splitsPair ? maxLength - 1 : maxLength);
+}
+
 export function pluralize(count: number, noun: string): string {
   return `${count} ${count === 1 ? noun : `${noun}s`}`;
 }

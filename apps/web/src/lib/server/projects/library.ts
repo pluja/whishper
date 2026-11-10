@@ -14,6 +14,7 @@ import {
 } from "$lib/server/db/schema";
 import { projectForUser } from "$lib/server/projects/access";
 import { IDLE_BEFORE_RETRY_MS } from "$lib/server/uploads/maintenance";
+import { truncateText } from "$lib/shared/format";
 import type {
   LibrarySearch,
   ProjectSummary,
@@ -34,9 +35,10 @@ export function parseProjectLibrarySearch(
   searchParams: URLSearchParams,
 ): LibrarySearch {
   return {
-    query: (searchParams.get("q") ?? "")
-      .trim()
-      .slice(0, PROJECT_SEARCH_MAX_LENGTH),
+    query: truncateText(
+      (searchParams.get("q") ?? "").trim(),
+      PROJECT_SEARCH_MAX_LENGTH,
+    ),
     includeSubtitles: searchParams.get("scope") === "subtitles",
   };
 }
@@ -44,12 +46,12 @@ export function parseProjectLibrarySearch(
 export function normalizeProjectTitle(
   value: FormDataEntryValue | null,
 ): string {
-  return String(value ?? "")
+  const title = String(value ?? "")
     .normalize("NFC")
     .replace(/[\u0000-\u001f\u007f]/g, " ")
     .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, PROJECT_TITLE_MAX_LENGTH);
+    .trim();
+  return truncateText(title, PROJECT_TITLE_MAX_LENGTH);
 }
 
 export function primaryWorkspaceForUser(
