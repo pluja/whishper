@@ -10,6 +10,7 @@
   } from "$lib/library/drop-zone";
   import Icon from "$lib/components/Icon.svelte";
   import Button from "$lib/components/ui/Button.svelte";
+  import EmptyState from "$lib/components/ui/EmptyState.svelte";
   import Input from "$lib/components/ui/Input.svelte";
   import { buttonClasses } from "$lib/components/ui/variants";
   import { pollWhileActive } from "$lib/browser/polling.svelte";
@@ -216,34 +217,26 @@
       </p>
     </div>
 
-    {#if data.projects.length === 0}
-      <div
-        class="grid justify-items-center gap-3 rounded-lg border border-dashed border-border-strong bg-surface px-6 py-14 text-center"
+    {#if data.projects.length === 0 && hasActiveSearch}
+      <EmptyState
+        icon="search"
+        title="No projects match this search"
+        tone="accent"
       >
-        <span
-          class="grid size-11 place-items-center rounded-full bg-accent-soft text-accent"
-          aria-hidden="true"
-        >
-          <Icon name={hasActiveSearch ? "search" : "subtitles"} size={20} />
-        </span>
-        {#if hasActiveSearch}
-          <h3 class="text-base font-semibold text-text">
-            No projects match this search
-          </h3>
-          <p class="max-w-sm text-sm text-text-muted">
-            {data.search.includeSubtitles
-              ? "Try a shorter project title or subtitle phrase."
-              : "Try another title or include subtitle text in your search."}
-          </p>
-          <Button href="/">Clear search</Button>
-        {:else}
-          <h3 class="text-base font-semibold text-text">No projects yet</h3>
-          {#if data.workspace}
-            {@render newProjectButton()}
-            <p class="text-sm text-text-muted">or drop a media file anywhere</p>
-          {/if}
+        <p>
+          {data.search.includeSubtitles
+            ? "Try a shorter project title or subtitle phrase."
+            : "Try another title or include subtitle text in your search."}
+        </p>
+        <Button href="/">Clear search</Button>
+      </EmptyState>
+    {:else if data.projects.length === 0}
+      <EmptyState icon="subtitles" title="No projects yet" tone="accent">
+        {#if data.workspace}
+          {@render newProjectButton()}
+          <p>or drop a media file anywhere</p>
         {/if}
-      </div>
+      </EmptyState>
     {:else}
       <div class="overflow-hidden rounded-lg border border-border bg-surface">
         <div

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import EmptyState from "$lib/admin/EmptyState.svelte";
+  import EmptyState from "$lib/components/ui/EmptyState.svelte";
   import FormMessage from "$lib/admin/FormMessage.svelte";
   import SectionHeader from "$lib/admin/SectionHeader.svelte";
   import WorkerCard from "$lib/admin/WorkerCard.svelte";
