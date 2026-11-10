@@ -9,7 +9,7 @@
     "build": "pnpm --recursive build",
     "check": "pnpm --recursive check",
     "test": "pnpm --recursive test",
-    "format:check": "prettier --check --ignore-path .gitignore --ignore-path .git/info/exclude --ignore-path .prettierignore . && pnpm --recursive format:check"
+    "format:check": "prettier --check --ignore-path .gitignore --ignore-path .prettierignore $(test -f .git/info/exclude && echo --ignore-path .git/info/exclude) . && pnpm --recursive format:check"
   },
   "devDependencies": {
     "prettier": "catalog:"
