@@ -123,7 +123,7 @@ async def test_a_failed_download_is_retryable_and_keeps_its_partial_files(
     assert (PROFILE.cache_directory(tmp_path) / "blobs" / "model.incomplete").exists()
 
 
-async def test_cancelling_a_download_stops_it_and_keeps_its_partial_files(
+async def test_cancelling_a_download_stops_it_and_removes_its_partial_files(
     tmp_path: Path,
 ) -> None:
     partial = PROFILE.cache_directory(tmp_path) / "blobs" / "model.incomplete"
@@ -141,7 +141,7 @@ async def test_cancelling_a_download_stops_it_and_keeps_its_partial_files(
         with pytest.raises(asyncio.CancelledError):
             await download
 
-    assert partial.exists()
+    assert not PROFILE.cache_directory(tmp_path).exists()
 
 
 def free_space(monkeypatch: pytest.MonkeyPatch, free: int) -> None:

@@ -31,10 +31,15 @@ async def download_profile(
         _require_free_space(profile, model_root)
         await _run_download(profile, model_root, report_progress, command)
     except AdapterExecutionError as error:
-        # huggingface_hub resumes the partial files a stopped download leaves, so
+        # huggingface_hub resumes the partial files a failed download leaves, so
         # they stay for the retry and only a failure that ends the job removes them.
         if not error.retryable:
             _discard_unfinished(profile, model_root)
+        raise
+    except asyncio.CancelledError:
+        # A cancelled download is usually one the admin stopped on purpose, and
+        # the models page can only remove a model that finished downloading.
+        _discard_unfinished(profile, model_root)
         raise
     await report_progress(1.0, f"Downloaded {profile.display_name}")
 
