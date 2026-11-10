@@ -134,6 +134,21 @@ describe("model downloads", () => {
     expect(inventoryModel(worker.workerId, "small")?.task).toBeNull();
   });
 
+  it("reject a completion for a different action", async () => {
+    const worker = connectWorker();
+    download(worker.workerId);
+    const lease = await leaseJob(worker);
+    if (!lease) throw new Error("Expected a lease");
+
+    await expect(
+      completeJob(lease.jobId, lease.leaseToken, {
+        kind: "model_cache",
+        action: "delete",
+      }),
+    ).rejects.toMatchObject({ statusCode: 422 });
+    expect(inventoryModel(worker.workerId, "small")?.task?.started).toBe(true);
+  });
+
   it("show the last failure until the next attempt", async () => {
     const worker = connectWorker();
     requestModelTask({

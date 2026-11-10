@@ -56,7 +56,12 @@ export async function completeJob(
     }
 
     if (job.payload.kind === "model_cache") {
-      if (completion.kind !== "model_cache") throw completionKindMismatch();
+      if (
+        completion.kind !== "model_cache" ||
+        completion.action !== job.payload.action
+      ) {
+        throw completionKindMismatch();
+      }
       return withTransaction((tx) => {
         const current = leasedJob(tx, jobId, leaseToken);
         if (typeof current === "string") return current;
