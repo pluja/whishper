@@ -43,14 +43,13 @@
   let { project, now, eagerThumbnail, renameAction, form }: Props = $props();
 
   // svelte-ignore state_referenced_locally
-  let editing = $state(form?.renameProjectId === project.id);
+  const failedRename = form?.renameProjectId === project.id ? form : null;
+  let editing = $state(failedRename !== null);
   // svelte-ignore state_referenced_locally
   let renameDraft = $state(project.name);
   let renameSaving = $state(false);
+  let renameError = $state(failedRename?.renameError ?? "");
   let menuTrigger: HTMLElement | undefined;
-  let renameError = $derived(
-    form?.renameProjectId === project.id ? (form.renameError ?? "") : "",
-  );
   let hasDuration = $derived(
     project.mediaDurationUs !== null && project.mediaDurationUs > 0,
   );
@@ -58,6 +57,7 @@
 
   function beginRename() {
     renameDraft = project.name;
+    renameError = "";
     editing = true;
   }
 
@@ -95,8 +95,16 @@
         await endRename();
         return;
       }
-      if (result.type === "failure") editing = true;
-      else if (result.type === "success") void endRename();
+      if (result.type === "failure") {
+        const message = result.data?.renameError;
+        renameError =
+          typeof message === "string"
+            ? message
+            : "The title could not be saved. Try again.";
+        editing = true;
+        return;
+      }
+      if (result.type === "success") void endRename();
       await update({ reset: false });
     };
   };
