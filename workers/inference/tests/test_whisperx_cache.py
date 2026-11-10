@@ -30,8 +30,9 @@ import sys, time
 from pathlib import Path
 cache = Path(sys.argv[1])
 blobs = cache / "blobs"
-blobs.mkdir(parents=True)
-(blobs / "model.incomplete").write_bytes(b"x" * 500)
+blobs.mkdir(parents=True, exist_ok=True)
+with (blobs / "model.incomplete").open("ab") as partial:
+    partial.write(b"x" * 500)
 time.sleep(0.4)
 (blobs / "model.incomplete").rename(blobs / "model")
 snapshot = cache / "snapshots" / "revision"
@@ -94,7 +95,22 @@ async def test_a_download_reports_partial_progress_until_the_snapshot_is_complet
     assert progress.fractions == sorted(progress.fractions)
 
 
-async def test_a_failed_download_is_retryable_and_frees_its_disk_space(
+async def test_a_resumed_download_continues_from_its_partial_files(tmp_path: Path) -> None:
+    partial = PROFILE.cache_directory(tmp_path) / "blobs" / "model.incomplete"
+    partial.parent.mkdir(parents=True)
+    partial.write_bytes(b"x" * 400)
+    progress = RecordedProgress()
+
+    await cache.download_profile(
+        PROFILE, tmp_path, progress, command=command(FINISHING_DOWNLOAD, tmp_path)
+    )
+
+    assert PROFILE.is_downloaded(tmp_path)
+    assert progress.fractions[0] == 0.4
+    assert (PROFILE.cache_directory(tmp_path) / "blobs" / "model").stat().st_size == 900
+
+
+async def test_a_failed_download_is_retryable_and_keeps_its_partial_files(
     tmp_path: Path,
 ) -> None:
     with pytest.raises(AdapterExecutionError) as raised:
@@ -104,10 +120,10 @@ async def test_a_failed_download_is_retryable_and_frees_its_disk_space(
 
     assert raised.value.retryable is True
     assert "OSError: network is unreachable" in str(raised.value)
-    assert not PROFILE.cache_directory(tmp_path).exists()
+    assert (PROFILE.cache_directory(tmp_path) / "blobs" / "model.incomplete").exists()
 
 
-async def test_cancelling_a_download_stops_it_and_frees_its_disk_space(
+async def test_cancelling_a_download_stops_it_and_keeps_its_partial_files(
     tmp_path: Path,
 ) -> None:
     partial = PROFILE.cache_directory(tmp_path) / "blobs" / "model.incomplete"
@@ -125,15 +141,22 @@ async def test_cancelling_a_download_stops_it_and_frees_its_disk_space(
         with pytest.raises(asyncio.CancelledError):
             await download
 
-    assert not PROFILE.cache_directory(tmp_path).exists()
+    assert partial.exists()
 
 
-async def test_a_download_that_does_not_fit_fails_permanently_before_starting(
+def free_space(monkeypatch: pytest.MonkeyPatch, free: int) -> None:
+    monkeypatch.setattr(
+        cache.shutil, "disk_usage", lambda path: SimpleNamespace(total=10_000, used=0, free=free)
+    )
+
+
+async def test_a_download_that_does_not_fit_fails_permanently_and_removes_its_partial_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        cache.shutil, "disk_usage", lambda path: SimpleNamespace(total=10_000, used=9_900, free=100)
-    )
+    partial = PROFILE.cache_directory(tmp_path) / "blobs" / "model.incomplete"
+    partial.parent.mkdir(parents=True)
+    partial.write_bytes(b"x" * 100)
+    free_space(monkeypatch, 100)
 
     with pytest.raises(AdapterExecutionError, match="needs") as raised:
         await cache.download_profile(
@@ -142,6 +165,21 @@ async def test_a_download_that_does_not_fit_fails_permanently_before_starting(
 
     assert raised.value.retryable is False
     assert not PROFILE.cache_directory(tmp_path).exists()
+
+
+async def test_partial_files_count_toward_the_space_a_download_needs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    partial = PROFILE.cache_directory(tmp_path) / "blobs" / "model.incomplete"
+    partial.parent.mkdir(parents=True)
+    partial.write_bytes(b"x" * 600)
+    free_space(monkeypatch, 500)
+
+    await cache.download_profile(
+        PROFILE, tmp_path, RecordedProgress(), command=command(FINISHING_DOWNLOAD, tmp_path)
+    )
+
+    assert PROFILE.is_downloaded(tmp_path)
 
 
 async def test_deleting_a_model_removes_its_cache_and_lock_directories(tmp_path: Path) -> None:

@@ -27,10 +27,26 @@ async def download_profile(
     command: Sequence[str] | None = None,
 ) -> None:
     model_root.mkdir(parents=True, exist_ok=True)
-    cache_directory = profile.cache_directory(model_root)
-    _require_free_space(profile, model_root, cache_directory)
+    try:
+        _require_free_space(profile, model_root)
+        await _run_download(profile, model_root, report_progress, command)
+    except AdapterExecutionError as error:
+        # huggingface_hub resumes the partial files a stopped download leaves, so
+        # they stay for the retry and only a failure that ends the job removes them.
+        if not error.retryable:
+            _discard_unfinished(profile, model_root)
+        raise
+    await report_progress(1.0, f"Downloaded {profile.display_name}")
 
-    await report_progress(0.0, f"Downloading {profile.display_name}")
+
+async def _run_download(
+    profile: ModelProfile,
+    model_root: Path,
+    report_progress: ProgressReporter,
+    command: Sequence[str] | None,
+) -> None:
+    message = f"Downloading {profile.display_name}"
+    await report_progress(_downloaded_fraction(profile, model_root), message)
     process = await asyncio.create_subprocess_exec(
         *(command or (sys.executable, "-m", DOWNLOAD_MODULE, profile.id, str(model_root))),
         stdin=asyncio.subprocess.DEVNULL,
@@ -50,20 +66,16 @@ async def download_profile(
                     await process.wait()
                 break
             except TimeoutError:
-                received = _directory_bytes(cache_directory / "blobs")
-                progress = min(received / profile.download_size_bytes, MAX_RUNNING_PROGRESS)
-                await report_progress(progress, f"Downloading {profile.display_name}")
+                await report_progress(_downloaded_fraction(profile, model_root), message)
         error_output = (await stderr)[-STDERR_TAIL_BYTES:].decode(errors="replace")
     except BaseException:
         stderr.cancel()
         if process.returncode is None:
             process.kill()
             await process.wait()
-        _discard_unfinished(profile, model_root)
         raise
 
     if process.returncode != 0:
-        _discard_unfinished(profile, model_root)
         detail = _last_line(error_output) or f"exit status {process.returncode}"
         raise AdapterExecutionError(
             f"The {profile.display_name} model could not be downloaded ({detail}). Check that "
@@ -75,7 +87,6 @@ async def download_profile(
             f"The {profile.display_name} model download finished without all of its files.",
             retryable=True,
         )
-    await report_progress(1.0, f"Downloaded {profile.display_name}")
 
 
 async def delete_profile(profile: ModelProfile, model_root: Path) -> None:
@@ -85,16 +96,26 @@ async def delete_profile(profile: ModelProfile, model_root: Path) -> None:
         await run_in_thread(shutil.rmtree, directory, ignore_errors=True)
 
 
-def _require_free_space(profile: ModelProfile, model_root: Path, cache_directory: Path) -> None:
-    missing = profile.download_size_bytes - _directory_bytes(cache_directory / "blobs")
-    available = shutil.disk_usage(model_root).free
-    if missing > available:
+def _require_free_space(profile: ModelProfile, model_root: Path) -> None:
+    # Partial files count as free space: the download resumes them, and a
+    # download that does not fit removes them.
+    usable = shutil.disk_usage(model_root).free + _blob_bytes(profile, model_root)
+    if profile.download_size_bytes > usable:
         raise AdapterExecutionError(
-            f"The {profile.display_name} model needs {_gigabytes(missing)} of free space, but "
-            f"the model volume has {_gigabytes(available)} left. Remove a model or free up "
-            "disk space, then try again.",
+            f"The {profile.display_name} model needs "
+            f"{_gigabytes(profile.download_size_bytes)} of free space, but the model volume "
+            f"has {_gigabytes(usable)} left. Remove a model or free up disk space, then try "
+            "again.",
             retryable=False,
         )
+
+
+def _downloaded_fraction(profile: ModelProfile, model_root: Path) -> float:
+    return min(_blob_bytes(profile, model_root) / profile.download_size_bytes, MAX_RUNNING_PROGRESS)
+
+
+def _blob_bytes(profile: ModelProfile, model_root: Path) -> int:
+    return _directory_bytes(profile.cache_directory(model_root) / "blobs")
 
 
 def _directory_bytes(directory: Path) -> int:
@@ -112,8 +133,6 @@ def _directory_bytes(directory: Path) -> int:
     return total
 
 
-# Only models that are not downloaded yet are fetched, so an unfinished
-# folder holds nothing worth keeping and its disk space goes back.
 def _discard_unfinished(profile: ModelProfile, model_root: Path) -> None:
     if not profile.is_downloaded(model_root):
         shutil.rmtree(profile.cache_directory(model_root), ignore_errors=True)
