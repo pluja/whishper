@@ -39,7 +39,9 @@ export class PaneWidth {
     const storedWidth = readStorage(STORAGE_KEY);
     if (storedWidth === null) return;
     const parsedWidth = Number(storedWidth);
-    if (Number.isFinite(parsedWidth)) this.width = this.#clamp(parsedWidth);
+    if (Number.isFinite(parsedWidth)) {
+      this.width = clamp(parsedWidth, MIN_WIDTH_PX, MAX_WIDTH_PX);
+    }
   }
 
   #persist(): void {

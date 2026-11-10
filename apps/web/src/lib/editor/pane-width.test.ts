@@ -110,6 +110,30 @@ describe("PaneWidth", () => {
     expect(pane.value).toBe(548);
   });
 
+  it("keeps a stored width that the current viewport cannot fit yet", () => {
+    storage.set("anysub:editor-pane-width", "700");
+    vi.stubGlobal(
+      "window",
+      Object.assign(new EventTarget(), { innerWidth: 1100 }),
+    );
+    const pane = new PaneWidth();
+    pane.restore();
+    expect([pane.width, pane.value]).toEqual([700, 572]);
+
+    vi.stubGlobal(
+      "window",
+      Object.assign(new EventTarget(), { innerWidth: 1600 }),
+    );
+    expect(pane.value).toBe(700);
+  });
+
+  it("restores a stored width only within the pane's limits", () => {
+    storage.set("anysub:editor-pane-width", "9000");
+    const pane = new PaneWidth();
+    pane.restore();
+    expect(pane.width).toBe(760);
+  });
+
   it("steps with the arrow keys and stays within its range", () => {
     const pane = new PaneWidth();
     pane.resizeWithKeyboard(keyDown("ArrowLeft"));
