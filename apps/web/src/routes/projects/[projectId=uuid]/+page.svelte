@@ -30,8 +30,9 @@
 
   let shortcutGuideOpen = $state(false);
   let transcribeDialogOpen = $state(false);
-  let hasSourceMedia = $derived(Boolean(data.project.mediaOriginalKey));
-  let hasTrackAndMedia = $derived(data.track !== null && hasSourceMedia);
+  let hasTrackAndMedia = $derived(
+    data.track !== null && data.project.hasSourceMedia,
+  );
   let maxLineLength = $derived(
     Number(data.track?.metadata?.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH),
   );
@@ -204,7 +205,7 @@
       run={data.run}
       preparation={data.preparation}
       mediaPreparationStatus={data.project.mediaPreparationStatus}
-      {hasSourceMedia}
+      hasSourceMedia={data.project.hasSourceMedia}
       transcriptionModels={data.transcriptionModels}
       detectedHardware={data.detectedHardware}
       transcriptionDefaults={data.transcriptionDefaults}

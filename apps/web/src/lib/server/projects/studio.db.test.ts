@@ -31,7 +31,7 @@ describe("studio queries", () => {
     expect(studioProject(db, project.projectId)).toMatchObject({
       id: project.projectId,
       workspaceName: "Workspace",
-      mediaOriginalKey: "media/source.mp4",
+      hasSourceMedia: true,
       mediaType: "video/mp4",
       uploadStatus: "completed",
       sizeBytes: 6_000_000_000,
@@ -41,6 +41,10 @@ describe("studio queries", () => {
 
   it("returns empty results for a project without activity", async () => {
     const project = await seedProject();
+
+    expect(studioProject(db, project.projectId)).toMatchObject({
+      hasSourceMedia: false,
+    });
 
     expect(latestRun(db, project.projectId)).toBeNull();
     expect(latestMediaPreparation(db, project.projectId)).toBeNull();

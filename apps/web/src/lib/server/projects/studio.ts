@@ -30,7 +30,7 @@ export function studioProject(
   executor: Executor,
   projectId: string,
 ): StudioProject | null {
-  const project = executor
+  const row = executor
     .select({
       id: projects.id,
       name: projects.name,
@@ -54,7 +54,9 @@ export function studioProject(
     .leftJoin(mediaUploads, eq(mediaUploads.projectId, projects.id))
     .where(eq(projects.id, projectId))
     .get();
-  return project ?? null;
+  if (!row) return null;
+  const { mediaOriginalKey, ...project } = row;
+  return { ...project, hasSourceMedia: Boolean(mediaOriginalKey) };
 }
 
 export function latestRun(

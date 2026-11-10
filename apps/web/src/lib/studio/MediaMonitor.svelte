@@ -23,7 +23,7 @@
   let thumbnailUrl = $derived(derivativeUrl(derivatives, "thumbnail"));
   let previewUrl = $derived(proxyUrl ?? projectMediaUrl(project.id));
   let isVideo = $derived(
-    Boolean(project.mediaOriginalKey) &&
+    project.hasSourceMedia &&
       !isAudioMedia(project.mediaType, project.mediaFilename),
   );
   let noMedia = $derived(!transport.mediaElement);
@@ -48,7 +48,7 @@
       ? 'aspect-video bg-black [container-type:size] lg:aspect-auto'
       : 'bg-surface-sunken py-8'}"
   >
-    {#if !project.mediaOriginalKey}
+    {#if !project.hasSourceMedia}
       <div class="grid justify-items-center gap-3 text-text-muted">
         <span
           class="grid size-12 place-items-center rounded-full border border-border bg-surface"

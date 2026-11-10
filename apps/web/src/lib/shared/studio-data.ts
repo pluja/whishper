@@ -15,7 +15,7 @@ export type StudioProject = {
   createdAt: Date;
   workspaceName: string;
   mediaFilename: string | null;
-  mediaOriginalKey: string | null;
+  hasSourceMedia: boolean;
   mediaType: string | null;
   uploadStatus: string | null;
   sizeBytes: number | null;
