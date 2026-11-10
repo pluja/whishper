@@ -1,4 +1,5 @@
 import { auth } from "$lib/server/auth/auth";
+import { isAuthError } from "$lib/server/auth/errors";
 import { isInstanceInitialized } from "$lib/server/auth/instance";
 import {
   attemptKeys,
@@ -7,6 +8,8 @@ import {
 } from "$lib/server/auth/throttle";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
+
+const BAD_CREDENTIALS = ["INVALID_EMAIL", "INVALID_EMAIL_OR_PASSWORD"];
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (!isInstanceInitialized()) redirect(303, "/setup");
@@ -22,15 +25,15 @@ export const actions: Actions = {
       .toLowerCase();
     const password = String(form.get("password") ?? "");
     const keys = attemptKeys(getClientAddress(), email);
-    const waitMs = signInThrottle.retryAfterMs(keys);
+    const waitMs = signInThrottle.beginAttempt(keys);
     if (waitMs > 0) return fail(429, { message: retryMessage(waitMs) });
     try {
       await auth.api.signInEmail({
         body: { email, password },
         headers: request.headers,
       });
-    } catch {
-      signInThrottle.recordFailure(keys);
+    } catch (cause) {
+      if (!isAuthError(cause, BAD_CREDENTIALS)) throw cause;
       return fail(400, {
         message: "The email or password did not match an account.",
       });

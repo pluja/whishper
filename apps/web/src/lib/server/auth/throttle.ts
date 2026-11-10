@@ -9,8 +9,10 @@ const MAX_TRACKED_KEYS = 10_000;
 type FailureRecord = { failures: number; lastFailureAt: number };
 
 export type AttemptThrottle = {
-  retryAfterMs(keys: string[], now?: number): number;
-  recordFailure(keys: string[], now?: number): void;
+  // Counts the attempt as failed before the caller checks the secret, so
+  // concurrent requests cannot all pass on the same count. Returns how long
+  // to wait when the attempt is refused, or 0 when it may go ahead.
+  beginAttempt(keys: string[], now?: number): number;
   recordSuccess(keys: string[]): void;
 };
 
@@ -43,25 +45,32 @@ export function createAttemptThrottle(): AttemptThrottle {
     }
   }
 
+  function retryAfterMs(keys: string[], now: number): number {
+    let wait = 0;
+    for (const key of keys) {
+      const record = current(key, now);
+      if (!record) continue;
+      const remaining =
+        record.lastFailureAt + delayAfter(record.failures) - now;
+      wait = Math.max(wait, remaining);
+    }
+    return wait;
+  }
+
+  function recordFailure(keys: string[], now: number): void {
+    for (const key of keys) {
+      const failures = (current(key, now)?.failures ?? 0) + 1;
+      records.delete(key);
+      records.set(key, { failures, lastFailureAt: now });
+    }
+    evictOldest();
+  }
+
   return {
-    retryAfterMs(keys, now = Date.now()) {
-      let wait = 0;
-      for (const key of keys) {
-        const record = current(key, now);
-        if (!record) continue;
-        const remaining =
-          record.lastFailureAt + delayAfter(record.failures) - now;
-        wait = Math.max(wait, remaining);
-      }
+    beginAttempt(keys, now = Date.now()) {
+      const wait = retryAfterMs(keys, now);
+      if (wait === 0) recordFailure(keys, now);
       return wait;
-    },
-    recordFailure(keys, now = Date.now()) {
-      for (const key of keys) {
-        const failures = (current(key, now)?.failures ?? 0) + 1;
-        records.delete(key);
-        records.set(key, { failures, lastFailureAt: now });
-      }
-      evictOldest();
     },
     recordSuccess(keys) {
       for (const key of keys) records.delete(key);

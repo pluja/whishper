@@ -1,4 +1,5 @@
 import { auth } from "$lib/server/auth/auth";
+import { isAuthError } from "$lib/server/auth/errors";
 import { passwordLengthProblem } from "$lib/server/auth/password";
 import { requireUserOrLogin } from "$lib/server/auth/session";
 import {
@@ -7,7 +8,6 @@ import {
   signInThrottle,
 } from "$lib/server/auth/throttle";
 import { fail } from "@sveltejs/kit";
-import { APIError } from "better-auth/api";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ locals }) => {
@@ -33,7 +33,7 @@ export const actions: Actions = {
 
     // Keyed like sign-in, so a stolen session cannot guess the password faster.
     const keys = attemptKeys(getClientAddress(), user.email);
-    const waitMs = signInThrottle.retryAfterMs(keys);
+    const waitMs = signInThrottle.beginAttempt(keys);
     if (waitMs > 0) {
       return rejected("currentPassword", retryMessage(waitMs), 429);
     }
@@ -43,17 +43,8 @@ export const actions: Actions = {
         headers: request.headers,
       });
     } catch (cause) {
-      if (
-        cause instanceof APIError &&
-        cause.body?.code === "INVALID_PASSWORD"
-      ) {
-        signInThrottle.recordFailure(keys);
-        return rejected(
-          "currentPassword",
-          "That is not your current password.",
-        );
-      }
-      throw cause;
+      if (!isAuthError(cause, ["INVALID_PASSWORD"])) throw cause;
+      return rejected("currentPassword", "That is not your current password.");
     }
     signInThrottle.recordSuccess(keys);
     return { changed: true };

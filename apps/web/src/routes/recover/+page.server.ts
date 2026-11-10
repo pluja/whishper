@@ -39,12 +39,11 @@ export const actions: Actions = {
       fail(status, { requested: true, field, message, email });
 
     const keys = attemptKeys(getClientAddress());
-    const waitMs = hostCodeThrottle.retryAfterMs(keys);
+    const waitMs = hostCodeThrottle.beginAttempt(keys);
     if (waitMs > 0) {
       return rejected("recoveryCode", retryMessage(waitMs), 429);
     }
     if (!isRecoveryCode(code)) {
-      hostCodeThrottle.recordFailure(keys);
       return rejected(
         "recoveryCode",
         "That code does not match the latest one in the log, or it is older than 15 minutes.",

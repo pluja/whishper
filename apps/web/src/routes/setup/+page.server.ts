@@ -33,7 +33,7 @@ export const actions: Actions = {
       fail(400, { field, message, name, email });
 
     const keys = attemptKeys(getClientAddress());
-    const waitMs = hostCodeThrottle.retryAfterMs(keys);
+    const waitMs = hostCodeThrottle.beginAttempt(keys);
     if (waitMs > 0) {
       return fail(429, {
         field: "setupCode",
@@ -43,7 +43,6 @@ export const actions: Actions = {
       });
     }
     if (!isSetupCode(setupCode)) {
-      hostCodeThrottle.recordFailure(keys);
       return rejected(
         "setupCode",
         "That setup code does not match the one in the log.",

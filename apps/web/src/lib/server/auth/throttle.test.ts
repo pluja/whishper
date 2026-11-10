@@ -4,91 +4,100 @@ import {
   attemptKeys,
   createAttemptThrottle,
   retryMessage,
+  type AttemptThrottle,
 } from "$lib/server/auth/throttle";
 
 const KEYS = attemptKeys("192.0.2.10", "owner@example.test");
 
-function failTimes(
-  throttle: ReturnType<typeof createAttemptThrottle>,
+// Fails `count` attempts, each as soon as the throttle admits it, and returns
+// the time of the last one.
+function failInARow(
+  throttle: AttemptThrottle,
   keys: string[],
   count: number,
-  now: number,
-) {
-  for (let attempt = 0; attempt < count; attempt += 1) {
-    throttle.recordFailure(keys, now);
+  start = 0,
+): number {
+  let now = start;
+  let failed = 0;
+  while (failed < count) {
+    const wait = throttle.beginAttempt(keys, now);
+    if (wait === 0) failed += 1;
+    else now += wait;
   }
+  return now;
 }
 
 describe("createAttemptThrottle", () => {
-  it("lets the first five failures through without a delay", () => {
+  it("admits five attempts that arrive at once and makes the rest wait", () => {
     const throttle = createAttemptThrottle();
-    failTimes(throttle, KEYS, 4, 0);
-    expect(throttle.retryAfterMs(KEYS, 0)).toBe(0);
+    const waits = Array.from({ length: 8 }, () =>
+      throttle.beginAttempt(KEYS, 0),
+    );
+    expect(waits).toEqual([0, 0, 0, 0, 0, 1_000, 1_000, 1_000]);
   });
 
   it("doubles the delay after each further failure, up to one minute", () => {
     const throttle = createAttemptThrottle();
-    failTimes(throttle, KEYS, 5, 0);
-    expect(throttle.retryAfterMs(KEYS, 0)).toBe(1_000);
-    throttle.recordFailure(KEYS, 0);
-    expect(throttle.retryAfterMs(KEYS, 0)).toBe(2_000);
-    failTimes(throttle, KEYS, 20, 0);
-    expect(throttle.retryAfterMs(KEYS, 0)).toBe(60_000);
+    let last = failInARow(throttle, KEYS, 5);
+    expect(throttle.beginAttempt(KEYS, last)).toBe(1_000);
+    last = failInARow(throttle, KEYS, 1, last);
+    expect(throttle.beginAttempt(KEYS, last)).toBe(2_000);
+    last = failInARow(throttle, KEYS, 20, last);
+    expect(throttle.beginAttempt(KEYS, last)).toBe(60_000);
   });
 
   it("counts the wait from the latest failure", () => {
     const throttle = createAttemptThrottle();
-    failTimes(throttle, KEYS, 6, 10_000);
-    expect(throttle.retryAfterMs(KEYS, 11_500)).toBe(500);
-    expect(throttle.retryAfterMs(KEYS, 12_000)).toBe(0);
+    expect(failInARow(throttle, KEYS, 6, 10_000)).toBe(11_000);
+    expect(throttle.beginAttempt(KEYS, 12_500)).toBe(500);
+    expect(throttle.beginAttempt(KEYS, 13_000)).toBe(0);
   });
 
   it("throttles an account attacked from many addresses", () => {
     const throttle = createAttemptThrottle();
-    for (let index = 0; index < 6; index += 1) {
-      throttle.recordFailure(attemptKeys(`198.51.100.${index}`, "owner"), 0);
-    }
-    expect(throttle.retryAfterMs(attemptKeys("203.0.113.1", "owner"), 0)).toBe(
-      2_000,
+    const waits = Array.from({ length: 6 }, (_, index) =>
+      throttle.beginAttempt(attemptKeys(`198.51.100.${index}`, "owner"), 0),
+    );
+    expect(waits.at(-1)).toBe(1_000);
+    expect(throttle.beginAttempt(attemptKeys("203.0.113.1", "owner"), 0)).toBe(
+      1_000,
     );
   });
 
   it("throttles one address that sprays many accounts", () => {
     const throttle = createAttemptThrottle();
-    for (let index = 0; index < 6; index += 1) {
-      throttle.recordFailure(attemptKeys("192.0.2.99", `user${index}`), 0);
-    }
-    expect(throttle.retryAfterMs(attemptKeys("192.0.2.99", "owner"), 0)).toBe(
-      2_000,
+    const waits = Array.from({ length: 6 }, (_, index) =>
+      throttle.beginAttempt(attemptKeys("192.0.2.99", `user${index}`), 0),
+    );
+    expect(waits.at(-1)).toBe(1_000);
+    expect(throttle.beginAttempt(attemptKeys("192.0.2.99", "owner"), 0)).toBe(
+      1_000,
     );
   });
 
   it("forgets failures after fifteen quiet minutes", () => {
     const throttle = createAttemptThrottle();
-    failTimes(throttle, KEYS, 10, 0);
-    const later = 15 * 60_000 + 1;
-    expect(throttle.retryAfterMs(KEYS, later)).toBe(0);
-    throttle.recordFailure(KEYS, later);
-    expect(throttle.retryAfterMs(KEYS, later)).toBe(0);
+    const later = failInARow(throttle, KEYS, 10) + 15 * 60_000 + 1;
+    expect(throttle.beginAttempt(KEYS, later)).toBe(0);
+    expect(throttle.beginAttempt(KEYS, later)).toBe(0);
   });
 
   it("clears the keys of a successful attempt", () => {
     const throttle = createAttemptThrottle();
-    failTimes(throttle, KEYS, 8, 0);
+    const last = failInARow(throttle, KEYS, 8);
     throttle.recordSuccess(KEYS);
-    expect(throttle.retryAfterMs(KEYS, 0)).toBe(0);
+    expect(throttle.beginAttempt(KEYS, last)).toBe(0);
   });
 
   it("keeps tracking the newest keys when it reaches its size limit", () => {
     const throttle = createAttemptThrottle();
     const target = attemptKeys("192.0.2.1");
-    failTimes(throttle, target, 6, 0);
+    const last = failInARow(throttle, target, 6);
     for (let index = 0; index < 10_000; index += 1) {
-      throttle.recordFailure([`address:filler-${index}`], 1);
+      throttle.beginAttempt([`address:filler-${index}`], last);
     }
-    expect(throttle.retryAfterMs(target, 1)).toBe(0);
-    throttle.recordFailure(target, 2);
-    expect(throttle.retryAfterMs(target, 2)).toBe(0);
+    expect(throttle.beginAttempt(target, last)).toBe(0);
+    expect(throttle.beginAttempt(target, last)).toBe(0);
   });
 });
 
