@@ -7,6 +7,11 @@ import type {
 
 import { formatBytes } from "$lib/shared/format";
 import {
+  PRECISION_MEMORY_FACTORS,
+  type Precision,
+} from "$lib/shared/instance-settings";
+import { isRecord } from "$lib/shared/is-record";
+import {
   modelKey,
   type AvailableTranscriptionModel,
   type DetectedWorkerHardware,
@@ -23,6 +28,7 @@ const FIT_RANK: Record<ModelFit, number> = {
 
 export function availableTranscriptionModels(
   manifests: WorkerManifest[],
+  precision: Precision,
 ): AvailableTranscriptionModel[] {
   const models = new Map<string, AvailableTranscriptionModel>();
   for (const manifest of manifests) {
@@ -30,7 +36,7 @@ export function availableTranscriptionModels(
       for (const model of adapter.models) {
         if (!model.capabilities.includes("transcribe")) continue;
         const available: AvailableTranscriptionModel = {
-          ...describeModel(adapter, model, manifest.hardware),
+          ...describeModel(adapter, model, manifest.hardware, precision),
           optionsSchema: model.optionsSchema,
         };
         const current = models.get(available.key);
@@ -57,8 +63,9 @@ export function describeModel(
   adapter: AdapterManifest,
   model: AdapterModel,
   hardware: WorkerHardware | null,
+  precision: Precision,
 ): TranscriptionModel {
-  const fit = scoreModelFit(model, hardware);
+  const fit = scoreModelFit(model, hardware, precision);
   return {
     key: modelKey(adapter.id, model.id),
     adapterId: adapter.id,
@@ -129,6 +136,13 @@ function mergeDownloadedState(
   return null;
 }
 
+export function acceptsOption(
+  optionsSchema: Record<string, unknown>,
+  name: string,
+): boolean {
+  return isRecord(optionsSchema.properties) && name in optionsSchema.properties;
+}
+
 type ModelFitScore = Pick<
   TranscriptionModel,
   | "fit"
@@ -141,6 +155,7 @@ type ModelFitScore = Pick<
 function scoreModelFit(
   model: AdapterModel,
   hardware: WorkerHardware | null,
+  precision: Precision,
 ): ModelFitScore {
   if (!hardware) {
     return {
@@ -155,10 +170,15 @@ function scoreModelFit(
   const availableRam = hardware.memory.availableBytes;
   const memoryRequirementKind: "ram" | "vram" =
     hardware.device === "cuda" ? "vram" : "ram";
-  const memoryRequirementBytes =
+  const estimate =
     hardware.device === "cuda"
       ? model.requiredVramBytes
       : model.recommendedRamBytes;
+  const memoryFactor = acceptsOption(model.optionsSchema, "precision")
+    ? PRECISION_MEMORY_FACTORS[precision]
+    : 1;
+  const memoryRequirementBytes =
+    estimate === null ? null : estimate * memoryFactor;
   const resource = { memoryRequirementBytes, memoryRequirementKind };
 
   if (hardware.device === "cuda") {

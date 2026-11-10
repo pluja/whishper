@@ -7,12 +7,14 @@ import { desc, eq } from "drizzle-orm";
 
 import type { Executor } from "$lib/server/db";
 import { jobs } from "$lib/server/db/schema";
+import { readInstanceSettings } from "$lib/server/settings/instance";
 import {
   compareModels,
   describeHardware,
   describeModel,
 } from "$lib/server/transcription/models";
 import { activeWorkerManifests } from "$lib/server/workers/presence";
+import type { Precision } from "$lib/shared/instance-settings";
 import type {
   InventoryModel,
   ModelTask,
@@ -32,8 +34,9 @@ export function workerModelInventories(
   executor: Executor,
 ): WorkerModelInventory[] {
   const latest = latestModelJobs(executor);
+  const { precision } = readInstanceSettings(executor);
   return activeWorkerManifests(executor)
-    .map((manifest) => inventoryFor(manifest, latest))
+    .map((manifest) => inventoryFor(manifest, latest, precision))
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
@@ -44,6 +47,7 @@ function taskKey(workerId: string, adapterId: string, modelId: string): string {
 function inventoryFor(
   manifest: WorkerManifest,
   latest: Map<string, LatestModelJob>,
+  precision: Precision,
 ): WorkerModelInventory {
   const { hardware } = manifest;
   const models: InventoryModel[] = [];
@@ -54,7 +58,7 @@ function inventoryFor(
         taskKey(manifest.workerId, adapter.id, model.id),
       );
       models.push({
-        ...describeModel(adapter, model, hardware),
+        ...describeModel(adapter, model, hardware, precision),
         task: outcome?.task ?? null,
         failure: outcome?.failure ?? null,
       });

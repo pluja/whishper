@@ -19,9 +19,10 @@ export const load: PageServerLoad = ({ locals }) => {
   for (const manifest of manifests) {
     if (manifest.hardware) devices.add(manifest.hardware.device);
   }
+  const defaults = readTranscriptionDefaults(db);
   return {
-    defaults: readTranscriptionDefaults(db),
-    models: availableTranscriptionModels(manifests),
+    defaults,
+    models: availableTranscriptionModels(manifests, defaults.precision),
     devices: [...devices],
   };
 };

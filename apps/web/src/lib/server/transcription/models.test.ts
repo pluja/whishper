@@ -84,10 +84,10 @@ describe("available transcription models", () => {
       downloadSizeBytes: 486_212_372,
       downloaded: true,
     });
-    const models = availableTranscriptionModels([
-      worker(null, [small]),
-      worker(null, [{ ...small, downloaded: false }]),
-    ]);
+    const models = availableTranscriptionModels(
+      [worker(null, [small]), worker(null, [{ ...small, downloaded: false }])],
+      "auto",
+    );
 
     expect(models).toEqual([
       expect.objectContaining({
@@ -103,16 +103,19 @@ describe("available transcription models", () => {
   });
 
   it("scores each model against the worker hardware", () => {
-    const models = availableTranscriptionModels([
-      worker(cpu(6, 8), [
-        model("small", {
-          parameterCount: 244_000_000,
-          recommendedRamBytes: 4 * GIB,
-          downloaded: false,
-        }),
-        model("medium", { recommendedRamBytes: 8 * GIB }),
-      ]),
-    ]);
+    const models = availableTranscriptionModels(
+      [
+        worker(cpu(6, 8), [
+          model("small", {
+            parameterCount: 244_000_000,
+            recommendedRamBytes: 4 * GIB,
+            downloaded: false,
+          }),
+          model("medium", { recommendedRamBytes: 8 * GIB }),
+        ]),
+      ],
+      "auto",
+    );
 
     expect(models).toEqual([
       expect.objectContaining({
@@ -136,9 +139,10 @@ describe("available transcription models", () => {
   });
 
   it("warns when a large model fits RAM but is likely slow on CPU", () => {
-    const [medium] = availableTranscriptionModels([
-      worker(cpu(12), [model("medium", { recommendedRamBytes: 8 * GIB })]),
-    ]);
+    const [medium] = availableTranscriptionModels(
+      [worker(cpu(12), [model("medium", { recommendedRamBytes: 8 * GIB })])],
+      "auto",
+    );
 
     expect(medium).toEqual(
       expect.objectContaining({
@@ -152,14 +156,17 @@ describe("available transcription models", () => {
   });
 
   it("recommends Large v3 Turbo when it fits a CUDA worker", () => {
-    const [turbo] = availableTranscriptionModels([
-      worker(cuda(4), [
-        model("large-v3-turbo", {
-          requiredVramBytes: 3 * GIB,
-          recommendedRamBytes: 12 * GIB,
-        }),
-      ]),
-    ]);
+    const [turbo] = availableTranscriptionModels(
+      [
+        worker(cuda(4), [
+          model("large-v3-turbo", {
+            requiredVramBytes: 3 * GIB,
+            recommendedRamBytes: 12 * GIB,
+          }),
+        ]),
+      ],
+      "auto",
+    );
 
     expect(turbo).toEqual(
       expect.objectContaining({
@@ -171,6 +178,36 @@ describe("available transcription models", () => {
         memoryRequirementKind: "vram",
       }),
     );
+  });
+
+  it("scales the memory estimate of models that take the precision", () => {
+    const manifests = [
+      worker(cuda(4), [
+        model("large-v3-turbo", {
+          requiredVramBytes: 3 * GIB,
+          optionsSchema: { properties: { precision: { type: "string" } } },
+        }),
+        model("fixed", { requiredVramBytes: 3 * GIB }),
+      ]),
+    ];
+
+    expect(availableTranscriptionModels(manifests, "precise")).toEqual([
+      expect.objectContaining({
+        modelId: "large-v3-turbo",
+        fit: "poor",
+        recommended: false,
+        memoryRequirementBytes: 6 * GIB,
+      }),
+      expect.objectContaining({
+        modelId: "fixed",
+        fit: "good",
+        memoryRequirementBytes: 3 * GIB,
+      }),
+    ]);
+    expect(availableTranscriptionModels(manifests, "memory")).toEqual([
+      expect.objectContaining({ modelId: "large-v3-turbo", fit: "good" }),
+      expect.objectContaining({ modelId: "fixed", fit: "good" }),
+    ]);
   });
 
   it("reports structured detected hardware without duplicates", () => {

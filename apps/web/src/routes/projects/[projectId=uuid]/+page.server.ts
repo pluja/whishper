@@ -78,6 +78,7 @@ export const load: PageServerLoad = async ({
   const derivatives = readyDerivatives(db, project.id);
   const track = latestTrackForProject(db, project.id);
   const workerManifests = activeWorkerManifests(db);
+  const transcriptionDefaults = readTranscriptionDefaults(db);
   const cues = track ? listTrackCues(db, track.id) : [];
 
   return {
@@ -90,9 +91,12 @@ export const load: PageServerLoad = async ({
     })),
     track,
     cues,
-    transcriptionModels: availableTranscriptionModels(workerManifests),
+    transcriptionModels: availableTranscriptionModels(
+      workerManifests,
+      transcriptionDefaults.precision,
+    ),
     detectedHardware: detectedWorkerHardware(workerManifests),
-    transcriptionDefaults: readTranscriptionDefaults(db),
+    transcriptionDefaults,
   };
 };
 

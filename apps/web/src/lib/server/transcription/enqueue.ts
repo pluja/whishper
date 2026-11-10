@@ -7,14 +7,16 @@ import { projectForUser } from "$lib/server/projects/access";
 import { readInstanceSettings } from "$lib/server/settings/instance";
 import { resolveDataPath } from "$lib/server/storage/paths";
 import { hasActiveTranscriptionRun } from "$lib/server/transcription/active-run";
-import { availableTranscriptionModels } from "$lib/server/transcription/models";
+import {
+  acceptsOption,
+  availableTranscriptionModels,
+} from "$lib/server/transcription/models";
 import { activeWorkerManifests } from "$lib/server/workers/presence";
 import {
   MAX_LINE_LENGTH,
   MIN_LINE_LENGTH,
   type Precision,
 } from "$lib/shared/instance-settings";
-import { isRecord } from "$lib/shared/is-record";
 import { DETECT_LANGUAGE, LANGUAGE_TAG } from "$lib/shared/languages";
 import { DEFAULT_MAX_LINE_LENGTH, MAX_BATCH_SIZE } from "$lib/shared/limits";
 import { parseModelKey } from "$lib/shared/transcription-models";
@@ -95,7 +97,11 @@ export function enqueueTranscription(
       throw conflict("This project is already being transcribed.");
     }
 
-    const model = availableTranscriptionModels(activeWorkerManifests(tx)).find(
+    const { precision } = readInstanceSettings(tx);
+    const model = availableTranscriptionModels(
+      activeWorkerManifests(tx),
+      precision,
+    ).find(
       (candidate) =>
         candidate.adapterId === request.adapterId &&
         candidate.modelId === request.modelId,
@@ -109,7 +115,7 @@ export function enqueueTranscription(
       model.optionsSchema,
       "precision",
     )
-      ? { ...request.options, precision: readInstanceSettings(tx).precision }
+      ? { ...request.options, precision }
       : request.options;
 
     const run = tx
@@ -143,11 +149,4 @@ export function enqueueTranscription(
       })
       .run();
   });
-}
-
-function acceptsOption(
-  optionsSchema: Record<string, unknown>,
-  name: string,
-): boolean {
-  return isRecord(optionsSchema.properties) && name in optionsSchema.properties;
 }

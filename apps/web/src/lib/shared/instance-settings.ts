@@ -46,6 +46,15 @@ export const PRECISION_COMPUTE_TYPES: Record<
   precise: { cpu: "float32", cuda: "float32" },
 };
 
+// Scales the worker's memory estimates, which assume the automatic weights.
+// One factor covers both devices, and lower memory saves nothing on a
+// processor, so only full precision changes the estimate.
+export const PRECISION_MEMORY_FACTORS: Record<Precision, number> = {
+  auto: 1,
+  memory: 1,
+  precise: 2,
+};
+
 export function isPrecision(value: string): value is Precision {
   return (PRECISIONS as readonly string[]).includes(value);
 }
