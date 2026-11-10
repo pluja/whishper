@@ -11,6 +11,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { enhance } from "$app/forms";
+  import { goto } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
   import Badge from "$lib/components/ui/Badge.svelte";
   import IconButton from "$lib/components/ui/IconButton.svelte";
@@ -85,10 +86,17 @@
     renameSaving = true;
     return async ({ result, update }) => {
       renameSaving = false;
-      if (result.type === "failure") editing = true;
-      else if (result.type === "success" || result.type === "redirect") {
-        void endRename();
+      if (result.type === "redirect") {
+        await goto(result.location, {
+          invalidateAll: true,
+          noScroll: true,
+          keepFocus: true,
+        });
+        await endRename();
+        return;
       }
+      if (result.type === "failure") editing = true;
+      else if (result.type === "success") void endRename();
       await update({ reset: false });
     };
   };
