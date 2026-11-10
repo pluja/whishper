@@ -1,9 +1,13 @@
 <script lang="ts">
-  import { stateLabel, statusTone } from "$lib/shared/project-status";
+  import {
+    stateLabel,
+    statusTone,
+    type DisplayState,
+  } from "$lib/shared/project-status";
   import Badge from "./Badge.svelte";
   import Progress from "./Progress.svelte";
 
-  type Props = { status: string; progress?: number | null };
+  type Props = { status: DisplayState; progress?: number | null };
 
   let { status, progress = null }: Props = $props();
 

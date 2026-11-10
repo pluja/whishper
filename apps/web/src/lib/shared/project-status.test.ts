@@ -107,9 +107,9 @@ describe("isStudioActive", () => {
 
 describe("displayState", () => {
   it("prefers the job state, then the run status", () => {
-    expect(displayState({ ...idle, jobState: "leased", runStatus: "x" })).toBe(
-      "leased",
-    );
+    expect(
+      displayState({ ...idle, jobState: "leased", runStatus: "running" }),
+    ).toBe("leased");
     expect(displayState({ ...idle, runStatus: "completed" })).toBe("completed");
   });
 
@@ -190,9 +190,12 @@ describe("projectSourceFallback", () => {
 });
 
 describe("stateLabel", () => {
-  it("maps known states and passes unknown ones through", () => {
-    expect(stateLabel("failed")).toBe("Needs attention");
-    expect(stateLabel("weird")).toBe("weird");
+  it.each([
+    ["failed", "Needs attention"],
+    ["cancelled", "Cancelled"],
+    ["leased", "Processing"],
+  ] as const)("labels %s as %s", (state, label) => {
+    expect(stateLabel(state)).toBe(label);
   });
 });
 
@@ -208,7 +211,7 @@ describe("statusTone", () => {
     ["finalizing", "accent"],
     ["failed", "danger"],
     ["draft", "neutral"],
-    ["weird", "neutral"],
+    ["cancelled", "neutral"],
   ] as const)("maps %s to %s", (state, tone) => {
     expect(statusTone(state)).toBe(tone);
   });

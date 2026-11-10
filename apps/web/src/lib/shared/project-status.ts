@@ -1,7 +1,22 @@
 import { isAudioMedia } from "./media";
 
-export type ProbeState =
-  "not_started" | "queued" | "running" | "completed" | "failed";
+export const PROBE_STATES = [
+  "not_started",
+  "queued",
+  "running",
+  "completed",
+  "failed",
+] as const;
+export type ProbeState = (typeof PROBE_STATES)[number];
+
+export const UPLOAD_STATUSES = [
+  "uploading",
+  "finalizing",
+  "completed",
+  "cancelled",
+  "failed",
+] as const;
+export type UploadStatus = (typeof UPLOAD_STATUSES)[number];
 
 export const RUN_STATUSES = [
   "queued",
@@ -23,23 +38,31 @@ export const JOB_STATES = [
 export type JobState = (typeof JOB_STATES)[number];
 export const ACTIVE_JOB_STATES: readonly JobState[] = ["queued", "leased"];
 
+export type DisplayState =
+  JobState | RunStatus | UploadStatus | "ready" | "draft" | "preparing";
+
 type ProjectStatusFields = {
-  runStatus: string | null;
-  jobState: string | null;
-  uploadStatus: string | null;
+  runStatus: RunStatus | null;
+  jobState: JobState | null;
+  uploadStatus: UploadStatus | null;
   mediaPreparationStatus: ProbeState;
 };
 
 type ProjectMessageFields = {
   progressMessage: string | null;
-  uploadStatus: string | null;
+  uploadStatus: UploadStatus | null;
   receivedBytes: number | null;
   sizeBytes: number | null;
 };
 
-const ACTIVE_UPLOAD_STATUSES = ["uploading", "finalizing"];
-const ACTIVE_PREPARATION_STATUSES: ProbeState[] = ["queued", "running"];
-const PREPARING_STATE = "preparing";
+const ACTIVE_UPLOAD_STATUSES: readonly UploadStatus[] = [
+  "uploading",
+  "finalizing",
+];
+const ACTIVE_PREPARATION_STATUSES: readonly ProbeState[] = [
+  "queued",
+  "running",
+];
 
 function isOneOf(values: readonly string[], value: string | null): boolean {
   return value !== null && values.includes(value);
@@ -75,11 +98,11 @@ export function isStudioActive(studio: {
   return isRunActive(studio.run) || isPreparationActive(studio.preparation);
 }
 
-export function displayState(project: ProjectStatusFields): string {
+export function displayState(project: ProjectStatusFields): DisplayState {
   const processingState = project.jobState ?? project.runStatus;
   if (processingState) return processingState;
   if (ACTIVE_PREPARATION_STATUSES.includes(project.mediaPreparationStatus)) {
-    return PREPARING_STATE;
+    return "preparing";
   }
   if (project.mediaPreparationStatus === "failed") return "failed";
   return project.uploadStatus === "completed"
@@ -120,7 +143,7 @@ function projectMessage(project: ProjectMessageFields): string {
   return "Project ready";
 }
 
-const STATE_LABELS: Record<string, string> = {
+const STATE_LABELS: Record<DisplayState, string> = {
   ready: "Ready",
   draft: "Draft",
   queued: "Queued",
@@ -129,27 +152,28 @@ const STATE_LABELS: Record<string, string> = {
   preparing: "Preparing",
   completed: "Complete",
   failed: "Needs attention",
+  cancelled: "Cancelled",
   uploading: "Uploading",
   finalizing: "Finalizing",
 };
 
-export function stateLabel(state: string): string {
-  return STATE_LABELS[state] ?? state;
+export function stateLabel(state: DisplayState): string {
+  return STATE_LABELS[state];
 }
 
 export type StatusTone = "neutral" | "accent" | "success" | "danger";
 
-const IN_PROGRESS_STATES = [
+const IN_PROGRESS_STATES: readonly DisplayState[] = [
   ...ACTIVE_JOB_STATES,
   ...ACTIVE_RUN_STATUSES,
   ...ACTIVE_UPLOAD_STATUSES,
-  PREPARING_STATE,
+  "preparing",
 ];
 
-export function statusTone(state: string): StatusTone {
+export function statusTone(state: DisplayState): StatusTone {
   if (state === "ready" || state === "completed") return "success";
   if (state === "failed") return "danger";
-  return isOneOf(IN_PROGRESS_STATES, state) ? "accent" : "neutral";
+  return IN_PROGRESS_STATES.includes(state) ? "accent" : "neutral";
 }
 
 export function projectSourceFallback(

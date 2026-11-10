@@ -21,6 +21,7 @@ import {
   PROJECT_SEARCH_MAX_LENGTH,
   PROJECT_TITLE_MAX_LENGTH,
 } from "$lib/shared/limits";
+import type { RunStatus } from "$lib/shared/project-status";
 
 export function parseProjectLibrarySearch(
   searchParams: URLSearchParams,
@@ -136,7 +137,7 @@ function latestRunProgress(
   executor: Executor,
   projectIds: string[],
 ): Map<string, RunProgress> {
-  const latestRuns = new Map<string, { id: string; status: string }>();
+  const latestRuns = new Map<string, { id: string; status: RunStatus }>();
   for (const run of executor
     .select({
       id: transcriptionRuns.id,

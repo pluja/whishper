@@ -17,7 +17,12 @@ import {
   MIN_LINE_LENGTH,
   PRECISIONS,
 } from "../../shared/instance-settings";
-import { JOB_STATES, RUN_STATUSES } from "../../shared/project-status";
+import {
+  JOB_STATES,
+  PROBE_STATES,
+  RUN_STATUSES,
+  UPLOAD_STATUSES,
+} from "../../shared/project-status";
 import { user } from "../auth/schema";
 import {
   createdAt,
@@ -119,7 +124,7 @@ export const projects = sqliteTable(
     mediaFilename: text("media_filename"),
     mediaDurationUs: integer("media_duration_us"),
     mediaPreparationStatus: text("media_preparation_status", {
-      enum: ["not_started", "queued", "running", "completed", "failed"],
+      enum: PROBE_STATES,
     })
       .notNull()
       .default("not_started"),
@@ -311,9 +316,7 @@ export const mediaUploads = sqliteTable(
     mediaType: text("media_type"),
     sizeBytes: integer("size_bytes").notNull(),
     receivedBytes: integer("received_bytes").notNull().default(0),
-    status: text("status", {
-      enum: ["uploading", "finalizing", "completed", "cancelled", "failed"],
-    })
+    status: text("status", { enum: UPLOAD_STATUSES })
       .notNull()
       .default("uploading"),
     storageKey: text("storage_key"),
