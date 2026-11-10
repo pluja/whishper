@@ -212,7 +212,7 @@
             editor.selectedCueId = cue.id;
             editor.transport.seekTo(cue.start_us);
           }}
-          aria-label={`Play cue ${index + 1}`}
+          aria-label={`Move playhead to cue ${index + 1}`}
         >
           {index + 1}
         </button>
