@@ -2,11 +2,12 @@ import { and, eq, gt, inArray, sql } from "drizzle-orm";
 
 import { jobs } from "$lib/server/db/schema";
 import { hashToken } from "$lib/server/jobs/lease-token";
+import { ACTIVE_JOB_STATES } from "$lib/shared/project-status";
 
 type PayloadField = "adapterId" | "workerId";
 
 export const isMediaPrepareJob = eq(jobs.kind, "media_prepare");
-export const isActiveJob = inArray(jobs.state, ["queued", "leased"]);
+export const isActiveJob = inArray(jobs.state, ACTIVE_JOB_STATES);
 
 export function payloadField(field: PayloadField) {
   return sql<string>`${jobs.payload} ->> ${field}`;

@@ -17,6 +17,7 @@ import {
   MIN_LINE_LENGTH,
   PRECISIONS,
 } from "../../shared/instance-settings";
+import { JOB_STATES, RUN_STATUSES } from "../../shared/project-status";
 import { user } from "../auth/schema";
 import {
   createdAt,
@@ -166,11 +167,7 @@ export const transcriptionRuns = sqliteTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    status: text("status", {
-      enum: ["queued", "running", "completed", "failed", "cancelled"],
-    })
-      .notNull()
-      .default("queued"),
+    status: text("status", { enum: RUN_STATUSES }).notNull().default("queued"),
     adapterId: text("adapter_id").notNull(),
     modelId: text("model_id").notNull(),
     options: json<JsonObject>("options").notNull().default({}),
@@ -220,11 +217,7 @@ export const jobs = sqliteTable(
     kind: text("kind", {
       enum: ["transcribe", "media_prepare", "model_cache"],
     }).notNull(),
-    state: text("state", {
-      enum: ["queued", "leased", "completed", "failed", "cancelled"],
-    })
-      .notNull()
-      .default("queued"),
+    state: text("state", { enum: JOB_STATES }).notNull().default("queued"),
     priority: integer("priority").notNull().default(0),
     payload: json<WorkerJobPayload>("payload").notNull(),
     result: json<unknown>("result"),

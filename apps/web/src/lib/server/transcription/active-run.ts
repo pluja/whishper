@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import type { Executor } from "$lib/server/db";
 import { transcriptionRuns } from "$lib/server/db/schema";
+import { ACTIVE_RUN_STATUSES } from "$lib/shared/project-status";
 
 export function hasActiveTranscriptionRun(
   executor: Executor,
@@ -14,7 +15,7 @@ export function hasActiveTranscriptionRun(
       .where(
         and(
           eq(transcriptionRuns.projectId, projectId),
-          inArray(transcriptionRuns.status, ["queued", "running"]),
+          inArray(transcriptionRuns.status, ACTIVE_RUN_STATUSES),
         ),
       )
       .limit(1)

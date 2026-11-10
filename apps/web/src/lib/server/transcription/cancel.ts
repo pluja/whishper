@@ -4,6 +4,7 @@ import { jobs, transcriptionRuns } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { cancelActiveJobs } from "$lib/server/jobs/release";
 import { projectForUser } from "$lib/server/projects/access";
+import { ACTIVE_RUN_STATUSES } from "$lib/shared/project-status";
 
 export function cancelTranscriptionForUser(
   projectId: string,
@@ -17,7 +18,7 @@ export function cancelTranscriptionForUser(
       .where(
         and(
           eq(transcriptionRuns.projectId, projectId),
-          inArray(transcriptionRuns.status, ["queued", "running"]),
+          inArray(transcriptionRuns.status, ACTIVE_RUN_STATUSES),
         ),
       )
       .returning({ id: transcriptionRuns.id })

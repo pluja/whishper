@@ -3,6 +3,26 @@ import { isAudioMedia } from "./media";
 export type ProbeState =
   "not_started" | "queued" | "running" | "completed" | "failed";
 
+export const RUN_STATUSES = [
+  "queued",
+  "running",
+  "completed",
+  "failed",
+  "cancelled",
+] as const;
+export type RunStatus = (typeof RUN_STATUSES)[number];
+export const ACTIVE_RUN_STATUSES: readonly RunStatus[] = ["queued", "running"];
+
+export const JOB_STATES = [
+  "queued",
+  "leased",
+  "completed",
+  "failed",
+  "cancelled",
+] as const;
+export type JobState = (typeof JOB_STATES)[number];
+export const ACTIVE_JOB_STATES: readonly JobState[] = ["queued", "leased"];
+
 type ProjectStatusFields = {
   runStatus: string | null;
   jobState: string | null;
@@ -17,11 +37,13 @@ type ProjectMessageFields = {
   sizeBytes: number | null;
 };
 
-const ACTIVE_JOB_STATES = ["queued", "leased"];
-const ACTIVE_RUN_STATUSES = ["queued", "running"];
 const ACTIVE_UPLOAD_STATUSES = ["uploading", "finalizing"];
 const ACTIVE_PREPARATION_STATUSES: ProbeState[] = ["queued", "running"];
 const PREPARING_STATE = "preparing";
+
+function isOneOf(values: readonly string[], value: string | null): boolean {
+  return value !== null && values.includes(value);
+}
 
 export function isProjectActive(
   project: Pick<
@@ -30,22 +52,20 @@ export function isProjectActive(
   >,
 ): boolean {
   return (
-    (project.jobState !== null &&
-      ACTIVE_JOB_STATES.includes(project.jobState)) ||
-    (project.uploadStatus !== null &&
-      ACTIVE_UPLOAD_STATUSES.includes(project.uploadStatus)) ||
+    isOneOf(ACTIVE_JOB_STATES, project.jobState) ||
+    isOneOf(ACTIVE_UPLOAD_STATUSES, project.uploadStatus) ||
     ACTIVE_PREPARATION_STATUSES.includes(project.mediaPreparationStatus)
   );
 }
 
 export function isRunActive(run: { status: string } | null): boolean {
-  return run !== null && ACTIVE_RUN_STATUSES.includes(run.status);
+  return isOneOf(ACTIVE_RUN_STATUSES, run?.status ?? null);
 }
 
 export function isPreparationActive(
   preparation: { state: string } | null,
 ): boolean {
-  return preparation !== null && ACTIVE_JOB_STATES.includes(preparation.state);
+  return isOneOf(ACTIVE_JOB_STATES, preparation?.state ?? null);
 }
 
 export function isStudioActive(studio: {
@@ -129,7 +149,7 @@ const IN_PROGRESS_STATES = [
 export function statusTone(state: string): StatusTone {
   if (state === "ready" || state === "completed") return "success";
   if (state === "failed") return "danger";
-  return IN_PROGRESS_STATES.includes(state) ? "accent" : "neutral";
+  return isOneOf(IN_PROGRESS_STATES, state) ? "accent" : "neutral";
 }
 
 export function projectSourceFallback(
