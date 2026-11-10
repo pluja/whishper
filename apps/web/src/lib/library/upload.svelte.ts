@@ -1,7 +1,7 @@
 import { formatBytes } from "$lib/shared/format";
 import { Upload } from "tus-js-client";
 
-type UploadStatus = "idle" | "uploading" | "error" | "success";
+type UploadStatus = "idle" | "uploading" | "cancelling" | "error" | "success";
 
 type UploadEvents = {
   onUploaded: (projectId: string | null) => void;
@@ -23,6 +23,15 @@ export class ProjectUpload {
     return this.status === "uploading";
   }
 
+  // A finished upload stays busy, so one submit creates one project.
+  get busy(): boolean {
+    return (
+      this.status === "uploading" ||
+      this.status === "cancelling" ||
+      this.status === "success"
+    );
+  }
+
   reset() {
     this.#upload = null;
     this.status = "idle";
@@ -31,7 +40,7 @@ export class ProjectUpload {
   }
 
   async start(file: File, workspaceId: string, projectName: string) {
-    if (this.uploading) return;
+    if (this.busy) return;
     this.status = "uploading";
     this.message = "Preparing resumable upload";
     const upload = new Upload(file, {
@@ -80,17 +89,21 @@ export class ProjectUpload {
   }
 
   async cancel() {
-    if (!this.#upload) return;
+    const upload = this.#upload;
+    if (!upload || !this.uploading) return;
+    this.status = "cancelling";
+    this.message = "Cancelling upload";
     try {
-      await this.#upload.abort(true);
-      this.reset();
-      this.message = "Upload cancelled";
-      this.#events.onCancelled();
-    } catch (error) {
-      this.#fail(
-        error instanceof Error ? error.message : "Could not cancel the upload.",
-      );
+      await upload.abort(true);
+    } catch {
+      if (this.#upload !== upload) return;
+      this.#fail("The upload stopped, but the server could not discard it.");
+      return;
     }
+    if (this.#upload !== upload) return;
+    this.reset();
+    this.message = "Upload cancelled";
+    this.#events.onCancelled();
   }
 
   // Leaves the upload on the server, so choosing the same file again resumes it.

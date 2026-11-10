@@ -43,7 +43,7 @@
     normalizedProjectName.length > 0 &&
       normalizedProjectName.length <= PROJECT_TITLE_MAX_LENGTH &&
       selectedFile !== null &&
-      !upload.uploading,
+      !upload.busy,
   );
   let percent = $derived(Math.round(upload.progress * 100));
 
@@ -70,7 +70,7 @@
     if (!open || !initialFile) return;
     const file = initialFile;
     untrack(() => {
-      if (upload.uploading) return;
+      if (upload.busy) return;
       if (fileInput) {
         const transfer = new DataTransfer();
         transfer.items.add(file);
@@ -89,11 +89,7 @@
   }
 
   function close() {
-    if (!upload.uploading) open = false;
-  }
-
-  function handleClose() {
-    if (!upload.uploading) reset();
+    if (!upload.busy) open = false;
   }
 
   function suggestedProjectName(filename: string): string {
@@ -125,8 +121,8 @@
   bind:open
   title="New project"
   description="Name the project and choose its source recording."
-  dismissible={!upload.uploading}
-  onclose={handleClose}
+  dismissible={!upload.busy}
+  onclose={reset}
 >
   <form id={formId} class="grid gap-4" onsubmit={submit}>
     <Field label="Project name">
@@ -140,7 +136,7 @@
           required
           maxlength={PROJECT_TITLE_MAX_LENGTH}
           autocomplete="off"
-          disabled={upload.uploading}
+          disabled={upload.busy}
           placeholder="Untitled project"
           aria-describedby={describedBy}
           aria-invalid={invalid}
@@ -158,7 +154,7 @@
             id={inputId}
             type="file"
             accept="audio/*,video/*"
-            disabled={upload.uploading}
+            disabled={upload.busy}
             aria-invalid={upload.status === "error"}
             aria-describedby={fileStatusId}
             onchange={chooseFile}
@@ -213,8 +209,14 @@
   </form>
 
   {#snippet actions()}
-    <Button onclick={upload.uploading ? () => void upload.cancel() : close}>
-      {upload.uploading ? "Cancel upload" : "Cancel"}
+    <Button
+      onclick={upload.uploading ? () => void upload.cancel() : close}
+      loading={upload.status === "cancelling"}
+      disabled={upload.status === "success"}
+    >
+      {upload.uploading || upload.status === "cancelling"
+        ? "Cancel upload"
+        : "Cancel"}
     </Button>
     <Button
       variant="primary"

@@ -95,4 +95,60 @@ describe("ProjectUpload", () => {
 
     expect(lastTusUpload().start).not.toHaveBeenCalled();
   });
+
+  it("stays busy while cancelling and ignores a second cancel", async () => {
+    const { upload, events } = createUpload();
+    await upload.start(file, "workspace", "Talk");
+    let finishTermination = () => {};
+    lastTusUpload().abort.mockReturnValueOnce(
+      new Promise<void>((resolve) => (finishTermination = resolve)),
+    );
+
+    const cancelling = upload.cancel();
+    await upload.cancel();
+
+    expect(upload.status).toBe("cancelling");
+    expect(upload.busy).toBe(true);
+    expect(lastTusUpload().abort).toHaveBeenCalledExactlyOnceWith(true);
+
+    finishTermination();
+    await cancelling;
+
+    expect(upload.status).toBe("idle");
+    expect(upload.message).toBe("Upload cancelled");
+    expect(events.onCancelled).toHaveBeenCalledOnce();
+  });
+
+  it("never starts an upload cancelled while it looks for a previous one", async () => {
+    const { upload } = createUpload();
+    const starting = upload.start(file, "workspace", "Talk");
+
+    await upload.cancel();
+    await starting;
+
+    expect(lastTusUpload().start).not.toHaveBeenCalled();
+    expect(upload.status).toBe("idle");
+  });
+
+  it("reports a cancel the server could not complete", async () => {
+    const { upload, events } = createUpload();
+    await upload.start(file, "workspace", "Talk");
+    lastTusUpload().abort.mockRejectedValueOnce(new Error("offline"));
+
+    await upload.cancel();
+
+    expect(upload.status).toBe("error");
+    expect(events.onCancelled).not.toHaveBeenCalled();
+  });
+
+  it("does not upload again after a success", async () => {
+    const { upload } = createUpload();
+    await upload.start(file, "workspace", "Talk");
+    lastTusUpload().succeed("project-1");
+
+    await upload.start(file, "workspace", "Talk");
+
+    expect(upload.busy).toBe(true);
+    expect(tus.FakeUpload.created).toHaveLength(1);
+  });
 });
