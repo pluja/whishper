@@ -17,6 +17,9 @@ export const UPLOAD_STATUSES = [
   "failed",
 ] as const;
 export type UploadStatus = (typeof UPLOAD_STATUSES)[number];
+// The library shows an upload that stopped making progress as paused, so an
+// abandoned upload does not keep the page polling.
+export type LibraryUploadStatus = UploadStatus | "paused";
 
 export const RUN_STATUSES = [
   "queued",
@@ -39,23 +42,23 @@ export type JobState = (typeof JOB_STATES)[number];
 export const ACTIVE_JOB_STATES: readonly JobState[] = ["queued", "leased"];
 
 export type DisplayState =
-  JobState | RunStatus | UploadStatus | "ready" | "draft" | "preparing";
+  JobState | RunStatus | LibraryUploadStatus | "ready" | "draft" | "preparing";
 
 type ProjectStatusFields = {
   runStatus: RunStatus | null;
   jobState: JobState | null;
-  uploadStatus: UploadStatus | null;
+  uploadStatus: LibraryUploadStatus | null;
   mediaPreparationStatus: ProbeState;
 };
 
 type ProjectMessageFields = {
   progressMessage: string | null;
-  uploadStatus: UploadStatus | null;
+  uploadStatus: LibraryUploadStatus | null;
   receivedBytes: number | null;
   sizeBytes: number | null;
 };
 
-const ACTIVE_UPLOAD_STATUSES: readonly UploadStatus[] = [
+const ACTIVE_UPLOAD_STATUSES: readonly LibraryUploadStatus[] = [
   "uploading",
   "finalizing",
 ];
@@ -115,14 +118,8 @@ type UploadFields = Pick<
   "uploadStatus" | "receivedBytes" | "sizeBytes"
 >;
 
-function uploadFraction(project: UploadFields): number | null {
-  if (
-    project.uploadStatus !== "uploading" ||
-    project.receivedBytes === null ||
-    !project.sizeBytes
-  ) {
-    return null;
-  }
+function uploadedFraction(project: UploadFields): number | null {
+  if (project.receivedBytes === null || !project.sizeBytes) return null;
   return project.receivedBytes / project.sizeBytes;
 }
 
@@ -131,15 +128,23 @@ export function projectProgress(
     UploadFields & { progress: number | null },
 ): number | null {
   if (!isProjectActive(project)) return null;
-  return uploadFraction(project) ?? project.progress ?? 0;
+  const uploaded =
+    project.uploadStatus === "uploading" ? uploadedFraction(project) : null;
+  return uploaded ?? project.progress ?? 0;
 }
 
 function projectMessage(project: ProjectMessageFields): string {
   if (project.progressMessage) return project.progressMessage;
-  const uploaded = uploadFraction(project);
-  if (uploaded !== null) return `Uploading · ${Math.round(uploaded * 100)}%`;
-  if (project.uploadStatus === "finalizing") return "Finalizing source media";
-  if (project.uploadStatus === "completed") return "Source media stored";
+  const { uploadStatus } = project;
+  const uploaded = uploadedFraction(project);
+  if (
+    (uploadStatus === "uploading" || uploadStatus === "paused") &&
+    uploaded !== null
+  ) {
+    return `${STATE_LABELS[uploadStatus]} · ${Math.round(uploaded * 100)}%`;
+  }
+  if (uploadStatus === "finalizing") return "Finalizing source media";
+  if (uploadStatus === "completed") return "Source media stored";
   return "Project ready";
 }
 
@@ -154,6 +159,7 @@ const STATE_LABELS: Record<DisplayState, string> = {
   failed: "Needs attention",
   cancelled: "Cancelled",
   uploading: "Uploading",
+  paused: "Upload paused",
   finalizing: "Finalizing",
 };
 

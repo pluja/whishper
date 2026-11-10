@@ -39,6 +39,10 @@ describe("isProjectActive", () => {
     expect(isProjectActive({ ...idle, ...override })).toBe(true);
   });
 
+  it("is false for an upload that stopped making progress", () => {
+    expect(isProjectActive({ ...idle, uploadStatus: "paused" })).toBe(false);
+  });
+
   it("is false for terminal states", () => {
     expect(
       isProjectActive({
@@ -159,6 +163,18 @@ describe("projectSourceFallback", () => {
     ).toBe("Working");
   });
 
+  it("reports the percentage of a paused upload", () => {
+    expect(
+      projectSourceFallback({
+        ...base,
+        uploadStatus: "paused",
+        receivedBytes: 50,
+        sizeBytes: 200,
+        mediaType: "video/mp4",
+      }),
+    ).toBe("Upload paused · 25%");
+  });
+
   it("reports upload percentage", () => {
     expect(
       projectSourceFallback({
@@ -193,6 +209,7 @@ describe("stateLabel", () => {
   it.each([
     ["failed", "Needs attention"],
     ["cancelled", "Cancelled"],
+    ["paused", "Upload paused"],
     ["leased", "Processing"],
   ] as const)("labels %s as %s", (state, label) => {
     expect(stateLabel(state)).toBe(label);
@@ -212,6 +229,7 @@ describe("statusTone", () => {
     ["failed", "danger"],
     ["draft", "neutral"],
     ["cancelled", "neutral"],
+    ["paused", "neutral"],
   ] as const)("maps %s to %s", (state, tone) => {
     expect(statusTone(state)).toBe(tone);
   });
@@ -238,6 +256,17 @@ describe("projectProgress", () => {
         sizeBytes: 100,
       }),
     ).toBe(0.25);
+  });
+
+  it("is null for a paused upload", () => {
+    expect(
+      projectProgress({
+        ...progressIdle,
+        uploadStatus: "paused",
+        receivedBytes: 25,
+        sizeBytes: 100,
+      }),
+    ).toBeNull();
   });
 
   it("reports the job progress, starting at zero", () => {

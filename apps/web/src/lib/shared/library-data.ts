@@ -1,8 +1,8 @@
 import type {
   JobState,
+  LibraryUploadStatus,
   ProbeState,
   RunStatus,
-  UploadStatus,
 } from "./project-status";
 
 export type LibrarySearch = {
@@ -26,7 +26,7 @@ export type ProjectSummary = {
   jobState: JobState | null;
   progress: number | null;
   progressMessage: string | null;
-  uploadStatus: UploadStatus | null;
+  uploadStatus: LibraryUploadStatus | null;
   originalFilename: string | null;
   sizeBytes: number | null;
   receivedBytes: number | null;

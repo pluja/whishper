@@ -1,8 +1,10 @@
+import { randomUUID } from "node:crypto";
+
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { db } from "$lib/server/db";
-import { projects as projectsTable } from "$lib/server/db/schema";
+import { mediaUploads, projects as projectsTable } from "$lib/server/db/schema";
 import { seedProject } from "$lib/server/db/testing/fixtures";
 import {
   listLibraryProjects,
@@ -40,6 +42,33 @@ describe("renameProjectForUser", () => {
 });
 
 describe("project library", () => {
+  it("reports an upload without progress for ten minutes as paused", async () => {
+    const project = await seedProject();
+    const lastProgressAt = new Date("2026-01-01T12:00:00Z");
+    db.insert(mediaUploads)
+      .values({
+        id: randomUUID(),
+        workspaceId: project.workspaceId,
+        projectId: project.projectId,
+        createdBy: project.userId,
+        originalFilename: "interview.mp4",
+        sizeBytes: 1_000,
+        receivedBytes: 400,
+        updatedAt: lastProgressAt,
+      })
+      .run();
+    const uploadStatusAt = (minutesLater: number) =>
+      listLibraryProjects(
+        db,
+        project.workspaceId,
+        { query: "", includeSubtitles: false },
+        new Date(lastProgressAt.getTime() + minutesLater * 60_000),
+      )[0].uploadStatus;
+
+    expect(uploadStatusAt(9)).toBe("uploading");
+    expect(uploadStatusAt(10)).toBe("paused");
+  });
+
   it("counts and lists the projects of the user's workspace", async () => {
     const project = await seedProject();
     db.update(projectsTable)

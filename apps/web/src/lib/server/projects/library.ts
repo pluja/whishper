@@ -12,6 +12,7 @@ import {
   transcriptionRuns,
   workspaces,
 } from "$lib/server/db/schema";
+import { IDLE_BEFORE_RETRY_MS } from "$lib/server/uploads/maintenance";
 import type {
   LibrarySearch,
   ProjectSummary,
@@ -21,7 +22,11 @@ import {
   PROJECT_SEARCH_MAX_LENGTH,
   PROJECT_TITLE_MAX_LENGTH,
 } from "$lib/shared/limits";
-import type { RunStatus } from "$lib/shared/project-status";
+import type {
+  LibraryUploadStatus,
+  RunStatus,
+  UploadStatus,
+} from "$lib/shared/project-status";
 
 export function parseProjectLibrarySearch(
   searchParams: URLSearchParams,
@@ -223,6 +228,18 @@ function videoDimensions(probe: Record<string, unknown> | null) {
   };
 }
 
+// The sweep treats an upload this idle as abandoned by its client too.
+function libraryUploadStatus(
+  status: UploadStatus | null,
+  updatedAt: Date | null,
+  now: Date,
+): LibraryUploadStatus | null {
+  const idle =
+    updatedAt !== null &&
+    now.getTime() - updatedAt.getTime() >= IDLE_BEFORE_RETRY_MS;
+  return status === "uploading" && idle ? "paused" : status;
+}
+
 const NO_RUN: RunProgress = {
   runStatus: null,
   jobState: null,
@@ -234,6 +251,7 @@ export function listLibraryProjects(
   executor: Executor,
   workspaceId: string,
   search: LibrarySearch,
+  now = new Date(),
 ): ProjectSummary[] {
   const rows = executor
     .select({
@@ -245,6 +263,7 @@ export function listLibraryProjects(
       mediaPreparationStatus: projects.mediaPreparationStatus,
       mediaProbe: projects.mediaProbe,
       uploadStatus: mediaUploads.status,
+      uploadUpdatedAt: mediaUploads.updatedAt,
       originalFilename: mediaUploads.originalFilename,
       mediaType: mediaUploads.mediaType,
       sizeBytes: mediaUploads.sizeBytes,
@@ -260,7 +279,7 @@ export function listLibraryProjects(
   const thumbnails = thumbnailProjects(executor, projectIds);
 
   return rows
-    .map(({ mediaProbe, updatedAt, ...row }) => {
+    .map(({ mediaProbe, updatedAt, uploadUpdatedAt, ...row }) => {
       const summary = subtitles.get(row.id) ?? NO_SUBTITLES;
       const activityAt =
         summary.updatedAt && summary.updatedAt > updatedAt
@@ -270,6 +289,11 @@ export function listLibraryProjects(
         ...row,
         ...(runs.get(row.id) ?? NO_RUN),
         ...videoDimensions(mediaProbe),
+        uploadStatus: libraryUploadStatus(
+          row.uploadStatus,
+          uploadUpdatedAt,
+          now,
+        ),
         activityAt,
         hasThumbnail: thumbnails.has(row.id),
         trackCount: summary.trackCount,

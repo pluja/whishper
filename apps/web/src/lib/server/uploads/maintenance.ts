@@ -9,7 +9,7 @@ import { deleteUnfinishedUploadProject } from "$lib/server/uploads/projects";
 
 export const UPLOAD_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1_000;
 const SWEEP_INTERVAL_MS = 15 * 60 * 1_000;
-const IDLE_BEFORE_RETRY_MS = 10 * 60 * 1_000;
+export const IDLE_BEFORE_RETRY_MS = 10 * 60 * 1_000;
 const FINALIZE_RETRY_WINDOW_MS = 24 * 60 * 60 * 1_000;
 
 export type SweepCandidate = {
