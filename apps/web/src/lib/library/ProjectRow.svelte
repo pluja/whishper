@@ -18,7 +18,6 @@
   import Menu from "$lib/components/ui/Menu.svelte";
   import MenuItem from "$lib/components/ui/MenuItem.svelte";
   import StatusBadge from "$lib/components/ui/StatusBadge.svelte";
-  import { buttonClasses } from "$lib/components/ui/variants";
   import { formatDuration, formatRelativeTime } from "$lib/shared/format";
   import type { ProjectSummary } from "$lib/shared/library-data";
   import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/limits";
@@ -47,7 +46,7 @@
   // svelte-ignore state_referenced_locally
   let renameDraft = $state(project.name);
   let renameSaving = $state(false);
-  let menuTrigger = $state<HTMLButtonElement>();
+  let menuTrigger: HTMLElement | undefined;
   let renameError = $derived(
     form?.renameProjectId === project.id ? (form.renameError ?? "") : "",
   );
@@ -59,6 +58,10 @@
   function beginRename() {
     renameDraft = project.name;
     editing = true;
+  }
+
+  function rememberMenuTrigger(trigger: HTMLElement) {
+    menuTrigger = trigger;
   }
 
   function focusAndSelect(input: HTMLInputElement) {
@@ -219,20 +222,14 @@
   >
     <Menu label={`Actions for ${project.name}`} align="end">
       {#snippet trigger(args)}
-        <button
-          bind:this={menuTrigger}
-          type="button"
+        <IconButton
+          {@attach rememberMenuTrigger}
           {...args}
-          class="{buttonClasses(
-            'ghost',
-            'sm',
-            true,
-          )} group-focus-within:text-text group-hover:text-text"
-          aria-label={`Actions for ${project.name}`}
-          title="Actions"
-        >
-          <Icon name="more" size={18} />
-        </button>
+          label={`Actions for ${project.name}`}
+          icon="more"
+          size="sm"
+          class="group-focus-within:text-text group-hover:text-text"
+        />
       {/snippet}
       <MenuItem href={projectPageUrl(project.id)}>
         <Icon name="play" size={16} />
