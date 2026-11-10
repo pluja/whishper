@@ -96,7 +96,7 @@ It runs `check`, `test`, `lint`, `format-check`, and `build`:
 - `format-check`: Prettier for the repository, and `ruff format --check` for the worker.
 - `build`: the production web bundle.
 
-CI runs the same checks with a frozen lockfile. It adds one job that builds both production images without pushing them. No `make` target builds production images, so a Dockerfile change is only fully checked in CI.
+CI runs the same checks with a frozen lockfile. The worker checks run without the `speech` and accelerator extras, as in CI, in a venv separate from the one the development worker uses. CI adds one job that builds both production images without pushing them. No `make` target builds production images, so a Dockerfile change is only fully checked in CI.
 
 ## UI checks
 

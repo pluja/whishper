@@ -46,6 +46,7 @@ services:
     volumes:
       - ./workers/inference:/workspace:z
       - worker-venv:/workspace/.venv
+      - worker-check-venv:/check-venv
       # Mirrors the repository layout, where ../../packages/contracts is
       # reachable from the worker root, so the protocol schema export and its
       # drift test work in the container too.
@@ -79,3 +80,4 @@ volumes:
   web-app-node-modules:
   web-contracts-node-modules:
   worker-venv:
+  worker-check-venv:

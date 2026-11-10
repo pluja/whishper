@@ -9,6 +9,9 @@ COMPOSE := $(COMPOSE_ENGINE) -f compose.yaml -f compose.dev.yaml -p anysub-dev
 # Every test opens its own in-memory SQLite database, so one-off commands need
 # no other service running.
 RUN := $(COMPOSE) run --rm --no-deps
+# The worker checks run like CI, without the speech and accelerator extras, in
+# a venv of their own so the dev worker's venv keeps its extras.
+WORKER_CHECK := $(RUN) -e UV_PROJECT_ENVIRONMENT=/check-venv worker uv run --locked --exact
 
 .DEFAULT_GOAL := help
 .PHONY: help dev down generate db-generate check test lint format-check build verify ui-check
@@ -31,18 +34,18 @@ db-generate: ## Generate a database migration from the Drizzle schema (ARGS="--c
 
 check: ## Type-check the web application and contracts (svelte-check, tsc) and the worker (pyright)
 	$(RUN) web pnpm check
-	$(RUN) worker uv run pyright
+	$(WORKER_CHECK) pyright
 
 test: ## Run the web and worker test suites, including the contract and migration drift checks
 	$(RUN) web pnpm test
-	$(RUN) worker uv run pytest
+	$(WORKER_CHECK) pytest
 
 lint: ## Lint the worker with ruff
-	$(RUN) worker uv run ruff check .
+	$(WORKER_CHECK) ruff check .
 
 format-check: ## Check formatting of the repository files and the worker
 	$(RUN) web pnpm format:check
-	$(RUN) worker uv run ruff format --check .
+	$(WORKER_CHECK) ruff format --check .
 
 build: ## Build the production web bundle
 	$(RUN) web pnpm build
