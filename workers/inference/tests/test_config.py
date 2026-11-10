@@ -20,6 +20,13 @@ def test_worker_name_defaults_to_local_worker(monkeypatch: pytest.MonkeyPatch) -
     assert settings.worker_name == "local-worker"
 
 
+def test_an_empty_worker_name_fails_at_startup(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ANYSUB_WORKER_NAME", "")
+
+    with pytest.raises(ValidationError, match="worker_name"):
+        WorkerSettings(worker_token=TOKEN)
+
+
 def test_short_worker_token_fails_at_startup_with_the_variable_name() -> None:
     with pytest.raises(ValidationError, match="ANYSUB_WORKER_TOKEN is shorter than 24"):
         WorkerSettings(worker_token="t" * (MINIMUM_WORKER_TOKEN_LENGTH - 1))

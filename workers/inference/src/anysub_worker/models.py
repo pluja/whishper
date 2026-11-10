@@ -45,6 +45,7 @@ UuidString = Annotated[
     str,
     Field(pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"),
 ]
+WorkerName = Annotated[str, Field(min_length=1)]
 
 
 class AdapterCapability(StrEnum):
@@ -138,7 +139,7 @@ class WorkerManifest(StrictModel):
         default=WORKER_PROTOCOL_VERSION, alias="protocolVersion"
     )
     worker_id: UuidString = Field(alias="workerId")
-    name: str = Field(min_length=1)
+    name: WorkerName
     version: str = Field(min_length=1)
     architecture: str
     capabilities: WorkerCapabilities = Field(default_factory=WorkerCapabilities)
@@ -316,10 +317,14 @@ class ModelCacheJobPayload(InboundModel):
 type WorkerJobPayload = TranscriptionJobPayload | MediaPreparationJobPayload | ModelCacheJobPayload
 
 
-class WorkerLease(InboundModel):
+# The part of a lease the worker needs to report on the job, even one it cannot read.
+class JobLease(InboundModel):
     job_id: str = Field(alias="jobId")
-    attempt: int = Field(ge=1)
     lease_token: str = Field(alias="leaseToken")
+
+
+class WorkerLease(JobLease):
+    attempt: int = Field(ge=1)
     lease_expires_at: str = Field(alias="leaseExpiresAt")
     payload: WorkerJobPayload
 

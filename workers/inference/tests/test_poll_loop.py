@@ -12,8 +12,9 @@ from anysub_worker import execution, runner
 from anysub_worker.adapter import ProgressReporter
 from anysub_worker.client import ApplicationClient
 from anysub_worker.config import WorkerSettings
-from anysub_worker.errors import LeaseLostError
+from anysub_worker.errors import LeaseLostError, UnreadableJobError
 from anysub_worker.models import (
+    JobLease,
     LeaseResponse,
     TranscriptArtifact,
     TranscriptionRequest,
@@ -68,6 +69,29 @@ async def test_invalid_lease_response_backs_off_instead_of_crashing(
         await client.close()
 
     assert delays == [1, 2, 0.5]
+
+
+async def test_an_unreadable_job_fails_permanently_and_polling_goes_on() -> None:
+    class UnreadableOnceClient(RecordingClient):
+        def __init__(self) -> None:
+            super().__init__()
+            self.polls = 0
+
+        async def lease(self) -> LeaseResponse:
+            self.polls += 1
+            if self.polls == 1:
+                raise UnreadableJobError(JobLease(jobId="job-1", leaseToken="lease-token"))
+            raise StopPolling
+
+    client = UnreadableOnceClient()
+
+    with pytest.raises(StopPolling):
+        await runner.poll_forever(client, AdapterRegistry(()))
+
+    assert [(failure.code, failure.retryable) for failure in client.failures] == [
+        ("adapter_unavailable", False)
+    ]
+    assert client.polls == 2
 
 
 async def test_sigterm_stops_the_worker_and_closes_the_client(

@@ -14,6 +14,7 @@ from anysub_worker.models import (
     AdapterModel,
     JobCompletion,
     JobFailure,
+    JobLease,
     ModelCacheJobCompletion,
     TranscriptArtifact,
     TranscriptCue,
@@ -137,7 +138,7 @@ class RecordingClient:
         else:
             self.media_completions += 1
 
-    async def fail(self, lease: WorkerLease, failure: JobFailure) -> None:
+    async def fail(self, lease: JobLease, failure: JobFailure) -> None:
         self.failures.append(failure)
 
 

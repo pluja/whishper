@@ -12,7 +12,7 @@ from typing import Any, Protocol
 import httpx
 
 from .adapter import AdapterExecutionError, ProgressReporter, TranscriptionAdapter
-from .errors import LeaseLostError, describe_error, failure_for
+from .errors import LeaseLostError, UnreadableJobError, describe_error, failure_for
 from .media.errors import MediaPreparationError
 from .media.prepare import prepare_media
 from .model_cache import ModelCacheError, run_model_cache_job
@@ -22,6 +22,7 @@ from .models import (
     JobCompletion,
     JobFailure,
     JobFailureCode,
+    JobLease,
     MediaDerivativeKind,
     MediaPreparationJobPayload,
     ModelCacheJobPayload,
@@ -60,7 +61,7 @@ class JobClient(Protocol):
 
     async def complete(self, lease: WorkerLease, completion: JobCompletion) -> None: ...
 
-    async def fail(self, lease: WorkerLease, failure: JobFailure) -> None: ...
+    async def fail(self, lease: JobLease, failure: JobFailure) -> None: ...
 
 
 class _LeasedJob:
@@ -133,6 +134,11 @@ async def execute_job(client: JobClient, registry: AdapterRegistry, lease: Worke
         await asyncio.wait([heartbeat])
 
 
+async def reject_unreadable_job(client: JobClient, error: UnreadableJobError) -> None:
+    LOGGER.error("could not read job job_id=%s: %s", error.lease.job_id, error.__cause__)
+    await _report_failure(client, error.lease, failure_for(error, error.code))
+
+
 def _shutting_down() -> bool:
     task = asyncio.current_task()
     return task is not None and task.cancelling() > 0
@@ -140,7 +146,7 @@ def _shutting_down() -> bool:
 
 async def _report_failure(
     client: JobClient,
-    lease: WorkerLease,
+    lease: JobLease,
     failure: JobFailure,
     *,
     timeout: float | None = None,

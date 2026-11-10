@@ -1207,12 +1207,12 @@
         "jobId": {
           "type": "string"
         },
+        "leaseToken": {
+          "type": "string"
+        },
         "attempt": {
           "minimum": 1,
           "type": "integer"
-        },
-        "leaseToken": {
-          "type": "string"
         },
         "leaseExpiresAt": {
           "type": "string"
@@ -1223,8 +1223,8 @@
       },
       "required": [
         "jobId",
-        "attempt",
         "leaseToken",
+        "attempt",
         "leaseExpiresAt",
         "payload"
       ],

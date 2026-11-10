@@ -9877,12 +9877,12 @@ const schema60 = {
 const schema61 = {
   properties: {
     jobId: { type: "string" },
-    attempt: { minimum: 1, type: "integer" },
     leaseToken: { type: "string" },
+    attempt: { minimum: 1, type: "integer" },
     leaseExpiresAt: { type: "string" },
     payload: { $ref: "#/$defs/WorkerJobPayload" },
   },
-  required: ["jobId", "attempt", "leaseToken", "leaseExpiresAt", "payload"],
+  required: ["jobId", "leaseToken", "attempt", "leaseExpiresAt", "payload"],
   title: "WorkerLease",
   type: "object",
 };
@@ -10965,13 +10965,13 @@ function validate138(
       }
       errors++;
     }
-    if (data.attempt === undefined) {
+    if (data.leaseToken === undefined) {
       const err1 = {
         instancePath,
         schemaPath: "#/required",
         keyword: "required",
-        params: { missingProperty: "attempt" },
-        message: "must have required property '" + "attempt" + "'",
+        params: { missingProperty: "leaseToken" },
+        message: "must have required property '" + "leaseToken" + "'",
       };
       if (vErrors === null) {
         vErrors = [err1];
@@ -10980,13 +10980,13 @@ function validate138(
       }
       errors++;
     }
-    if (data.leaseToken === undefined) {
+    if (data.attempt === undefined) {
       const err2 = {
         instancePath,
         schemaPath: "#/required",
         keyword: "required",
-        params: { missingProperty: "leaseToken" },
-        message: "must have required property '" + "leaseToken" + "'",
+        params: { missingProperty: "attempt" },
+        message: "must have required property '" + "attempt" + "'",
       };
       if (vErrors === null) {
         vErrors = [err2];
@@ -11042,20 +11042,14 @@ function validate138(
         errors++;
       }
     }
-    if (data.attempt !== undefined) {
-      let data1 = data.attempt;
-      if (!(
-        typeof data1 == "number" &&
-        !(data1 % 1) &&
-        !isNaN(data1) &&
-        isFinite(data1)
-      )) {
+    if (data.leaseToken !== undefined) {
+      if (typeof data.leaseToken !== "string") {
         const err6 = {
-          instancePath: instancePath + "/attempt",
-          schemaPath: "#/properties/attempt/type",
+          instancePath: instancePath + "/leaseToken",
+          schemaPath: "#/properties/leaseToken/type",
           keyword: "type",
-          params: { type: "integer" },
-          message: "must be integer",
+          params: { type: "string" },
+          message: "must be string",
         };
         if (vErrors === null) {
           vErrors = [err6];
@@ -11064,9 +11058,32 @@ function validate138(
         }
         errors++;
       }
-      if (typeof data1 == "number" && isFinite(data1)) {
-        if (data1 < 1 || isNaN(data1)) {
-          const err7 = {
+    }
+    if (data.attempt !== undefined) {
+      let data2 = data.attempt;
+      if (!(
+        typeof data2 == "number" &&
+        !(data2 % 1) &&
+        !isNaN(data2) &&
+        isFinite(data2)
+      )) {
+        const err7 = {
+          instancePath: instancePath + "/attempt",
+          schemaPath: "#/properties/attempt/type",
+          keyword: "type",
+          params: { type: "integer" },
+          message: "must be integer",
+        };
+        if (vErrors === null) {
+          vErrors = [err7];
+        } else {
+          vErrors.push(err7);
+        }
+        errors++;
+      }
+      if (typeof data2 == "number" && isFinite(data2)) {
+        if (data2 < 1 || isNaN(data2)) {
+          const err8 = {
             instancePath: instancePath + "/attempt",
             schemaPath: "#/properties/attempt/minimum",
             keyword: "minimum",
@@ -11074,29 +11091,12 @@ function validate138(
             message: "must be >= 1",
           };
           if (vErrors === null) {
-            vErrors = [err7];
+            vErrors = [err8];
           } else {
-            vErrors.push(err7);
+            vErrors.push(err8);
           }
           errors++;
         }
-      }
-    }
-    if (data.leaseToken !== undefined) {
-      if (typeof data.leaseToken !== "string") {
-        const err8 = {
-          instancePath: instancePath + "/leaseToken",
-          schemaPath: "#/properties/leaseToken/type",
-          keyword: "type",
-          params: { type: "string" },
-          message: "must be string",
-        };
-        if (vErrors === null) {
-          vErrors = [err8];
-        } else {
-          vErrors.push(err8);
-        }
-        errors++;
       }
     }
     if (data.leaseExpiresAt !== undefined) {
@@ -11154,8 +11154,8 @@ function validate138(
 validate138.evaluated = {
   props: {
     jobId: true,
-    attempt: true,
     leaseToken: true,
+    attempt: true,
     leaseExpiresAt: true,
     payload: true,
   },
@@ -11222,8 +11222,8 @@ function validate161(
       if (_valid0) {
         var props0 = {};
         props0.jobId = true;
-        props0.attempt = true;
         props0.leaseToken = true;
+        props0.attempt = true;
         props0.leaseExpiresAt = true;
         props0.payload = true;
       }

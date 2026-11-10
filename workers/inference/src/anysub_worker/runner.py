@@ -13,11 +13,12 @@ from pydantic import ValidationError
 
 from .client import ApplicationClient
 from .config import WorkerSettings
-from .errors import describe_error
+from .errors import UnreadableJobError, describe_error
 from .execution import (
     LEASE_HEARTBEAT_SECONDS,
     JobClient,
     execute_job,
+    reject_unreadable_job,
     remove_stale_work_directories,
 )
 from .models import LeaseResponse
@@ -91,6 +92,9 @@ async def poll_forever(
         await _wait_for_abandoned_threads(client)
         try:
             response = await client.lease()
+        except UnreadableJobError as error:
+            await reject_unreadable_job(client, error)
+            continue
         except LEASE_POLL_ERRORS as error:
             consecutive_failures += 1
             delay = APPLICATION_BACKOFF.delay_seconds(consecutive_failures, jitter())

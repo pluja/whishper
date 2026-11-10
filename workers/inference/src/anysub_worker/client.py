@@ -6,11 +6,13 @@ import platform
 import uuid
 from importlib.metadata import version
 from pathlib import Path
+from typing import Any
 
 import httpx
+from pydantic import TypeAdapter, ValidationError
 
 from .config import WorkerSettings
-from .errors import LeaseLostError, describe_error
+from .errors import LeaseLostError, UnreadableJobError, describe_error
 from .hardware import describe_hardware, detect_hardware, detect_memory, detect_storage
 from .models import (
     MEDIA_PREPARATION_VERSION,
@@ -19,10 +21,12 @@ from .models import (
     JobCompletionReport,
     JobFailure,
     JobFailureReport,
+    JobLease,
     JobProgressReport,
     LeaseResponse,
     MediaDerivativeKind,
     StrictModel,
+    UuidString,
     WorkerCapabilities,
     WorkerLease,
     WorkerManifest,
@@ -34,6 +38,7 @@ from .uploads import upload_artifact
 
 LOGGER = logging.getLogger(__name__)
 WORKER_VERSION = version("anysub-worker")
+WORKER_ID = TypeAdapter(UuidString)
 
 
 class ApplicationClient:
@@ -67,7 +72,7 @@ class ApplicationClient:
             "/api/internal/workers/lease", json=_wire(self._manifest())
         )
         response.raise_for_status()
-        return LeaseResponse.model_validate(response.json())
+        return _parse_lease_response(response.json())
 
     async def announce(self) -> None:
         response = await self._client.post(
@@ -128,16 +133,14 @@ class ApplicationClient:
             JobCompletionReport(leaseToken=lease.lease_token, result=completion),
         )
 
-    async def fail(self, lease: WorkerLease, failure: JobFailure) -> None:
+    async def fail(self, lease: JobLease, failure: JobFailure) -> None:
         await self._post_final_report(
             lease,
             "fail",
             JobFailureReport(leaseToken=lease.lease_token, error=failure),
         )
 
-    async def _post_final_report(
-        self, lease: WorkerLease, action: str, report: StrictModel
-    ) -> None:
+    async def _post_final_report(self, lease: JobLease, action: str, report: StrictModel) -> None:
         def log_retry(error: Exception, delay: float) -> None:
             LOGGER.warning(
                 "job %s report failed job_id=%s, retrying in %.1fs: %s",
@@ -155,7 +158,7 @@ class ApplicationClient:
             on_retry=log_retry,
         )
 
-    async def _post_job_report(self, lease: WorkerLease, action: str, report: StrictModel) -> None:
+    async def _post_job_report(self, lease: JobLease, action: str, report: StrictModel) -> None:
         response = await self._client.post(
             f"/api/internal/jobs/{lease.job_id}/{action}", json=_wire(report)
         )
@@ -168,12 +171,33 @@ def _wire(message: StrictModel) -> dict[str, object]:
     return message.model_dump(by_alias=True, mode="json")
 
 
+def _parse_lease_response(body: Any) -> LeaseResponse:
+    try:
+        return LeaseResponse.model_validate(body)
+    except ValidationError as error:
+        # A lease this worker cannot run still names its job, so the job fails for
+        # good instead of waiting out its lease and being handed out again.
+        if any(detail["loc"][:1] != ("lease",) for detail in error.errors()):
+            raise
+        raise UnreadableJobError(JobLease.model_validate(body.get("lease"))) from error
+
+
 def _load_or_create_worker_id(path: Path) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        return path.read_text(encoding="utf-8").strip()
+    try:
+        return WORKER_ID.validate_python(path.read_text(encoding="utf-8").strip())
+    except FileNotFoundError:
+        pass
+    except ValidationError:
+        LOGGER.warning("%s holds no valid worker ID, replacing it", path)
     worker_id = str(uuid.uuid4())
-    path.write_text(worker_id, encoding="utf-8")
+    # Renamed into place, so a crash never leaves an empty or partial ID behind.
+    staged = path.with_name(f"{path.name}.{worker_id}")
+    try:
+        staged.write_text(worker_id, encoding="utf-8")
+        staged.replace(path)
+    finally:
+        staged.unlink(missing_ok=True)
     return worker_id
 
 

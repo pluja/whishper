@@ -211,8 +211,8 @@ export interface LeaseResponse {
 }
 export interface WorkerLease {
   jobId: string;
-  attempt: number;
   leaseToken: string;
+  attempt: number;
   leaseExpiresAt: string;
   payload: WorkerJobPayload;
 }

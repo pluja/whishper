@@ -5,11 +5,12 @@ import httpx
 import pytest
 import respx
 from fakes import RecordedSleeps
+from pydantic import ValidationError
 
 from anysub_worker import client as client_module
 from anysub_worker.client import ApplicationClient
 from anysub_worker.config import AdapterRuntimeSettings, WorkerSettings
-from anysub_worker.errors import LeaseLostError
+from anysub_worker.errors import LeaseLostError, UnreadableJobError
 from anysub_worker.models import (
     MediaGenerator,
     MediaPreparationJobCompletion,
@@ -117,6 +118,75 @@ async def test_lease_conflict_raises_lease_lost(
         await client.close()
 
     assert route.call_count == 1
+
+
+LEASE = {
+    "jobId": "job-1",
+    "attempt": 1,
+    "leaseToken": "lease-token",
+    "leaseExpiresAt": "2026-11-10T00:00:00Z",
+}
+
+
+async def test_a_lease_with_an_unreadable_payload_names_the_job(
+    settings: WorkerSettings, respx_mock: respx.MockRouter
+) -> None:
+    client = make_client(settings, RecordedSleeps())
+    respx_mock.post(LEASE_URL).mock(
+        return_value=httpx.Response(200, json={"lease": {**LEASE, "payload": {"kind": "dub"}}})
+    )
+
+    try:
+        with pytest.raises(UnreadableJobError) as raised:
+            await client.lease()
+    finally:
+        await client.close()
+
+    assert (raised.value.lease.job_id, raised.value.lease.lease_token) == ("job-1", "lease-token")
+    assert raised.value.retryable is False
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"lease": {"jobId": "job-1", "payload": {"kind": "dub"}}},
+        {"lease": None, "pollAfterMs": 1},
+        ["not", "a", "lease"],
+    ],
+)
+async def test_a_lease_response_without_a_readable_job_is_a_poll_error(
+    settings: WorkerSettings, respx_mock: respx.MockRouter, body: object
+) -> None:
+    client = make_client(settings, RecordedSleeps())
+    respx_mock.post(LEASE_URL).mock(return_value=httpx.Response(200, json=body))
+
+    try:
+        with pytest.raises(ValidationError):
+            await client.lease()
+    finally:
+        await client.close()
+
+
+def test_the_worker_id_survives_a_restart(settings: WorkerSettings) -> None:
+    first = ApplicationClient(settings, AdapterRegistry(())).worker_id
+    second = ApplicationClient(settings, AdapterRegistry(())).worker_id
+
+    assert first == second
+    assert [path.name for path in settings.worker_id_file.parent.glob("worker-id*")] == [
+        "worker-id"
+    ]
+
+
+@pytest.mark.parametrize("stored", ["", "not-a-uuid"])
+def test_an_invalid_stored_worker_id_is_replaced_at_startup(
+    settings: WorkerSettings, stored: str
+) -> None:
+    settings.worker_id_file.write_text(stored, encoding="utf-8")
+
+    worker_id = ApplicationClient(settings, AdapterRegistry(())).worker_id
+
+    assert client_module.WORKER_ID.validate_python(worker_id) == worker_id
+    assert settings.worker_id_file.read_text(encoding="utf-8") == worker_id
 
 
 async def test_hardware_is_detected_once_and_memory_refreshed_per_poll(

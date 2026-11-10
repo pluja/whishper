@@ -7,7 +7,7 @@ from typing import Any, ClassVar
 
 import httpx
 
-from .models import JobFailure, JobFailureCode
+from .models import JobFailure, JobFailureCode, JobLease
 
 MAX_RESPONSE_DETAIL_CHARS = 200
 HTML_TAG = re.compile(r"<[^>]*>")
@@ -26,6 +26,18 @@ class JobError(RuntimeError):
     def __init__(self, message: str, *, retryable: bool) -> None:
         super().__init__(message)
         self.retryable = retryable
+
+
+class UnreadableJobError(JobError):
+    code = "adapter_unavailable"
+
+    def __init__(self, lease: JobLease) -> None:
+        super().__init__(
+            "This worker cannot read the job. Update the worker to the version of the "
+            "application, then try again.",
+            retryable=False,
+        )
+        self.lease = lease
 
 
 class LeaseLostError(RuntimeError):
