@@ -17,6 +17,7 @@ import {
 import { isRecord } from "$lib/shared/is-record";
 import { DETECT_LANGUAGE, LANGUAGE_TAG } from "$lib/shared/languages";
 import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
+import { parseModelKey } from "$lib/shared/transcription-models";
 
 const MAX_BATCH_SIZE = 64;
 
@@ -37,15 +38,14 @@ export type TranscriptionRequest = {
 export function parseTranscriptionRequest(
   values: FormData,
 ): TranscriptionRequest {
-  const modelKey = String(values.get("model") ?? "");
+  const model = parseModelKey(String(values.get("model") ?? ""));
   const language = String(values.get("language") ?? DETECT_LANGUAGE).trim();
   const batchSizeValue = String(values.get("batchSize") ?? "").trim();
   const maxLineLength = Number(
     String(values.get("maxLineLength") ?? DEFAULT_MAX_LINE_LENGTH).trim(),
   );
 
-  const separator = modelKey.indexOf(":");
-  if (separator < 0) {
+  if (!model) {
     throw badRequest("Choose an available transcription model.");
   }
   if (language !== DETECT_LANGUAGE && !LANGUAGE_TAG.test(language)) {
@@ -71,8 +71,7 @@ export function parseTranscriptionRequest(
   }
 
   return {
-    adapterId: modelKey.slice(0, separator),
-    modelId: modelKey.slice(separator + 1),
+    ...model,
     language: language === DETECT_LANGUAGE ? null : language,
     options: {
       alignment: values.get("alignment") === "on",

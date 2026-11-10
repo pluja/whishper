@@ -5,6 +5,7 @@
   import Picker from "$lib/components/ui/Picker.svelte";
   import {
     defaultModelKey,
+    parseModelKey,
     type AvailableTranscriptionModel,
   } from "$lib/shared/transcription-models";
 
@@ -49,7 +50,7 @@
       ? [
           {
             key: initial,
-            name: initial.split(":").at(-1) ?? initial,
+            name: parseModelKey(initial)?.modelId ?? initial,
             description: "No connected worker offers this model right now.",
             model: null,
           },

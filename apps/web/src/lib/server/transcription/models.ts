@@ -6,10 +6,11 @@ import type {
 
 import { formatBytes } from "$lib/shared/format";
 import { isRecord } from "$lib/shared/is-record";
-import type {
-  AvailableTranscriptionModel,
-  DetectedWorkerHardware,
-  ModelFit,
+import {
+  modelKey,
+  type AvailableTranscriptionModel,
+  type DetectedWorkerHardware,
+  type ModelFit,
 } from "$lib/shared/transcription-models";
 
 const FIT_RANK: Record<ModelFit, number> = {
@@ -102,10 +103,6 @@ export function compareModels(
   return `${left.adapterName} ${left.displayName}`.localeCompare(
     `${right.adapterName} ${right.displayName}`,
   );
-}
-
-export function modelKey(adapterId: string, modelId: string): string {
-  return `${adapterId}:${modelId}`;
 }
 
 export function isRecommended(model: AdapterModel, fit: ModelFit): boolean {

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   defaultModelKey,
+  modelKey,
+  parseModelKey,
   type AvailableTranscriptionModel,
 } from "./transcription-models";
 
@@ -12,6 +14,19 @@ function model(
 ): AvailableTranscriptionModel {
   return { key, modelId, recommended } as AvailableTranscriptionModel;
 }
+
+describe("parseModelKey", () => {
+  it("reads back the parts of a model key", () => {
+    expect(parseModelKey(modelKey("whisperx", "large-v3"))).toEqual({
+      adapterId: "whisperx",
+      modelId: "large-v3",
+    });
+  });
+
+  it.each(["small", ":small", "whisperx:", ""])("rejects %j", (key) => {
+    expect(parseModelKey(key)).toBeNull();
+  });
+});
 
 describe("defaultModelKey", () => {
   it("prefers the recommended model", () => {

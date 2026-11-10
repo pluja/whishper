@@ -12,6 +12,7 @@ import {
   type TranscriptionDefaults,
 } from "$lib/shared/instance-settings";
 import { DETECT_LANGUAGE, LANGUAGE_TAG } from "$lib/shared/languages";
+import { parseModelKey } from "$lib/shared/transcription-models";
 
 export const AUTOMATIC_MODEL = "auto";
 export const CUSTOM_UPLOAD_LIMIT = "custom";
@@ -78,7 +79,7 @@ export function parseTranscriptionDefaults(
   const maxLineLength = Number(form.get("maxLineLength"));
   const precision = String(form.get("precision") ?? "");
 
-  if (model !== AUTOMATIC_MODEL && !/^[^:]+:[^:]+$/.test(model)) {
+  if (model !== AUTOMATIC_MODEL && !parseModelKey(model)) {
     return problem("model", "Choose a model from the list.");
   }
   if (language !== DETECT_LANGUAGE && !LANGUAGE_TAG.test(language)) {

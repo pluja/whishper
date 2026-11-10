@@ -28,6 +28,21 @@ export type DetectedWorkerHardware = {
   details: string[];
 };
 
+export function modelKey(adapterId: string, modelId: string): string {
+  return `${adapterId}:${modelId}`;
+}
+
+export function parseModelKey(
+  key: string,
+): { adapterId: string; modelId: string } | null {
+  const separator = key.indexOf(":");
+  if (separator < 1 || separator === key.length - 1) return null;
+  return {
+    adapterId: key.slice(0, separator),
+    modelId: key.slice(separator + 1),
+  };
+}
+
 export function defaultModelKey(
   models: AvailableTranscriptionModel[],
   preferredKey: string | null = null,

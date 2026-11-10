@@ -11,7 +11,6 @@ import {
   compareModels,
   describeHardware,
   isRecommended,
-  modelKey,
   positiveNumber,
   scoreModelFit,
 } from "$lib/server/transcription/models";
@@ -21,6 +20,7 @@ import type {
   ModelTask,
   WorkerModelInventory,
 } from "$lib/shared/model-inventory";
+import { modelKey } from "$lib/shared/transcription-models";
 
 // Enough history to find the latest outcome for every model on every worker.
 const RECENT_MODEL_JOBS = 500;
