@@ -2,7 +2,7 @@
 
 Anysub turns audio and video into subtitles you can ship. It transcribes your media with Whisper, aligns the words to the sound, and gives you a waveform editor to fix what the model got wrong. Everything runs on your own machine, and your recordings never leave it.
 
-Anysub is a ground-up rewrite of [Whishper](https://github.com/pluja/whishper). The version 3 branch is unmaintained.
+Anysub is the successor to Whishper, rewritten from scratch.
 
 ## Features
 
@@ -15,57 +15,39 @@ Anysub is a ground-up rewrite of [Whishper](https://github.com/pluja/whishper). 
 - A searchable project library.
 - An administration area to download models ahead of time, set transcription defaults and precision, choose the upload limit, and watch disk space and workers.
 
-## Requirements
+## Install
 
-- Linux with Docker Engine or Podman, and Docker Compose.
-- Disk space for your media, plus a few gigabytes for the speech models.
-- A CPU is enough. An NVIDIA GPU is several times faster, but that path is untested on real hardware. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#nvidia-gpus).
-
-## Quickstart
+On a Linux x86-64 host with Docker and Docker Compose:
 
 ```sh
-git clone -b v4 https://github.com/pluja/whishper.git anysub
-cd anysub
-docker compose up --build
+mkdir anysub && cd anysub
+curl -fsSLO https://github.com/pluja/anysub/releases/latest/download/compose.yaml
+docker compose up -d
 ```
 
-There is nothing to configure first. Anysub generates its secrets on first start and keeps them in its database. To change an optional setting such as the port, copy `.env.example` to `.env` and uncomment the line.
+Open `http://localhost:5173` and create the owner account. Anysub asks for a setup code, which it prints in its log: run `docker compose logs web` to see it. There is nothing to configure first.
 
-Open `http://localhost:5173`, or `http://<server-address>:5173` from another machine, and create the owner account on the setup page. The page asks for a setup code that Anysub prints in its log at startup. It shows in the `docker compose up` output, or run `docker compose logs web`. The owner is the only account: public sign-up is disabled and there is no way to add users yet.
+[Install](docs/INSTALL.md) covers requirements, Podman, NVIDIA GPUs, reverse proxies and building from source.
 
-On Fedora with rootless Podman, use Docker Compose as the provider:
+## Coming from Whishper 3
 
-```sh
-sudo dnf install podman docker-compose
-systemctl --user enable --now podman.socket
-export PODMAN_COMPOSE_PROVIDER=/usr/libexec/docker/cli-plugins/docker-compose
-podman compose up --build -d
-```
+Anysub cannot read Whishper 3 data, and Whishper 3 is no longer maintained. [Coming from Whishper 3](docs/MIGRATING-FROM-WHISHPER.md) explains what changed and how to move over. The old code is in the [`v3-legacy`](https://github.com/pluja/anysub/tree/v3-legacy) branch.
 
-[docs/INSTALL.md](docs/INSTALL.md) has more on Podman, plus reverse proxy setup, upgrades, and removal.
-
-## Status
-
-Anysub is in beta. Upload, transcription with word alignment, the editor, autosave and recovery, quality warnings, search, and export work end to end.
-
-Not built yet:
+## Not built yet
 
 - Translation.
 - Speaker labels.
 - Watched folders.
 - Import from a URL or an existing subtitle file.
-- More users, or workers with their own credentials.
-- Named revisions.
+- More than one account.
 - Workers on other machines.
+- ARM images.
+
+New features arrive in 4.x releases. The [changelog](CHANGELOG.md) lists what each one brings.
 
 ## Documentation
 
-- [Install](docs/INSTALL.md): Docker and Podman, reverse proxy, upgrades, removal.
-- [Configuration](docs/CONFIGURATION.md): every setting, GPU setup, storage.
-- [User guide](docs/USER-GUIDE.md): uploading, transcribing, editing, exporting.
-- [Adapters](docs/ADAPTERS.md): build a worker image with your own speech model.
-- [Architecture](docs/ARCHITECTURE.md) and [Uploads and media](docs/UPLOADS.md): how the system works.
-- [Contributing](CONTRIBUTING.md) and [Security](SECURITY.md).
+Everything is in [docs](docs/README.md): installing, upgrading, backups, the user guide, administration, troubleshooting, and how to contribute.
 
 ## AI disclosure
 

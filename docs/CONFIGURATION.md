@@ -1,8 +1,8 @@
 # Configuration
 
-Anysub needs no configuration to run. The first account is the administrator and chooses models, transcription defaults and the upload limit in the app, under **Administration** in the account menu. The [user guide](USER-GUIDE.md#administration) walks through it.
+Anysub needs no configuration to run. The owner chooses models, transcription defaults and the upload limit in the app, under **Administration** in the account menu. [Administration](ADMINISTRATION.md) walks through it.
 
-The settings below are about how the containers run, and all of them are optional: copy `.env.example` to `.env` in the repository root and uncomment the lines you want to change.
+The settings below are about how the containers run, and all of them are optional. Put the ones you want in a `.env` file next to `compose.yaml`, one `NAME=value` per line. [.env.example](../.env.example) lists them with comments.
 
 Apply a change by recreating the services:
 
@@ -10,7 +10,7 @@ Apply a change by recreating the services:
 docker compose up -d
 ```
 
-After switching between CPU and GPU, add `--build` so Compose builds the matching worker image. With Podman, replace `docker compose` with `podman compose` throughout.
+With Podman, replace `docker compose` with `podman compose` throughout.
 
 This page is the only place that lists settings. Other documents link here.
 
@@ -51,6 +51,13 @@ Your reverse proxy needs matching limits. Nginx defaults to a 1 MiB request body
 
 A declared media type must be `audio/*`, `video/*`, `application/ogg`, or `application/mp4`; anything else is rejected. An upload that declares no type is accepted. Uploads must state their length up front.
 
+## Compose files
+
+| Variable             | Default        | Notes                                                                                                               |
+| -------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `COMPOSE_FILE`       | `compose.yaml` | Read by Compose itself. `compose.yaml:compose.cuda.yaml` runs the [NVIDIA worker](GPU.md). Separate files with `:`. |
+| `ANYSUB_ACCELERATOR` | `cpu`          | Only for [source builds](INSTALL.md#build-from-source) with `compose.build.yaml`: `cuda` builds the NVIDIA worker.  |
+
 ## Worker
 
 | Variable             | Default                                                | Notes                                                         |
@@ -65,14 +72,13 @@ Download models under **Administration > Models**, and pick one per transcriptio
 
 The [user guide](USER-GUIDE.md#choosing-a-model) describes what each model is good at.
 
-### Set by Compose
+### Set by Compose and the images
 
-`compose.yaml` derives these from the settings above. Change them only for a custom deployment.
+The Compose files and the images set these, some from the settings above. Change them only for a custom deployment.
 
 | Variable               | Value in Compose                        | Notes                                                                                   |
 | ---------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
-| `ANYSUB_ACCELERATOR`   | `cpu`, or `cuda` with compose.cuda.yaml | Build argument that selects the PyTorch wheels in the worker image.                     |
-| `ANYSUB_DEVICE`        | Same as `ANYSUB_ACCELERATOR`            | Worker device. With `cuda`, the worker refuses to start when it cannot use the GPU.     |
+| `ANYSUB_DEVICE`        | `cpu`, or `cuda` with compose.cuda.yaml | Worker device. With `cuda`, the worker refuses to start when it cannot use the GPU.     |
 | `ANYSUB_APP_URL`       | `http://web:3000`                       | How the worker reaches the application. The development overlay uses `http://web:5173`. |
 | `ANYSUB_DATA_ROOT`     | `/data`                                 | Worker side of the media mount. See [Data root](#data-root).                            |
 | `DATA_ROOT`            | `/data`                                 | Application side of the media mount. See [Data root](#data-root).                       |
@@ -104,58 +110,7 @@ Compose reads the override automatically when you run it without `-f`. If you pa
 
 ## NVIDIA GPUs
 
-An NVIDIA GPU transcribes several times faster than a CPU. Support is written but not yet verified on real hardware, so treat this section as a path to try rather than a guarantee. Please report what happens.
-
-You need:
-
-- A card of the Volta generation or newer (compute capability 7.0 and up), such as a GTX 16xx, an RTX 20xx to 50xx, or a data-center card from the V100 on. Pascal and older cards, including the GTX 10xx series, cannot run the CUDA image. Use the CPU on those.
-- The [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the host, and a driver recent enough for CUDA 12.8.
-
-Confirm Docker can reach the GPU before changing anything:
-
-```sh
-docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu24.04 nvidia-smi
-```
-
-If that prints your card, add this line to `.env` so every `docker compose` command includes the NVIDIA overlay, then rebuild:
-
-```sh
-COMPOSE_FILE=compose.yaml:compose.cuda.yaml
-```
-
-```sh
-docker compose up --build -d
-```
-
-The overlay switches the worker to CUDA, grants access to every GPU on the host, and names the image `anysub-worker-cuda` so a CPU build never replaces it. The first build downloads the CUDA PyTorch wheels, which are several gigabytes larger than the CPU ones. Expect a long build and a worker image around 10 GB.
-
-Check that the worker found the card:
-
-```sh
-docker compose logs worker | grep "worker started"
-```
-
-The line shows `device=cuda` and the card's name. When the worker cannot use the GPU, it stops at startup and logs why: the image was built for CPU, the container cannot see a GPU, or the card is too old for the image. The model picker also reports detected hardware.
-
-### When the GPU path fails
-
-**The worker starts but transcription falls back or errors on model load.** CTranslate2 loads cuBLAS and cuDNN at runtime. They ship as PyTorch dependencies inside the virtual environment instead of on the system loader path, so the CUDA image build registers their directories with `ldconfig` and fails if it cannot find them. If the error mentions `libcudnn` or `libcublas`, check that the running image resolves them:
-
-```sh
-docker compose exec worker ldconfig -p | grep -E 'libcudnn|libcublas'
-```
-
-No output means the image was built for CPU. Check the `COMPOSE_FILE` line in `.env` and rebuild with `--build`.
-
-**Out of memory.** Choose a smaller model, or choose **Lower memory** under **Administration > Transcription > Precision** to cut graphics memory use.
-
-**`could not select device driver`.** The NVIDIA Container Toolkit is missing or the Docker daemon has not picked it up. Restart Docker after installing it.
-
-To go back to CPU, remove the `COMPOSE_FILE` line from `.env` and run `docker compose up --build -d`.
-
-## AMD GPUs
-
-Not supported. The dependency stack targets CUDA, and the worker reports a ROCm backend only where PyTorch already exposes one. Treat AMD acceleration as future work.
+[NVIDIA GPUs](GPU.md) has its own page.
 
 ## Storage
 
@@ -167,7 +122,7 @@ Anysub keeps everything in Docker-managed volumes, named `anysub_<volume>` under
 
 Keep the `database` volume on local disk. SQLite relies on file locking that network shares such as NFS and SMB do not provide reliably, and a database on one can be corrupted. Media in `app-data` can live on a share.
 
-Media and the database have to be backed up together. A transcript without its media is not much use, and the reverse is worse. Stop the stack before copying the volumes, so the database file is consistent.
+Back up the database and media together. [Backup and restore](BACKUP.md) has the commands.
 
 `docker compose down` keeps all three. `docker compose down --volumes` deletes all three, including every project you have created.
 

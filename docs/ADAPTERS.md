@@ -85,19 +85,11 @@ The built-in `whisperx` adapter is registered through this same entry-point grou
 
 ## Installation
 
-Build a worker image. Do not install the adapter on the Docker host. First build the stock worker image from the repository root:
-
-```sh
-docker build -f workers/inference/Dockerfile --target runtime -t anysub-worker:local .
-```
-
-Add `--build-arg ANYSUB_ACCELERATOR=cuda` to build the CUDA base instead of the CPU one.
-
-Then derive an image that installs your wheel. The runtime image does not ship `uv`, so copy it in for the install step only:
+Build a worker image. Do not install the adapter on the Docker host. Derive it from the published worker image of the Anysub version you run, or from its `-cuda` variant for an NVIDIA GPU. The runtime image does not ship `uv`, so copy it in for the install step only:
 
 ```dockerfile
 FROM ghcr.io/astral-sh/uv:0.11.25 AS uv
-FROM anysub-worker:local
+FROM ghcr.io/pluja/anysub-worker:4.0.0
 
 USER root
 COPY --from=uv /uv /usr/local/bin/uv
@@ -113,18 +105,17 @@ Build the derived image from a directory that contains your `Dockerfile` and `di
 docker build -t local/anysub-worker-my-model:0.1.0 .
 ```
 
-Then reference it from a Compose override. The override drops the stock `build` section so `docker compose up --build` cannot replace your image:
+Then reference it from a Compose override:
 
 ```yaml
 services:
   worker:
     image: local/anysub-worker-my-model:0.1.0
-    build: !reset null
 ```
 
 Save it as `compose.override.yaml` next to `compose.yaml`. Compose reads that file automatically only when neither `-f` nor `COMPOSE_FILE` names the files. If `.env` sets `COMPOSE_FILE` for an NVIDIA GPU, append it there as the last file, because later files override earlier ones: `COMPOSE_FILE=compose.yaml:compose.cuda.yaml:compose.override.yaml`.
 
-After a `git pull`, rebuild both the base image and the derived image, in that order. Otherwise the worker keeps running the old code.
+When you upgrade Anysub, change the `FROM` tag to the new version and rebuild the derived image. Otherwise the worker keeps running the old code, and the application refuses a worker whose protocol it no longer speaks.
 
 Large model weights belong in `/models`, which is a persistent Docker volume. Media is available under the read-only `/data` mount for a local worker. An adapter must not modify canonical media.
 
