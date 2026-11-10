@@ -1,5 +1,5 @@
 import { clampToDuration } from "$lib/shared/source-duration";
-import type { EditorCue } from "./cues";
+import { cueAt, type EditorCue } from "./cues";
 
 type ShuttleDirection = -1 | 0 | 1;
 
@@ -64,11 +64,7 @@ export class Transport {
   playing = $derived(
     this.#mediaPlaying || this.#reverseShuttleTimer !== undefined,
   );
-  activeCue = $derived.by(() =>
-    this.#selection.cues.find(
-      (cue) => cue.start_us <= this.playbackUs && cue.end_us >= this.playbackUs,
-    ),
-  );
+  activeCue = $derived.by(() => cueAt(this.#selection.cues, this.playbackUs));
 
   constructor(selection: CueSelection, options: TransportOptions) {
     this.#selection = selection;
@@ -93,9 +89,7 @@ export class Transport {
     this.mediaDurationUs = Number.isFinite(media.duration)
       ? Math.round(media.duration * 1_000_000)
       : 0;
-    const current = this.#selection.cues.find(
-      (cue) => cue.start_us <= this.playbackUs && cue.end_us >= this.playbackUs,
-    );
+    const current = this.activeCue;
     if (
       current &&
       current.id !== this.#selection.selectedCueId &&

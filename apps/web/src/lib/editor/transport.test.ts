@@ -181,3 +181,37 @@ describe("Transport playback selection", () => {
     expect(playingTransport(true).selectedCueId).toBeNull();
   });
 });
+
+describe("Transport at the boundary of touching cues", () => {
+  function touchingTransport() {
+    const selection = {
+      cues: [
+        { id: "a", position: 0, start_us: 1_000_000, end_us: 2_000_000 },
+        { id: "b", position: 1, start_us: 2_000_000, end_us: 3_000_000 },
+      ].map((cue) => ({ ...cue, text: "" })),
+      selectedCueId: "a" as string | null,
+      editing: false,
+    };
+    const transport = new Transport(selection, {
+      frameDurationUs: () => 40_000,
+      maxCueEndUs: () => 10_000_000,
+    });
+    transport.mediaElement = {
+      ...fakeMedia(true),
+      currentTime: 1.5,
+    } as unknown as HTMLMediaElement;
+    return { selection, transport };
+  }
+
+  it("keeps the later cue active and selected after jumping to its start", () => {
+    const { selection, transport } = touchingTransport();
+    transport.jumpToCueStart(1);
+    transport.mediaEvents.ontimeupdate({
+      currentTarget: transport.mediaElement,
+    } as unknown as Event);
+
+    expect(transport.playbackUs).toBe(2_000_000);
+    expect(transport.activeCue?.id).toBe("b");
+    expect(selection.selectedCueId).toBe("b");
+  });
+});

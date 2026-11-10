@@ -42,6 +42,15 @@ export function cueIssues(
   });
 }
 
+// A cue's end is outside it, so the playhead on the boundary between two
+// touching cues belongs to the later one.
+export function cueAt(
+  cues: readonly EditorCue[],
+  timeUs: number,
+): EditorCue | undefined {
+  return cues.find((cue) => cue.start_us <= timeUs && timeUs < cue.end_us);
+}
+
 export function charactersPerSecond(cue: EditorCue): number | null {
   const durationSeconds = (cue.end_us - cue.start_us) / 1_000_000;
   if (durationSeconds <= 0) return null;

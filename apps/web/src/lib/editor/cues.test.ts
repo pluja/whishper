@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   charactersPerSecond,
+  cueAt,
   cueIssues,
   cueTimeError,
   deleteCue,
@@ -324,6 +325,24 @@ describe("orderCuesByStart", () => {
       { ...cue("b", 2, 3), position: 5 },
     ];
     expect(orderCuesByStart(cues).changed).toBe(true);
+  });
+});
+
+describe("cueAt", () => {
+  const cues = track(cue("a", 1, 2), cue("b", 2, 3));
+
+  it("finds the cue whose span holds the time", () => {
+    expect(cueAt(cues, 1_000_000)?.id).toBe("a");
+    expect(cueAt(cues, 2_500_000)?.id).toBe("b");
+  });
+
+  it("gives a shared boundary to the later cue", () => {
+    expect(cueAt(cues, 2_000_000)?.id).toBe("b");
+  });
+
+  it("finds nothing at a final end or in a gap", () => {
+    expect(cueAt(cues, 3_000_000)).toBeUndefined();
+    expect(cueAt(cues, 500_000)).toBeUndefined();
   });
 });
 
