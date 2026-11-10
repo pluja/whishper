@@ -46,6 +46,8 @@ MEDIA_UPLOAD_SPAN = (0.86, 0.98)
 
 
 class JobClient(Protocol):
+    async def announce(self) -> None: ...
+
     async def progress(self, lease: WorkerLease, progress: float, message: str) -> None: ...
 
     async def fetch_source(
@@ -172,9 +174,20 @@ async def _run(
     if isinstance(payload, TranscriptionJobPayload):
         await _run_transcription(client, registry, lease, payload, report)
     elif isinstance(payload, ModelCacheJobPayload):
-        await client.complete(lease, await run_model_cache_job(registry, payload, report))
+        completion = await run_model_cache_job(registry, payload, report)
+        await _refresh_manifest(client, lease)
+        await client.complete(lease, completion)
     else:
         await _run_media_preparation(client, lease, payload, report)
+
+
+# The application reads which models are downloaded from the manifest, so it
+# must see the change before the task reads as done.
+async def _refresh_manifest(client: JobClient, lease: WorkerLease) -> None:
+    try:
+        await client.announce()
+    except Exception as error:
+        LOGGER.warning("manifest refresh failed job_id=%s: %s", lease.job_id, describe_error(error))
 
 
 async def _run_media_preparation(

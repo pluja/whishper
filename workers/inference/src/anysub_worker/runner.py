@@ -78,8 +78,6 @@ async def run_forever(settings: WorkerSettings, registry: AdapterRegistry) -> No
 class LeasingClient(JobClient, Protocol):
     async def lease(self) -> LeaseResponse: ...
 
-    async def announce(self) -> None: ...
-
 
 async def poll_forever(
     client: LeasingClient,
