@@ -17,7 +17,7 @@ const PUBLISHED_PLACEHOLDERS = new Set([
 export const privateEnv = {
   databaseFile: env.ANYSUB_DATABASE_FILE || "/database/anysub.db",
   authUrl: env.BETTER_AUTH_URL || "http://localhost:5173",
-  dataRoot: env.DATA_ROOT ?? "/data",
+  dataRoot: env.DATA_ROOT || "/data",
   // Unset means Anysub generates the secret and keeps it in the database.
   authSecretOverride: env.BETTER_AUTH_SECRET || null,
   workerTokenOverride: env.ANYSUB_WORKER_TOKEN || null,

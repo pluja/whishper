@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { findInsecureSettings } from "./env";
 
@@ -39,5 +39,21 @@ describe("secret overrides", () => {
       "ANYSUB_WORKER_TOKEN is shorter than 24 characters. It authenticates workers against the job API.",
     ]);
     expect(problems.join(" ")).not.toContain("too-short-secret");
+  });
+});
+
+describe("private environment", () => {
+  it("treats empty variables as unset", async () => {
+    vi.resetModules();
+    vi.doMock("$env/dynamic/private", () => ({
+      env: { ANYSUB_DATABASE_FILE: "", BETTER_AUTH_URL: "", DATA_ROOT: "" },
+    }));
+    const { privateEnv } = await import("./env");
+
+    expect(privateEnv).toMatchObject({
+      databaseFile: "/database/anysub.db",
+      authUrl: "http://localhost:5173",
+      dataRoot: "/data",
+    });
   });
 });
