@@ -225,6 +225,38 @@ describe("leaseJob reclaim", () => {
     expect(runStatus(job.runId)).toBe("failed");
   });
 
+  it("gives memory advice only for transcriptions", async () => {
+    const job = db
+      .insert(jobs)
+      .values({
+        kind: "model_cache",
+        payload: {
+          kind: "model_cache",
+          action: "download",
+          workerId: randomUUID(),
+          adapterId: "whisperx",
+          modelId: "small",
+        },
+        state: "leased",
+        attempts: 1,
+        maxAttempts: 1,
+        leaseTokenHash: "expired",
+        leaseExpiresAt: new Date(Date.now() - 1_000),
+      })
+      .returning({ id: jobs.id })
+      .get();
+
+    await leaseJob(idleWorker());
+
+    expect(jobRow(job.id)).toMatchObject({
+      state: "failed",
+      error: {
+        code: "lease_expired",
+        message: "The worker stopped before finishing.",
+      },
+    });
+  });
+
   it("requeues the job and its run while attempts remain", async () => {
     const project = await seedProject();
     const job = await seedLeasedTranscriptionJob(project, {

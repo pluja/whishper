@@ -15,14 +15,6 @@ import { cleanupStagedMediaAttempt } from "$lib/server/media/artifact-staging";
 
 const RETRY_DELAY_MS = 5_000;
 
-// A worker that vanishes without reporting was usually killed for running out
-// of memory, so the message points at the settings that use less of it.
-const LEASE_EXPIRED_FAILURE: StoredJobError = {
-  code: "lease_expired",
-  message:
-    "The worker stopped before finishing, often because it ran out of memory. Try a smaller model or a lower batch size.",
-  retryable: false,
-};
 const LEASE_EXPIRED_RETRY_MESSAGE =
   "The worker stopped before finishing. Trying again.";
 
@@ -96,15 +88,14 @@ export function reclaimExpiredLeases(tx: Executor): ReclaimedMediaAttempt[] {
 
   for (const job of expired) {
     const retry = job.attempts < job.maxAttempts;
+    const failure = leaseExpiredFailure(job.payload.kind);
     tx.update(jobs)
       .set({
         state: retry ? "queued" : "failed",
         availableAt: now,
         ...RELEASED_LEASE,
-        progressMessage: retry
-          ? LEASE_EXPIRED_RETRY_MESSAGE
-          : LEASE_EXPIRED_FAILURE.message,
-        ...(!retry && { error: LEASE_EXPIRED_FAILURE }),
+        progressMessage: retry ? LEASE_EXPIRED_RETRY_MESSAGE : failure.message,
+        ...(!retry && { error: failure }),
       })
       .where(eq(jobs.id, job.id))
       .run();
@@ -118,6 +109,19 @@ export function reclaimExpiredLeases(tx: Executor): ReclaimedMediaAttempt[] {
   return expired
     .filter((job) => job.payload.kind === "media_prepare")
     .map((job) => ({ jobId: job.id, attempt: job.attempts }));
+}
+
+// A worker that vanishes during a transcription was usually killed for running
+// out of memory, so that message points at the settings that use less of it.
+function leaseExpiredFailure(kind: WorkerJobPayload["kind"]): StoredJobError {
+  return {
+    code: "lease_expired",
+    message:
+      kind === "transcribe"
+        ? "The worker stopped before finishing, often because it ran out of memory. Try a smaller model or a lower batch size."
+        : "The worker stopped before finishing.",
+    retryable: false,
+  };
 }
 
 function syncJobSubject(tx: Executor, job: JobSubject): void {
