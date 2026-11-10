@@ -1,0 +1,56 @@
+# Releasing
+
+This page is for maintainers. A release is a Git tag. Pushing it runs [release.yml](../.github/workflows/release.yml), which publishes the images to the GitHub Container Registry and drafts a GitHub release for you to review.
+
+## Versions
+
+Anysub uses [Semantic Versioning](https://semver.org). The web application and the worker always share one version, because they speak a protocol that changes with the code.
+
+- A patch release (4.0.1) fixes bugs and changes no behavior people rely on.
+- A minor release (4.1.0) adds features. Upgrading needs no manual step beyond the usual backup.
+- A major release (5.0.0) needs the people who run Anysub to act, for example a change to the Compose files they keep.
+
+Every release publishes these tags:
+
+| Image                         | Tags                                              |
+| ----------------------------- | ------------------------------------------------- |
+| `ghcr.io/pluja/anysub`        | `4.1.0`, `4.1`, `4`, `latest`                     |
+| `ghcr.io/pluja/anysub-worker` | `4.1.0`, `4.1`, `4`, `latest`                     |
+| `ghcr.io/pluja/anysub-worker` | `4.1.0-cuda`, `4.1-cuda`, `4-cuda`, `latest-cuda` |
+
+The Compose files pin the exact version, so an installation changes only when its administrator upgrades it.
+
+Release in increasing version order, from `main`. Every release moves `latest` and its major and minor tags, so tagging 4.0.2 after 4.1.0 would move `latest` back to 4.0.2. Fix older lines by releasing the next version instead.
+
+## Cutting a release
+
+1. Set the new version in these files. A test fails while any of them disagree.
+   - `apps/web/package.json`: `version`.
+   - `workers/inference/pyproject.toml`: `version`. Then refresh the lockfile:
+     ```sh
+     docker compose -f compose.yaml -f compose.dev.yaml -p anysub-dev run --rm --no-deps worker uv lock
+     ```
+   - `compose.yaml`: both image tags.
+   - `compose.cuda.yaml`: the worker tag, with `-cuda`.
+2. Add a `## [4.1.0] - YYYY-MM-DD` section to `CHANGELOG.md`, written for the people who run and use Anysub, and a link for it at the bottom. The release notes are this section.
+3. Run `make verify`.
+4. Commit with `chore(release): 4.1.0` and push to `main`. Wait for CI to pass, including the image builds.
+5. Tag the commit and push the tag:
+   ```sh
+   git tag -a v4.1.0 -m "Anysub 4.1.0"
+   git push origin v4.1.0
+   ```
+6. Watch the Release workflow. It runs the checks again and confirms the tag matches the version. It then pushes each image under its exact version, moves `4.1`, `4` and `latest` once all three exist, and drafts the release with `compose.yaml` and `compose.cuda.yaml` attached.
+7. Read the draft on the Releases page, then publish it with **Set as the latest release** checked. The install guide downloads `releases/latest/download/compose.yaml`, so the latest release must be the newest version.
+
+If an image fails, `latest` and the other shared tags stay on the previous release. For a transient failure, such as a registry timeout, choose **Re-run failed jobs**. If the build itself is broken, fix it and release the next patch version. Never move a tag that published images.
+
+## Release candidates
+
+To try the workflow or a risky change first, release a candidate: use a version such as `4.1.0-rc.1` in every file and in the changelog heading, and tag `v4.1.0-rc.1`. A pre-release publishes only its own tags, such as `4.1.0-rc.1` and `4.1.0-rc.1-cuda`, never moves `latest`, and its draft is marked as a pre-release. Set the final version before tagging the real release.
+
+## Repository settings
+
+- Protect release tags with a tag ruleset on `refs/tags/v*` that lets only maintainers create, update or delete them. A pushed tag publishes images.
+- New packages on the GitHub Container Registry are private. After the first release workflow, open `anysub` and `anysub-worker` from the profile's **Packages** tab and change the visibility to public under **Package settings**. Pulls fail for everyone else until you do, and a public package cannot be made private again.
+- If a package of the same name existed before, the workflow cannot push to it until the repository has write access under the package's **Manage Actions access**.

@@ -1,0 +1,46 @@
+name: Bug report
+description: Something in Anysub does not work as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [Troubleshooting](https://github.com/pluja/anysub/blob/main/docs/TROUBLESHOOTING.md) first. Whishper 3 is no longer maintained, so report only problems with Anysub 4 or later.
+  - type: input
+    id: version
+    attributes:
+      label: Anysub version
+      description: Shown at the top right of Administration, and in the image tags in your compose.yaml.
+      placeholder: 4.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: worker
+    attributes:
+      label: Worker
+      options:
+        - CPU
+        - NVIDIA GPU (compose.cuda.yaml)
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Host and container engine
+      description: Operating system, Docker or Podman and their versions, and browser if the problem is in the interface.
+      placeholder: Ubuntu 24.04, Docker 28.3, Firefox 145
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Output of `docker compose logs --tail 200 web worker`. Remove transcript text and anything private first.
+      render: text

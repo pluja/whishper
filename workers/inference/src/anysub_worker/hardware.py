@@ -163,8 +163,8 @@ def cuda_problem(runtime: AdapterRuntimeSettings, *, torch_module: Any | None = 
     torch = torch_module if torch_module is not None else _optional_torch()
     if torch is None or getattr(torch.version, "cuda", None) is None:
         return (
-            "ANYSUB_DEVICE=cuda, but this worker image was built for CPU. Rebuild it with "
-            "docker compose -f compose.yaml -f compose.cuda.yaml up --build -d"
+            "ANYSUB_DEVICE=cuda, but this worker image was built for CPU. Start Anysub with "
+            "compose.cuda.yaml, which runs the CUDA worker image."
         )
     try:
         device_count = int(torch.cuda.device_count()) if torch.cuda.is_available() else 0

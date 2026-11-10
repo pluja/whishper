@@ -16,9 +16,10 @@ workers/inference/        Python worker
   tests/                  pytest suite
 packages/contracts/       JSON Schema and the TypeScript generated from it
 docs/                     User and contributor documentation
-compose.yaml              Production stack
-compose.dev.yaml          Development overlay
+compose.yaml              Production stack, pulls the published images
 compose.cuda.yaml         NVIDIA overlay
+compose.build.yaml        Builds the production images from the checkout
+compose.dev.yaml          Development overlay
 ```
 
 Server domain folders in `apps/web/src/lib/server/`: `auth`, `db`, `http`, `jobs`, `media`, `models`, `projects`, `settings`, `storage`, `subtitles`, `transcription`, `uploads`, `workers`.
@@ -137,6 +138,10 @@ drizzle-kit creates an empty SQL file for you to write the statements into.
 Transactions run synchronously through `withTransaction` in `apps/web/src/lib/server/db/transaction.ts`. Because one cannot interleave with another request, the code needs no row or advisory locks. Do file work before or after a transaction, never inside it, and use `withKeyedLock` when several async steps for one job or upload must not overlap.
 
 Every test file gets its own in-memory database, migrated from scratch. Files named `*.db.test.ts` also clear every table after each test, so they can seed rows freely.
+
+## Releases
+
+The web and worker images share one version, kept in `apps/web/package.json`, `workers/inference/pyproject.toml`, and the image tags in the Compose files. A test fails when they disagree. [docs/RELEASING.md](docs/RELEASING.md) has the steps.
 
 ## Commits
 

@@ -51,6 +51,7 @@ FROM base AS runtime
 ARG ANYSUB_ACCELERATOR=cpu
 
 ENV PATH="/app/.venv/bin:$PATH" \
+    ANYSUB_DEVICE=$ANYSUB_ACCELERATOR \
     HF_HOME=/models/huggingface \
     TORCH_HOME=/models/torch \
     HF_HUB_DISABLE_TELEMETRY=1 \

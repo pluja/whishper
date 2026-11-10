@@ -3,6 +3,9 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+const repositoryFile = (path: string) =>
+  readFile(resolve(process.cwd(), "../..", path), "utf8");
+
 describe("production upload deployment", () => {
   it("accepts a complete 32 MiB tus chunk at the SvelteKit server boundary", async () => {
     const [compose, uploadSource] = await Promise.all([
@@ -24,9 +27,6 @@ describe("production upload deployment", () => {
 });
 
 describe("toolchain versions", () => {
-  const repositoryFile = (path: string) =>
-    readFile(resolve(process.cwd(), "../..", path), "utf8");
-
   // Dependabot does not substitute build args, so the Dockerfiles carry the
   // tags literally and this test keeps them aligned with the other files.
   function fromTags(dockerfile: string, image: string): string[] {
@@ -101,5 +101,32 @@ describe("toolchain versions", () => {
 
     expect(pinned).toMatch(/^\d+\.\d+\.\d+$/);
     expect(imageTag).toBe(pinned);
+  });
+});
+
+describe("release version", () => {
+  it("gives the application, the worker and every published image one version", async () => {
+    const [webPackage, workerProject, compose, cudaCompose, changelog] =
+      await Promise.all([
+        repositoryFile("apps/web/package.json"),
+        repositoryFile("workers/inference/pyproject.toml"),
+        repositoryFile("compose.yaml"),
+        repositoryFile("compose.cuda.yaml"),
+        repositoryFile("CHANGELOG.md"),
+      ]);
+    const version = JSON.parse(webPackage).version;
+    const images = (file: string) =>
+      [...file.matchAll(/^\s+image:\s*(\S+)/gm)].map(([, image]) => image);
+
+    expect(version).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?$/);
+    expect(/^version = "(.+)"$/m.exec(workerProject)?.[1]).toBe(version);
+    expect(images(compose)).toEqual([
+      `ghcr.io/pluja/anysub:${version}`,
+      `ghcr.io/pluja/anysub-worker:${version}`,
+    ]);
+    expect(images(cudaCompose)).toEqual([
+      `ghcr.io/pluja/anysub-worker:${version}-cuda`,
+    ]);
+    expect(changelog).toContain(`\n## [${version}] - `);
   });
 });

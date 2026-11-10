@@ -1,0 +1,26 @@
+# Builds both images from this checkout instead of pulling the published ones:
+#
+#   docker compose -f compose.yaml -f compose.build.yaml up --build -d
+#
+# For the CUDA worker, list compose.cuda.yaml before this file and set
+# ANYSUB_ACCELERATOR=cuda. The local tags keep a source build from ever
+# replacing a published image.
+
+services:
+  web:
+    image: anysub-web:source
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: runtime
+
+  worker:
+    image: anysub-worker:source-${ANYSUB_ACCELERATOR:-cpu}
+    build:
+      context: .
+      dockerfile: workers/inference/Dockerfile
+      target: runtime
+      args:
+        # Selects the PyTorch wheels compiled into the image, which also sets
+        # the image's default ANYSUB_DEVICE.
+        ANYSUB_ACCELERATOR: ${ANYSUB_ACCELERATOR:-cpu}

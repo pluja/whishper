@@ -2,15 +2,16 @@ name: anysub
 
 # Nothing here needs configuring. Anysub generates its secrets on first start
 # and keeps them in the database, and the first account sets models, defaults
-# and upload limits under Administration. See docs/CONFIGURATION.md for the
-# few settings a .env file next to this one can change.
+# and upload limits under Administration. The few settings a .env file next to
+# this one can change are in
+# https://github.com/pluja/anysub/blob/main/docs/CONFIGURATION.md
+#
+# Both images carry the same version. Upgrading changes both tags together:
+# https://github.com/pluja/anysub/blob/main/docs/UPGRADING.md
 
 services:
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      target: runtime
+    image: ghcr.io/pluja/anysub:4.0.0
     restart: unless-stopped
     environment:
       DATA_ROOT: /data
@@ -35,22 +36,13 @@ services:
       start_period: 15s
 
   worker:
-    build:
-      context: .
-      dockerfile: workers/inference/Dockerfile
-      target: runtime
-      args:
-        # Selects the PyTorch wheels compiled into the image. The same value
-        # becomes the worker's ANYSUB_DEVICE below, so the image and the runtime
-        # device can never disagree.
-        ANYSUB_ACCELERATOR: ${ANYSUB_ACCELERATOR:-cpu}
+    image: ghcr.io/pluja/anysub-worker:4.0.0
     restart: unless-stopped
     environment:
       ANYSUB_APP_URL: http://web:3000
       ANYSUB_WORKER_NAME: ${ANYSUB_WORKER_NAME:-local-worker}
       ANYSUB_DATA_ROOT: /data
       ANYSUB_MODEL_ROOT: /models
-      ANYSUB_DEVICE: ${ANYSUB_ACCELERATOR:-cpu}
       HF_HUB_DISABLE_TELEMETRY: "1"
       DO_NOT_TRACK: "1"
       PYANNOTE_METRICS_ENABLED: "0"

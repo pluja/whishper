@@ -4,6 +4,12 @@ on:
   push:
     branches: [main, v4]
   pull_request:
+  workflow_call:
+    inputs:
+      skip-images:
+        description: Skip the image builds when the caller builds them itself.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -70,13 +76,15 @@ jobs:
       # Includes the check that packages/contracts/schema matches the Pydantic models.
       - run: uv run pytest
 
-  # Proves both Dockerfiles still build, so a broken image is caught here rather
-  # than during a release. No layer cache: the worker image is over 4 GB, and
-  # exporting it would consume most of the 10 GB repository cache budget.
+  # Proves every published image still builds, so a broken image is caught here
+  # rather than during a release. No layer cache: the worker images are 3 GB and
+  # more, and exporting them would exhaust the 10 GB repository cache budget.
+  # Keep the matrix equal to the one in release.yml.
   images:
-    name: Container images
+    name: Container image (${{ matrix.name }})
+    if: ${{ !inputs.skip-images }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -85,8 +93,17 @@ jobs:
             dockerfile: apps/web/Dockerfile
           - name: worker
             dockerfile: workers/inference/Dockerfile
+            build-args: ANYSUB_ACCELERATOR=cpu
+          - name: worker-cuda
+            dockerfile: workers/inference/Dockerfile
+            build-args: ANYSUB_ACCELERATOR=cuda
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The CUDA libraries alone outgrow the free space on a hosted runner.
+      - name: Free disk space
+        if: matrix.name != 'web'
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
 
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
@@ -95,4 +112,5 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           target: runtime
+          build-args: ${{ matrix.build-args }}
           push: false

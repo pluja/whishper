@@ -1,0 +1,214 @@
+name: Release
+
+# Pushing a tag like v4.1.0 publishes the images to the GitHub Container
+# Registry and drafts a GitHub release. A tag with a pre-release suffix, such as
+# v4.1.0-rc.1, publishes only its own tags and never moves latest. The steps
+# are in docs/RELEASING.md.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+# Two releases running at once would race for the moving tags.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Checks
+    uses: ./.github/workflows/ci.yml
+    with:
+      skip-images: true
+
+  version:
+    name: Tag matches the release version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The checks keep the worker, the Compose files and the changelog on the
+      # version in apps/web/package.json.
+      - run: |
+          version="$(jq -r .version apps/web/package.json)"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version $version in apps/web/package.json."
+            exit 1
+          fi
+
+  # Each image gets only its exact version tag here. The promote job moves the
+  # shared tags once all three exist, so a failed build never leaves latest
+  # pointing at different releases for the web and worker images.
+  images:
+    name: Publish ${{ matrix.name }}
+    needs: [checks, version]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      # Keep this matrix equal to the images job in ci.yml and to promote below.
+      matrix:
+        include:
+          - name: web
+            image: anysub
+            dockerfile: apps/web/Dockerfile
+            description: Anysub web application.
+          - name: worker
+            image: anysub-worker
+            dockerfile: workers/inference/Dockerfile
+            build-args: ANYSUB_ACCELERATOR=cpu
+            description: Anysub transcription worker. Tags ending in -cuda run on NVIDIA GPUs.
+          - name: worker-cuda
+            image: anysub-worker
+            suffix: -cuda
+            dockerfile: workers/inference/Dockerfile
+            build-args: ANYSUB_ACCELERATOR=cuda
+            description: Anysub transcription worker. Tags ending in -cuda run on NVIDIA GPUs.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The CUDA libraries alone outgrow the free space on a hosted runner.
+      - name: Free disk space
+        if: matrix.name != 'web'
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          flavor: |
+            latest=false
+            suffix=${{ matrix.suffix }}
+          tags: type=semver,pattern={{version}}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image }}
+            org.opencontainers.image.description=${{ matrix.description }}
+          annotations: |
+            org.opencontainers.image.title=${{ matrix.image }}
+            org.opencontainers.image.description=${{ matrix.description }}
+
+      # The provenance attestation turns the push into an image index, which
+      # is where the index annotations above, and GHCR's description, live.
+      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          target: runtime
+          build-args: ${{ matrix.build-args }}
+          platforms: linux/amd64
+          provenance: mode=min
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+
+  promote:
+    name: Move the shared tags of ${{ matrix.name }}
+    needs: images
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            image: anysub
+          - name: worker
+            image: anysub-worker
+          - name: worker-cuda
+            image: anysub-worker
+            suffix: -cuda
+    steps:
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The suffix also applies to latest, so the CUDA worker never takes the
+      # CPU worker's latest tag.
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          flavor: |
+            latest=true
+            suffix=${{ matrix.suffix }},onlatest=true
+          tags: |
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      # A single source index is reused as it is, so every tag points at the
+      # same digest as the version tag.
+      - env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          SUFFIX: ${{ matrix.suffix }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          arguments=()
+          while read -r tag; do
+            if [ -n "$tag" ]; then arguments+=(--tag "$tag"); fi
+          done <<< "$TAGS"
+          docker buildx imagetools create "${arguments[@]}" "$IMAGE:${GITHUB_REF_NAME#v}$SUFFIX"
+
+  release:
+    name: Draft the GitHub release
+    needs: [images, promote]
+    if: ${{ !cancelled() && needs.images.result == 'success' && (needs.promote.result == 'success' || needs.promote.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The Compose files are attached so an install needs no clone:
+      # releases/latest/download/compose.yaml always serves the newest one.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v heading="## [$version]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no section for $version."
+            exit 1
+          fi
+          prerelease=()
+          if [[ "$version" == *-* ]]; then prerelease=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" compose.yaml compose.cuda.yaml \
+            --draft --verify-tag --title "Anysub $version" \
+            --notes-file notes.md "${prerelease[@]}"

@@ -12,10 +12,10 @@ This is a volunteer-run project, so responses are best effort. Reports get an ac
 
 | Version        | Supported |
 | -------------- | --------- |
-| 4.x (beta)     | Yes       |
+| 4.x            | Yes       |
 | 3.x (Whishper) | No        |
 
-Only the `v4` branch and its latest commit receive fixes. Version 3 is unmaintained, and issues found only there will not be fixed.
+Fixes ship in a new 4.x release, so stay on the latest one. Version 3 is unmaintained, and issues found only there will not be fixed.
 
 ## Scope
 

@@ -9,6 +9,8 @@ services:
   web:
     image: anysub-web-dev
     build:
+      context: .
+      dockerfile: apps/web/Dockerfile
       target: development
     # The source bind mount hides every node_modules directory baked into the
     # image, so each workspace package keeps its own in a named volume.
@@ -38,6 +40,8 @@ services:
   worker:
     image: anysub-worker-dev
     build:
+      context: .
+      dockerfile: workers/inference/Dockerfile
       target: development
     volumes:
       - ./workers/inference:/workspace:z

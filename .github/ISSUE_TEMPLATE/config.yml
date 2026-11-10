@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/pluja/anysub/tree/main/docs
+    about: Installation, upgrades, backups, troubleshooting and the user guide.
+  - name: Security vulnerability
+    url: https://github.com/pluja/anysub/security/advisories/new
+    about: Report security problems privately, never in a public issue.

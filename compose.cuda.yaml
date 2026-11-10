@@ -4,17 +4,17 @@
 #
 # GPU reservations are structural and cannot be toggled by an environment
 # variable, which is why they live in an overlay rather than in compose.yaml.
-# The image gets its own name so a CPU build never replaces the CUDA one.
+# Keep the image tag equal to the worker tag in compose.yaml.
 #
-# Requires the NVIDIA Container Toolkit on the host.
+# Requires the NVIDIA Container Toolkit on the host. See
+# https://github.com/pluja/anysub/blob/main/docs/GPU.md
 
 services:
   worker:
-    image: anysub-worker-cuda
-    build:
-      args:
-        ANYSUB_ACCELERATOR: cuda
+    image: ghcr.io/pluja/anysub-worker:4.0.0-cuda
     environment:
+      # The CUDA image already defaults to this. Stating it makes a CPU image
+      # behind this overlay fail at startup instead of ignoring the GPU.
       ANYSUB_DEVICE: cuda
       ANYSUB_WORKER_NAME: ${ANYSUB_WORKER_NAME:-local-cuda}
     deploy:

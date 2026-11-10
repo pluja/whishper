@@ -3,7 +3,7 @@
   import { ADMIN_SECTIONS } from "$lib/admin/sections";
   import Icon from "$lib/components/Icon.svelte";
 
-  let { children } = $props();
+  let { data, children } = $props();
 </script>
 
 <div class="py-8 sm:py-10">
@@ -22,6 +22,11 @@
         How Anysub runs on this server, for everyone who uses it.
       </p>
     </div>
+    <p
+      class="ml-auto shrink-0 self-start text-xs text-text-subtle tabular-nums"
+    >
+      Anysub {data.version}
+    </p>
   </header>
 
   <div class="grid gap-6 md:grid-cols-[12rem_minmax(0,1fr)] md:gap-10">
