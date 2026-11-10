@@ -5,3 +5,4 @@ export const MAX_BATCH_SIZE = 64;
 export const PASSWORD_MIN_LENGTH = 10;
 export const PASSWORD_MAX_LENGTH = 128;
 export const OWNER_NAME_MAX_LENGTH = 100;
+export const RECOVERY_CODE_LIFETIME_MINUTES = 15;

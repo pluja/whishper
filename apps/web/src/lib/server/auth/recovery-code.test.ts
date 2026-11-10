@@ -34,15 +34,34 @@ describe("recovery code", () => {
     expect(isRecoveryCode(code, 0)).toBe(false);
   });
 
-  it("keeps the current code when asked again within thirty seconds", () => {
+  it("prints nothing when asked again within thirty seconds", () => {
     const log = vi.fn();
     issueRecoveryCode(log, 0);
     issueRecoveryCode(log, 29_000);
     expect(log).toHaveBeenCalledTimes(1);
+  });
 
-    issueRecoveryCode(log, 30_000);
+  it("prints the same code again until it expires", () => {
+    const log = vi.fn();
+    issueRecoveryCode(log, 0);
+    issueRecoveryCode(log, 10 * 60_000 + 30_000);
+
     expect(log).toHaveBeenCalledTimes(2);
+    expect(issuedCode(log, 1)).toBe(issuedCode(log, 0));
+    expect(String(log.mock.calls[1][0])).toContain("within 5 minutes");
+    expect(isRecoveryCode(issuedCode(log, 0), 15 * 60_000)).toBe(true);
+  });
+
+  it("prints a new code once the old one expired or was used", () => {
+    const log = vi.fn();
+    issueRecoveryCode(log, 0);
+    issueRecoveryCode(log, 15 * 60_000 + 1);
     expect(issuedCode(log, 1)).not.toBe(issuedCode(log, 0));
-    expect(isRecoveryCode(issuedCode(log, 0), 30_000)).toBe(false);
+    expect(isRecoveryCode(issuedCode(log, 0), 15 * 60_000 + 1)).toBe(false);
+
+    clearRecoveryCode();
+    issueRecoveryCode(log, 15 * 60_000 + 2);
+    expect(issuedCode(log, 2)).not.toBe(issuedCode(log, 1));
+    expect(String(log.mock.calls[2][0])).toContain("within 15 minutes");
   });
 });

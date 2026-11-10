@@ -13,6 +13,7 @@ import {
   hostCodeThrottle,
   retryMessage,
 } from "$lib/server/auth/throttle";
+import { RECOVERY_CODE_LIFETIME_MINUTES } from "$lib/shared/limits";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -46,7 +47,7 @@ export const actions: Actions = {
     if (!isRecoveryCode(code)) {
       return rejected(
         "recoveryCode",
-        "That code does not match the latest one in the log, or it is older than 15 minutes.",
+        `That code does not match the latest one in the log, or it is older than ${RECOVERY_CODE_LIFETIME_MINUTES} minutes.`,
       );
     }
     hostCodeThrottle.recordSuccess(keys);
