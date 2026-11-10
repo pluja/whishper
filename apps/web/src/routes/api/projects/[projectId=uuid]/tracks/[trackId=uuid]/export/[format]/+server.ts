@@ -7,6 +7,11 @@ import { db } from "$lib/server/db";
 import { listTrackCues } from "$lib/server/subtitles/cues";
 import { trackForProject } from "$lib/server/subtitles/tracks";
 import {
+  isTrackExportFormat,
+  type TrackExportFormat,
+} from "$lib/shared/routes";
+import {
+  renderPlainText,
   renderSrt,
   renderWebVtt,
   type SubtitleCueSnapshot,
@@ -20,7 +25,7 @@ const JSON_EXPORT_SCHEMA_VERSION = "1.0";
 export const GET: RequestHandler = async ({ locals, params }) => {
   const user = requireUser(locals);
   const format = params.format;
-  if (!["srt", "vtt", "json"].includes(format)) {
+  if (!isTrackExportFormat(format)) {
     error(404, "Export format not found");
   }
 
@@ -48,7 +53,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 };
 
 function exportBody(
-  format: string,
+  format: TrackExportFormat,
   project: MemberProject,
   track: SubtitleTrack,
   cues: SubtitleCueSnapshot[],
@@ -61,6 +66,12 @@ function exportBody(
   }
   if (format === "vtt") {
     return { body: renderWebVtt(cues), contentType: "text/vtt; charset=utf-8" };
+  }
+  if (format === "txt") {
+    return {
+      body: renderPlainText(cues),
+      contentType: "text/plain; charset=utf-8",
+    };
   }
   return {
     body: `${JSON.stringify(

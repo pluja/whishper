@@ -161,6 +161,7 @@ Download the active track as:
 
 - SRT with millisecond timecodes.
 - WebVTT.
+- Plain text, one cue per line without timecodes.
 - Anysub JSON with project and track metadata, stable cue IDs, integer-microsecond timing, and word tokens.
 
 Exports use the latest saved revision. Wait for the **Saved** indicator before downloading if you just edited.

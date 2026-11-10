@@ -1,6 +1,11 @@
 import type { MediaDerivativeKind } from "@anysub/contracts";
 
-export type TrackExportFormat = "srt" | "vtt" | "json";
+export const TRACK_EXPORT_FORMATS = ["srt", "vtt", "txt", "json"] as const;
+export type TrackExportFormat = (typeof TRACK_EXPORT_FORMATS)[number];
+
+export function isTrackExportFormat(value: string): value is TrackExportFormat {
+  return (TRACK_EXPORT_FORMATS as readonly string[]).includes(value);
+}
 
 export function projectPageUrl(projectId: string): string {
   return `/projects/${projectId}`;

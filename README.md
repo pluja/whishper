@@ -10,7 +10,7 @@ Anysub is a ground-up rewrite of [Whishper](https://github.com/pluja/whishper). 
 - Word-level timings from forced alignment.
 - A cue editor with a waveform timeline, playback in sync, split, merge, retime, undo, redo, and autosave.
 - Warnings for cues that run too fast, too long, or overlap.
-- Export to SRT, WebVTT, or JSON.
+- Export to SRT, WebVTT, plain text, or JSON.
 - Resumable uploads for hours-long files.
 - A searchable project library.
 - An administration area to download models ahead of time, set transcription defaults and precision, choose the upload limit, and watch disk space and workers.

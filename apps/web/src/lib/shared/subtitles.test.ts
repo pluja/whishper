@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatEditorTime,
   parseEditorTime,
+  renderPlainText,
   renderSrt,
   renderWebVtt,
 } from "$lib/shared/subtitles";
@@ -102,5 +103,18 @@ describe("subtitle exports", () => {
     expect(renderSrt(injected)).toBe(
       "1\n01:02:03,456 --> 01:02:05,000\na -> b\n",
     );
+  });
+
+  it("renders plain text with one line per cue and no timecodes", () => {
+    const transcript = [
+      { ...cues[0], text: "First line\nwraps here." },
+      { ...cues[0], position: 1, text: " \n " },
+      { ...cues[0], position: 2, text: "Second cue." },
+    ];
+
+    expect(renderPlainText(transcript)).toBe(
+      "First line wraps here.\nSecond cue.\n",
+    );
+    expect(renderPlainText([])).toBe("");
   });
 });

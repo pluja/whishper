@@ -58,6 +58,15 @@ export function renderWebVtt(cues: SubtitleCueSnapshot[]): string {
     .join("\n\n")}\n`;
 }
 
+// Cue line breaks only exist for subtitle wrapping, so a transcript reads as
+// one line per cue.
+export function renderPlainText(cues: SubtitleCueSnapshot[]): string {
+  const lines = cues
+    .map((cue) => normalizeCueText(cue.text).replace(/\s*\n\s*/g, " "))
+    .filter(Boolean);
+  return lines.length ? `${lines.join("\n")}\n` : "";
+}
+
 function formatSubtitleTime(
   microseconds: number,
   separator: "." | ",",
