@@ -21,6 +21,7 @@ import { JOB_STATES, RUN_STATUSES } from "../../shared/project-status";
 import { user } from "../auth/schema";
 import {
   createdAt,
+  enumCheck,
   flag,
   json,
   timestamp,
@@ -68,10 +69,7 @@ export const instanceSettings = sqliteTable(
   },
   (table) => [
     check("instance_settings_singleton_check", sql`${table.id} = 1`),
-    check(
-      "instance_settings_precision_check",
-      sql`${table.precision} in ('auto', 'memory', 'precise')`,
-    ),
+    enumCheck("instance_settings_precision_check", table.precision),
     check(
       "instance_settings_line_length_check",
       sql`${table.maxLineLength} between ${sql.raw(String(MIN_LINE_LENGTH))} and ${sql.raw(String(MAX_LINE_LENGTH))}`,
@@ -105,10 +103,7 @@ export const memberships = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.userId] }),
     index("memberships_user_id_idx").on(table.userId),
-    check(
-      "memberships_role_check",
-      sql`${table.role} in ('owner', 'admin', 'member')`,
-    ),
+    enumCheck("memberships_role_check", table.role),
   ],
 );
 
@@ -148,9 +143,9 @@ export const projects = sqliteTable(
       "projects_media_duration_check",
       sql`${table.mediaDurationUs} is null or ${table.mediaDurationUs} >= 0`,
     ),
-    check(
+    enumCheck(
       "projects_media_preparation_status_check",
-      sql`${table.mediaPreparationStatus} in ('not_started', 'queued', 'running', 'completed', 'failed')`,
+      table.mediaPreparationStatus,
     ),
     check(
       "projects_media_frame_rate_check",
@@ -182,10 +177,7 @@ export const transcriptionRuns = sqliteTable(
       table.projectId,
       table.createdAt,
     ),
-    check(
-      "transcription_runs_status_check",
-      sql`${table.status} in ('queued', 'running', 'completed', 'failed', 'cancelled')`,
-    ),
+    enumCheck("transcription_runs_status_check", table.status),
   ],
 );
 
@@ -245,10 +237,7 @@ export const jobs = sqliteTable(
     ),
     index("jobs_run_idx").on(table.runId),
     index("jobs_project_idx").on(table.projectId, table.kind, table.state),
-    check(
-      "jobs_state_check",
-      sql`${table.state} in ('queued', 'leased', 'completed', 'failed', 'cancelled')`,
-    ),
+    enumCheck("jobs_state_check", table.state),
     check(
       "jobs_progress_check",
       sql`${table.progress} >= 0 and ${table.progress} <= 1`,
@@ -345,10 +334,7 @@ export const mediaUploads = sqliteTable(
       "media_uploads_received_check",
       sql`${table.receivedBytes} >= 0 and ${table.receivedBytes} <= ${table.sizeBytes}`,
     ),
-    check(
-      "media_uploads_status_check",
-      sql`${table.status} in ('uploading', 'finalizing', 'completed', 'cancelled', 'failed')`,
-    ),
+    enumCheck("media_uploads_status_check", table.status),
   ],
 );
 
@@ -383,14 +369,8 @@ export const mediaDerivatives = sqliteTable(
       table.projectId,
       sql`${table.createdAt} desc`,
     ),
-    check(
-      "media_derivatives_kind_check",
-      sql`${table.kind} in ('waveform', 'thumbnail', 'proxy')`,
-    ),
-    check(
-      "media_derivatives_status_check",
-      sql`${table.status} in ('ready', 'failed', 'deleting')`,
-    ),
+    enumCheck("media_derivatives_kind_check", table.kind),
+    enumCheck("media_derivatives_status_check", table.status),
     check("media_derivatives_size_check", sql`${table.sizeBytes} > 0`),
   ],
 );
