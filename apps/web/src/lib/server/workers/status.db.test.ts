@@ -84,28 +84,46 @@ describe("listWorkers", () => {
 });
 
 describe("forgetWorker", () => {
-  it("removes an offline worker and its waiting model jobs", () => {
+  it("removes an offline worker and cancels its waiting and running model jobs", () => {
     const gone = connect("old-laptop");
     lastSeen(gone.workerId, 10);
+    const payload = {
+      kind: "model_cache",
+      action: "download",
+      workerId: gone.workerId,
+      adapterId: "whisperx",
+      modelId: "small",
+    } as const;
     db.insert(jobs)
-      .values({
-        kind: "model_cache",
-        payload: {
+      .values([
+        { kind: "model_cache", payload },
+        {
           kind: "model_cache",
-          action: "download",
-          workerId: gone.workerId,
-          adapterId: "whisperx",
-          modelId: "small",
+          payload: { ...payload, modelId: "tiny" },
+          state: "leased",
+          leasedBy: gone.workerId,
+          leaseTokenHash: "hash",
+          leaseExpiresAt: new Date(Date.now() + 60_000),
         },
-      })
+      ])
       .run();
 
     forgetWorker(gone.workerId);
 
     expect(listWorkers(db)).toEqual([]);
-    expect(db.select({ state: jobs.state }).from(jobs).get()).toEqual({
-      state: "cancelled",
-    });
+    expect(
+      db
+        .select({
+          state: jobs.state,
+          leaseTokenHash: jobs.leaseTokenHash,
+          leaseExpiresAt: jobs.leaseExpiresAt,
+        })
+        .from(jobs)
+        .all(),
+    ).toEqual([
+      { state: "cancelled", leaseTokenHash: null, leaseExpiresAt: null },
+      { state: "cancelled", leaseTokenHash: null, leaseExpiresAt: null },
+    ]);
   });
 
   it("keeps a connected worker", () => {
