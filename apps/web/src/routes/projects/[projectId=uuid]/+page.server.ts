@@ -1,6 +1,6 @@
 import { requireUserOrLogin } from "$lib/server/auth/session";
 import { db } from "$lib/server/db";
-import { clientFailure } from "$lib/server/http/errors";
+import { runFormAction } from "$lib/server/http/actions";
 import {
   deleteDerivativeForUser,
   isMediaDerivativeKind,
@@ -34,35 +34,8 @@ import { activeWorkerManifests } from "$lib/server/workers/presence";
 import { projectDerivativeUrl, projectPageUrl } from "$lib/shared/routes";
 import type { StudioData } from "$lib/shared/studio-data";
 import { isUuid } from "$lib/shared/uuid";
-import {
-  error,
-  fail,
-  isHttpError,
-  isRedirect,
-  redirect,
-  type ActionFailure,
-} from "@sveltejs/kit";
+import { error, fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
-
-type ActionMessage = { message: string };
-
-// Known client failures become inline form messages. Anything else is logged
-// and replaced by failureMessage so internals never reach the page.
-async function runAction(
-  label: string,
-  failureMessage: string,
-  work: () => Promise<ActionFailure<ActionMessage>>,
-): Promise<ActionFailure<ActionMessage>> {
-  try {
-    return await work();
-  } catch (cause) {
-    if (isHttpError(cause) || isRedirect(cause)) throw cause;
-    const failure = clientFailure(cause);
-    if (failure) return fail(failure.status, { message: failure.message });
-    console.error(`Could not ${label}`, cause);
-    return fail(500, { message: failureMessage });
-  }
-}
 
 export const load: PageServerLoad = async ({
   locals,
@@ -104,61 +77,45 @@ export const actions: Actions = {
   transcribe: async ({ locals, params, request }) => {
     const user = requireUserOrLogin(locals);
     const values = await request.formData();
-    return runAction(
-      "enqueue transcription",
-      "The transcription could not be queued.",
-      async () => {
-        enqueueTranscription(
-          params.projectId,
-          user.id,
-          parseTranscriptionRequest(values),
-        );
-        redirect(303, projectPageUrl(params.projectId));
-      },
-    );
+    return runFormAction(async () => {
+      enqueueTranscription(
+        params.projectId,
+        user.id,
+        parseTranscriptionRequest(values),
+      );
+      redirect(303, projectPageUrl(params.projectId));
+    }, "The transcription could not be queued.");
   },
   cancelTranscription: async ({ locals, params }) => {
     const user = requireUserOrLogin(locals);
-    return runAction(
-      "cancel transcription",
-      "The transcription could not be cancelled.",
-      async () => {
-        if (!cancelTranscriptionForUser(params.projectId, user.id)) {
-          return fail(409, {
-            message: "The transcription is no longer active.",
-          });
-        }
-        redirect(303, projectPageUrl(params.projectId));
-      },
-    );
+    return runFormAction(async () => {
+      if (!cancelTranscriptionForUser(params.projectId, user.id)) {
+        return fail(409, {
+          message: "The transcription is no longer active.",
+        });
+      }
+      redirect(303, projectPageUrl(params.projectId));
+    }, "The transcription could not be cancelled.");
   },
   prepareMedia: async ({ locals, params }) => {
     const user = requireUserOrLogin(locals);
-    return runAction(
-      "queue media preparation",
-      "Media preparation could not be queued.",
-      async () => {
-        if (!requestMediaPreparationForUser(params.projectId, user.id)) {
-          return fail(404, { message: "Project media was not found." });
-        }
-        redirect(303, projectPageUrl(params.projectId));
-      },
-    );
+    return runFormAction(async () => {
+      if (!requestMediaPreparationForUser(params.projectId, user.id)) {
+        return fail(404, { message: "Project media was not found." });
+      }
+      redirect(303, projectPageUrl(params.projectId));
+    }, "Media preparation could not be queued.");
   },
   cancelMedia: async ({ locals, params }) => {
     const user = requireUserOrLogin(locals);
-    return runAction(
-      "cancel media preparation",
-      "Media preparation could not be cancelled.",
-      async () => {
-        if (!(await cancelMediaPreparationForUser(params.projectId, user.id))) {
-          return fail(409, {
-            message: "Media preparation is no longer active.",
-          });
-        }
-        redirect(303, projectPageUrl(params.projectId));
-      },
-    );
+    return runFormAction(async () => {
+      if (!(await cancelMediaPreparationForUser(params.projectId, user.id))) {
+        return fail(409, {
+          message: "Media preparation is no longer active.",
+        });
+      }
+      redirect(303, projectPageUrl(params.projectId));
+    }, "Media preparation could not be cancelled.");
   },
   deleteDerivative: async ({ locals, params, request }) => {
     const user = requireUserOrLogin(locals);
@@ -166,16 +123,12 @@ export const actions: Actions = {
     if (!isMediaDerivativeKind(kind)) {
       return fail(400, { message: "The derivative type is invalid." });
     }
-    return runAction(
-      "delete derivative",
-      "The derivative could not be deleted.",
-      async () => {
-        if (!(await deleteDerivativeForUser(params.projectId, kind, user.id))) {
-          return fail(404, { message: "The derivative was not found." });
-        }
-        redirect(303, projectPageUrl(params.projectId));
-      },
-    );
+    return runFormAction(async () => {
+      if (!(await deleteDerivativeForUser(params.projectId, kind, user.id))) {
+        return fail(404, { message: "The derivative was not found." });
+      }
+      redirect(303, projectPageUrl(params.projectId));
+    }, "The derivative could not be deleted.");
   },
   deleteTranscript: async ({ locals, params, request }) => {
     const user = requireUserOrLogin(locals);
@@ -183,32 +136,24 @@ export const actions: Actions = {
     if (!isUuid(trackId)) {
       return fail(400, { message: "The subtitle track is invalid." });
     }
-    return runAction(
-      "delete transcript",
-      "The transcript could not be deleted.",
-      async () => {
-        if (!deleteTranscriptForUser(params.projectId, trackId, user.id)) {
-          return fail(404, {
-            message: "The transcript was not found or cannot be deleted.",
-          });
-        }
-        redirect(303, projectPageUrl(params.projectId));
-      },
-    );
+    return runFormAction(async () => {
+      if (!deleteTranscriptForUser(params.projectId, trackId, user.id)) {
+        return fail(404, {
+          message: "The transcript was not found or cannot be deleted.",
+        });
+      }
+      redirect(303, projectPageUrl(params.projectId));
+    }, "The transcript could not be deleted.");
   },
   deleteProject: async ({ locals, params }) => {
     const user = requireUserOrLogin(locals);
-    return runAction(
-      "delete project",
-      "The project could not be deleted.",
-      async () => {
-        if (!(await deleteProjectForUser(params.projectId, user.id))) {
-          return fail(404, {
-            message: "The project was not found or cannot be deleted.",
-          });
-        }
-        redirect(303, "/");
-      },
-    );
+    return runFormAction(async () => {
+      if (!(await deleteProjectForUser(params.projectId, user.id))) {
+        return fail(404, {
+          message: "The project was not found or cannot be deleted.",
+        });
+      }
+      redirect(303, "/");
+    }, "The project could not be deleted.");
   },
 };
