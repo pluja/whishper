@@ -1,5 +1,6 @@
 import { formatBytes } from "$lib/shared/format";
 import { Upload } from "tus-js-client";
+import { uploadErrorMessage } from "./upload-messages";
 
 type UploadStatus = "idle" | "uploading" | "cancelling" | "error" | "success";
 
@@ -60,8 +61,7 @@ export class ProjectUpload {
         this.message = `${formatBytes(bytesUploaded)} of ${formatBytes(bytesTotal)}`;
       },
       onError: (error) => {
-        if (!this.#isRunning(upload)) return;
-        this.#fail(error.message || "The upload could not be completed.");
+        if (this.#isRunning(upload)) this.#fail(uploadErrorMessage(error));
       },
       onSuccess: ({ lastResponse }) => {
         if (!this.#isRunning(upload)) return;
@@ -80,11 +80,10 @@ export class ProjectUpload {
       if (!this.#isRunning(upload)) return;
       if (previous[0]) upload.resumeFromPreviousUpload(previous[0]);
       upload.start();
-    } catch (error) {
-      if (!this.#isRunning(upload)) return;
-      this.#fail(
-        error instanceof Error ? error.message : "Could not start the upload.",
-      );
+    } catch {
+      if (this.#isRunning(upload)) {
+        this.#fail("The upload could not start. Try again.");
+      }
     }
   }
 

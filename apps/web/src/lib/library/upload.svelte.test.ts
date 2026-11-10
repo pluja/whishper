@@ -141,6 +141,17 @@ describe("ProjectUpload", () => {
     expect(events.onCancelled).not.toHaveBeenCalled();
   });
 
+  it("shows a plain message for a failed upload and allows a retry", async () => {
+    const { upload } = createUpload();
+    await upload.start(file, "workspace", "Talk");
+
+    lastTusUpload().options.onError?.(new Error("tus: cannot read file"));
+
+    expect(upload.status).toBe("error");
+    expect(upload.message).toBe("The upload stopped. Try again to resume it.");
+    expect(upload.busy).toBe(false);
+  });
+
   it("does not upload again after a success", async () => {
     const { upload } = createUpload();
     await upload.start(file, "workspace", "Talk");
