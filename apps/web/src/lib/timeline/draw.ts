@@ -10,7 +10,7 @@ const WAVEFORM_BOTTOM = 83;
 const MAJOR_TICK_SPACING_PX = 80;
 export const RULER_FONT = '10px "Geist Mono Variable", ui-monospace, monospace';
 
-export type TimelineFrame = {
+type TimelineFrame = {
   canvas: HTMLCanvasElement;
   themeSource: HTMLElement;
   viewportWidthPx: number;

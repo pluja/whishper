@@ -1,6 +1,6 @@
 import type { EditorCue } from "./cues";
 
-export type CueJournal = { revision: number; cues: EditorCue[] };
+type CueJournal = { revision: number; cues: EditorCue[] };
 
 function isTime(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0;

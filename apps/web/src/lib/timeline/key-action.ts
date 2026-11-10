@@ -7,7 +7,7 @@ export type TimelineKey = Pick<
 
 type HandleEdge = Exclude<TimingPart, "whole">;
 
-export type TimelineKeyAction =
+type TimelineKeyAction =
   | { kind: "nudge"; edge: TimingPart; deltaUs: number }
   | { kind: "block" }
   | { kind: "focus_handle"; edge: HandleEdge }

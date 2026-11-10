@@ -7,7 +7,7 @@ type ShortcutDefinition = {
   ariaKeys?: string; // aria-keyshortcuts of the control that runs it
 };
 
-export type ShortcutGroup = {
+type ShortcutGroup = {
   title: string;
   shortcuts: readonly ShortcutDefinition[];
 };
