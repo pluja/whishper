@@ -33,12 +33,13 @@ from .subtitles import split_subtitle_segments
 
 SAMPLE_RATE = 16_000
 MODEL_DOWNLOAD_SPAN = (0.0, 0.1)
+# CTranslate2 reports a compute type the device cannot run as a plain ValueError.
+UNSUPPORTED_COMPUTE_TYPE = "compute type"
 LOGGER = logging.getLogger(__name__)
 
 
 class _ModelKey(NamedTuple):
     model_id: str
-    language: str | None
     compute_type: str
 
 
@@ -96,6 +97,7 @@ class WhisperXAdapter:
         whisperx = _import_whisperx()
         media_path = self._media_path(request.media_path)
         options = parse_options(request.options, device=self._runtime.device)
+        _require_supported_language(request.language)
         profile = self._profile(request.model_id)
         if not profile.is_downloaded(self._model_root):
             await download_profile(
@@ -131,12 +133,12 @@ class WhisperXAdapter:
         duration_us = max(0, int(len(audio) / SAMPLE_RATE * MICROSECONDS_PER_SECOND))
 
         await report_progress(0.12, f"Loading {request.model_id} model")
-        model = await self._load_model(
-            whisperx, _ModelKey(request.model_id, request.language, options.compute_type)
-        )
+        model = await self._load_model(whisperx, _ModelKey(request.model_id, options.compute_type))
 
         await report_progress(0.16, "Transcribing speech")
-        result = await _run_in_thread(model.transcribe, audio, batch_size=options.batch_size)
+        result = await _run_in_thread(
+            model.transcribe, audio, batch_size=options.batch_size, language=request.language
+        )
         language = str(result.get("language") or request.language or "und")
         segments: list[WhisperSegment] = result.get("segments") or []
 
@@ -204,21 +206,16 @@ class WhisperXAdapter:
         model_id = key.model_id
         self._release_asr_model()
         self._model_root.mkdir(parents=True, exist_ok=True)
-        kwargs: dict[str, Any] = {
-            "compute_type": key.compute_type,
-            "download_root": str(self._model_root),
-            "threads": self._runtime.cpu_threads or usable_cpu_count(),
-            # Downloads run before loading, where they can be cancelled and report progress.
-            "local_files_only": True,
-        }
-        if key.language:
-            kwargs["language"] = key.language
         try:
             self._model = await _run_in_thread(
                 whisperx.load_model,
                 model_id,
                 self._runtime.device,
-                **kwargs,
+                compute_type=key.compute_type,
+                download_root=str(self._model_root),
+                threads=self._runtime.cpu_threads or usable_cpu_count(),
+                # Downloads run before loading, where they can be cancelled and report progress.
+                local_files_only=True,
             )
         except _missing_model_file_errors() as error:
             raise AdapterExecutionError(
@@ -228,6 +225,8 @@ class WhisperXAdapter:
                 retryable=False,
             ) from error
         except ValueError as error:
+            if UNSUPPORTED_COMPUTE_TYPE not in str(error):
+                raise
             raise AdapterExecutionError(
                 f"The {model_id} model could not be loaded with {key.compute_type} weights on "
                 f"this {self._runtime.device} worker: {error}. Choose another precision in "
@@ -301,6 +300,16 @@ def _import_whisperx() -> Any:
             "with the speech and CPU or CUDA extras.",
             retryable=False,
         ) from cause
+
+
+def _require_supported_language(language: str | None) -> None:
+    if language is None or language in import_module("whisperx.utils").LANGUAGES:
+        return
+    raise AdapterExecutionError(
+        f"WhisperX cannot transcribe the language code {language}. Choose another language or "
+        "automatic detection.",
+        retryable=False,
+    )
 
 
 def _missing_model_file_errors() -> tuple[type[Exception], ...]:

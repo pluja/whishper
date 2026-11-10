@@ -200,7 +200,7 @@ async def test_deleting_the_loaded_model_releases_it(settings: WorkerSettings) -
             return object()
 
     adapter = WhisperXAdapter(settings.runtime)
-    await adapter._load_model(LoadingWhisperX(), ModelKey("tiny", None, "int8"))
+    await adapter._load_model(LoadingWhisperX(), ModelKey("tiny", "int8"))
 
     await adapter.delete_model("tiny")
 

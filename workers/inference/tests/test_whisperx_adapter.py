@@ -75,27 +75,6 @@ def test_manifest_detects_complete_cached_models(settings: WorkerSettings) -> No
     assert downloaded["tiny"] is False
 
 
-async def test_explicit_language_is_part_of_the_cached_model_key(
-    settings: WorkerSettings,
-) -> None:
-    class RecordingWhisperX:
-        def __init__(self) -> None:
-            self.languages: list[str | None] = []
-
-        def load_model(self, model_id: str, device: str, **kwargs: Any) -> object:
-            self.languages.append(kwargs.get("language"))
-            return object()
-
-    whisperx = RecordingWhisperX()
-    adapter = WhisperXAdapter(settings.runtime)
-
-    english = await adapter._load_model(whisperx, ModelKey("small", "en", "int8"))
-    assert await adapter._load_model(whisperx, ModelKey("small", "en", "int8")) is english
-    await adapter._load_model(whisperx, ModelKey("small", "es", "int8"))
-
-    assert whisperx.languages == ["en", "es"]
-
-
 async def test_precision_is_part_of_the_cached_model_key(settings: WorkerSettings) -> None:
     class RecordingWhisperX:
         def __init__(self) -> None:
@@ -108,9 +87,9 @@ async def test_precision_is_part_of_the_cached_model_key(settings: WorkerSetting
     whisperx = RecordingWhisperX()
     adapter = WhisperXAdapter(settings.runtime)
 
-    await adapter._load_model(whisperx, ModelKey("small", None, "int8"))
-    await adapter._load_model(whisperx, ModelKey("small", None, "int8"))
-    await adapter._load_model(whisperx, ModelKey("small", None, "float32"))
+    await adapter._load_model(whisperx, ModelKey("small", "int8"))
+    await adapter._load_model(whisperx, ModelKey("small", "int8"))
+    await adapter._load_model(whisperx, ModelKey("small", "float32"))
 
     assert whisperx.compute_types == ["int8", "float32"]
 
@@ -124,7 +103,7 @@ async def test_model_load_uses_the_configured_cpu_threads(settings: WorkerSettin
             return object()
 
     runtime = settings.runtime.model_copy(update={"cpu_threads": 3})
-    await WhisperXAdapter(runtime)._load_model(RecordingWhisperX(), ModelKey("small", None, "int8"))
+    await WhisperXAdapter(runtime)._load_model(RecordingWhisperX(), ModelKey("small", "int8"))
 
     assert RecordingWhisperX.threads == 3
 
@@ -141,6 +120,8 @@ class StubWhisperX:
         self.align_error = align_error
         self.asr_error = asr_error
         self.aligned = False
+        self.loads = 0
+        self.languages: list[str | None] = []
 
     def load_audio(self, path: str) -> list[float]:
         return [0.0] * 16_000
@@ -148,10 +129,14 @@ class StubWhisperX:
     def load_model(self, model_id: str, device: str, **kwargs: Any) -> object:
         if self.load_error:
             raise self.load_error
+        self.loads += 1
         outer = self
 
         class Model:
-            def transcribe(self, audio: list[float], batch_size: int) -> dict[str, Any]:
+            def transcribe(
+                self, audio: list[float], batch_size: int, language: str | None
+            ) -> dict[str, Any]:
+                outer.languages.append(language)
                 if outer.asr_error:
                     raise outer.asr_error
                 return {"language": "en", "segments": [{"start": 0.0, "end": 1.0, "text": "Hi"}]}
@@ -183,6 +168,9 @@ def transcribe_setup(settings: WorkerSettings, monkeypatch: pytest.MonkeyPatch) 
     media = settings.runtime.data_root / "audio.wav"
     media.touch()
     write_snapshot(settings, "small")
+    monkeypatch.setitem(
+        sys.modules, "whisperx.utils", SimpleNamespace(LANGUAGES={"en": "english", "es": "spanish"})
+    )
     monkeypatch.setitem(
         sys.modules,
         "whisperx.SubtitlesProcessor",
@@ -346,6 +334,39 @@ async def test_invalid_compute_type_on_model_load_is_not_retryable(
     assert raised.value.retryable is False
     assert ct2_message in str(raised.value)
     assert "precision" in str(raised.value)
+
+
+async def test_a_language_change_keeps_the_loaded_model(transcribe_setup: InstallStub) -> None:
+    stub = StubWhisperX()
+    adapter, request = transcribe_setup(stub)
+
+    for language in ("en", "es", None):
+        await adapter.transcribe(request.model_copy(update={"language": language}), noop_progress)
+
+    assert stub.loads == 1
+    assert stub.languages == ["en", "es", None]
+
+
+async def test_an_unsupported_language_fails_permanently_before_loading(
+    transcribe_setup: InstallStub,
+) -> None:
+    stub = StubWhisperX()
+    adapter, request = transcribe_setup(stub)
+
+    with pytest.raises(AdapterExecutionError, match="language code pt-BR") as raised:
+        await adapter.transcribe(request.model_copy(update={"language": "pt-BR"}), noop_progress)
+
+    assert raised.value.retryable is False
+    assert stub.loads == 0
+
+
+async def test_a_value_error_on_load_is_blamed_on_precision_only_for_the_compute_type(
+    transcribe_setup: InstallStub,
+) -> None:
+    adapter, request = transcribe_setup(StubWhisperX(load_error=ValueError("bad VAD options")))
+
+    with pytest.raises(ValueError, match="bad VAD options"):
+        await adapter.transcribe(request, noop_progress)
 
 
 async def test_other_model_load_errors_propagate(transcribe_setup: InstallStub) -> None:
