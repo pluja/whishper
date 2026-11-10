@@ -1,6 +1,7 @@
 export const PROJECT_TITLE_MAX_LENGTH = 160;
 export const PROJECT_SEARCH_MAX_LENGTH = 200;
 export const DEFAULT_MAX_LINE_LENGTH = 42;
+export const MAX_BATCH_SIZE = 64;
 export const PASSWORD_MIN_LENGTH = 10;
 export const PASSWORD_MAX_LENGTH = 128;
 export const OWNER_NAME_MAX_LENGTH = 100;

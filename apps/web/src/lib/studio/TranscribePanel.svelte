@@ -14,6 +14,7 @@
     type TranscriptionDefaults,
   } from "$lib/shared/instance-settings";
   import { DETECT_LANGUAGE } from "$lib/shared/languages";
+  import { MAX_BATCH_SIZE } from "$lib/shared/limits";
   import type {
     AvailableTranscriptionModel,
     DetectedWorkerHardware,
@@ -121,7 +122,7 @@
                   name="batchSize"
                   type="number"
                   min="1"
-                  max="64"
+                  max={MAX_BATCH_SIZE}
                   placeholder="Automatic"
                 />
               {/snippet}

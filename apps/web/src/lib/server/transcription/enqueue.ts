@@ -16,10 +16,8 @@ import {
 } from "$lib/shared/instance-settings";
 import { isRecord } from "$lib/shared/is-record";
 import { DETECT_LANGUAGE, LANGUAGE_TAG } from "$lib/shared/languages";
-import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
+import { DEFAULT_MAX_LINE_LENGTH, MAX_BATCH_SIZE } from "$lib/shared/limits";
 import { parseModelKey } from "$lib/shared/transcription-models";
-
-const MAX_BATCH_SIZE = 64;
 
 type TranscriptionOptions = {
   alignment: boolean;
