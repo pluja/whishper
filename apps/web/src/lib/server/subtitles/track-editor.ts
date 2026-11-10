@@ -101,6 +101,29 @@ export function parseTrackUpdate(value: unknown): TrackUpdate {
   return { revision: Number(value.revision), cues };
 }
 
+type StoredWord = Record<string, unknown>;
+
+// Word timings stay true only while their cue keeps its text and its span. A
+// cue moved as a whole carries its words along by the same distance.
+function keptWords(
+  previous: SubtitleCueSnapshot | undefined,
+  cue: SubtitleCueSnapshot,
+): StoredWord[] {
+  if (!previous?.words || previous.text !== cue.text) return [];
+  const shiftUs = cue.startUs - previous.startUs;
+  if (cue.endUs - previous.endUs !== shiftUs) return [];
+  return shiftUs === 0
+    ? previous.words
+    : previous.words.map((word) => shiftWord(word, shiftUs));
+}
+
+function shiftWord(word: StoredWord, shiftUs: number): StoredWord {
+  const { startUs, endUs } = word;
+  return typeof startUs === "number" && typeof endUs === "number"
+    ? { ...word, startUs: startUs + shiftUs, endUs: endUs + shiftUs }
+    : word;
+}
+
 export function updateTrackForUser(
   projectId: string,
   trackId: string,
@@ -164,13 +187,10 @@ export function updateTrackForUser(
         cue,
       ]),
     );
-    const storedCues = update.cues.map((cue) => {
-      const previous = existingById.get(cue.id);
-      return {
-        ...cue,
-        words: previous?.text === cue.text ? (previous.words ?? []) : [],
-      };
-    });
+    const storedCues = update.cues.map((cue) => ({
+      ...cue,
+      words: keptWords(existingById.get(cue.id), cue),
+    }));
 
     tx.delete(cues).where(eq(cues.trackId, trackId)).run();
     insertCues(tx, trackId, { ids: "provided", cues: storedCues });

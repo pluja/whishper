@@ -17,26 +17,39 @@ import {
   updateTrackForUser,
 } from "$lib/server/subtitles/track-editor";
 
-const WORDS = [{ id: "word-1", text: "Kept" }];
+function spokenWord(text: string, startUs: number, endUs: number) {
+  return { id: `word-${text}`, text, startUs, endUs, confidence: 0.9 };
+}
 
 function seedCue(trackId: string, position: number, text: string): string {
   const id = randomUUID();
+  const startUs = position * 1000;
   db.insert(cues)
     .values({
       id,
       trackId,
       position,
-      startUs: position * 1000,
-      endUs: position * 1000 + 1000,
+      startUs,
+      endUs: startUs + 1000,
       text,
-      words: WORDS,
+      words: [spokenWord(text, startUs + 100, startUs + 900)],
     })
     .run();
   return id;
 }
 
+function storedWords(trackId: string) {
+  return db
+    .select({ words: cues.words })
+    .from(cues)
+    .where(eq(cues.trackId, trackId))
+    .orderBy(asc(cues.position))
+    .all()
+    .map((cue) => cue.words);
+}
+
 describe("updateTrackForUser", () => {
-  it("replaces the cues with the editor's ids and keeps words of unchanged text", () => {
+  it("replaces the cues with the editor's ids and keeps words of unchanged cues", () => {
     const project = seedProject();
     const trackId = seedTrack(project.projectId);
     const keptId = seedCue(trackId, 0, "Kept");
@@ -50,15 +63,15 @@ describe("updateTrackForUser", () => {
       {
         revision: 0,
         cues: [
-          { id: addedId, position: 0, startUs: 0, endUs: 500, text: "New" },
-          { id: keptId, position: 1, startUs: 500, endUs: 1000, text: "Kept" },
+          { id: keptId, position: 0, startUs: 0, endUs: 1000, text: "Kept" },
           {
             id: editedId,
-            position: 2,
+            position: 1,
             startUs: 1000,
             endUs: 2000,
             text: "Edited",
           },
+          { id: addedId, position: 2, startUs: 2000, endUs: 2500, text: "New" },
         ],
       },
     );
@@ -72,9 +85,35 @@ describe("updateTrackForUser", () => {
         .orderBy(asc(cues.position))
         .all(),
     ).toEqual([
-      { id: addedId, text: "New", words: [] },
-      { id: keptId, text: "Kept", words: WORDS },
+      { id: keptId, text: "Kept", words: [spokenWord("Kept", 100, 900)] },
       { id: editedId, text: "Edited", words: [] },
+      { id: addedId, text: "New", words: [] },
+    ]);
+  });
+
+  it("moves the words of a cue moved as a whole and drops them on a retime", () => {
+    const project = seedProject();
+    const trackId = seedTrack(project.projectId);
+    const movedId = seedCue(trackId, 0, "Moved");
+    const retimedId = seedCue(trackId, 1, "Retimed");
+
+    updateTrackForUser(project.projectId, trackId, project.userId, {
+      revision: 0,
+      cues: [
+        { id: movedId, position: 0, startUs: 500, endUs: 1500, text: "Moved" },
+        {
+          id: retimedId,
+          position: 1,
+          startUs: 1500,
+          endUs: 2000,
+          text: "Retimed",
+        },
+      ],
+    });
+
+    expect(storedWords(trackId)).toEqual([
+      [spokenWord("Moved", 600, 1400)],
+      [],
     ]);
   });
 
