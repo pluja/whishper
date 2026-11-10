@@ -74,17 +74,11 @@ export function primaryWorkspaceForUser(
 }
 
 type SubtitleSummary = {
-  trackCount: number;
-  cueCount: number;
-  languages: string[];
   updatedAt: Date | null;
   subtitleMatch: boolean;
 };
 
 const NO_SUBTITLES: SubtitleSummary = {
-  trackCount: 0,
-  cueCount: 0,
-  languages: [],
   updatedAt: null,
   subtitleMatch: false,
 };
@@ -105,11 +99,6 @@ function subtitleSummaries(
   const rows = executor
     .select({
       projectId: subtitleTracks.projectId,
-      trackCount: sql<number>`count(distinct ${subtitleTracks.id})`,
-      cueCount: sql<number>`count(${cues.id})`,
-      languages: sql<
-        string | null
-      >`group_concat(distinct nullif(${subtitleTracks.language}, ''))`,
       updatedAt: sql<number | null>`max(${subtitleTracks.updatedAt})`,
       subtitleMatch: matches,
     })
@@ -123,9 +112,6 @@ function subtitleSummaries(
     rows.map((row) => [
       row.projectId,
       {
-        trackCount: row.trackCount,
-        cueCount: row.cueCount,
-        languages: (row.languages?.split(",") ?? []).toSorted(),
         updatedAt: row.updatedAt === null ? null : new Date(row.updatedAt),
         subtitleMatch: Boolean(row.subtitleMatch),
       },
@@ -209,25 +195,6 @@ function thumbnailProjects(executor: Executor, projectIds: string[]) {
   );
 }
 
-type ProbeStream = {
-  type?: unknown;
-  video?: { width?: unknown; height?: unknown; attachedPicture?: unknown };
-};
-
-function videoDimensions(probe: Record<string, unknown> | null) {
-  const streams = Array.isArray(probe?.streams)
-    ? (probe.streams as ProbeStream[])
-    : [];
-  const video = streams.find(
-    (stream) =>
-      stream.type === "video" && stream.video?.attachedPicture !== true,
-  )?.video;
-  return {
-    videoWidth: video?.width == null ? null : String(video.width),
-    videoHeight: video?.height == null ? null : String(video.height),
-  };
-}
-
 // The sweep treats an upload this idle as abandoned by its client too.
 function libraryUploadStatus(
   status: UploadStatus | null,
@@ -261,7 +228,6 @@ export function listLibraryProjects(
       updatedAt: projects.updatedAt,
       mediaDurationUs: projects.mediaDurationUs,
       mediaPreparationStatus: projects.mediaPreparationStatus,
-      mediaProbe: projects.mediaProbe,
       uploadStatus: mediaUploads.status,
       uploadUpdatedAt: mediaUploads.updatedAt,
       originalFilename: mediaUploads.originalFilename,
@@ -279,7 +245,7 @@ export function listLibraryProjects(
   const thumbnails = thumbnailProjects(executor, projectIds);
 
   return rows
-    .map(({ mediaProbe, updatedAt, uploadUpdatedAt, ...row }) => {
+    .map(({ updatedAt, uploadUpdatedAt, ...row }) => {
       const summary = subtitles.get(row.id) ?? NO_SUBTITLES;
       const activityAt =
         summary.updatedAt && summary.updatedAt > updatedAt
@@ -288,7 +254,6 @@ export function listLibraryProjects(
       return {
         ...row,
         ...(runs.get(row.id) ?? NO_RUN),
-        ...videoDimensions(mediaProbe),
         uploadStatus: libraryUploadStatus(
           row.uploadStatus,
           uploadUpdatedAt,
@@ -296,9 +261,6 @@ export function listLibraryProjects(
         ),
         activityAt,
         hasThumbnail: thumbnails.has(row.id),
-        trackCount: summary.trackCount,
-        cueCount: summary.cueCount,
-        languages: summary.languages,
         subtitleMatch: summary.subtitleMatch,
       };
     })

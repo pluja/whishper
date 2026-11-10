@@ -34,12 +34,7 @@ export type ProjectSummary = {
   mediaPreparationStatus: ProbeState;
   mediaType: string | null;
   hasThumbnail: boolean;
-  trackCount: number;
-  cueCount: number;
-  languages: string[];
   subtitleMatch: boolean;
-  videoWidth: string | null;
-  videoHeight: string | null;
 };
 
 export type LibraryData = {

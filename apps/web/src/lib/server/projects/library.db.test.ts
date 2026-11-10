@@ -89,8 +89,6 @@ describe("project library", () => {
     expect(projects[0]).toMatchObject({
       id: project.projectId,
       mediaDurationUs: 7_200_000_000,
-      trackCount: 0,
-      cueCount: 0,
     });
   });
 });
