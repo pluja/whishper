@@ -10,49 +10,55 @@ import { projectForUser } from "$lib/server/projects/access";
 import { resolveDataPath } from "$lib/server/storage/paths";
 import { GIB, MAX_UPLOAD_LIMIT_GIB } from "$lib/shared/instance-settings";
 
-export const ARTIFACT_LIMITS: Record<MediaDerivativeKind, number> = {
-  waveform: 64 * 1024 * 1024,
-  thumbnail: 16 * 1024 * 1024,
-  // A preview is never larger than the largest source an upload may be.
-  proxy: MAX_UPLOAD_LIMIT_GIB * GIB,
+type DerivativeFormat = {
+  directory: string;
+  maxBytes: number;
+  extensionByMediaType: Readonly<Record<string, string>>;
 };
 
-export const ARTIFACT_MEDIA_TYPES: Record<
-  MediaDerivativeKind,
-  readonly string[]
-> = {
-  waveform: ["application/vnd.anysub.waveform+json"],
-  thumbnail: ["image/jpeg"],
-  proxy: ["video/mp4", "audio/mpeg"],
-};
+export const DERIVATIVE_FORMATS: Record<MediaDerivativeKind, DerivativeFormat> =
+  {
+    waveform: {
+      directory: "waveform",
+      maxBytes: 64 * 1024 * 1024,
+      extensionByMediaType: { "application/vnd.anysub.waveform+json": ".json" },
+    },
+    thumbnail: {
+      directory: "thumbnails",
+      maxBytes: 16 * 1024 * 1024,
+      extensionByMediaType: { "image/jpeg": ".jpg" },
+    },
+    proxy: {
+      directory: "proxy",
+      // A preview is never larger than the largest source an upload may be.
+      maxBytes: MAX_UPLOAD_LIMIT_GIB * GIB,
+      extensionByMediaType: { "video/mp4": ".mp4", "audio/mpeg": ".mp3" },
+    },
+  };
+
+export function isMediaDerivativeKind(
+  value: string,
+): value is MediaDerivativeKind {
+  return Object.hasOwn(DERIVATIVE_FORMATS, value);
+}
+
+export function derivativeExtension(
+  kind: MediaDerivativeKind,
+  mediaType: string,
+): string | null {
+  const { extensionByMediaType } = DERIVATIVE_FORMATS[kind];
+  return Object.hasOwn(extensionByMediaType, mediaType)
+    ? extensionByMediaType[mediaType]
+    : null;
+}
 
 export function derivativeMediaType(
   kind: MediaDerivativeKind,
   stored: string,
 ): string {
-  return (
-    ARTIFACT_MEDIA_TYPES[kind].find((allowed) => allowed === stored) ??
-    "application/octet-stream"
-  );
-}
-
-export const ARTIFACT_DIRECTORIES: Record<MediaDerivativeKind, string> = {
-  waveform: "waveform",
-  thumbnail: "thumbnails",
-  proxy: "proxy",
-};
-
-export const ARTIFACT_EXTENSIONS: Record<string, string> = {
-  "application/vnd.anysub.waveform+json": ".json",
-  "image/jpeg": ".jpg",
-  "video/mp4": ".mp4",
-  "audio/mpeg": ".mp3",
-};
-
-export function isMediaDerivativeKind(
-  value: string,
-): value is MediaDerivativeKind {
-  return value === "waveform" || value === "thumbnail" || value === "proxy";
+  return derivativeExtension(kind, stored) === null
+    ? "application/octet-stream"
+    : stored;
 }
 
 export function readyDerivativeFile(

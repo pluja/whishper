@@ -19,7 +19,7 @@ import {
   holdsActiveLease,
   isMediaPrepareJob,
 } from "$lib/server/jobs/predicates";
-import { ARTIFACT_LIMITS } from "$lib/server/media/derivatives";
+import { DERIVATIVE_FORMATS } from "$lib/server/media/derivatives";
 import { withKeyedLock } from "$lib/server/storage/keyed-lock";
 import {
   resolveDataPath,
@@ -103,7 +103,7 @@ export async function appendArtifactChunk(
   if (
     !Number.isSafeInteger(uploadLength) ||
     uploadLength <= 0 ||
-    uploadLength > ARTIFACT_LIMITS[kind] ||
+    uploadLength > DERIVATIVE_FORMATS[kind].maxBytes ||
     !Number.isSafeInteger(contentLength) ||
     contentLength <= 0 ||
     contentLength > MAX_ARTIFACT_CHUNK_BYTES ||

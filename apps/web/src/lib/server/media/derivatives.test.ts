@@ -20,6 +20,7 @@ describe("derivativeMediaType", () => {
     ["thumbnail", "text/html"],
     ["thumbnail", "video/mp4"],
     ["proxy", "image/svg+xml"],
+    ["proxy", "constructor"],
   ] as const)(
     "serves a %s stored as %s as an opaque download",
     (kind, stored) => {
@@ -34,5 +35,6 @@ describe("isMediaDerivativeKind", () => {
   it("accepts only the known kinds", () => {
     expect(isMediaDerivativeKind("proxy")).toBe(true);
     expect(isMediaDerivativeKind("original")).toBe(false);
+    expect(isMediaDerivativeKind("toString")).toBe(false);
   });
 });

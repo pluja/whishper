@@ -12,13 +12,11 @@ import { and, eq, notInArray } from "drizzle-orm";
 import type { Executor } from "$lib/server/db";
 import { mediaDerivatives, projects } from "$lib/server/db/schema";
 import { unprocessable } from "$lib/server/http/errors";
-import {
-  ARTIFACT_DIRECTORIES,
-  ARTIFACT_EXTENSIONS,
-  ARTIFACT_LIMITS,
-  ARTIFACT_MEDIA_TYPES,
-} from "$lib/server/media/derivatives";
 import { stagedArtifactPath } from "$lib/server/media/artifact-staging";
+import {
+  DERIVATIVE_FORMATS,
+  derivativeExtension,
+} from "$lib/server/media/derivatives";
 import {
   primaryFrameRate,
   requiredArtifactKinds,
@@ -38,9 +36,13 @@ export type MediaFinalizationInput = {
   completion: MediaPreparationJobCompletion;
 };
 
+type PlannedDerivative = {
+  artifact: MediaDerivativeUpload;
+  storageKey: string;
+};
+
 export type MediaFinalizationPlan = {
-  artifacts: MediaDerivativeUpload[];
-  finalKeys: Map<MediaDerivativeKind, string>;
+  derivatives: PlannedDerivative[];
   createdPaths: string[];
   stagingRoot: string;
 };
@@ -50,11 +52,10 @@ export type MediaFinalizationPlan = {
 export async function linkMediaArtifacts(
   input: MediaFinalizationInput,
 ): Promise<MediaFinalizationPlan> {
-  const artifacts = validatedArtifacts(input.completion);
+  const derivatives = planDerivatives(input);
   const createdPaths: string[] = [];
-  const finalKeys = new Map<MediaDerivativeKind, string>();
   try {
-    for (const artifact of artifacts) {
+    for (const { artifact, storageKey } of derivatives) {
       const stagedPath = stagedArtifactPath(
         input.jobId,
         input.attempt,
@@ -66,26 +67,18 @@ export async function linkMediaArtifacts(
           `Staged ${artifact.kind} derivative is incomplete.`,
         );
       }
-      const storageKey = artifactStorageKey(
-        input.workspaceId,
-        input.payload.projectId,
-        input.jobId,
-        artifact,
-      );
       const destination = resolveDataPath(storageKey);
       await mkdir(dirname(destination), { recursive: true });
       if (await linkIdempotent(stagedPath, destination)) {
         createdPaths.push(destination);
       }
-      finalKeys.set(artifact.kind, storageKey);
     }
   } catch (cause) {
     await removePaths(createdPaths);
     throw cause;
   }
   return {
-    artifacts,
-    finalKeys,
+    derivatives,
     createdPaths,
     stagingRoot: workerArtifactsPath(input.jobId),
   };
@@ -110,10 +103,7 @@ export function recordMediaFinalization(
   }
 
   const previous = tx
-    .select({
-      kind: mediaDerivatives.kind,
-      storageKey: mediaDerivatives.storageKey,
-    })
+    .select({ storageKey: mediaDerivatives.storageKey })
     .from(mediaDerivatives)
     .where(eq(mediaDerivatives.projectId, payload.projectId))
     .all();
@@ -138,18 +128,18 @@ export function recordMediaFinalization(
         eq(mediaDerivatives.projectId, payload.projectId),
         notInArray(
           mediaDerivatives.kind,
-          plan.artifacts.map((artifact) => artifact.kind),
+          plan.derivatives.map(({ artifact }) => artifact.kind),
         ),
       ),
     )
     .run();
 
   const now = new Date();
-  for (const artifact of plan.artifacts) {
+  for (const { artifact, storageKey } of plan.derivatives) {
     const row = {
       jobId: input.jobId,
       status: "ready" as const,
-      storageKey: plan.finalKeys.get(artifact.kind) ?? "",
+      storageKey,
       sourceStorageKey: payload.sourceStorageKey,
       mediaType: artifact.mediaType,
       sizeBytes: artifact.sizeBytes,
@@ -168,8 +158,9 @@ export function recordMediaFinalization(
       .run();
   }
 
+  const current = new Set(plan.derivatives.map(({ storageKey }) => storageKey));
   return previous
-    .filter(({ kind, storageKey }) => plan.finalKeys.get(kind) !== storageKey)
+    .filter(({ storageKey }) => !current.has(storageKey))
     .map(({ storageKey }) => resolveDataPath(storageKey));
 }
 
@@ -193,57 +184,36 @@ async function removePaths(paths: string[]): Promise<void> {
   await Promise.all(paths.map((path) => unlink(path).catch(() => undefined)));
 }
 
-function validatedArtifacts(
-  completion: MediaPreparationJobCompletion,
-): MediaDerivativeUpload[] {
-  assertDerivativesAllowed(completion);
-  const artifacts = new Map<MediaDerivativeKind, MediaDerivativeUpload>();
+function planDerivatives(input: MediaFinalizationInput): PlannedDerivative[] {
+  const { completion } = input;
+  const planned = new Map<MediaDerivativeKind, PlannedDerivative>();
   for (const artifact of completion.artifacts) {
-    if (artifacts.has(artifact.kind)) {
+    const format = DERIVATIVE_FORMATS[artifact.kind];
+    const extension = derivativeExtension(artifact.kind, artifact.mediaType);
+    if (extension === null || artifact.sizeBytes > format.maxBytes) {
+      throw unprocessable("Worker returned an invalid derivative manifest.");
+    }
+    if (planned.has(artifact.kind)) {
       throw unprocessable(
         `Worker returned duplicate ${artifact.kind} derivatives.`,
       );
     }
-    artifacts.set(artifact.kind, artifact);
+    planned.set(artifact.kind, {
+      artifact,
+      storageKey: derivativeStorageKey(
+        input.workspaceId,
+        input.payload.projectId,
+        format.directory,
+        `${input.jobId}${extension}`,
+      ),
+    });
   }
   for (const kind of requiredArtifactKinds(completion.probe)) {
-    if (!artifacts.has(kind)) {
+    if (!planned.has(kind)) {
       throw unprocessable(
         `Worker did not upload the required ${kind} derivative.`,
       );
     }
   }
-  return [...artifacts.values()];
-}
-
-function artifactStorageKey(
-  workspaceId: string,
-  projectId: string,
-  jobId: string,
-  artifact: MediaDerivativeUpload,
-): string {
-  const extension = ARTIFACT_EXTENSIONS[artifact.mediaType];
-  if (!extension)
-    throw unprocessable(
-      "Worker returned an unsupported derivative media type.",
-    );
-  return derivativeStorageKey(
-    workspaceId,
-    projectId,
-    ARTIFACT_DIRECTORIES[artifact.kind],
-    `${jobId}${extension}`,
-  );
-}
-
-function assertDerivativesAllowed(
-  completion: MediaPreparationJobCompletion,
-): void {
-  for (const artifact of completion.artifacts) {
-    if (
-      !ARTIFACT_MEDIA_TYPES[artifact.kind].includes(artifact.mediaType) ||
-      artifact.sizeBytes > ARTIFACT_LIMITS[artifact.kind]
-    ) {
-      throw unprocessable("Worker returned an invalid derivative manifest.");
-    }
-  }
+  return [...planned.values()];
 }
