@@ -47,6 +47,21 @@
     globe,
     playhead,
     key,
+    shield,
+    cube,
+    sliders,
+    "hard-drive": hardDrive,
+    server,
+    gauge,
+    compress,
+    target,
+    upload,
+    database,
+    image,
+    film,
+    clock,
+    "check-circle": checkCircle,
+    words,
   };
 </script>
 
@@ -190,6 +205,72 @@
 {#snippet playhead()}
   <path d="M8 4h8v4l-4 3.5L8 8z" />
   <path d="M12 11.5V20" />
+{/snippet}
+{#snippet shield()}
+  <path d="M12 3.5 5 6v5.5c0 4.3 2.9 7.6 7 9 4.1-1.4 7-4.7 7-9V6z" />
+  <path d="m9 12 2 2 4-4" />
+{/snippet}
+{#snippet cube()}
+  <path d="M12 3 4.5 7v10l7.5 4 7.5-4V7z" />
+  <path d="M4.5 7 12 11l7.5-4M12 11v10" />
+{/snippet}
+{#snippet sliders()}
+  <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+  <circle cx="15" cy="7" r="2" />
+  <circle cx="9" cy="17" r="2" />
+{/snippet}
+{#snippet hardDrive()}
+  <rect x="3" y="13" width="18" height="7" rx="2" />
+  <path d="M5.5 13 8 5h8l2.5 8M7 16.5h.01M10.5 16.5h.01" />
+{/snippet}
+{#snippet server()}
+  <rect x="3.5" y="4" width="17" height="7" rx="1.5" />
+  <rect x="3.5" y="13" width="17" height="7" rx="1.5" />
+  <path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6" />
+{/snippet}
+{#snippet gauge()}
+  <path d="M4.8 18a8.5 8.5 0 1 1 14.4 0" />
+  <path d="m12 14 4-5M12 6.5v1.5M6.5 12H8M16 12h1.5" />
+{/snippet}
+{#snippet compress()}
+  <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
+{/snippet}
+{#snippet target()}
+  <circle cx="12" cy="12" r="8.5" />
+  <circle cx="12" cy="12" r="5" />
+  <circle cx="12" cy="12" r="1.5" />
+{/snippet}
+{#snippet upload()}
+  <path d="M12 15V4m0 0-4 4m4-4 4 4M5 19h14" />
+{/snippet}
+{#snippet database()}
+  <ellipse cx="12" cy="6" rx="7" ry="2.5" />
+  <path
+    d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"
+  />
+{/snippet}
+{#snippet image()}
+  <rect x="3.5" y="5" width="17" height="14" rx="2" />
+  <circle cx="9" cy="10" r="1.5" />
+  <path d="m20.5 16-5-5-8 8" />
+{/snippet}
+{#snippet film()}
+  <rect x="3.5" y="4" width="17" height="16" rx="2" />
+  <path d="M7.5 4v16M16.5 4v16M3.5 9h4M3.5 15h4M16.5 9h4M16.5 15h4" />
+{/snippet}
+{#snippet clock()}
+  <circle cx="12" cy="12" r="8.5" />
+  <path d="M12 7.5V12l3 2" />
+{/snippet}
+{#snippet checkCircle()}
+  <circle cx="12" cy="12" r="8.5" />
+  <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+{/snippet}
+{#snippet words()}
+  <path d="M4 18h16" />
+  <rect x="4" y="7" width="4.5" height="7" rx="1" />
+  <rect x="10.5" y="7" width="3" height="7" rx="1" />
+  <rect x="15.5" y="7" width="4.5" height="7" rx="1" />
 {/snippet}
 {#snippet alert()}
   <circle cx="12" cy="12" r="8.5" />

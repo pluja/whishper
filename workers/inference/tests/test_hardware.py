@@ -30,9 +30,7 @@ def write_host_files(root: Path, *, total_gib: int = 32, available_gib: int = 20
 
 
 def runtime_settings(*, device: WorkerDevice = "cpu") -> AdapterRuntimeSettings:
-    return AdapterRuntimeSettings(
-        device=device, compute_type="int8" if device == "cpu" else "float16"
-    )
+    return AdapterRuntimeSettings(device=device)
 
 
 def test_detect_hardware_respects_container_memory_limit(tmp_path: Path) -> None:
@@ -54,7 +52,6 @@ def test_detect_hardware_respects_container_memory_limit(tmp_path: Path) -> None
     )
 
     assert hardware.device == "cpu"
-    assert hardware.compute_type == "int8"
     assert hardware.cpu.model == "Test Ryzen CPU"
     assert hardware.memory.total_bytes == 8 * GIB
     assert hardware.memory.available_bytes == 6 * GIB
@@ -165,7 +162,7 @@ def test_describe_hardware_names_the_device_and_gpus(tmp_path: Path) -> None:
 
     summary = describe_hardware(hardware)
 
-    assert "device=cuda compute_type=float16" in summary
+    assert "device=cuda gpus=" in summary
     assert "gpus=Test RTX (12.0 GiB)" in summary
 
 

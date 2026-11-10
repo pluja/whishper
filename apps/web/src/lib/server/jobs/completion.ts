@@ -25,7 +25,7 @@ type CompletionOutcome = "completed" | "already-completed" | "lease-rejected";
 
 type LeasedJob = {
   runId: string | null;
-  workspaceId: string;
+  workspaceId: string | null;
   attempts: number;
   payload: WorkerJobPayload;
 };
@@ -54,7 +54,19 @@ export async function completeJob(
       });
     }
 
-    if (completion.kind !== "media_prepare") throw completionKindMismatch();
+    if (job.payload.kind === "model_cache") {
+      if (completion.kind !== "model_cache") throw completionKindMismatch();
+      return withTransaction((tx) => {
+        const current = leasedJob(tx, jobId, leaseToken);
+        if (typeof current === "string") return current;
+        markCompleted(tx, jobId, null, completion);
+        return "completed";
+      });
+    }
+
+    if (completion.kind !== "media_prepare" || !job.workspaceId) {
+      throw completionKindMismatch();
+    }
     const input = {
       jobId,
       attempt: job.attempts,

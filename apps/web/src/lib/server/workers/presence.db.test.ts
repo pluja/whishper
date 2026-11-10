@@ -18,9 +18,10 @@ function manifest(): WorkerManifest {
     name: "presence-test",
     version: "1.0.0",
     architecture: "x86_64",
-    capabilities: { mediaPreparation: null },
+    capabilities: { mediaPreparation: null, modelCache: null },
     adapters: [],
     hardware: null,
+    modelStorage: null,
   };
 }
 

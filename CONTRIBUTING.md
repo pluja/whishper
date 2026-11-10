@@ -21,13 +21,15 @@ compose.dev.yaml          Development overlay
 compose.cuda.yaml         NVIDIA overlay
 ```
 
-Server domain folders in `apps/web/src/lib/server/`: `auth`, `db`, `http`, `jobs`, `media`, `projects`, `storage`, `subtitles`, `transcription`, `uploads`, `workers`.
+Server domain folders in `apps/web/src/lib/server/`: `auth`, `db`, `http`, `jobs`, `media`, `models`, `projects`, `settings`, `storage`, `subtitles`, `transcription`, `uploads`, `workers`.
 
 Worker routes under `/api/internal` check the worker token twice on purpose: once in the `handle` hook and again in each route. Keep both, so a route stays protected if the hook's path match ever changes.
 
-Client folders in `apps/web/src/lib/`: `shared` (code used by server and client), `browser`, `library`, `studio`, `editor`, `timeline`, `components`.
+Client folders in `apps/web/src/lib/`: `shared` (code used by server and client), `browser`, `library`, `studio`, `editor`, `timeline`, `admin`, `components`.
 
-Worker modules in `anysub_worker`: `models` (the Pydantic protocol), `config`, `cli`, `adapter`, `registry`, `hardware`, `threads`, `protocol_schema`, `errors`, `retry`, `timing`, `progress`, `execution`, `runner`, `client`, `uploads`, `media/` for FFmpeg-based preparation, and `adapters/whisperx/` for the built-in adapter.
+Pages under `/admin` are for the administrator only. Each page load and each form action calls `requireAdminOrLogin`, because SvelteKit runs form actions without the layout load.
+
+Worker modules in `anysub_worker`: `models` (the Pydantic protocol), `config`, `cli`, `adapter`, `registry`, `hardware`, `threads`, `protocol_schema`, `errors`, `retry`, `timing`, `progress`, `execution`, `runner`, `client`, `uploads`, `model_cache`, `media/` for FFmpeg-based preparation, and `adapters/whisperx/` for the built-in adapter.
 
 ## Naming and structure
 
@@ -122,7 +124,15 @@ Anysub stores everything in one SQLite database through Drizzle ORM. The schema 
 make db-generate
 ```
 
-This writes a new SQL migration with drizzle-kit into `apps/web/migrations`. Review it and commit it with the schema change. Never edit a generated migration. A test fails when the schema has changes that no migration covers. The application applies pending migrations when it starts.
+This writes a new SQL migration with drizzle-kit into `apps/web/migrations`. Review it and commit it with the schema change. Never edit a generated migration. A test fails when the schema has changes that no migration covers. The application applies pending migrations when it starts, with foreign keys off so a table that drizzle-kit rebuilds keeps the rows that point at it, and checks every reference before it serves requests.
+
+A change to existing data, such as filling a new column, goes in a migration of its own:
+
+```sh
+make db-generate ARGS="--custom --name=describe_the_change"
+```
+
+drizzle-kit creates an empty SQL file for you to write the statements into.
 
 Transactions run synchronously through `withTransaction` in `apps/web/src/lib/server/db/transaction.ts`. Because one cannot interleave with another request, the code needs no row or advisory locks. Do file work before or after a transaction, never inside it, and use `withKeyedLock` when several async steps for one job or upload must not overlap.
 

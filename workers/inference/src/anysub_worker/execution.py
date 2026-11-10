@@ -15,6 +15,7 @@ from .adapter import AdapterExecutionError, ProgressReporter, TranscriptionAdapt
 from .errors import LeaseLostError, describe_error, failure_for
 from .media import prepare_media
 from .media.errors import MediaPreparationError
+from .model_cache import ModelCacheError, run_model_cache_job
 from .models import (
     AdapterCapability,
     AdapterReference,
@@ -23,6 +24,7 @@ from .models import (
     JobFailureCode,
     MediaDerivativeKind,
     MediaPreparationJobPayload,
+    ModelCacheJobPayload,
     TranscriptionJobCompletion,
     TranscriptionJobPayload,
     WorkerJobPayload,
@@ -155,6 +157,8 @@ async def _report_failure(
 def _fallback_failure_code(payload: WorkerJobPayload) -> JobFailureCode:
     if isinstance(payload, TranscriptionJobPayload):
         return AdapterExecutionError.code
+    if isinstance(payload, ModelCacheJobPayload):
+        return ModelCacheError.code
     return MediaPreparationError.code
 
 
@@ -167,6 +171,8 @@ async def _run(
     payload = lease.payload
     if isinstance(payload, TranscriptionJobPayload):
         await _run_transcription(client, registry, lease, payload, report)
+    elif isinstance(payload, ModelCacheJobPayload):
+        await client.complete(lease, await run_model_cache_job(registry, payload, report))
     else:
         await _run_media_preparation(client, lease, payload, report)
 

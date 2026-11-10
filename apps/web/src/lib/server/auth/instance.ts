@@ -43,7 +43,12 @@ export function createInstanceOwner(owner: InstanceOwner): OwnerSetupOutcome {
 
     const userId = randomUUID();
     tx.insert(user)
-      .values({ id: userId, name: owner.name, email: owner.email })
+      .values({
+        id: userId,
+        name: owner.name,
+        email: owner.email,
+        role: "admin",
+      })
       .run();
     tx.insert(account)
       .values({

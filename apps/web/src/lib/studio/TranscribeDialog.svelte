@@ -1,5 +1,6 @@
 <script lang="ts">
   import Dialog from "$lib/components/ui/Dialog.svelte";
+  import type { TranscriptionDefaults } from "$lib/shared/instance-settings";
   import type {
     AvailableTranscriptionModel,
     DetectedWorkerHardware,
@@ -10,6 +11,7 @@
     open?: boolean;
     models: AvailableTranscriptionModel[];
     hardware: DetectedWorkerHardware[];
+    defaults: TranscriptionDefaults;
     onbeforesubmit: () => Promise<string | null>;
   };
 
@@ -17,10 +19,11 @@
     open = $bindable(false),
     models,
     hardware,
+    defaults,
     onbeforesubmit,
   }: Props = $props();
 </script>
 
 <Dialog bind:open title="Re-transcribe">
-  <TranscribePanel {models} {hardware} {onbeforesubmit} />
+  <TranscribePanel {models} {hardware} {defaults} {onbeforesubmit} />
 </Dialog>

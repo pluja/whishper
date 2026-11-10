@@ -1,5 +1,7 @@
 import type { MediaDerivativeKind } from "@anysub/contracts";
 
+import type { TranscriptionDefaults } from "./instance-settings";
+
 import type { SubtitleCueSnapshot, SubtitleTrack } from "./subtitles";
 import type {
   AvailableTranscriptionModel,
@@ -58,5 +60,6 @@ export type StudioData = {
   track: SubtitleTrack | null;
   cues: SubtitleCueSnapshot[];
   transcriptionModels: AvailableTranscriptionModel[];
+  transcriptionDefaults: TranscriptionDefaults;
   detectedHardware: DetectedWorkerHardware[];
 };

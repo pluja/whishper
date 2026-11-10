@@ -1,5 +1,6 @@
 import {
   MEDIA_PREPARATION_VERSION,
+  MODEL_CACHE_VERSION,
   type WorkerLease,
   type WorkerManifest,
 } from "@anysub/contracts";
@@ -17,7 +18,10 @@ import {
   reclaimExpiredLeases,
 } from "$lib/server/jobs/failure";
 import { generateLeaseToken, hashToken } from "$lib/server/jobs/lease-token";
-import { isMediaPrepareJob } from "$lib/server/jobs/predicates";
+import {
+  isMediaPrepareJob,
+  isModelCacheJobFor,
+} from "$lib/server/jobs/predicates";
 import { recordWorkerPresence } from "$lib/server/workers/presence";
 
 const LEASE_MS = 60_000;
@@ -29,6 +33,9 @@ export async function leaseJob(
   const adapterIds = manifest.adapters.map((adapter) => adapter.id);
   const supportsMediaPreparation =
     manifest.capabilities.mediaPreparation === MEDIA_PREPARATION_VERSION;
+  const supportsModelCache =
+    manifest.capabilities.modelCache === MODEL_CACHE_VERSION &&
+    adapterIds.length > 0;
   const { lease, reclaimed } = withTransaction((tx) => {
     recordWorkerPresence(tx, manifest);
     const reclaimed = reclaimExpiredLeases(tx);
@@ -43,6 +50,9 @@ export async function leaseJob(
           ]
         : []),
       ...(supportsMediaPreparation ? [isMediaPrepareJob] : []),
+      ...(supportsModelCache
+        ? [isModelCacheJobFor(manifest.workerId, adapterIds)]
+        : []),
     ];
     if (compatible.length === 0) return { lease: null, reclaimed };
 
@@ -84,7 +94,7 @@ export async function leaseJob(
           ),
         )
         .run();
-    } else {
+    } else if (job.payload.kind === "media_prepare") {
       tx.update(projects)
         .set({ mediaPreparationStatus: "running" })
         .where(eq(projects.id, job.payload.projectId))

@@ -26,8 +26,8 @@ generate: ## Regenerate the protocol schema and TypeScript contracts from the wo
 	$(RUN) worker uv run anysub-protocol-schema ../../packages/contracts/schema/protocol.schema.json
 	$(RUN) web pnpm --filter @anysub/contracts generate
 
-db-generate: ## Generate a database migration from the Drizzle schema
-	$(RUN) web pnpm --filter @anysub/web db:generate
+db-generate: ## Generate a database migration from the Drizzle schema (ARGS="--custom --name=x" for a data migration)
+	$(RUN) web pnpm --filter @anysub/web db:generate $(ARGS)
 
 check: ## Type-check the web application and contracts (svelte-check, tsc) and the worker (pyright)
 	$(RUN) web pnpm check

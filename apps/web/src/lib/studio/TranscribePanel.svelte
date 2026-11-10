@@ -3,6 +3,12 @@
   import Button from "$lib/components/ui/Button.svelte";
   import Field from "$lib/components/ui/Field.svelte";
   import Input from "$lib/components/ui/Input.svelte";
+  import {
+    MAX_LINE_LENGTH,
+    MIN_LINE_LENGTH,
+    type TranscriptionDefaults,
+  } from "$lib/shared/instance-settings";
+  import { DETECT_LANGUAGE } from "$lib/shared/languages";
   import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
   import type {
     AvailableTranscriptionModel,
@@ -14,11 +20,12 @@
   type Props = {
     models: AvailableTranscriptionModel[];
     hardware: DetectedWorkerHardware[];
+    defaults: TranscriptionDefaults;
     // Resolves to an error message when the transcription must not start.
     onbeforesubmit?: () => Promise<string | null>;
   };
 
-  let { models, hardware, onbeforesubmit }: Props = $props();
+  let { models, hardware, defaults, onbeforesubmit }: Props = $props();
 
   let preparing = $state(false);
   let blockedMessage = $state<string | null>(null);
@@ -48,8 +55,8 @@
       Choose the accuracy and resource profile for this source. The first run
       downloads its model into the private cache.
     </p>
-    <ModelPicker {models} {hardware} />
-    <LanguagePicker />
+    <ModelPicker {models} {hardware} preferredKey={defaults.model} />
+    <LanguagePicker initial={defaults.language ?? DETECT_LANGUAGE} />
     <label
       class="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-surface-sunken px-3 py-2.5"
     >
@@ -57,7 +64,7 @@
         class="mt-0.5 size-4 shrink-0 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         name="alignment"
         type="checkbox"
-        checked
+        checked={defaults.alignment}
       />
       <span class="grid gap-0.5">
         <span class="text-sm font-medium text-text"
@@ -90,9 +97,9 @@
               aria-describedby={describedBy}
               name="maxLineLength"
               type="number"
-              min="20"
-              max="120"
-              value={DEFAULT_MAX_LINE_LENGTH}
+              min={MIN_LINE_LENGTH}
+              max={MAX_LINE_LENGTH}
+              value={defaults.maxLineLength}
               required
             />
           {/snippet}

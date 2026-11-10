@@ -8,6 +8,14 @@ from anysub_worker.models import WorkerDevice
 
 BATCH_SIZE_BY_DEVICE: dict[WorkerDevice, int] = {"cpu": 4, "cuda": 16}
 
+# CTranslate2 cannot run half-precision floats on a CPU, so lower memory there
+# means the same int8 weights as the automatic choice.
+COMPUTE_TYPES: dict[str, dict[WorkerDevice, str]] = {
+    "auto": {"cpu": "int8", "cuda": "float16"},
+    "memory": {"cpu": "int8", "cuda": "int8_float16"},
+    "precise": {"cpu": "float32", "cuda": "float32"},
+}
+
 
 @dataclass(frozen=True)
 class BooleanOption:
@@ -22,6 +30,30 @@ class BooleanOption:
         value = options.get(self.name, self.default)
         if not isinstance(value, bool):
             raise AdapterExecutionError(f"{self.name} must be a boolean.", retryable=False)
+        return value
+
+
+@dataclass(frozen=True)
+class ChoiceOption:
+    name: str
+    choices: tuple[str, ...]
+    default: str
+    description: str
+
+    def schema(self) -> dict[str, Any]:
+        return {
+            "type": "string",
+            "enum": list(self.choices),
+            "default": self.default,
+            "description": self.description,
+        }
+
+    def parse(self, options: dict[str, Any]) -> str:
+        value = options.get(self.name, self.default)
+        if value not in self.choices:
+            raise AdapterExecutionError(
+                f"{self.name} must be one of {', '.join(self.choices)}.", retryable=False
+            )
         return value
 
 
@@ -75,7 +107,13 @@ MAX_LINE_LENGTH = IntegerOption(
     default=42,
     description="Maximum subtitle cue length in characters.",
 )
-OPTIONS = (ALIGNMENT, BATCH_SIZE, MAX_LINE_LENGTH)
+PRECISION = ChoiceOption(
+    name="precision",
+    choices=tuple(COMPUTE_TYPES),
+    default="auto",
+    description="Model weight precision. Lower precision runs faster and uses less memory.",
+)
+OPTIONS = (ALIGNMENT, BATCH_SIZE, MAX_LINE_LENGTH, PRECISION)
 
 
 @dataclass(frozen=True)
@@ -83,6 +121,7 @@ class TranscriptionOptions:
     alignment: bool
     batch_size: int
     max_line_length: int
+    compute_type: str
 
 
 def options_schema() -> dict[str, Any]:
@@ -98,4 +137,5 @@ def parse_options(options: dict[str, Any], *, device: WorkerDevice) -> Transcrip
         alignment=ALIGNMENT.parse(options),
         batch_size=BATCH_SIZE.parse(options, default=BATCH_SIZE_BY_DEVICE[device]),
         max_line_length=MAX_LINE_LENGTH.parse(options),
+        compute_type=COMPUTE_TYPES[PRECISION.parse(options)][device],
     )

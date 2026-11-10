@@ -10,8 +10,10 @@ import pytest
 from anysub_worker.adapter import AdapterExecutionError
 from anysub_worker.adapters.whisperx import WhisperXAdapter
 from anysub_worker.adapters.whisperx import adapter as adapter_module
+from anysub_worker.adapters.whisperx.adapter import _ModelKey as ModelKey
+from anysub_worker.adapters.whisperx.options import parse_options
 from anysub_worker.config import WorkerSettings
-from anysub_worker.models import TranscriptionRequest
+from anysub_worker.models import TranscriptionRequest, WorkerDevice
 
 type InstallStub = Callable[[object], tuple[WhisperXAdapter, TranscriptionRequest]]
 
@@ -30,6 +32,8 @@ def test_manifest_exposes_accurate_models_without_importing_ml_dependencies(
     assert small.required_vram_bytes == 2 * 1024**3
     assert small.recommended_ram_bytes == 4 * 1024**3
     assert small.downloaded is False
+    assert small.download_size_bytes == 486_212_372
+    assert small.options_schema["properties"]["precision"]["enum"] == ["auto", "memory", "precise"]
     turbo = next(model for model in manifest.models if model.id == "large-v3-turbo")
     assert turbo.display_name == "Large v3 Turbo"
     assert turbo.required_vram_bytes == 3 * 1024**3
@@ -74,11 +78,30 @@ async def test_explicit_language_is_part_of_the_cached_model_key(
     whisperx = RecordingWhisperX()
     adapter = WhisperXAdapter(settings.runtime)
 
-    english = await adapter._load_model(whisperx, "small", "en")
-    assert await adapter._load_model(whisperx, "small", "en") is english
-    await adapter._load_model(whisperx, "small", "es")
+    english = await adapter._load_model(whisperx, ModelKey("small", "en", "int8"))
+    assert await adapter._load_model(whisperx, ModelKey("small", "en", "int8")) is english
+    await adapter._load_model(whisperx, ModelKey("small", "es", "int8"))
 
     assert whisperx.languages == ["en", "es"]
+
+
+async def test_precision_is_part_of_the_cached_model_key(settings: WorkerSettings) -> None:
+    class RecordingWhisperX:
+        def __init__(self) -> None:
+            self.compute_types: list[str] = []
+
+        def load_model(self, model_id: str, device: str, **kwargs: Any) -> object:
+            self.compute_types.append(kwargs["compute_type"])
+            return object()
+
+    whisperx = RecordingWhisperX()
+    adapter = WhisperXAdapter(settings.runtime)
+
+    await adapter._load_model(whisperx, ModelKey("small", None, "int8"))
+    await adapter._load_model(whisperx, ModelKey("small", None, "int8"))
+    await adapter._load_model(whisperx, ModelKey("small", None, "float32"))
+
+    assert whisperx.compute_types == ["int8", "float32"]
 
 
 async def test_model_load_uses_the_configured_cpu_threads(settings: WorkerSettings) -> None:
@@ -90,7 +113,7 @@ async def test_model_load_uses_the_configured_cpu_threads(settings: WorkerSettin
             return object()
 
     runtime = settings.runtime.model_copy(update={"cpu_threads": 3})
-    await WhisperXAdapter(runtime)._load_model(RecordingWhisperX(), "small", None)
+    await WhisperXAdapter(runtime)._load_model(RecordingWhisperX(), ModelKey("small", None, "int8"))
 
     assert RecordingWhisperX.threads == 3
 
@@ -310,7 +333,7 @@ async def test_invalid_compute_type_on_model_load_is_not_retryable(
 
     assert raised.value.retryable is False
     assert ct2_message in str(raised.value)
-    assert "ANYSUB_COMPUTE_TYPE" in str(raised.value)
+    assert "precision" in str(raised.value)
 
 
 async def test_download_errors_on_model_load_stay_retryable(transcribe_setup: InstallStub) -> None:
@@ -356,8 +379,8 @@ async def test_a_cached_model_loads_without_contacting_hugging_face(
 
     whisperx = RecordingWhisperX()
     adapter = WhisperXAdapter(settings.runtime)
-    await adapter._load_model(whisperx, "small", None)
-    await adapter._load_model(whisperx, "tiny", None)
+    await adapter._load_model(whisperx, ModelKey("small", None, "int8"))
+    await adapter._load_model(whisperx, ModelKey("tiny", None, "int8"))
 
     assert whisperx.local_files_only == [True, False]
 
@@ -375,7 +398,7 @@ async def test_an_unreachable_hub_is_a_retryable_download_error(
 
     assert raised.value.retryable is True
     assert "huggingface.co" in str(raised.value)
-    assert "ANYSUB_COMPUTE_TYPE" not in str(raised.value)
+    assert "precision" not in str(raised.value)
 
 
 @pytest.mark.parametrize(
@@ -412,3 +435,41 @@ async def test_out_of_memory_from_any_library_is_terminal(
 
     assert raised.value.retryable is False
     assert f"The {hardware} ran out of memory" in str(raised.value)
+
+
+@pytest.mark.parametrize(
+    ("precision", "device", "compute_type"),
+    [
+        (None, "cpu", "int8"),
+        (None, "cuda", "float16"),
+        ("memory", "cpu", "int8"),
+        ("memory", "cuda", "int8_float16"),
+        ("precise", "cpu", "float32"),
+        ("precise", "cuda", "float32"),
+    ],
+)
+def test_precision_maps_to_a_compute_type_the_device_can_run(
+    precision: str | None, device: WorkerDevice, compute_type: str
+) -> None:
+    options = {} if precision is None else {"precision": precision}
+
+    assert parse_options(options, device=device).compute_type == compute_type
+
+
+def test_an_unknown_precision_is_rejected_permanently() -> None:
+    with pytest.raises(AdapterExecutionError, match="precision must be one of") as raised:
+        parse_options({"precision": "float16"}, device="cpu")
+
+    assert raised.value.retryable is False
+
+
+async def test_the_transcript_records_the_compute_type_it_ran_with(
+    transcribe_setup: InstallStub,
+) -> None:
+    adapter, request = transcribe_setup(StubWhisperX())
+
+    artifact = await adapter.transcribe(
+        request.model_copy(update={"options": {"precision": "precise"}}), noop_progress
+    )
+
+    assert artifact.metadata["computeType"] == "float32"

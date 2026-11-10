@@ -1,7 +1,5 @@
 import { env } from "$env/dynamic/private";
 
-const DEFAULT_MAX_UPLOAD_BYTES = 500 * 1024 * 1024 * 1024;
-
 const MINIMUM_AUTH_SECRET_LENGTH = 32;
 const MINIMUM_WORKER_TOKEN_LENGTH = 24;
 
@@ -16,20 +14,10 @@ const PUBLISHED_PLACEHOLDERS = new Set([
   "local-worker-token-change-before-exposing",
 ]);
 
-function positiveInteger(value: string | undefined, fallback: number): number {
-  if (!value) return fallback;
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
-}
-
 export const privateEnv = {
   databaseFile: env.ANYSUB_DATABASE_FILE || "/database/anysub.db",
   authUrl: env.BETTER_AUTH_URL || "http://localhost:5173",
   dataRoot: env.DATA_ROOT ?? "/data",
-  maxUploadBytes: positiveInteger(
-    env.ANYSUB_MAX_UPLOAD_BYTES,
-    DEFAULT_MAX_UPLOAD_BYTES,
-  ),
   // Unset means Anysub generates the secret and keeps it in the database.
   authSecretOverride: env.BETTER_AUTH_SECRET || null,
   workerTokenOverride: env.ANYSUB_WORKER_TOKEN || null,

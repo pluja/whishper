@@ -18,6 +18,7 @@ import {
   UPLOAD_EXPIRATION_MS,
 } from "$lib/server/uploads/maintenance";
 import { isNodeError } from "$lib/server/guards";
+import { readInstanceSettings } from "$lib/server/settings/instance";
 import { uploadStagingDirectory } from "$lib/server/storage/paths";
 import { isUuid } from "$lib/shared/uuid";
 
@@ -123,7 +124,7 @@ async function createServer(): Promise<Server> {
     path: TUS_PATH,
     datastore: store,
     locker: new MemoryLocker(),
-    maxSize: privateEnv.maxUploadBytes,
+    maxSize: () => readInstanceSettings().maxUploadBytes,
     relativeLocation: true,
     allowedCredentials: true,
     allowedOrigins: [new URL(privateEnv.authUrl).origin],

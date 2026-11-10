@@ -21,9 +21,9 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Anysub runtime data
-data/
-models/
+# Anysub runtime data at the repository root
+/data/
+/models/
 
 # Editors and operating systems
 .DS_Store

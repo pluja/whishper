@@ -1,34 +1,27 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
   import Badge from "$lib/components/ui/Badge.svelte";
+  import { FIT_TONES } from "$lib/components/model-fit";
   import Picker from "$lib/components/ui/Picker.svelte";
-  import type { BadgeTone } from "$lib/components/ui/variants";
   import { formatBytes } from "$lib/shared/format";
   import {
     defaultModelKey,
     type AvailableTranscriptionModel,
     type DetectedWorkerHardware,
-    type ModelFit,
   } from "$lib/shared/transcription-models";
-
-  const FIT_TONES: Record<ModelFit, BadgeTone> = {
-    good: "success",
-    caution: "warning",
-    poor: "danger",
-    unknown: "neutral",
-  };
 
   type Props = {
     models: AvailableTranscriptionModel[];
     hardware: DetectedWorkerHardware[];
+    preferredKey?: string | null;
   };
 
-  let { models, hardware }: Props = $props();
+  let { models, hardware, preferredKey = null }: Props = $props();
 
   let pickedModelKey = $state<string>();
   let selectedModelKey = $derived(
     models.find((model) => model.key === pickedModelKey)?.key ??
-      defaultModelKey(models),
+      defaultModelKey(models, preferredKey),
   );
   let recommendedModel = $derived(models.find((model) => model.recommended));
 

@@ -18,7 +18,14 @@
   };
   const OPTIONS = [DETECT_AUTOMATICALLY, ...LANGUAGES];
 
-  let value = $state(DETECT_LANGUAGE);
+  let {
+    initial = DETECT_LANGUAGE,
+    label = "Spoken language",
+  }: { initial?: string; label?: string } = $props();
+
+  // Seeded once: later changes to the default must not discard a choice.
+  // svelte-ignore state_referenced_locally
+  let value = $state(initial);
 
   function matchesSearchedLanguage(language: Language, query: string): boolean {
     return (
@@ -51,7 +58,7 @@
 {/snippet}
 
 <Picker
-  label="Spoken language"
+  {label}
   name="language"
   options={OPTIONS}
   key={(language) => language.code}

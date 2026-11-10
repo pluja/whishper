@@ -16,7 +16,6 @@ services:
         ANYSUB_ACCELERATOR: cuda
     environment:
       ANYSUB_DEVICE: cuda
-      ANYSUB_COMPUTE_TYPE: ${ANYSUB_COMPUTE_TYPE:-float16}
       ANYSUB_WORKER_NAME: ${ANYSUB_WORKER_NAME:-local-cuda}
     deploy:
       resources:

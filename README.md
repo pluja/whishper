@@ -13,6 +13,7 @@ Anysub is a ground-up rewrite of [Whishper](https://github.com/pluja/whishper). 
 - Export to SRT, WebVTT, or JSON.
 - Resumable uploads for hours-long files.
 - A searchable project library.
+- An administration area to download models ahead of time, set transcription defaults and precision, choose the upload limit, and watch disk space and workers.
 
 ## Requirements
 
@@ -54,7 +55,6 @@ Not built yet:
 - Watched folders.
 - Import from a URL or an existing subtitle file.
 - More users, or workers with their own credentials.
-- Model management from the interface.
 - Named revisions.
 - Workers on other machines.
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("$lib/server/env", () => ({
-  privateEnv: { databaseFile: ":memory:", maxUploadBytes: 1024 },
+  privateEnv: { databaseFile: ":memory:" },
 }));
 
 import { derivativeMediaType, isMediaDerivativeKind } from "./derivatives";

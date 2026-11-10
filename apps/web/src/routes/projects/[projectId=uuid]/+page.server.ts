@@ -17,6 +17,7 @@ import {
   readyDerivatives,
   studioProject,
 } from "$lib/server/projects/studio";
+import { readTranscriptionDefaults } from "$lib/server/settings/instance";
 import { listTrackCues } from "$lib/server/subtitles/cues";
 import { latestTrackForProject } from "$lib/server/subtitles/tracks";
 import { deleteTranscriptForUser } from "$lib/server/subtitles/transcripts";
@@ -91,6 +92,7 @@ export const load: PageServerLoad = async ({
     cues,
     transcriptionModels: availableTranscriptionModels(workerManifests),
     detectedHardware: detectedWorkerHardware(workerManifests),
+    transcriptionDefaults: readTranscriptionDefaults(db),
   };
 };
 

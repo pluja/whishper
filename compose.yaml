@@ -1,8 +1,9 @@
 name: anysub
 
 # Nothing here needs configuring. Anysub generates its secrets on first start
-# and keeps them in the database. See docs/CONFIGURATION.md for the optional
-# settings a .env file next to this one can change.
+# and keeps them in the database, and the first account sets models, defaults
+# and upload limits under Administration. See docs/CONFIGURATION.md for the
+# few settings a .env file next to this one can change.
 
 services:
   web:
@@ -18,7 +19,6 @@ services:
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:5173}
       # adapter-node reads BODY_SIZE_LIMIT. The ANYSUB_ name is the documented one.
       BODY_SIZE_LIMIT: ${ANYSUB_BODY_SIZE_LIMIT:-64M}
-      ANYSUB_MAX_UPLOAD_BYTES: ${ANYSUB_MAX_UPLOAD_BYTES:-536870912000}
       # adapter-node reads ADDRESS_HEADER. Empty means the socket address.
       ADDRESS_HEADER: ${ANYSUB_ADDRESS_HEADER:-}
     ports:
@@ -51,7 +51,6 @@ services:
       ANYSUB_DATA_ROOT: /data
       ANYSUB_MODEL_ROOT: /models
       ANYSUB_DEVICE: ${ANYSUB_ACCELERATOR:-cpu}
-      ANYSUB_COMPUTE_TYPE: ${ANYSUB_COMPUTE_TYPE:-int8}
       HF_HUB_DISABLE_TELEMETRY: "1"
       DO_NOT_TRACK: "1"
       PYANNOTE_METRICS_ENABLED: "0"

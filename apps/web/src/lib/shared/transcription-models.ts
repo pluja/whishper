@@ -27,9 +27,13 @@ export type DetectedWorkerHardware = {
   details: string[];
 };
 
-export function defaultModelKey(models: AvailableTranscriptionModel[]): string {
+export function defaultModelKey(
+  models: AvailableTranscriptionModel[],
+  preferredKey: string | null = null,
+): string {
   return (
     (
+      models.find((model) => model.key === preferredKey) ??
       models.find((model) => model.recommended) ??
       models.find((model) => model.modelId === "small") ??
       models[0]

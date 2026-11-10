@@ -21,13 +21,14 @@ function owner(name: string): InstanceOwner {
 }
 
 describe("createInstanceOwner", () => {
-  it("creates the owner, a credential, a workspace and an owner membership", () => {
+  it("creates the administrator, a credential, a workspace and an owner membership", () => {
     expect(isInstanceInitialized()).toBe(false);
 
     expect(createInstanceOwner(owner("Ada"))).toBe("created");
 
     expect(isInstanceInitialized()).toBe(true);
     const created = db.select().from(user).get();
+    expect(created?.role).toBe("admin");
     expect(db.select().from(account).get()).toMatchObject({
       userId: created?.id,
       providerId: "credential",

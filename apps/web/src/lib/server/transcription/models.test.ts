@@ -57,7 +57,6 @@ describe("available transcription models", () => {
         name: "local-cpu",
         hardware: {
           device: "cpu",
-          computeType: "int8",
           cpu: { model: "Test CPU", logicalCores: 8 },
           memory: { totalBytes: 8 * gib, availableBytes: 6 * gib },
           gpus: [],
@@ -124,7 +123,6 @@ describe("available transcription models", () => {
         name: "cpu-worker",
         hardware: {
           device: "cpu",
-          computeType: "int8",
           cpu: { logicalCores: 16 },
           memory: { totalBytes: 16 * gib, availableBytes: 12 * gib },
           gpus: [],
@@ -165,7 +163,6 @@ describe("available transcription models", () => {
         name: "cuda-worker",
         hardware: {
           device: "cuda",
-          computeType: "float16",
           cpu: { logicalCores: 16 },
           memory: { totalBytes: 32 * gib, availableBytes: 24 * gib },
           gpus: [
@@ -214,7 +211,6 @@ describe("available transcription models", () => {
       name: "local-cpu",
       hardware: {
         device: "cpu",
-        computeType: "int8",
         cpu: { model: "Test CPU", logicalCores: 8 },
         memory: { totalBytes: 16 * gib, availableBytes: 12 * gib },
         gpus: [],

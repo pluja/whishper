@@ -37,13 +37,19 @@ class AdapterRegistry:
         return tuple(self._by_id[key] for key in sorted(self._by_id))
 
     def require(self, adapter_id: str, model_id: str, capability: AdapterCapability) -> Adapter:
-        adapter = self._by_id.get(adapter_id)
-        if adapter is None:
-            raise AdapterLoadError(f"adapter is not installed: {adapter_id}")
+        adapter = self.require_model(adapter_id, model_id)
         if not adapter.manifest.supports(capability, model_id):
             raise AdapterLoadError(
                 f"adapter {adapter_id} model {model_id} does not support {capability.value}"
             )
+        return adapter
+
+    def require_model(self, adapter_id: str, model_id: str) -> Adapter:
+        adapter = self._by_id.get(adapter_id)
+        if adapter is None:
+            raise AdapterLoadError(f"adapter is not installed: {adapter_id}")
+        if all(model.id != model_id for model in adapter.manifest.models):
+            raise AdapterLoadError(f"adapter {adapter_id} has no model {model_id}")
         return adapter
 
 

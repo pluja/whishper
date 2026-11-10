@@ -35,7 +35,7 @@ export function availableTranscriptionModels(
       if (!isAdapterManifest(candidate)) continue;
       for (const model of candidate.models) {
         if (!model.capabilities.includes("transcribe")) continue;
-        const key = `${candidate.id}:${model.id}`;
+        const key = modelKey(candidate.id, model.id);
         const fit = scoreModelFit(model, workerName, hardware);
         const available: AvailableTranscriptionModel = {
           key,
@@ -49,7 +49,7 @@ export function availableTranscriptionModels(
           recommendedRamBytes: positiveNumber(model.recommendedRamBytes),
           downloaded:
             typeof model.downloaded === "boolean" ? model.downloaded : null,
-          recommended: model.id === "large-v3-turbo" && fit.fit === "good",
+          recommended: isRecommended(model, fit.fit),
           optionsSchema: model.optionsSchema ?? {},
           ...fit,
         };
@@ -70,26 +70,45 @@ export function availableTranscriptionModels(
       }
     }
   }
-  return [...models.values()].sort((left, right) => {
-    const preferred = [
-      "tiny",
-      "base",
-      "small",
-      "medium",
-      "large-v3-turbo",
-      "large-v3",
-    ];
-    const leftRank = preferred.indexOf(left.modelId);
-    const rightRank = preferred.indexOf(right.modelId);
-    if (left.adapterId === right.adapterId && leftRank !== rightRank) {
-      return (
-        (leftRank < 0 ? 999 : leftRank) - (rightRank < 0 ? 999 : rightRank)
-      );
-    }
-    return `${left.adapterName} ${left.displayName}`.localeCompare(
-      `${right.adapterName} ${right.displayName}`,
-    );
-  });
+  return [...models.values()].sort(compareModels);
+}
+
+const PREFERRED_ORDER = [
+  "tiny",
+  "base",
+  "small",
+  "medium",
+  "large-v3-turbo",
+  "large-v3",
+];
+
+type SortableModel = {
+  adapterId: string;
+  adapterName: string;
+  modelId: string;
+  displayName: string;
+};
+
+export function compareModels(
+  left: SortableModel,
+  right: SortableModel,
+): number {
+  const leftRank = PREFERRED_ORDER.indexOf(left.modelId);
+  const rightRank = PREFERRED_ORDER.indexOf(right.modelId);
+  if (left.adapterId === right.adapterId && leftRank !== rightRank) {
+    return (leftRank < 0 ? 999 : leftRank) - (rightRank < 0 ? 999 : rightRank);
+  }
+  return `${left.adapterName} ${left.displayName}`.localeCompare(
+    `${right.adapterName} ${right.displayName}`,
+  );
+}
+
+export function modelKey(adapterId: string, modelId: string): string {
+  return `${adapterId}:${modelId}`;
+}
+
+export function isRecommended(model: AdapterModel, fit: ModelFit): boolean {
+  return model.id === "large-v3-turbo" && fit === "good";
 }
 
 export function detectedWorkerHardware(
@@ -113,11 +132,7 @@ function mergeDownloadedState(
   return null;
 }
 
-function scoreModelFit(
-  model: AdapterModel,
-  workerName: string,
-  hardware: WorkerHardware | null,
-): Pick<
+export type ModelFitScore = Pick<
   AvailableTranscriptionModel,
   | "fit"
   | "fitLabel"
@@ -125,7 +140,13 @@ function scoreModelFit(
   | "workerSummary"
   | "memoryRequirementBytes"
   | "memoryRequirementKind"
-> {
+>;
+
+export function scoreModelFit(
+  model: AdapterModel,
+  workerName: string,
+  hardware: WorkerHardware | null,
+): ModelFitScore {
   if (!hardware) {
     return {
       fit: "unknown",
@@ -239,7 +260,9 @@ function formatWorkerSummary(
   return `${workerName} · ${detected.name} · ${detected.details.join(" · ")}`;
 }
 
-function describeHardware(hardware: WorkerHardware): DetectedWorkerHardware {
+export function describeHardware(
+  hardware: WorkerHardware,
+): DetectedWorkerHardware {
   const ram = `${formatBytes(hardware.memory.availableBytes)} RAM available`;
   if (hardware.device === "cuda" && hardware.gpus[0]) {
     const gpu = hardware.gpus[0];
@@ -256,13 +279,13 @@ function describeHardware(hardware: WorkerHardware): DetectedWorkerHardware {
   };
 }
 
-function positiveNumber(value: unknown): number | null {
+export function positiveNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? value
     : null;
 }
 
-function isAdapterManifest(value: unknown): value is AdapterManifest {
+export function isAdapterManifest(value: unknown): value is AdapterManifest {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
@@ -278,11 +301,10 @@ function isAdapterManifest(value: unknown): value is AdapterManifest {
   );
 }
 
-function isWorkerHardware(value: unknown): value is WorkerHardware {
+export function isWorkerHardware(value: unknown): value is WorkerHardware {
   return (
     isRecord(value) &&
     (value.device === "cpu" || value.device === "cuda") &&
-    typeof value.computeType === "string" &&
     isRecord(value.cpu) &&
     typeof value.cpu.logicalCores === "number" &&
     isRecord(value.memory) &&

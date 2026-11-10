@@ -4,22 +4,34 @@ import { jobs, transcriptionRuns } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { badRequest, conflict, notFound } from "$lib/server/http/errors";
 import { projectForUser } from "$lib/server/projects/access";
+import { readInstanceSettings } from "$lib/server/settings/instance";
 import { resolveDataPath } from "$lib/server/storage/paths";
 import { hasActiveTranscriptionRun } from "$lib/server/transcription/active-run";
 import { availableTranscriptionModels } from "$lib/server/transcription/models";
 import { activeWorkerManifests } from "$lib/server/workers/presence";
+import {
+  MAX_LINE_LENGTH,
+  MIN_LINE_LENGTH,
+  type Precision,
+} from "$lib/shared/instance-settings";
+import { isRecord } from "$lib/shared/is-record";
 import { DETECT_LANGUAGE, LANGUAGE_TAG } from "$lib/shared/languages";
 import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
 
 const MAX_BATCH_SIZE = 64;
-const MIN_LINE_LENGTH = 20;
-const MAX_LINE_LENGTH = 120;
+
+type TranscriptionOptions = {
+  alignment: boolean;
+  maxLineLength: number;
+  batchSize?: number;
+  precision?: Precision;
+};
 
 export type TranscriptionRequest = {
   adapterId: string;
   modelId: string;
   language: string | null;
-  options: { alignment: boolean; maxLineLength: number; batchSize?: number };
+  options: TranscriptionOptions;
 };
 
 export function parseTranscriptionRequest(
@@ -86,16 +98,22 @@ export function enqueueTranscription(
       throw conflict("This project is already being transcribed.");
     }
 
-    const available = availableTranscriptionModels(activeWorkerManifests(tx));
-    if (
-      !available.some(
-        (model) =>
-          model.adapterId === request.adapterId &&
-          model.modelId === request.modelId,
-      )
-    ) {
+    const model = availableTranscriptionModels(activeWorkerManifests(tx)).find(
+      (candidate) =>
+        candidate.adapterId === request.adapterId &&
+        candidate.modelId === request.modelId,
+    );
+    if (!model) {
       throw conflict("That model is not available on a connected worker.");
     }
+    // Precision is the administrator's choice, so it applies to every run of
+    // an adapter that offers it.
+    const options: TranscriptionOptions = acceptsOption(
+      model.optionsSchema,
+      "precision",
+    )
+      ? { ...request.options, precision: readInstanceSettings(tx).precision }
+      : request.options;
 
     const run = tx
       .insert(transcriptionRuns)
@@ -103,7 +121,7 @@ export function enqueueTranscription(
         projectId: project.id,
         adapterId: request.adapterId,
         modelId: request.modelId,
-        options: request.options,
+        options,
         createdBy: userId,
       })
       .returning({ id: transcriptionRuns.id })
@@ -116,7 +134,7 @@ export function enqueueTranscription(
       runId: run.id,
       mediaPath: resolveDataPath(project.mediaOriginalKey),
       ...(request.language === null ? {} : { language: request.language }),
-      options: request.options,
+      options,
     };
     tx.insert(jobs)
       .values({
@@ -128,4 +146,11 @@ export function enqueueTranscription(
       })
       .run();
   });
+}
+
+function acceptsOption(
+  optionsSchema: Record<string, unknown>,
+  name: string,
+): boolean {
+  return isRecord(optionsSchema.properties) && name in optionsSchema.properties;
 }

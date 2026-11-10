@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatBytes,
+  formatCompactNumber,
   formatClock,
   formatDuration,
   formatRelativeTime,
@@ -53,5 +54,15 @@ describe("formatRelativeTime", () => {
 
   it("treats a timestamp ahead of the clock as just now", () => {
     expect(formatRelativeTime(ago(-5 * 60), now)).toBe("just now");
+  });
+});
+
+describe("formatCompactNumber", () => {
+  it.each([
+    [39_000_000, "39M"],
+    [1_550_000_000, "1.6B"],
+    [809_000_000, "809M"],
+  ])("shortens %d to %s", (value, expected) => {
+    expect(formatCompactNumber(value)).toBe(expected);
   });
 });

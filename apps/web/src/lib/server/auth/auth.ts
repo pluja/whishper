@@ -17,6 +17,11 @@ export const auth = betterAuth({
     provider: "sqlite",
     schema: { user, session, account, verification },
   }),
+  user: {
+    additionalFields: {
+      role: { type: "string", input: false, defaultValue: "user" },
+    },
+  },
   emailAndPassword: {
     enabled: true,
     disableSignUp: true,

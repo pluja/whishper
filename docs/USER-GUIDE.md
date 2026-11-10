@@ -8,7 +8,7 @@ Create a project from the library by choosing a file, or drop an audio or video 
 
 - Audio and video files are accepted. If the browser reports a media type other than `audio/*`, `video/*`, `application/ogg`, or `application/mp4`, the upload is rejected. A file that reports no type at all is accepted.
 - Uploads go in 32 MiB chunks. If the connection drops or you reload the page, choosing the same file in the same browser resumes where it stopped.
-- The default size limit is 500 GiB per file. See [Uploads](CONFIGURATION.md#uploads) to change it.
+- The default size limit is 500 GiB per file. The administrator changes it under [Storage](#storage).
 - Cancelling an upload from the browser that started it removes the draft project at once. Uploads that never finish are deleted after seven days.
 
 Uploading a finished file a second time creates a second project with its own copy of the media. Anysub does not deduplicate.
@@ -23,13 +23,15 @@ The library search box matches project names. Tick **Subtitle text** to match cu
 
 ## Transcribing
 
-1. Open the project and choose a model. The picker compares model size, memory estimates, and fit against your connected workers. `Small` is a good CPU starting point.
+1. Open the project and choose a model. The picker starts on the administrator's default model and compares model size, memory estimates, and fit against your connected workers. `Small` is a good CPU starting point.
 2. Leave **Accurate word alignment** on for editing and word-level timings.
 3. Under **Advanced options**, change the maximum line length if 42 characters does not suit your platform, or the batch size if the worker runs out of memory. The batch size defaults to 4 on CPU and 16 on CUDA. A higher value can raise throughput and also raises peak memory.
 4. Choose the spoken language, or leave it on **Detect automatically**. The list offers every language Whisper knows, with the most used ones first. Type in its search field to filter by English name, native name or code; accents are optional, so `espanol` finds Spanish.
 5. Start the transcription and leave the worker running. **Cancel** next to the progress bar stops waiting for the run, for example when no connected worker offers the model.
 
-The first run with a model downloads its weights. Accurate alignment then downloads a smaller model for the language. Both land in the `model-cache` volume and survive rebuilds. A network connection is needed only for files that are not cached yet: a downloaded speech model loads without contacting Hugging Face, so a worker can transcribe offline with the models it already has. Telemetry from Hugging Face and Pyannote is disabled, and transcript text is never written to worker logs.
+The language, alignment and line length also start from the administrator's [transcription defaults](#transcription-defaults).
+
+A model that is not downloaded yet downloads on its first run, unless the administrator fetched it ahead of time under [Models](#models). Accurate alignment then downloads a smaller model for the language. Both land in the `model-cache` volume and survive rebuilds. A network connection is needed only for files that are not cached yet: a downloaded speech model loads without contacting Hugging Face, so a worker can transcribe offline with the models it already has. Telemetry from Hugging Face and Pyannote is disabled, and transcript text is never written to worker logs.
 
 ### Choosing a model
 
@@ -175,6 +177,40 @@ docker compose logs web
 
 Enter the code with your email address and a new password within 15 minutes. Anysub signs the account out everywhere and returns you to the sign-in page.
 
+## Administration
+
+The account that ran the first-time setup is the administrator. Its account menu has an **Administration** entry with four pages. The settings there apply to everyone who uses the server.
+
+### Models
+
+Every model a connected worker offers is listed with its download size, memory needs and how well it fits that worker's hardware. **Download** fetches it from Hugging Face with a progress bar, and **Cancel** stops a download and frees the space it used. The trash button removes a downloaded model. A transcription that needs a removed model downloads it again.
+
+Downloading ahead of time means the first transcription with a model starts at once and a worker can transcribe without an internet connection. The model marked **Recommended** is the one Automatic picks for that worker. The panel above the list shows the worker's hardware and the free space on its model disk; a model larger than the free space cannot be downloaded. With several workers, choose one at the top: each keeps its own models.
+
+A download waits while its worker finishes the job it is running, then goes ahead of queued transcriptions.
+
+### Transcription defaults
+
+These are the starting values of the transcribe form. People can still change the model, language, alignment and line length for each run.
+
+- **Default model**: Automatic picks the best fit for the connected hardware, Large v3 Turbo on a graphics card that fits it and Small otherwise. A model chosen here that is not downloaded yet waits for its download on the first run.
+- **Spoken language**: a fixed language suits a library in one language. Detection listens to the first 30 seconds.
+- **Word timing**: whether accurate word alignment starts on.
+- **Subtitle length**: the longest subtitle in characters, with a live preview of how a sentence splits.
+- **Precision**: applies to every run and is not offered per run. **Automatic** runs `int8` weights on a processor and `float16` on a graphics card. **Lower memory** uses `int8_float16` on a graphics card, which helps a larger model fit; on a processor it is the same as Automatic. **Full precision** runs `float32` everywhere, about twice the memory and slower, for accuracy that is rarely better.
+
+Saved settings apply to transcriptions that start afterwards.
+
+### Storage
+
+**Upload limit** sets the largest file anyone can upload, from 5 GiB to 2 TiB or a custom size between 1 GiB and 10 TiB. A warning appears when the limit is larger than the free space on the data disk.
+
+**Data disk** shows how the disk that holds uploads is used: original media, previews and waveforms, the database with unfinished uploads, other files on the same disk, and free space.
+
+### Workers
+
+Each worker that has connected is listed with its state (**Working**, **Ready** or **Offline**), its processor, graphics card, memory, and how many models it has downloaded. A working worker shows its current job with progress and links to the project. A worker that stopped for good can be removed from the list; it reappears if it connects again.
+
 ## Troubleshooting
 
 Check the services first:
@@ -185,8 +221,8 @@ docker compose logs -f worker
 ```
 
 - **The project says it is waiting for a speech worker.** Confirm the worker is running and its log lists the `whisperx` adapter.
-- **A model download fails.** Check outbound access to Hugging Face and run the transcription again.
-- **The worker is killed or reports out-of-memory.** Lower the batch size under **Advanced options**, or pick a smaller model. See [Choosing a precision](CONFIGURATION.md#choosing-a-precision).
+- **A model download fails.** The error shows under the model in **Administration > Models**. Check outbound access to Hugging Face and choose **Try again**.
+- **The worker is killed or reports out-of-memory.** Lower the batch size under **Advanced options**, pick a smaller model, or choose **Lower memory** precision under [Transcription defaults](#transcription-defaults).
 - **Forced alignment is unavailable for a language.** Anysub keeps the unaligned cues and records the reason in the run metadata.
 - **Sign-in returns to the login page without an error.** `BETTER_AUTH_URL` is an HTTPS address and you opened Anysub over plain HTTP, so the browser refused the Secure session cookie. Use the HTTPS address, or remove `BETTER_AUTH_URL`. See [Reverse proxy](INSTALL.md#reverse-proxy).
 - **Every upload fails.** `ANYSUB_BODY_SIZE_LIMIT` is below 32 MiB, or your proxy limits the request body.

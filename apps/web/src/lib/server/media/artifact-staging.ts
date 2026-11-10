@@ -67,7 +67,7 @@ export function requireMediaPreparationLease(
     )
     .get();
   if (
-    !row ||
+    !row?.workspaceId ||
     row.payload.kind !== "media_prepare" ||
     row.mediaOriginalKey !== row.payload.sourceStorageKey
   ) {

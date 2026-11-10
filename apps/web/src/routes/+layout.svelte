@@ -38,7 +38,7 @@
     >
       Skip to content
     </a>
-    <AppTopBar email={data.user.email} />
+    <AppTopBar email={data.user.email} isAdmin={data.user.role === "admin"} />
     <main
       id="main"
       tabindex="-1"

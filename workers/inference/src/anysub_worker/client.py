@@ -11,9 +11,10 @@ import httpx
 
 from .config import WorkerSettings
 from .errors import LeaseLostError, describe_error
-from .hardware import describe_hardware, detect_hardware, detect_memory
+from .hardware import describe_hardware, detect_hardware, detect_memory, detect_storage
 from .models import (
     MEDIA_PREPARATION_VERSION,
+    MODEL_CACHE_VERSION,
     JobCompletion,
     JobCompletionReport,
     JobFailure,
@@ -81,9 +82,12 @@ class ApplicationClient:
             name=self._settings.worker_name,
             version=WORKER_VERSION,
             architecture=platform.machine(),
-            capabilities=WorkerCapabilities(mediaPreparation=MEDIA_PREPARATION_VERSION),
+            capabilities=WorkerCapabilities(
+                mediaPreparation=MEDIA_PREPARATION_VERSION, modelCache=MODEL_CACHE_VERSION
+            ),
             adapters=tuple(adapter.manifest for adapter in self._registry.adapters),
             hardware=self._hardware.model_copy(update={"memory": detect_memory()}),
+            modelStorage=detect_storage(self._settings.runtime.model_root),
         )
 
     async def progress(self, lease: WorkerLease, progress: float, message: str) -> None:

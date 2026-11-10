@@ -10,6 +10,15 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unit]}`;
 }
 
+const COMPACT_NUMBER = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+export function formatCompactNumber(value: number): string {
+  return COMPACT_NUMBER.format(value);
+}
+
 export function formatClock(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3_600);
   const minutes = Math.floor((totalSeconds % 3_600) / 60);

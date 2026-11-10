@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import math
 import os
+import shutil
 from importlib import import_module
 from pathlib import Path
 from typing import Any
 
 from .config import AdapterRuntimeSettings
-from .models import WorkerCpu, WorkerGpu, WorkerHardware, WorkerMemory
+from .models import WorkerCpu, WorkerGpu, WorkerHardware, WorkerMemory, WorkerStorage
 
 KIB = 1024
 
@@ -22,7 +23,6 @@ def detect_hardware(
     torch = torch_module if torch_module is not None else _optional_torch()
     return WorkerHardware(
         device=runtime.device,
-        computeType=runtime.compute_type,
         cpu=WorkerCpu(
             model=_cpu_model(proc_root),
             logicalCores=_logical_cores(),
@@ -67,6 +67,16 @@ def detect_memory(
     return WorkerMemory(
         totalBytes=total, availableBytes=min(host_available, total, cgroup_available)
     )
+
+
+def detect_storage(path: Path) -> WorkerStorage | None:
+    try:
+        usage = shutil.disk_usage(path)
+    except OSError:
+        return None
+    if usage.total <= 0:
+        return None
+    return WorkerStorage(totalBytes=usage.total, availableBytes=min(usage.free, usage.total))
 
 
 def _read_int_file(path: Path) -> int | None:
@@ -201,7 +211,4 @@ def describe_hardware(hardware: WorkerHardware) -> str:
     gpus = ", ".join(
         f"{gpu.name} ({gpu.total_memory_bytes / 1024**3:.1f} GiB)" for gpu in hardware.gpus
     )
-    return (
-        f"device={hardware.device} compute_type={hardware.compute_type} "
-        f"gpus={gpus or 'none'} cores={hardware.cpu.logical_cores}"
-    )
+    return f"device={hardware.device} gpus={gpus or 'none'} cores={hardware.cpu.logical_cores}"

@@ -36,3 +36,12 @@ class TranscriptionAdapter(Adapter, Protocol):
     async def transcribe(
         self, request: TranscriptionRequest, report_progress: ProgressReporter
     ) -> TranscriptArtifact: ...
+
+
+@runtime_checkable
+class ModelCacheAdapter(Adapter, Protocol):
+    """An adapter that downloads and removes its models on request."""
+
+    async def download_model(self, model_id: str, report_progress: ProgressReporter) -> None: ...
+
+    async def delete_model(self, model_id: str) -> None: ...

@@ -6,7 +6,7 @@ import { workers } from "$lib/server/db/schema";
 
 // Must exceed the worker's heartbeat interval plus its request timeout, or a
 // worker busy with a job drops out of the model picker between heartbeats.
-const LIVENESS_WINDOW_MS = 45_000;
+export const LIVENESS_WINDOW_MS = 45_000;
 
 export function recordWorkerPresence(
   executor: Executor,

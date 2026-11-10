@@ -14,10 +14,15 @@ class ModelProfile:
     parameter_count: int
     required_vram_bytes: int
     recommended_ram_bytes: int
+    download_size_bytes: int
     repository: str
 
+    # The Hugging Face cache layout faster-whisper downloads into.
+    def cache_directory(self, model_root: Path) -> Path:
+        return model_root / f"models--{self.repository.replace('/', '--')}"
+
     def is_downloaded(self, model_root: Path) -> bool:
-        snapshots = model_root / f"models--{self.repository.replace('/', '--')}" / "snapshots"
+        snapshots = self.cache_directory(model_root) / "snapshots"
         try:
             revisions = tuple(snapshots.iterdir())
         except OSError:
@@ -34,6 +39,10 @@ def _is_complete_snapshot(revision: Path) -> bool:
     )
 
 
+def find_profile(model_id: str) -> ModelProfile | None:
+    return next((profile for profile in MODEL_PROFILES if profile.id == model_id), None)
+
+
 MODEL_PROFILES = (
     ModelProfile(
         id="tiny",
@@ -42,6 +51,7 @@ MODEL_PROFILES = (
         parameter_count=39_000_000,
         required_vram_bytes=1 * GIB,
         recommended_ram_bytes=2 * GIB,
+        download_size_bytes=78_203_619,
         repository="Systran/faster-whisper-tiny",
     ),
     ModelProfile(
@@ -51,6 +61,7 @@ MODEL_PROFILES = (
         parameter_count=74_000_000,
         required_vram_bytes=1 * GIB,
         recommended_ram_bytes=2 * GIB,
+        download_size_bytes=147_882_941,
         repository="Systran/faster-whisper-base",
     ),
     ModelProfile(
@@ -60,15 +71,17 @@ MODEL_PROFILES = (
         parameter_count=244_000_000,
         required_vram_bytes=2 * GIB,
         recommended_ram_bytes=4 * GIB,
+        download_size_bytes=486_212_372,
         repository="Systran/faster-whisper-small",
     ),
     ModelProfile(
         id="medium",
         display_name="Medium",
-        description="More accurate, but much slower on this computer.",
+        description="More accurate, but slow without a graphics card.",
         parameter_count=769_000_000,
         required_vram_bytes=5 * GIB,
         recommended_ram_bytes=8 * GIB,
+        download_size_bytes=1_530_571_735,
         repository="Systran/faster-whisper-medium",
     ),
     ModelProfile(
@@ -78,6 +91,7 @@ MODEL_PROFILES = (
         parameter_count=1_550_000_000,
         required_vram_bytes=10 * GIB,
         recommended_ram_bytes=16 * GIB,
+        download_size_bytes=3_090_835_702,
         repository="Systran/faster-whisper-large-v3",
     ),
     ModelProfile(
@@ -87,6 +101,7 @@ MODEL_PROFILES = (
         parameter_count=809_000_000,
         required_vram_bytes=3 * GIB,
         recommended_ram_bytes=12 * GIB,
+        download_size_bytes=1_621_665_983,
         repository="mobiuslabsgmbh/faster-whisper-large-v3-turbo",
     ),
 )

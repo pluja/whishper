@@ -20,6 +20,7 @@
     hasSourceMedia: boolean;
     transcriptionModels: StudioData["transcriptionModels"];
     detectedHardware: StudioData["detectedHardware"];
+    transcriptionDefaults: StudioData["transcriptionDefaults"];
   };
 
   let {
@@ -31,6 +32,7 @@
     hasSourceMedia,
     transcriptionModels,
     detectedHardware,
+    transcriptionDefaults,
   }: Props = $props();
 </script>
 
@@ -103,6 +105,7 @@
           <TranscribePanel
             models={transcriptionModels}
             hardware={detectedHardware}
+            defaults={transcriptionDefaults}
           />
         {/if}
       </div>

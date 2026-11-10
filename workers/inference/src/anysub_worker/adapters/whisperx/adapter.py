@@ -23,9 +23,10 @@ from anysub_worker.models import (
 from anysub_worker.threads import run_in_thread
 from anysub_worker.timing import MICROSECONDS_PER_SECOND
 
+from .cache import delete_profile, download_profile
 from .normalize import normalize_segments
 from .options import TranscriptionOptions, options_schema, parse_options
-from .profiles import MODEL_PROFILES
+from .profiles import MODEL_PROFILES, ModelProfile, find_profile
 from .result import WhisperSegment
 from .subtitles import split_subtitle_segments
 
@@ -36,6 +37,7 @@ LOGGER = logging.getLogger(__name__)
 class _ModelKey(NamedTuple):
     model_id: str
     language: str | None
+    compute_type: str
 
 
 class _Aligner(NamedTuple):
@@ -70,12 +72,21 @@ class WhisperXAdapter:
                     parameterCount=profile.parameter_count,
                     requiredVramBytes=profile.required_vram_bytes,
                     recommendedRamBytes=profile.recommended_ram_bytes,
+                    downloadSizeBytes=profile.download_size_bytes,
                     downloaded=profile.is_downloaded(self._model_root),
                     optionsSchema=options_schema(),
                 )
                 for profile in MODEL_PROFILES
             ),
         )
+
+    async def download_model(self, model_id: str, report_progress: ProgressReporter) -> None:
+        await download_profile(self._profile(model_id), self._model_root, report_progress)
+
+    async def delete_model(self, model_id: str) -> None:
+        if self._model_key is not None and self._model_key.model_id == model_id:
+            self._release_asr_model()
+        await delete_profile(self._profile(model_id), self._model_root)
 
     async def transcribe(
         self, request: TranscriptionRequest, report_progress: ProgressReporter
@@ -113,7 +124,9 @@ class WhisperXAdapter:
         duration_us = max(0, int(len(audio) / SAMPLE_RATE * MICROSECONDS_PER_SECOND))
 
         await report_progress(0.08, f"Loading {request.model_id} model")
-        model = await self._load_model(whisperx, request.model_id, request.language)
+        model = await self._load_model(
+            whisperx, _ModelKey(request.model_id, request.language, options.compute_type)
+        )
 
         await report_progress(0.16, "Transcribing speech")
         result = await _run_in_thread(model.transcribe, audio, batch_size=options.batch_size)
@@ -137,7 +150,7 @@ class WhisperXAdapter:
             "model": request.model_id,
             "alignment": options.alignment and alignment_fallback is None,
             "device": self._runtime.device,
-            "computeType": self._runtime.compute_type,
+            "computeType": options.compute_type,
             "batchSize": options.batch_size,
             "maxLineLength": options.max_line_length,
         }
@@ -177,22 +190,22 @@ class WhisperXAdapter:
             return segments, fallback
         return aligned["segments"], None
 
-    async def _load_model(self, whisperx: Any, model_id: str, language: str | None) -> Any:
-        key = _ModelKey(model_id, language)
+    async def _load_model(self, whisperx: Any, key: _ModelKey) -> Any:
         if self._model is not None and self._model_key == key:
             return self._model
 
+        model_id = key.model_id
         self._release_asr_model()
         self._model_root.mkdir(parents=True, exist_ok=True)
         kwargs: dict[str, Any] = {
-            "compute_type": self._runtime.compute_type,
+            "compute_type": key.compute_type,
             "download_root": str(self._model_root),
             "threads": self._runtime.cpu_threads or usable_cpu_count(),
             # A cached model loads without contacting Hugging Face, so it works offline.
             "local_files_only": _is_cached(model_id, self._model_root),
         }
-        if language:
-            kwargs["language"] = language
+        if key.language:
+            kwargs["language"] = key.language
         try:
             self._model = await _run_in_thread(
                 whisperx.load_model,
@@ -209,8 +222,9 @@ class WhisperXAdapter:
             ) from error
         except ValueError as error:
             raise AdapterExecutionError(
-                f"The {model_id} model could not be loaded: {error}. Check ANYSUB_COMPUTE_TYPE "
-                f"({self._runtime.compute_type}) and ANYSUB_DEVICE ({self._runtime.device}).",
+                f"The {model_id} model could not be loaded with {key.compute_type} weights on "
+                f"this {self._runtime.device} worker: {error}. Choose another precision in "
+                "Administration, then try again.",
                 retryable=False,
             ) from error
         self._model_key = key
@@ -235,6 +249,12 @@ class WhisperXAdapter:
     @property
     def _model_root(self) -> Path:
         return self._runtime.model_root / "whisperx"
+
+    def _profile(self, model_id: str) -> ModelProfile:
+        profile = find_profile(model_id)
+        if profile is None:
+            raise AdapterExecutionError(f"Unknown model: {model_id}.", retryable=False)
+        return profile
 
     def _media_path(self, value: str | None) -> Path:
         if not value:
@@ -277,9 +297,8 @@ def _import_whisperx() -> Any:
 
 
 def _is_cached(model_id: str, model_root: Path) -> bool:
-    return any(
-        profile.id == model_id and profile.is_downloaded(model_root) for profile in MODEL_PROFILES
-    )
+    profile = find_profile(model_id)
+    return profile is not None and profile.is_downloaded(model_root)
 
 
 def _model_download_errors() -> tuple[type[Exception], ...]:

@@ -1,6 +1,8 @@
 # Configuration
 
-Anysub needs no configuration to run. Every setting below is optional: copy `.env.example` to `.env` in the repository root and uncomment the lines you want to change.
+Anysub needs no configuration to run. The first account is the administrator and chooses models, transcription defaults and the upload limit in the app, under **Administration** in the account menu. The [user guide](USER-GUIDE.md#administration) walks through it.
+
+The settings below are about how the containers run, and all of them are optional: copy `.env.example` to `.env` in the repository root and uncomment the lines you want to change.
 
 Apply a change by recreating the services:
 
@@ -37,10 +39,11 @@ Anysub answers on any address it is reached by, such as `localhost`, a LAN IP or
 
 ## Uploads
 
-| Variable                  | Default | Notes                                                  |
-| ------------------------- | ------- | ------------------------------------------------------ |
-| `ANYSUB_MAX_UPLOAD_BYTES` | 500 GiB | Largest single upload.                                 |
-| `ANYSUB_BODY_SIZE_LIMIT`  | `64M`   | Per-request limit. Keep above the 32 MiB upload chunk. |
+| Variable                 | Default | Notes                                                  |
+| ------------------------ | ------- | ------------------------------------------------------ |
+| `ANYSUB_BODY_SIZE_LIMIT` | `64M`   | Per-request limit. Keep above the 32 MiB upload chunk. |
+
+The largest single upload is set under **Administration > Storage**, 500 GiB by default.
 
 Uploads arrive in 32 MiB chunks and resume after an interruption, so a large file over a poor connection is fine. If you shrink `ANYSUB_BODY_SIZE_LIMIT` below 32 MiB, every upload fails.
 
@@ -50,36 +53,15 @@ A declared media type must be `audio/*`, `video/*`, `application/ogg`, or `appli
 
 ## Worker
 
-| Variable              | Default                                                | Notes                                                         |
-| --------------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
-| `ANYSUB_COMPUTE_TYPE` | `int8`, or `float16` with compose.cuda.yaml            | Model precision. See below.                                   |
-| `ANYSUB_WORKER_NAME`  | `local-worker`, or `local-cuda` with compose.cuda.yaml | Shown in the model picker when several workers are connected. |
+| Variable             | Default                                                | Notes                                                         |
+| -------------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
+| `ANYSUB_WORKER_NAME` | `local-worker`, or `local-cuda` with compose.cuda.yaml | Shown in the model picker when several workers are connected. |
 
-These arrive commented out in `.env`. Each mode already picks a working default, and a value set here applies to every mode, so uncomment one only when you want to override it.
-
-### Choosing a precision
-
-Precision trades accuracy for speed and memory. Anysub passes the value straight to CTranslate2, which fails at model load if the value is not valid for the device.
-
-On CPU:
-
-- `int8` runs fastest and uses the least memory. This is the default and a good choice for almost everyone.
-- `int8_float32` costs some speed for slightly better accuracy.
-- `float32` is the most accurate and the slowest.
-
-On CUDA:
-
-- `float16` is the right default on any modern NVIDIA card.
-- `int8_float16` uses less VRAM, which helps fit a larger model on a smaller card.
-- `float32` doubles VRAM use for little gain.
-
-`default` and `auto` are accepted on both devices. `float16` and `int8_float16` need a graphics card, so the worker refuses to start with them on `ANYSUB_DEVICE=cpu`.
-
-If a run fails with a message about an unsupported compute type, your device does not offer that precision. Fall back to `int8` on CPU or `float16` on CUDA.
+Model precision is chosen under **Administration > Transcription**, not here. The worker turns that choice into the weights its device runs: `int8` on a processor and `float16` on a graphics card by default, `int8_float16` on a graphics card for lower memory, and `float32` everywhere for full precision. An `ANYSUB_COMPUTE_TYPE` left over from an older `.env` is ignored.
 
 ### Choosing a model
 
-Pick the model per transcription run in the interface, not here. The picker reports each model's size and memory needs against the workers you have connected, and marks the ones already downloaded. `Small` is the recommended starting point on a CPU.
+Download models under **Administration > Models**, and pick one per transcription in the interface. Both report each model's size and memory needs against the workers you have connected. `Small` is the recommended starting point on a CPU.
 
 The [user guide](USER-GUIDE.md#choosing-a-model) describes what each model is good at.
 
@@ -145,7 +127,7 @@ COMPOSE_FILE=compose.yaml:compose.cuda.yaml
 docker compose up --build -d
 ```
 
-The overlay switches the worker to CUDA, picks `float16`, grants access to every GPU on the host, and names the image `anysub-worker-cuda` so a CPU build never replaces it. The first build downloads the CUDA PyTorch wheels, which are several gigabytes larger than the CPU ones. Expect a long build and a worker image around 10 GB.
+The overlay switches the worker to CUDA, grants access to every GPU on the host, and names the image `anysub-worker-cuda` so a CPU build never replaces it. The first build downloads the CUDA PyTorch wheels, which are several gigabytes larger than the CPU ones. Expect a long build and a worker image around 10 GB.
 
 Check that the worker found the card:
 
@@ -165,7 +147,7 @@ docker compose exec worker ldconfig -p | grep -E 'libcudnn|libcublas'
 
 No output means the image was built for CPU. Check the `COMPOSE_FILE` line in `.env` and rebuild with `--build`.
 
-**Out of memory.** Choose a smaller model, or set `ANYSUB_COMPUTE_TYPE=int8_float16` to cut VRAM use.
+**Out of memory.** Choose a smaller model, or choose **Lower memory** under **Administration > Transcription > Precision** to cut graphics memory use.
 
 **`could not select device driver`.** The NVIDIA Container Toolkit is missing or the Docker daemon has not picked it up. Restart Docker after installing it.
 
@@ -181,7 +163,7 @@ Anysub keeps everything in Docker-managed volumes, named `anysub_<volume>` under
 
 - `database`: the SQLite database with projects, transcripts, cues, accounts, and the generated secrets.
 - `app-data`: uploaded media, waveforms, and other derived files.
-- `model-cache`: downloaded speech models, reused across rebuilds.
+- `model-cache`: downloaded speech models, reused across rebuilds. **Administration > Models** shows how much space is left on it.
 
 Keep the `database` volume on local disk. SQLite relies on file locking that network shares such as NFS and SMB do not provide reliably, and a database on one can be corrupted. Media in `app-data` can live on a share.
 

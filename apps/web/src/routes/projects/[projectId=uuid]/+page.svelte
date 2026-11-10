@@ -210,6 +210,7 @@
       {hasSourceMedia}
       transcriptionModels={data.transcriptionModels}
       detectedHardware={data.detectedHardware}
+      transcriptionDefaults={data.transcriptionDefaults}
     />
   </div>
 
@@ -235,6 +236,7 @@
       bind:open={transcribeDialogOpen}
       models={data.transcriptionModels}
       hardware={data.detectedHardware}
+      defaults={data.transcriptionDefaults}
       onbeforesubmit={saveBeforeTranscribing}
     />
   {/if}

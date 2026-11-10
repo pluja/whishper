@@ -6,14 +6,15 @@ import { and, eq } from "drizzle-orm";
 import { db } from "$lib/server/db";
 import { mediaDerivatives } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
-import { privateEnv } from "$lib/server/env";
 import { projectForUser } from "$lib/server/projects/access";
 import { resolveDataPath } from "$lib/server/storage/paths";
+import { GIB, MAX_UPLOAD_LIMIT_GIB } from "$lib/shared/instance-settings";
 
 export const ARTIFACT_LIMITS: Record<MediaDerivativeKind, number> = {
   waveform: 64 * 1024 * 1024,
   thumbnail: 16 * 1024 * 1024,
-  proxy: privateEnv.maxUploadBytes,
+  // A preview is never larger than the largest source an upload may be.
+  proxy: MAX_UPLOAD_LIMIT_GIB * GIB,
 };
 
 export const ARTIFACT_MEDIA_TYPES: Record<

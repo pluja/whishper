@@ -32,6 +32,10 @@ const screens = [
   },
   { name: "library", path: "/", signedIn: true },
   { name: "account", path: "/account", signedIn: true },
+  { name: "admin-models", path: "/admin/models", signedIn: true },
+  { name: "admin-transcription", path: "/admin/transcription", signedIn: true },
+  { name: "admin-storage", path: "/admin/storage", signedIn: true },
+  { name: "admin-workers", path: "/admin/workers", signedIn: true },
   {
     name: "library-empty",
     path: emptyLibraryPath,

@@ -8,7 +8,6 @@ const dataRoot = vi.hoisted(() => ({ path: "" }));
 vi.mock("$lib/server/env", () => ({
   privateEnv: {
     databaseFile: ":memory:",
-    maxUploadBytes: 1024 * 1024 * 1024,
     get dataRoot() {
       return dataRoot.path;
     },

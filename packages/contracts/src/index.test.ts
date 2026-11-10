@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ADAPTER_PROTOCOL_VERSION,
   MEDIA_PREPARATION_VERSION,
+  MODEL_CACHE_VERSION,
   parseProtocolMessage,
   TRANSCRIPT_SCHEMA_VERSION,
   validateJobCompletionReport,
@@ -17,7 +18,10 @@ const manifest = {
   name: "Local worker",
   version: "0.1.0",
   architecture: "x86_64",
-  capabilities: { mediaPreparation: MEDIA_PREPARATION_VERSION },
+  capabilities: {
+    mediaPreparation: MEDIA_PREPARATION_VERSION,
+    modelCache: MODEL_CACHE_VERSION,
+  },
   adapters: [
     {
       protocolVersion: ADAPTER_PROTOCOL_VERSION,
@@ -29,6 +33,7 @@ const manifest = {
     },
   ],
   hardware: null,
+  modelStorage: null,
 };
 
 describe("protocol versions", () => {
@@ -86,7 +91,6 @@ describe("parseProtocolMessage", () => {
       ...manifest,
       hardware: {
         device: "cpu",
-        computeType: "int8",
         cpu: { model: null, logicalCores: 4 },
         memory: { totalBytes: 2 ** 53, availableBytes: 0 },
         gpus: [],

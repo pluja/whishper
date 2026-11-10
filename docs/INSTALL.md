@@ -28,7 +28,7 @@ Restarting the web service prints a new code. Public sign-up is disabled, so the
 
 Add `-d` to run in the background. Follow the logs with `docker compose logs -f`.
 
-The first transcription with a model downloads it into the `model-cache` volume. See the [user guide](USER-GUIDE.md#choosing-a-model).
+Open **Administration** from the account menu to download a model before your first transcription, and to set defaults such as the spoken language. Otherwise the first transcription with a model downloads it into the `model-cache` volume. See the [user guide](USER-GUIDE.md#administration).
 
 ## Podman
 

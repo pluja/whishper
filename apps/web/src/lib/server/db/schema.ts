@@ -11,6 +11,12 @@ import {
   unique,
 } from "drizzle-orm/sqlite-core";
 
+import {
+  DEFAULT_INSTANCE_SETTINGS,
+  MAX_LINE_LENGTH,
+  MIN_LINE_LENGTH,
+  PRECISIONS,
+} from "../../shared/instance-settings";
 import { user } from "../auth/schema";
 import {
   createdAt,
@@ -37,6 +43,44 @@ export const instanceSecrets = sqliteTable("instance_secrets", {
   value: text("value").notNull(),
   createdAt: createdAt(),
 });
+
+// One row holds every setting the administrator chooses in the UI.
+export const instanceSettings = sqliteTable(
+  "instance_settings",
+  {
+    id: integer("id").primaryKey().default(1),
+    defaultModel: text("default_model"),
+    defaultLanguage: text("default_language"),
+    wordAlignment: flag("word_alignment")
+      .notNull()
+      .default(DEFAULT_INSTANCE_SETTINGS.alignment),
+    maxLineLength: integer("max_line_length")
+      .notNull()
+      .default(DEFAULT_INSTANCE_SETTINGS.maxLineLength),
+    precision: text("precision", { enum: PRECISIONS })
+      .notNull()
+      .default(DEFAULT_INSTANCE_SETTINGS.precision),
+    maxUploadBytes: integer("max_upload_bytes")
+      .notNull()
+      .default(DEFAULT_INSTANCE_SETTINGS.maxUploadBytes),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    check("instance_settings_singleton_check", sql`${table.id} = 1`),
+    check(
+      "instance_settings_precision_check",
+      sql`${table.precision} in ('auto', 'memory', 'precise')`,
+    ),
+    check(
+      "instance_settings_line_length_check",
+      sql`${table.maxLineLength} between ${sql.raw(String(MIN_LINE_LENGTH))} and ${sql.raw(String(MAX_LINE_LENGTH))}`,
+    ),
+    check(
+      "instance_settings_upload_limit_check",
+      sql`${table.maxUploadBytes} > 0`,
+    ),
+  ],
+);
 
 export const workspaces = sqliteTable("workspaces", {
   id: uuidPrimaryKey(),
@@ -163,16 +207,19 @@ export const jobs = sqliteTable(
   "jobs",
   {
     id: uuidPrimaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
+    // Null for instance jobs, such as model downloads.
+    workspaceId: text("workspace_id").references(() => workspaces.id, {
+      onDelete: "cascade",
+    }),
     projectId: text("project_id").references(() => projects.id, {
       onDelete: "cascade",
     }),
     runId: text("run_id").references(() => transcriptionRuns.id, {
       onDelete: "cascade",
     }),
-    kind: text("kind", { enum: ["transcribe", "media_prepare"] }).notNull(),
+    kind: text("kind", {
+      enum: ["transcribe", "media_prepare", "model_cache"],
+    }).notNull(),
     state: text("state", {
       enum: ["queued", "leased", "completed", "failed", "cancelled"],
     })

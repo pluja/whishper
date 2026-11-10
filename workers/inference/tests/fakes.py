@@ -14,6 +14,7 @@ from anysub_worker.models import (
     AdapterModel,
     JobCompletion,
     JobFailure,
+    ModelCacheJobCompletion,
     TranscriptArtifact,
     TranscriptCue,
     TranscriptionRequest,
@@ -106,6 +107,7 @@ class RecordingClient:
         self.progress_updates: list[tuple[float, str]] = []
         self.transcription_completions = 0
         self.media_completions = 0
+        self.model_cache_completions: list[ModelCacheJobCompletion] = []
         self.failures: list[JobFailure] = []
         self.downloads = 0
         self.download_names: list[str] = []
@@ -130,11 +132,26 @@ class RecordingClient:
     async def complete(self, lease: WorkerLease, completion: JobCompletion) -> None:
         if completion.kind == "transcribe":
             self.transcription_completions += 1
+        elif completion.kind == "model_cache":
+            self.model_cache_completions.append(completion)
         else:
             self.media_completions += 1
 
     async def fail(self, lease: WorkerLease, failure: JobFailure) -> None:
         self.failures.append(failure)
+
+
+class CachingFakeAdapter(FakeAdapter):
+    def __init__(self) -> None:
+        self.downloaded: list[str] = []
+        self.deleted: list[str] = []
+
+    async def download_model(self, model_id: str, report_progress: ProgressReporter) -> None:
+        await report_progress(0.5, "Downloading")
+        self.downloaded.append(model_id)
+
+    async def delete_model(self, model_id: str) -> None:
+        self.deleted.append(model_id)
 
 
 class GatedAdapter(FakeAdapter):

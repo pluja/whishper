@@ -8,11 +8,13 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 type AdapterProtocolVersion = Literal["1.0"]
 type WorkerProtocolVersion = Literal["1.0"]
 type MediaPreparationVersion = Literal["1.0"]
+type ModelCacheVersion = Literal["1.0"]
 type TranscriptSchemaVersion = Literal["1.0"]
 
 ADAPTER_PROTOCOL_VERSION: Final[AdapterProtocolVersion] = "1.0"
 WORKER_PROTOCOL_VERSION: Final[WorkerProtocolVersion] = "1.0"
 MEDIA_PREPARATION_VERSION: Final[MediaPreparationVersion] = "1.0"
+MODEL_CACHE_VERSION: Final[ModelCacheVersion] = "1.0"
 TRANSCRIPT_SCHEMA_VERSION: Final[TranscriptSchemaVersion] = "1.0"
 
 
@@ -59,6 +61,7 @@ class AdapterModel(StrictModel):
     parameter_count: PositiveWireInt | None = Field(default=None, alias="parameterCount")
     required_vram_bytes: PositiveWireInt | None = Field(default=None, alias="requiredVramBytes")
     recommended_ram_bytes: PositiveWireInt | None = Field(default=None, alias="recommendedRamBytes")
+    download_size_bytes: PositiveWireInt | None = Field(default=None, alias="downloadSizeBytes")
     downloaded: bool | None = None
     options_schema: dict[str, Any] = Field(default_factory=dict, alias="optionsSchema")
 
@@ -113,7 +116,6 @@ type WorkerDevice = Literal["cpu", "cuda"]
 
 class WorkerHardware(StrictModel):
     device: WorkerDevice
-    compute_type: str = Field(alias="computeType", min_length=1)
     cpu: WorkerCpu
     memory: WorkerMemory
     gpus: tuple[WorkerGpu, ...] = ()
@@ -123,6 +125,12 @@ class WorkerCapabilities(StrictModel):
     media_preparation: MediaPreparationVersion | None = Field(
         default=None, alias="mediaPreparation"
     )
+    model_cache: ModelCacheVersion | None = Field(default=None, alias="modelCache")
+
+
+class WorkerStorage(StrictModel):
+    total_bytes: PositiveWireInt = Field(alias="totalBytes")
+    available_bytes: NonNegativeWireInt = Field(alias="availableBytes")
 
 
 class WorkerManifest(StrictModel):
@@ -136,6 +144,7 @@ class WorkerManifest(StrictModel):
     capabilities: WorkerCapabilities = Field(default_factory=WorkerCapabilities)
     adapters: tuple[AdapterManifest, ...] = ()
     hardware: WorkerHardware | None = None
+    model_storage: WorkerStorage | None = Field(default=None, alias="modelStorage")
 
 
 class TranscriptionRequest(StrictModel):
@@ -293,7 +302,18 @@ class MediaPreparationJobPayload(InboundModel):
     source_media_type: str | None = Field(default=None, alias="sourceMediaType")
 
 
-type WorkerJobPayload = TranscriptionJobPayload | MediaPreparationJobPayload
+type ModelCacheAction = Literal["download", "delete"]
+
+
+class ModelCacheJobPayload(InboundModel):
+    kind: Literal["model_cache"]
+    action: ModelCacheAction
+    worker_id: str = Field(alias="workerId")
+    adapter_id: str = Field(alias="adapterId")
+    model_id: str = Field(alias="modelId")
+
+
+type WorkerJobPayload = TranscriptionJobPayload | MediaPreparationJobPayload | ModelCacheJobPayload
 
 
 class WorkerLease(InboundModel):
@@ -333,7 +353,14 @@ class MediaPreparationJobCompletion(StrictModel):
     generator: MediaGenerator
 
 
-type JobFailureCode = Literal["adapter_error", "adapter_unavailable", "media_preparation_error"]
+class ModelCacheJobCompletion(StrictModel):
+    kind: Literal["model_cache"] = "model_cache"
+    action: ModelCacheAction
+
+
+type JobFailureCode = Literal[
+    "adapter_error", "adapter_unavailable", "media_preparation_error", "model_cache_error"
+]
 
 
 class JobFailure(StrictModel):
@@ -342,7 +369,9 @@ class JobFailure(StrictModel):
     retryable: bool
 
 
-type JobCompletion = TranscriptionJobCompletion | MediaPreparationJobCompletion
+type JobCompletion = (
+    TranscriptionJobCompletion | MediaPreparationJobCompletion | ModelCacheJobCompletion
+)
 
 
 class JobProgressReport(StrictModel):

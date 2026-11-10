@@ -4,10 +4,10 @@ import { dirname, resolve } from "node:path";
 import Database from "better-sqlite3";
 import type { RunResult } from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 
 import * as authSchema from "$lib/server/auth/schema";
+import { migrateDatabase } from "$lib/server/db/migrate";
 import * as appSchema from "$lib/server/db/schema";
 import { privateEnv } from "$lib/server/env";
 
@@ -20,7 +20,6 @@ function open() {
   const sqlite = new Database(file);
   // WAL lets reads proceed while a write commits.
   sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("busy_timeout = 5000");
   // SQLite's own lower() folds ASCII only.
   sqlite.function("unicode_lower", { deterministic: true }, (value) =>
@@ -29,7 +28,7 @@ function open() {
   const database = drizzle({ client: sqlite, schema });
   // The working directory is apps/web in development and tests, and /app in
   // the image, which both hold the generated migrations folder.
-  migrate(database, { migrationsFolder: resolve("migrations") });
+  migrateDatabase(sqlite, resolve("migrations"));
   return database;
 }
 

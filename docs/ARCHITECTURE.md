@@ -112,8 +112,8 @@ Workers authenticate with one shared token that the application generates on fir
 - Protocol and worker version.
 - CPU architecture and thread capacity.
 - GPU backend, device, and available memory.
-- Installed models.
-- Supported pipeline stages.
+- Installed models, their download sizes, and the free space on its model disk.
+- Supported pipeline stages, including whether it can download and remove models.
 - Planned: current concurrency and health.
 
 The application grants a time-limited lease for one compatible stage. Workers renew leases through heartbeats every 10 seconds. The application returns an expired lease to the queue after a safety window.
@@ -128,7 +128,7 @@ Workers read media through a read-only shared mount. Media preparation falls bac
 
 The database stores durable runs, jobs, attempts, leases, progress, cancellations, and errors. Planned: separate durable stages. The application performs lease transactions and exposes them through the worker API.
 
-The built jobs are `transcribe` and `media_prepare`. A `transcribe` job runs ASR and alignment as one job. Planned: separate durable stages, with diarization as an optional one:
+The built jobs are `transcribe`, `media_prepare` and `model_cache`. A `transcribe` job runs ASR and alignment as one job. A `model_cache` job downloads or removes one model on one named worker, because each worker keeps its own cache; only that worker can lease it, and it goes ahead of transcriptions. It belongs to no workspace. Planned: separate durable stages, with diarization as an optional one:
 
 ```text
 prepare -> transcribe -> align -> diarize? -> segment -> finalize
@@ -138,7 +138,7 @@ Proxy creation runs inside `media_prepare`. Planned as durable jobs: translation
 
 The scheduler leases jobs by priority, then oldest first. Planned: FIFO order within a workspace with fair rotation across workspaces, and worker affinity between related stages without making affinity a correctness requirement.
 
-The default worker runs one job at a time. Administrators can add workers on the same host. A worker resolves compute type, batch size, and thread use from its capabilities and the job's model choice.
+The default worker runs one job at a time. Administrators can add workers on the same host. A worker resolves compute type, batch size, and thread use from its capabilities and the job's options. The administrator's precision travels with each transcription job, and the worker maps it to a compute type its device runs.
 
 ## Domain model
 
@@ -237,7 +237,7 @@ Each first-party implementation is an adapter package. The worker normalizes all
 
 Models live in a persistent cache shared across worker upgrades and CPU/GPU image changes. Faster-Whisper and WhisperX use the same CTranslate2 ASR weights. Alignment and diarization require additional models.
 
-The model picker lists available models with their purpose, approximate size, download state, and hardware fit. Models download on first use. Planned: an administrator model manager that downloads with progress, retry, and cancellation, removes unused models, reports cache and authorization errors, and supports documented offline cache seeding.
+The model picker lists available models with their purpose, approximate size, download state, and hardware fit. A model that is not cached downloads on first use. The administrator's model manager downloads models ahead of time with progress and cancellation, retries a failed download, shows its error, and removes models. The worker runs each download in a child process, so a cancellation stops it at once and frees the unfinished files. Planned: alignment models in the manager, and documented offline cache seeding.
 
 Docker images do not bundle large model weights.
 
@@ -293,6 +293,8 @@ Projects use flat collections and tags. V1 does not implement nested folders or 
 Authentication stays enabled in every deployment. Public sign-up is disabled. The first-run setup page creates the single owner in one transaction, and no other way to create accounts exists yet. It requires a one-time code that the web service prints to its log at startup while no owner exists. The code lives in memory and changes on every restart. Password recovery works the same way: the recovery page asks the server to print a code that is valid for 15 minutes, because there is no email. Code guesses and failed sign-ins are slowed down per client address and per account. Planned: later users join by expiring invitation.
 
 Better Auth manages identities, password credentials, secure cookies, and database sessions. Anysub owns workspaces, memberships, and authorization checks. Invitations are planned.
+
+The owner created at setup is the instance administrator, recorded as the `admin` role on the account. Only the administrator opens the pages under `/admin`, which hold the settings that used to be environment variables: the default model, language, alignment and line length, the precision, and the upload limit. They live in one `instance_settings` row.
 
 V1 requires no SMTP. Password reset and invitations are not built. Planned: administrators copy invitation and password-reset links. SMTP, passkeys, OIDC, and SSO remain future additions.
 

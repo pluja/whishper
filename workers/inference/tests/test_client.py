@@ -153,6 +153,26 @@ async def test_hardware_is_detected_once_and_memory_refreshed_per_poll(
     assert len(memory_reads) == 2
 
 
+async def test_the_manifest_offers_model_management_and_reports_model_storage(
+    settings: WorkerSettings, respx_mock: respx.MockRouter
+) -> None:
+    settings.runtime.model_root.mkdir(parents=True)
+    client = make_client(settings, RecordedSleeps())
+    route = respx_mock.post(LEASE_URL).mock(
+        return_value=httpx.Response(200, json={"lease": None, "pollAfterMs": 500})
+    )
+
+    try:
+        await client.lease()
+    finally:
+        await client.close()
+
+    manifest = json.loads(route.calls.last.request.content)
+    assert manifest["capabilities"]["modelCache"] == "1.0"
+    assert manifest["modelStorage"]["totalBytes"] > 0
+    assert 0 <= manifest["modelStorage"]["availableBytes"] <= manifest["modelStorage"]["totalBytes"]
+
+
 async def test_announce_posts_the_same_manifest_as_a_lease_request(
     settings: WorkerSettings, respx_mock: respx.MockRouter
 ) -> None:

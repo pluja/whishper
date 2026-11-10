@@ -1,6 +1,7 @@
 import {
   ADAPTER_PROTOCOL_VERSION,
   MEDIA_PREPARATION_VERSION,
+  MODEL_CACHE_VERSION,
   WORKER_PROTOCOL_VERSION,
   type WorkerHardware,
 } from "@anysub/contracts";
@@ -19,7 +20,6 @@ const adapter = {
 
 const hardware: WorkerHardware = {
   device: "cuda",
-  computeType: "float16",
   cpu: { model: "Test CPU", logicalCores: 8 },
   memory: { totalBytes: 16_000, availableBytes: 12_000 },
   gpus: [{ name: "Test GPU", backend: "cuda", totalMemoryBytes: 8_000 }],
@@ -31,9 +31,13 @@ const manifest = {
   name: "test-worker",
   version: "0.1.0",
   architecture: "x86_64",
-  capabilities: { mediaPreparation: MEDIA_PREPARATION_VERSION },
+  capabilities: {
+    mediaPreparation: MEDIA_PREPARATION_VERSION,
+    modelCache: MODEL_CACHE_VERSION,
+  },
   adapters: [adapter],
   hardware,
+  modelStorage: { totalBytes: 100_000, availableBytes: 40_000 },
 };
 
 describe("worker manifest validation", () => {
@@ -45,13 +49,16 @@ describe("worker manifest validation", () => {
       MEDIA_PREPARATION_VERSION,
     );
     expect(parsed.hardware?.gpus[0].backend).toBe("cuda");
+    expect(parsed.capabilities.modelCache).toBe(MODEL_CACHE_VERSION);
+    expect(parsed.modelStorage?.availableBytes).toBe(40_000);
   });
 
   it("accepts a worker without media preparation or hardware details", () => {
     const parsed = parseWorkerManifest({
       ...manifest,
-      capabilities: { mediaPreparation: null },
+      capabilities: { mediaPreparation: null, modelCache: null },
       hardware: null,
+      modelStorage: null,
     });
 
     expect(parsed.capabilities.mediaPreparation).toBeNull();

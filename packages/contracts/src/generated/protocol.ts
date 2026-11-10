@@ -9,18 +9,25 @@ export type ProtocolMessage =
   | JobCompletionReport
   | LeaseResponse;
 export type MediaPreparationVersion = "1.0";
+export type ModelCacheVersion = "1.0";
 export type AdapterCapability = "transcribe" | "align";
 export type WorkerDevice = "cpu" | "cuda";
 export type JobFailureCode =
-  "adapter_error" | "adapter_unavailable" | "media_preparation_error";
+  | "adapter_error"
+  | "adapter_unavailable"
+  | "media_preparation_error"
+  | "model_cache_error";
 export type JobCompletion =
-  TranscriptionJobCompletion | MediaPreparationJobCompletion;
+  | TranscriptionJobCompletion
+  | MediaPreparationJobCompletion
+  | ModelCacheJobCompletion;
 export type FrameRateMode = "constant" | "variable" | "unknown";
 export type MediaStreamType =
   "audio" | "video" | "subtitle" | "data" | "attachment" | "unknown";
 export type MediaDerivativeKind = "waveform" | "thumbnail" | "proxy";
+export type ModelCacheAction = "download" | "delete";
 export type WorkerJobPayload =
-  TranscriptionJobPayload | MediaPreparationJobPayload;
+  TranscriptionJobPayload | MediaPreparationJobPayload | ModelCacheJobPayload;
 
 export interface WorkerManifest {
   protocolVersion: "1.0";
@@ -31,9 +38,11 @@ export interface WorkerManifest {
   capabilities: WorkerCapabilities;
   adapters: AdapterManifest[];
   hardware: WorkerHardware | null;
+  modelStorage: WorkerStorage | null;
 }
 export interface WorkerCapabilities {
   mediaPreparation: MediaPreparationVersion | null;
+  modelCache: ModelCacheVersion | null;
 }
 export interface AdapterManifest {
   protocolVersion: "1.0";
@@ -52,6 +61,7 @@ export interface AdapterModel {
   parameterCount: number | null;
   requiredVramBytes: number | null;
   recommendedRamBytes: number | null;
+  downloadSizeBytes: number | null;
   downloaded: boolean | null;
   optionsSchema: {
     [k: string]: unknown;
@@ -59,7 +69,6 @@ export interface AdapterModel {
 }
 export interface WorkerHardware {
   device: WorkerDevice;
-  computeType: string;
   cpu: WorkerCpu;
   memory: WorkerMemory;
   gpus: WorkerGpu[];
@@ -76,6 +85,10 @@ export interface WorkerGpu {
   name: string;
   backend: "cuda" | "rocm";
   totalMemoryBytes: number;
+}
+export interface WorkerStorage {
+  totalBytes: number;
+  availableBytes: number;
 }
 export interface JobProgressReport {
   leaseToken: string;
@@ -188,6 +201,10 @@ export interface MediaGenerator {
   id: "ffmpeg";
   version: string;
 }
+export interface ModelCacheJobCompletion {
+  kind: "model_cache";
+  action: ModelCacheAction;
+}
 export interface LeaseResponse {
   lease: WorkerLease | null;
   pollAfterMs?: number;
@@ -218,8 +235,16 @@ export interface MediaPreparationJobPayload {
   sourceFilename: string;
   sourceMediaType?: string | null;
 }
+export interface ModelCacheJobPayload {
+  kind: "model_cache";
+  action: ModelCacheAction;
+  workerId: string;
+  adapterId: string;
+  modelId: string;
+}
 
 export const ADAPTER_PROTOCOL_VERSION = "1.0";
 export const MEDIA_PREPARATION_VERSION = "1.0";
+export const MODEL_CACHE_VERSION = "1.0";
 export const TRANSCRIPT_SCHEMA_VERSION = "1.0";
 export const WORKER_PROTOCOL_VERSION = "1.0";

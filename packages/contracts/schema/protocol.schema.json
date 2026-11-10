@@ -141,6 +141,19 @@
           ],
           "default": null
         },
+        "downloadSizeBytes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "downloaded": {
           "anyOf": [
             {
@@ -166,6 +179,7 @@
         "parameterCount",
         "requiredVramBytes",
         "recommendedRamBytes",
+        "downloadSizeBytes",
         "downloaded",
         "optionsSchema"
       ],
@@ -215,6 +229,9 @@
         },
         {
           "$ref": "#/$defs/MediaPreparationJobCompletion"
+        },
+        {
+          "$ref": "#/$defs/ModelCacheJobCompletion"
         }
       ]
     },
@@ -261,7 +278,8 @@
       "enum": [
         "adapter_error",
         "adapter_unavailable",
-        "media_preparation_error"
+        "media_preparation_error",
+        "model_cache_error"
       ],
       "type": "string"
     },
@@ -777,6 +795,65 @@
       "title": "MediaVideoDetails",
       "type": "object"
     },
+    "ModelCacheAction": {
+      "enum": [
+        "download",
+        "delete"
+      ],
+      "type": "string"
+    },
+    "ModelCacheJobCompletion": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "model_cache",
+          "default": "model_cache",
+          "type": "string"
+        },
+        "action": {
+          "$ref": "#/$defs/ModelCacheAction"
+        }
+      },
+      "required": [
+        "kind",
+        "action"
+      ],
+      "title": "ModelCacheJobCompletion",
+      "type": "object"
+    },
+    "ModelCacheJobPayload": {
+      "properties": {
+        "kind": {
+          "const": "model_cache",
+          "type": "string"
+        },
+        "action": {
+          "$ref": "#/$defs/ModelCacheAction"
+        },
+        "workerId": {
+          "type": "string"
+        },
+        "adapterId": {
+          "type": "string"
+        },
+        "modelId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "action",
+        "workerId",
+        "adapterId",
+        "modelId"
+      ],
+      "title": "ModelCacheJobPayload",
+      "type": "object"
+    },
+    "ModelCacheVersion": {
+      "const": "1.0",
+      "type": "string"
+    },
     "TranscriptArtifact": {
       "additionalProperties": false,
       "properties": {
@@ -1001,10 +1078,22 @@
             }
           ],
           "default": null
+        },
+        "modelCache": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModelCacheVersion"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
-        "mediaPreparation"
+        "mediaPreparation",
+        "modelCache"
       ],
       "title": "WorkerCapabilities",
       "type": "object"
@@ -1077,10 +1166,6 @@
         "device": {
           "$ref": "#/$defs/WorkerDevice"
         },
-        "computeType": {
-          "minLength": 1,
-          "type": "string"
-        },
         "cpu": {
           "$ref": "#/$defs/WorkerCpu"
         },
@@ -1097,7 +1182,6 @@
       },
       "required": [
         "device",
-        "computeType",
         "cpu",
         "memory",
         "gpus"
@@ -1112,6 +1196,9 @@
         },
         {
           "$ref": "#/$defs/MediaPreparationJobPayload"
+        },
+        {
+          "$ref": "#/$defs/ModelCacheJobPayload"
         }
       ]
     },
@@ -1186,6 +1273,17 @@
             }
           ],
           "default": null
+        },
+        "modelStorage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkerStorage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -1196,7 +1294,8 @@
         "architecture",
         "capabilities",
         "adapters",
-        "hardware"
+        "hardware",
+        "modelStorage"
       ],
       "title": "WorkerManifest",
       "type": "object"
@@ -1225,6 +1324,27 @@
     "WorkerProtocolVersion": {
       "const": "1.0",
       "type": "string"
+    },
+    "WorkerStorage": {
+      "additionalProperties": false,
+      "properties": {
+        "totalBytes": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "availableBytes": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "totalBytes",
+        "availableBytes"
+      ],
+      "title": "WorkerStorage",
+      "type": "object"
     }
   },
   "title": "ProtocolMessage",

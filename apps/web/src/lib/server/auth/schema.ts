@@ -8,6 +8,10 @@ export const user = sqliteTable("auth_users", {
   email: text("email").notNull().unique(),
   emailVerified: flag("email_verified").default(false).notNull(),
   image: text("image"),
+  // The first account administers the instance.
+  role: text("role", { enum: ["admin", "user"] })
+    .notNull()
+    .default("user"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

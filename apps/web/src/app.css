@@ -29,6 +29,9 @@
   --color-danger-soft: var(--theme-danger-soft);
   --color-focus: var(--theme-focus);
   --color-overlay: var(--theme-overlay);
+  --color-chart-1: var(--theme-chart-1);
+  --color-chart-2: var(--theme-chart-2);
+  --color-chart-3: var(--theme-chart-3);
 
   --animate-pulse-ring: pulse-ring 1.5s ease-out infinite;
 
@@ -68,6 +71,10 @@
   --theme-danger-soft: #fcebed;
   --theme-focus: #5b5bd6;
   --theme-overlay: rgb(24 33 43 / 0.45);
+  /* Categorical series, validated for color-vision deficiency on the surface. */
+  --theme-chart-1: #5b5bd6;
+  --theme-chart-2: #1baf7a;
+  --theme-chart-3: #eb6834;
 }
 
 :root[data-theme="dark"] {
@@ -93,6 +100,9 @@
   --theme-danger-soft: #392328;
   --theme-focus: #aaa5ff;
   --theme-overlay: rgb(0 0 0 / 0.6);
+  --theme-chart-1: #9085e9;
+  --theme-chart-2: #199e70;
+  --theme-chart-3: #d95926;
 }
 
 @layer base {

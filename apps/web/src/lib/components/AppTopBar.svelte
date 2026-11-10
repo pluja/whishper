@@ -5,9 +5,9 @@
   import MenuItem from "./ui/MenuItem.svelte";
   import { buttonClasses } from "./ui/variants";
 
-  type Props = { email: string };
+  type Props = { email: string; isAdmin: boolean };
 
-  let { email }: Props = $props();
+  let { email, isAdmin }: Props = $props();
 
   const id = $props.id();
   const signOutFormId = `${id}-sign-out`;
@@ -52,6 +52,12 @@
             {email}
           </p>
           <div role="separator" class="-mx-1 mb-1 border-t border-border"></div>
+          {#if isAdmin}
+            <MenuItem href="/admin">
+              <Icon name="shield" size={16} />
+              Administration
+            </MenuItem>
+          {/if}
           <MenuItem href="/account">
             <Icon name="key" size={16} />
             Change password
