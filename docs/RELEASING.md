@@ -20,7 +20,7 @@ Every release publishes these tags:
 
 The Compose files pin the exact version, so an installation changes only when its administrator upgrades it.
 
-Release in increasing version order, from `main`. Every release moves `latest` and its major and minor tags, so tagging 4.0.2 after 4.1.0 would move `latest` back to 4.0.2. Fix older lines by releasing the next version instead.
+A shared tag only moves forward. A release moves `latest` when it is the highest version, its major tag when it is the highest in that major line, and its minor tag when it is the highest in that minor line. A fix for an older line, such as 4.0.2 after 4.1.0, moves only `4.0`, and `latest` and `4` stay on 4.1.0.
 
 ## Cutting a release
 
@@ -40,8 +40,8 @@ Release in increasing version order, from `main`. Every release moves `latest` a
    git tag -a v4.1.0 -m "Anysub 4.1.0"
    git push origin v4.1.0
    ```
-6. Watch the Release workflow. It runs the checks again and confirms the tag matches the version. It then pushes each image under its exact version, moves `4.1`, `4` and `latest` once all three exist, and drafts the release with `compose.yaml` and `compose.cuda.yaml` attached.
-7. Read the draft on the Releases page, then publish it with **Set as the latest release** checked. The install guide downloads `releases/latest/download/compose.yaml`, so the latest release must be the newest version.
+6. Watch the Release workflow. It runs the checks again and confirms the tag matches the version. It then pushes each image under its exact version, moves the shared tags this release is the newest for once all three images exist, and drafts the release with `compose.yaml` and `compose.cuda.yaml` attached.
+7. Read the draft on the Releases page, then publish it. Check **Set as the latest release** only when this is the highest version: the install guide downloads `releases/latest/download/compose.yaml`, so the latest release must be the newest version.
 
 If an image fails, `latest` and the other shared tags stay on the previous release. For a transient failure, such as a registry timeout, choose **Re-run failed jobs**. If the build itself is broken, fix it and release the next patch version. Never move a tag that published images.
 

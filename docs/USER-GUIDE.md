@@ -8,7 +8,9 @@ Create a project from the library by choosing a file, or drop an audio or video 
 
 - Audio and video files are accepted. If the browser reports a media type other than `audio/*`, `video/*`, `application/ogg`, or `application/mp4`, the upload is rejected. A file that reports no type at all is accepted.
 - Uploads go in 32 MiB chunks. If the connection drops or you reload the page, choosing the same file in the same browser resumes where it stopped.
-- The default size limit is 500 GiB per file. The owner changes it under [Administration > Storage](ADMINISTRATION.md#storage).
+- The default size limit is 500 GiB per file. The owner changes it under [Administration > Storage](ADMINISTRATION.md#storage). The dialog checks the size and type before anything is sent.
+- Leaving or reloading the page while an upload runs asks first. If you leave anyway, the upload pauses and resumes when you choose the same file again.
+- An upload that has made no progress for ten minutes shows as **Upload paused** in the library.
 - Cancelling an upload from the browser that started it removes the draft project at once. Uploads that never finish are deleted after seven days.
 
 Uploading a finished file a second time creates a second project with its own copy of the media. Anysub does not deduplicate.
@@ -100,7 +102,7 @@ You can:
 - Insert a cue after the selected one, or delete it.
 - Undo and redo until you close the page.
 
-Editing a cue's text clears that cue's word timings, because the old timings no longer describe the new words. Unchanged cues keep theirs.
+Editing a cue's text, or changing its start or end on their own, clears that cue's word timings, because the old timings no longer describe the cue. Moving a whole cue shifts its word timings with it. Unchanged cues keep theirs.
 
 ### Timing fields
 
@@ -112,7 +114,7 @@ Each start and end field always shows `HH:MM:SS.mmm`. Typing works like overtype
 - Paste accepts looser forms such as `27`, `62.5`, `1:02.5`, `1:02:03`, or `00:01:02,500`.
 - `Enter` or leaving the field applies the typed time. `Escape` returns to the last applied time.
 
-A start later than the end, or an end earlier than the start, is refused. The field gets a red border and the status line under the cue toolbar shows the reason. The message goes away once the value is valid again, or when you press `Escape` or leave the field, which restores the last valid time. `I`, `O`, and the playhead buttons refuse the same cases with the same message, and never set a time past the end of the media.
+A start later than the end, or an end earlier than the start, is refused. The field gets a red border and the status line under the cue toolbar shows the reason. The message goes away once the value is valid again, or when you press `Escape` or leave the field, which restores the last valid time. `I`, `O`, and the playhead buttons refuse the same cases with the same message. No edit moves a cue past the end of the source.
 
 Everything you change in one timing field, from focusing it until you leave it, is one undo step. `Ctrl/Command+Z` inside the field first drops digits you have not applied, then undoes the changes made since you focused it. `Ctrl/Command+Shift+Z` or `Ctrl/Command+Y` redoes them. Neither reaches past the moment you focused the field: undo and redo outside the field for earlier edits.
 
@@ -150,6 +152,7 @@ The cue list flags problems and never changes your text on its own:
 - Empty cue or zero duration.
 - Duration under 0.5 seconds or over 7 seconds.
 - Overlap with the previous cue.
+- Ends after the source. The track cannot be saved until the cue ends in time.
 - More than 20 characters per second.
 - Text longer than the run's maximum line length, or 42 characters when none was recorded.
 
@@ -176,4 +179,4 @@ If you forget the password, choose **Forgot your password?** on the sign-in page
 docker compose logs web
 ```
 
-Enter the code with your email address and a new password within 15 minutes. Anysub signs the account out everywhere and returns you to the sign-in page.
+Enter the code with your email address and a new password within 15 minutes. Asking again prints the same code until it expires or is used. Anysub signs the account out everywhere and returns you to the sign-in page.

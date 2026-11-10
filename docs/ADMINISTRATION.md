@@ -6,7 +6,7 @@ Settings about how the containers run, such as the port, live in `.env` instead.
 
 ## Models
 
-Every model a connected worker offers is listed with its download size, memory needs and how well it fits that worker's hardware. **Download** fetches it from Hugging Face with a progress bar, and **Cancel** stops a download and frees the space it used. The trash button removes a downloaded model. A transcription that needs a removed model downloads it again.
+Every model a connected worker offers is listed with its download size, memory needs and how well it fits that worker's hardware. **Download** fetches it from Hugging Face with a progress bar, and **Cancel** stops a download and frees the space it used. A download that fails, for example when the connection drops, keeps what it fetched so its retry resumes from there. The trash button removes a downloaded model. A transcription that needs a removed model downloads it again.
 
 Downloading ahead of time means the first transcription with a model starts at once and a worker can transcribe without an internet connection. The model marked **Recommended** is the one Automatic picks for that worker. The panel above the list shows the worker's hardware and the free space on its model disk; a model larger than the free space cannot be downloaded. With several workers, choose one at the top: each keeps its own models.
 
@@ -20,7 +20,7 @@ These are the starting values of the transcribe form. People can still change th
 - **Spoken language**: a fixed language suits a library in one language. Detection listens to the first 30 seconds.
 - **Word timing**: whether accurate word alignment starts on.
 - **Subtitle length**: the longest subtitle in characters, with a live preview of how a sentence splits.
-- **Precision**: applies to every run and is not offered per run. **Automatic** runs `int8` weights on a processor and `float16` on a graphics card. **Lower memory** uses `int8_float16` on a graphics card, which helps a larger model fit; on a processor it is the same as Automatic. **Full precision** runs `float32` everywhere, about twice the memory and slower, for accuracy that is rarely better.
+- **Precision**: applies to every run and is not offered per run. **Automatic** runs `int8` weights on a processor and `float16` on a graphics card. **Lower memory** uses `int8_float16` on a graphics card, which helps a larger model fit; on a processor it is the same as Automatic. **Full precision** runs `float32` everywhere, about twice the memory and slower, for accuracy that is rarely better. The models list judges fit at the precision chosen here.
 
 Saved settings apply to transcriptions that start afterwards.
 
