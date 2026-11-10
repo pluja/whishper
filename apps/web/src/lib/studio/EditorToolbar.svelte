@@ -138,9 +138,9 @@
 <div
   class="@container flex shrink-0 items-center gap-3 border-b border-border px-4 py-1 text-xs whitespace-nowrap text-text-muted"
 >
-  {#if editor.timeError}
+  {#if editor.refusal}
     <span id={CUE_TIME_ERROR_ID} class="min-w-0 truncate text-danger">
-      {editor.timeError.message}
+      {editor.refusal.message}
     </span>
   {:else}
     <span class={["min-w-0 truncate", editor.issueCount > 0 && "text-warning"]}>

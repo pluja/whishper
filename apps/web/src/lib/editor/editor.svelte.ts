@@ -23,9 +23,9 @@ function nudgeHistoryKey(cueId: string): string {
   return `nudge:${cueId}`;
 }
 
-export type CueTimeError = {
+type EditRefusal = {
   cueId: string;
-  field: CueTimeField;
+  field: CueTimeField | null; // null when no single time field is at fault
   message: string;
 };
 
@@ -40,7 +40,7 @@ export class CueEditor {
   cues = $state<EditorCue[]>([]);
   selectedCueId = $state<string | null>(null);
   editing = $state(false);
-  timeError = $state<CueTimeError | null>(null);
+  refusal = $state<EditRefusal | null>(null);
   autosave = $state.raw(new Autosave(null, 0, () => this.cues));
   readonly history = new CueHistory();
   readonly transport: Transport;
@@ -143,7 +143,7 @@ export class CueEditor {
     this.#cursorPositions.clear();
     this.editing = false;
     this.#editedCueId = null;
-    this.timeError = null;
+    this.refusal = null;
     this.history.reset();
     if (ordered.changed) this.autosave.markChanged();
   }
@@ -181,7 +181,7 @@ export class CueEditor {
     if (this.readOnly) return;
     this.cues[index].text = text;
     this.cues = [...this.cues];
-    this.#clearSettledTimeError(this.cues[index].id);
+    this.#clearSettledRefusal(this.cues[index].id);
     this.autosave.markChanged();
   }
 
@@ -189,7 +189,7 @@ export class CueEditor {
     if (this.readOnly) return;
     const cueId = this.cues[index].id;
     this.cues = this.#retimeField(index, field, value).cues;
-    this.#clearSettledTimeError(cueId);
+    this.#clearSettledRefusal(cueId);
     this.autosave.markChanged();
   }
 
@@ -209,19 +209,19 @@ export class CueEditor {
   }
 
   showTimeError(cueId: string, field: CueTimeField, message: string): void {
-    this.timeError = { cueId, field, message };
+    this.refusal = { cueId, field, message };
   }
 
   clearTimeError(cueId: string, field: CueTimeField): void {
-    if (this.timeError?.cueId === cueId && this.timeError.field === field) {
-      this.timeError = null;
+    if (this.refusal?.cueId === cueId && this.refusal.field === field) {
+      this.refusal = null;
     }
   }
 
-  #clearSettledTimeError(cueId: string): void {
+  #clearSettledRefusal(cueId: string): void {
     const cue = this.cues.find((item) => item.id === cueId);
-    if (this.timeError?.cueId === cueId && cue && cue.end_us >= cue.start_us) {
-      this.timeError = null;
+    if (this.refusal?.cueId === cueId && cue && cue.end_us >= cue.start_us) {
+      this.refusal = null;
     }
   }
 
@@ -245,7 +245,7 @@ export class CueEditor {
     this.history.record(copyCues(this.cues), coalesceKey);
     this.cues = edit.cues;
     this.#continueEdit(closed);
-    this.timeError = null;
+    this.refusal = null;
     if (edit.selectedCueId !== undefined) {
       this.selectedCueId = edit.selectedCueId;
     }
@@ -261,7 +261,11 @@ export class CueEditor {
       newId: createUuid(),
     });
     if ("message" in result) {
-      this.autosave.message = result.message;
+      this.refusal = {
+        cueId: this.cues[index].id,
+        field: null,
+        message: result.message,
+      };
       return;
     }
     this.#apply(result);
@@ -330,7 +334,7 @@ export class CueEditor {
     if (!snapshot) return;
     const selectedIndex = Math.max(0, this.selectedCueIndex);
     this.cues = snapshot;
-    this.timeError = null;
+    this.refusal = null;
     this.#continueEdit();
     if (!this.cues.some((cue) => cue.id === this.selectedCueId)) {
       this.selectedCueId =

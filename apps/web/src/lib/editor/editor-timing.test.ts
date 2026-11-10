@@ -300,7 +300,7 @@ describe("CueEditor.setTimeToPlayhead", () => {
 
     expect(editor.cues[0].start_us).toBe(1_000_000);
     expect(editor.history.undoStack).toHaveLength(0);
-    expect(editor.timeError).toEqual({
+    expect(editor.refusal).toEqual({
       cueId: "a",
       field: "start_us",
       message: "In must not be later than Out.",
@@ -309,7 +309,7 @@ describe("CueEditor.setTimeToPlayhead", () => {
     editor.transport.playbackUs = 1_500_000;
     editor.setTimeToPlayhead(0, "start_us");
     expect(editor.cues[0].start_us).toBe(1_500_000);
-    expect(editor.timeError).toBeNull();
+    expect(editor.refusal).toBeNull();
   });
 
   it("refuses an Out before the In", () => {
@@ -319,7 +319,7 @@ describe("CueEditor.setTimeToPlayhead", () => {
     editor.setTimeToPlayhead(0, "end_us");
 
     expect(editor.cues[0].end_us).toBe(2_000_000);
-    expect(editor.timeError).toEqual({
+    expect(editor.refusal).toEqual({
       cueId: "a",
       field: "end_us",
       message: "Out must not be earlier than In.",
@@ -349,7 +349,7 @@ describe("CueEditor.setTimeToPlayhead", () => {
     editor.setTimeToPlayhead(-1, "end_us");
 
     expect(editor.cues[0].end_us).toBe(2_000_000);
-    expect(editor.timeError).toBeNull();
+    expect(editor.refusal).toBeNull();
   });
 });
 
@@ -368,6 +368,38 @@ describe("CueEditor.splitSelected", () => {
     editor.splitSelected();
 
     expect(editor.cues.map((item) => item.start_us)).toEqual([0, 1_200_000]);
+  });
+});
+
+describe("CueEditor refused splits", () => {
+  it("shows the reason as an editor notice, not a save problem", () => {
+    const editor = newEditor();
+    editor.loadTrack(
+      trackA,
+      [{ ...cue("a", "one two"), start_us: 0, end_us: 100_000 }],
+      1,
+    );
+    editor.splitSelected();
+
+    expect(editor.refusal).toEqual({
+      cueId: "a",
+      field: null,
+      message: "This cue is too short to split.",
+    });
+    expect(editor.autosave.message).toBe("");
+    expect(editor.autosave.state).toBe("saved");
+  });
+
+  it("clears the notice once the cue is edited", () => {
+    const editor = newEditor();
+    editor.loadTrack(trackA, [cue("a", "unbroken")], 1);
+    editor.splitSelected();
+    expect(editor.refusal?.message).toBe(
+      "Place the text cursor between words before splitting.",
+    );
+
+    editor.setText(0, "now broken");
+    expect(editor.refusal).toBeNull();
   });
 });
 
@@ -416,9 +448,9 @@ describe("CueEditor time errors", () => {
     editor.showTimeError("a", "end_us", "Out must not be earlier than In.");
 
     editor.clearTimeError("a", "start_us");
-    expect(editor.timeError?.field).toBe("end_us");
+    expect(editor.refusal?.field).toBe("end_us");
     editor.clearTimeError("a", "end_us");
-    expect(editor.timeError).toBeNull();
+    expect(editor.refusal).toBeNull();
   });
 
   it("drops a cue's error once that cue is edited into a valid state", () => {
@@ -426,14 +458,14 @@ describe("CueEditor time errors", () => {
     editor.loadTrack(trackA, [cue("a", "first"), cue("b", "second")], 1);
     editor.showTimeError("a", "end_us", "Out must not be earlier than In.");
     editor.setText(1, "other cue");
-    expect(editor.timeError?.cueId).toBe("a");
+    expect(editor.refusal?.cueId).toBe("a");
 
     editor.setText(0, "edited");
-    expect(editor.timeError).toBeNull();
+    expect(editor.refusal).toBeNull();
 
     editor.showTimeError("a", "start_us", "In must not be later than Out.");
     editor.setTime(0, "end_us", 1_500_000);
-    expect(editor.timeError).toBeNull();
+    expect(editor.refusal).toBeNull();
   });
 
   it("drops a stale error when the cues change by undo or another edit", () => {
@@ -442,10 +474,10 @@ describe("CueEditor time errors", () => {
     editor.nudgeSelected(100);
     editor.showTimeError("a", "end_us", "Out must not be earlier than In.");
     editor.undo();
-    expect(editor.timeError).toBeNull();
+    expect(editor.refusal).toBeNull();
 
     editor.showTimeError("a", "end_us", "Out must not be earlier than In.");
     editor.insertAfterSelected();
-    expect(editor.timeError).toBeNull();
+    expect(editor.refusal).toBeNull();
   });
 });

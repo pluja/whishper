@@ -59,7 +59,7 @@
   const timecodeHintId = `${uid}-timecode-hint`;
 
   function hasTimeError(cueId: string, field: CueTimeField): boolean {
-    const error = editor.timeError;
+    const error = editor.refusal;
     return error?.cueId === cueId && error.field === field;
   }
 
@@ -173,8 +173,8 @@
   </p>
   <!-- A refusal replaces the node, so an identical message is announced again. -->
   <p class="sr-only" aria-live="polite">
-    {#key editor.timeError}
-      {#if editor.timeError}<span>{editor.timeError.message}</span>{/if}
+    {#key editor.refusal}
+      {#if editor.refusal}<span>{editor.refusal.message}</span>{/if}
     {/key}
   </p>
   <ol
