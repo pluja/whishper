@@ -11,7 +11,7 @@
   import { frameDurationUs } from "$lib/editor/transport.svelte";
   import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
   import { isRunActive, isStudioActive } from "$lib/shared/project-status";
-  import { knownDurationUs } from "$lib/shared/source-duration";
+  import { maxCueEndUs } from "$lib/shared/source-duration";
   import MediaMonitor from "$lib/studio/MediaMonitor.svelte";
   import {
     derivativeUrl,
@@ -35,12 +35,6 @@
   let maxLineLength = $derived(
     Number(data.track?.metadata?.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH),
   );
-  let preparedDurationUs = $derived(
-    knownDurationUs(data.project.mediaDurationUs),
-  );
-  let trackDurationUs = $derived(
-    knownDurationUs(data.track?.metadata?.durationUs),
-  );
 
   const paneWidth = new PaneWidth();
   const editor = new CueEditor({
@@ -53,8 +47,11 @@
           data.project.mediaFrameRateNum,
           data.project.mediaFrameRateDen,
         ),
-      preparedDurationUs: () => preparedDurationUs,
-      trackDurationUs: () => trackDurationUs,
+      maxCueEndUs: () =>
+        maxCueEndUs(
+          data.project.mediaDurationUs,
+          data.track?.metadata?.durationUs,
+        ),
     },
   });
   const commands: StudioCommands = {

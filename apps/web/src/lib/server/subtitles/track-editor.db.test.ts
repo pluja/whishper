@@ -4,7 +4,12 @@ import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { db } from "$lib/server/db";
-import { cues, subtitleTracks, transcriptionRuns } from "$lib/server/db/schema";
+import {
+  cues,
+  projects,
+  subtitleTracks,
+  transcriptionRuns,
+} from "$lib/server/db/schema";
 import { seedProject, seedTrack } from "$lib/server/db/testing/fixtures";
 import {
   TrackLockedByTranscription,
@@ -94,6 +99,67 @@ describe("updateTrackForUser", () => {
         .where(eq(cues.id, foreignId))
         .get()?.text,
     ).toBe("Other");
+  });
+
+  describe("the end of the source", () => {
+    function seedDurations(mediaDurationUs: number, trackDurationUs: number) {
+      const project = seedProject();
+      db.update(projects)
+        .set({ mediaDurationUs })
+        .where(eq(projects.id, project.projectId))
+        .run();
+      const trackId = seedTrack(project.projectId);
+      db.update(subtitleTracks)
+        .set({ metadata: { durationUs: trackDurationUs } })
+        .where(eq(subtitleTracks.id, trackId))
+        .run();
+      return { ...project, trackId };
+    }
+
+    function endingAt(...endsUs: number[]) {
+      return {
+        revision: 0,
+        cues: endsUs.map((endUs, position) => ({
+          id: randomUUID(),
+          position,
+          startUs: 0,
+          endUs,
+          text: "Cue",
+        })),
+      };
+    }
+
+    it.each([
+      ["the media", 10_000_000, 9_000_000],
+      ["the transcript", 9_000_000, 10_000_000],
+    ])(
+      "accepts cues up to the end of %s when it is the longer",
+      (_, mediaDurationUs, trackDurationUs) => {
+        const seeded = seedDurations(mediaDurationUs, trackDurationUs);
+
+        expect(
+          updateTrackForUser(
+            seeded.projectId,
+            seeded.trackId,
+            seeded.userId,
+            endingAt(10_000_000),
+          ),
+        ).toBe(1);
+      },
+    );
+
+    it("refuses a cue that ends after both and names it", () => {
+      const seeded = seedDurations(10_000_000, 9_000_000);
+
+      expect(() =>
+        updateTrackForUser(
+          seeded.projectId,
+          seeded.trackId,
+          seeded.userId,
+          endingAt(5_000_000, 10_000_001),
+        ),
+      ).toThrow(new TrackValidationError("Cue 2 ends after the source."));
+    });
   });
 
   describe("while a transcription runs on the project", () => {

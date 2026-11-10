@@ -1,3 +1,6 @@
+import { clamp } from "$lib/shared/clamp";
+import { clampToDuration } from "$lib/shared/source-duration";
+
 export type EditorCue = {
   id: string;
   position: number;
@@ -17,14 +20,19 @@ const MIN_SPLIT_DURATION_US = 200_000;
 const SPLIT_EDGE_MARGIN_US = 100_000;
 const INSERTED_CUE_DURATION_US = 2_000_000;
 
-// Expects cues sorted by start, which every timing edit preserves.
+// Expects cues sorted by start, which every timing edit preserves. A source
+// duration of zero is unknown.
 export function cueIssues(
   cues: readonly EditorCue[],
   maxLineLength: number,
+  sourceDurationUs = 0,
 ): string[][] {
   let latestEndUs = -Infinity;
   return cues.map((cue, index) => {
     const issues = textAndTimingIssues(cue, maxLineLength);
+    if (isPastSourceEnd(cue.end_us, sourceDurationUs)) {
+      issues.push("Ends after the source");
+    }
     if (latestEndUs > cue.start_us) issues.push("Overlaps previous cue");
     const following = cues[index + 1];
     if (following && following.start_us < cue.end_us)
@@ -42,11 +50,19 @@ export function charactersPerSecond(cue: EditorCue): number | null {
 
 export type CueTimeField = "start_us" | "end_us";
 
+function isPastSourceEnd(timeUs: number, sourceDurationUs: number): boolean {
+  return sourceDurationUs > 0 && timeUs > sourceDurationUs;
+}
+
 export function cueTimeError(
   cue: EditorCue,
   field: CueTimeField,
   value: number,
+  sourceDurationUs = 0,
 ): string | null {
+  if (isPastSourceEnd(value, sourceDurationUs)) {
+    return `${field === "end_us" ? "Out" : "In"} must not be later than the end of the source.`;
+  }
   const startUs = field === "start_us" ? value : cue.start_us;
   const endUs = field === "end_us" ? value : cue.end_us;
   if (endUs >= startUs) return null;
@@ -175,12 +191,10 @@ export function insertCueAfter(
 ): CueEdit {
   const previous = cues[index];
   const following = cues[index + 1];
-  const start = previous?.end_us ?? 0;
+  const start = clampToDuration(previous?.end_us ?? 0, args.sourceDurationUs);
   const availableEnd =
     following?.start_us ??
-    (args.sourceDurationUs > start
-      ? args.sourceDurationUs
-      : start + INSERTED_CUE_DURATION_US);
+    (args.sourceDurationUs > 0 ? args.sourceDurationUs : Infinity);
   const end = Math.max(
     start,
     Math.min(start + INSERTED_CUE_DURATION_US, availableEnd),
@@ -205,21 +219,22 @@ export function deleteCue(cues: readonly EditorCue[], index: number): CueEdit {
   };
 }
 
+// The cue keeps its duration and stops at either edge of the source.
 export function nudgeCue(
   cues: readonly EditorCue[],
   index: number,
   milliseconds: number,
+  sourceDurationUs = 0,
 ): CueEdit {
   const next = copyCues(cues);
   const cue = next[index];
-  const delta = milliseconds * 1_000;
-  if (cue.start_us + delta < 0) {
-    cue.end_us -= cue.start_us;
-    cue.start_us = 0;
-  } else {
-    cue.start_us += delta;
-    cue.end_us += delta;
-  }
+  const durationUs = cue.end_us - cue.start_us;
+  const latestStartUs =
+    sourceDurationUs > 0
+      ? Math.max(0, sourceDurationUs - durationUs)
+      : Infinity;
+  cue.start_us = clamp(cue.start_us + milliseconds * 1_000, 0, latestStartUs);
+  cue.end_us = cue.start_us + durationUs;
   return { cues: sortByStart(next) };
 }
 

@@ -343,6 +343,44 @@ describe("CueEditor.setTimeToPlayhead", () => {
   });
 });
 
+describe("CueEditor source bound", () => {
+  function editorWithSource(sourceDurationUs: number): CueEditor {
+    const editor = newEditor(() => false, sourceDurationUs);
+    editor.loadTrack(
+      trackA,
+      [{ ...cue("a", "first"), start_us: 8_000_000, end_us: 9_000_000 }],
+      1,
+    );
+    return editor;
+  }
+
+  it("stops a nudge at the end of the source", () => {
+    const editor = editorWithSource(9_050_000);
+    editor.nudgeSelected(100);
+
+    expect(editor.cues[0]).toMatchObject({
+      start_us: 8_050_000,
+      end_us: 9_050_000,
+    });
+  });
+
+  it("inserts after the last cue without passing the source", () => {
+    const editor = editorWithSource(9_500_000);
+    editor.insertAfterSelected();
+
+    expect(editor.cues[1]).toMatchObject({
+      start_us: 9_000_000,
+      end_us: 9_500_000,
+    });
+  });
+
+  it("points at a cue that ends after the source", () => {
+    const editor = editorWithSource(8_500_000);
+
+    expect(editor.issues[0]).toContain("Ends after the source");
+  });
+});
+
 describe("CueEditor time errors", () => {
   it("clears an error only from the field that shows it", () => {
     const editor = newEditor();

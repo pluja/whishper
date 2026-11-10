@@ -6,6 +6,7 @@ import { projectForUser } from "$lib/server/projects/access";
 import { insertCues, listTrackCues } from "$lib/server/subtitles/cues";
 import { hasActiveTranscriptionRun } from "$lib/server/transcription/active-run";
 import { isRecord } from "$lib/shared/is-record";
+import { maxCueEndUs } from "$lib/shared/source-duration";
 import type { SubtitleCueSnapshot } from "$lib/shared/subtitles";
 import { isUuid } from "$lib/shared/uuid";
 
@@ -125,16 +126,16 @@ export function updateTrackForUser(
     if (track.revision !== update.revision) {
       throw new TrackRevisionConflict(track.revision);
     }
-    const durationUs =
-      typeof track.metadata.durationUs === "number"
-        ? track.metadata.durationUs
-        : track.mediaDurationUs;
-    if (
-      durationUs !== null &&
-      update.cues.some((cue) => cue.endUs > durationUs)
-    ) {
+    const maxEndUs = maxCueEndUs(
+      track.mediaDurationUs,
+      track.metadata.durationUs,
+    );
+    const lateCueIndex = update.cues.findIndex(
+      (cue) => maxEndUs > 0 && cue.endUs > maxEndUs,
+    );
+    if (lateCueIndex >= 0) {
       throw new TrackValidationError(
-        "Cue timing cannot extend past the source duration.",
+        `Cue ${lateCueIndex + 1} ends after the source.`,
       );
     }
 

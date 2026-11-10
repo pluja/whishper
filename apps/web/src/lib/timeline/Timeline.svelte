@@ -16,7 +16,7 @@
   import type { ProbeState } from "$lib/shared/project-status";
   import { focusableCueIndex, nextRovingIndex } from "./roving-focus";
   import { MAX_ZOOM, TimelineViewport } from "./viewport.svelte";
-  import { chooseWaveformLevel, waveformMatchesDuration } from "./waveform";
+  import { chooseWaveformLevel, waveformFitsTimeline } from "./waveform";
   import { WaveformLoader } from "./waveform-loader.svelte";
 
   type Props = {
@@ -65,7 +65,7 @@
   let waveformMismatch = $derived(
     loader.waveform !== null &&
       durationUs > 0 &&
-      !waveformMatchesDuration(loader.waveform, durationUs),
+      !waveformFitsTimeline(loader.waveform, durationUs),
   );
   let selectedLevel = $derived(
     waveformMismatch || durationUs <= 0

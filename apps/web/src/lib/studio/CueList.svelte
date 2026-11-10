@@ -121,7 +121,13 @@
       label={`Cue ${index + 1} ${edge} time`}
       value={cue[field]}
       max={editor.transport.sourceDurationUs}
-      validate={(microseconds) => cueTimeError(cue, field, microseconds)}
+      validate={(microseconds) =>
+        cueTimeError(
+          cue,
+          field,
+          microseconds,
+          editor.transport.sourceDurationUs,
+        )}
       onchange={(microseconds) => setCueTime(cue.id, field, microseconds)}
       onerror={(message) => reportTimeError(cue.id, field, message)}
       {invalid}

@@ -54,7 +54,11 @@ export class CueEditor {
   );
   hasSelection = $derived(this.selectedCueIndex >= 0);
   issues = $derived.by(() =>
-    cueIssues(this.cues, this.#options.maxLineLength()),
+    cueIssues(
+      this.cues,
+      this.#options.maxLineLength(),
+      this.transport.sourceDurationUs,
+    ),
   );
   issueCount = $derived(
     this.issues.reduce((count, issues) => count + issues.length, 0),
@@ -287,7 +291,7 @@ export class CueEditor {
     const index = this.selectedCueIndex;
     if (index < 0) return;
     this.#apply(
-      nudgeCue(this.cues, index, milliseconds),
+      nudgeCue(this.cues, index, milliseconds, this.transport.sourceDurationUs),
       nudgeHistoryKey(this.cues[index].id),
     );
   }

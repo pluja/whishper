@@ -20,8 +20,7 @@ export function newEditor(
     readOnly,
     transport: {
       frameDurationUs: () => 40_000,
-      preparedDurationUs: () => sourceDurationUs,
-      trackDurationUs: () => 0,
+      maxCueEndUs: () => sourceDurationUs,
     },
   });
 }

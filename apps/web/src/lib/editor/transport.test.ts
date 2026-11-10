@@ -37,8 +37,7 @@ function newTransport(): Transport {
     },
     {
       frameDurationUs: () => 40_000,
-      preparedDurationUs: () => 10_000_000,
-      trackDurationUs: () => 0,
+      maxCueEndUs: () => 10_000_000,
     },
   );
 }
@@ -94,6 +93,27 @@ describe("Transport stopped playback", () => {
   });
 });
 
+describe("Transport.sourceDurationUs", () => {
+  function transportWithLimit(maxCueEndUs: number): Transport {
+    const transport = new Transport(
+      { editing: false, cues: [], selectedCueId: null },
+      { frameDurationUs: () => 40_000, maxCueEndUs: () => maxCueEndUs },
+    );
+    transport.mediaEvents.ondurationchange({
+      currentTarget: fakeMedia(true),
+    } as unknown as Event);
+    return transport;
+  }
+
+  it("is the cue limit when it is known", () => {
+    expect(transportWithLimit(12_000_000).sourceDurationUs).toBe(12_000_000);
+  });
+
+  it("falls back to the media element's duration", () => {
+    expect(transportWithLimit(0).sourceDurationUs).toBe(10_000_000);
+  });
+});
+
 describe("Transport.clampToSource", () => {
   it("keeps a time between zero and the end of the source", () => {
     const transport = newTransport();
@@ -145,8 +165,7 @@ describe("Transport playback selection", () => {
     };
     const transport = new Transport(selection, {
       frameDurationUs: () => 40_000,
-      preparedDurationUs: () => 10_000_000,
-      trackDurationUs: () => 0,
+      maxCueEndUs: () => 10_000_000,
     });
     transport.mediaEvents.ontimeupdate({
       currentTarget: { ...fakeMedia(false), currentTime: 1.5 },

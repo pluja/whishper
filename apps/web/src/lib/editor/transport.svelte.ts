@@ -9,11 +9,10 @@ type CueSelection = {
   readonly editing: boolean;
 };
 
-// Durations are zero when unknown.
+// Zero stands for an unknown limit.
 export type TransportOptions = {
   frameDurationUs: () => number;
-  preparedDurationUs: () => number;
-  trackDurationUs: () => number;
+  maxCueEndUs: () => number;
 };
 
 const DEFAULT_FRAME_DURATION_US = 40_000;
@@ -57,10 +56,10 @@ export class Transport {
   #shuttleDirection: ShuttleDirection = 0;
   #shuttleRate = 1;
 
+  // Cues may span this whole range, so the timeline shows it and every
+  // timing edit stays inside it.
   sourceDurationUs = $derived.by(
-    () =>
-      this.#options.preparedDurationUs() ||
-      Math.max(this.#options.trackDurationUs(), this.mediaDurationUs),
+    () => this.#options.maxCueEndUs() || this.mediaDurationUs,
   );
   playing = $derived(
     this.#mediaPlaying || this.#reverseShuttleTimer !== undefined,

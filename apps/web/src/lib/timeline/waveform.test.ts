@@ -6,7 +6,7 @@ import {
   decodePeaks,
   loadWaveform,
   validateWaveform,
-  waveformMatchesDuration,
+  waveformFitsTimeline,
 } from "./waveform";
 
 function encodePeaks(values: number[]): string {
@@ -71,17 +71,17 @@ describe("validateWaveform", () => {
   });
 });
 
-describe("waveformMatchesDuration", () => {
+describe("waveformFitsTimeline", () => {
   const waveform = validateWaveform(waveformJson());
 
-  it("accepts durations within 50 ms", () => {
-    expect(waveformMatchesDuration(waveform, 2_050_000)).toBe(true);
-    expect(waveformMatchesDuration(waveform, 1_950_000)).toBe(true);
+  it("accepts a timeline as long as the waveform or longer", () => {
+    expect(waveformFitsTimeline(waveform, 2_000_000)).toBe(true);
+    expect(waveformFitsTimeline(waveform, 2_600_000)).toBe(true);
   });
 
-  it("rejects durations further apart", () => {
-    expect(waveformMatchesDuration(waveform, 2_050_001)).toBe(false);
-    expect(waveformMatchesDuration(waveform, 0)).toBe(false);
+  it("allows the waveform to run 50 ms past the timeline", () => {
+    expect(waveformFitsTimeline(waveform, 1_950_000)).toBe(true);
+    expect(waveformFitsTimeline(waveform, 1_949_999)).toBe(false);
   });
 });
 

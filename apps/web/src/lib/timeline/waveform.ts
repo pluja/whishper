@@ -19,7 +19,7 @@ export type DecodedWaveform = {
 };
 
 // Container and decoder durations of the same media routinely differ by a
-// frame or two, so exact equality would reject valid waveforms.
+// frame or two, so a waveform may run this far past the timeline.
 const DURATION_TOLERANCE_US = 50_000;
 
 const BASE64_PATTERN =
@@ -104,11 +104,13 @@ export function validateWaveform(value: unknown): DecodedWaveform {
   };
 }
 
-export function waveformMatchesDuration(
+// The timeline runs past the media when a transcript ends later than the
+// probe measured, so only a waveform longer than the timeline is out of place.
+export function waveformFitsTimeline(
   waveform: DecodedWaveform,
-  durationUs: number,
+  timelineDurationUs: number,
 ): boolean {
-  return Math.abs(waveform.durationUs - durationUs) <= DURATION_TOLERANCE_US;
+  return waveform.durationUs <= timelineDurationUs + DURATION_TOLERANCE_US;
 }
 
 export function chooseWaveformLevel(

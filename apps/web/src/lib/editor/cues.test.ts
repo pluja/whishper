@@ -59,6 +59,15 @@ describe("cueIssues", () => {
     expect(cueIssues([cue("a", 1, 1)], 42)).toEqual([["No duration"]]);
   });
 
+  it("flags a cue that ends after the source, once the source is known", () => {
+    const cues = track(cue("a", 0, 2), cue("b", 9, 10.5));
+    expect(cueIssues(cues, 42, 10_000_000)).toEqual([
+      [],
+      ["Ends after the source"],
+    ]);
+    expect(cueIssues(cues, 42, 0)).toEqual([[], []]);
+  });
+
   it("flags overlap on both sides, including non adjacent cues", () => {
     const cues = track(
       cue("long", 0, 6),
@@ -179,6 +188,26 @@ describe("insertCueAfter", () => {
     expect(result.cues[1].end_us).toBe(1_200_000);
   });
 
+  it("never reaches past the end of the source", () => {
+    const atEnd = insertCueAfter(track(cue("a", 0, 10)), 0, {
+      sourceDurationUs: 10_000_000,
+      newId: "new",
+    });
+    expect(atEnd.cues[1]).toMatchObject({
+      start_us: 10_000_000,
+      end_us: 10_000_000,
+    });
+
+    const pastEnd = insertCueAfter(track(cue("a", 0, 10.5)), 0, {
+      sourceDurationUs: 10_000_000,
+      newId: "new",
+    });
+    expect(pastEnd.cues[1]).toMatchObject({
+      start_us: 10_000_000,
+      end_us: 10_000_000,
+    });
+  });
+
   it("starts an empty track at zero", () => {
     const result = insertCueAfter([], -1, {
       sourceDurationUs: 0,
@@ -223,6 +252,14 @@ describe("nudgeCue", () => {
   it("clamps at zero while keeping the duration", () => {
     const result = nudgeCue(track(cue("a", 0.05, 1)), 0, -100);
     expect(result.cues[0]).toMatchObject({ start_us: 0, end_us: 950_000 });
+  });
+
+  it("stops at the end of the source while keeping the duration", () => {
+    const result = nudgeCue(track(cue("a", 8.95, 9.95)), 0, 100, 10_000_000);
+    expect(result.cues[0]).toMatchObject({
+      start_us: 9_000_000,
+      end_us: 10_000_000,
+    });
   });
 
   it("reorders a cue nudged past its neighbour", () => {
@@ -319,5 +356,13 @@ describe("cueTimeError", () => {
     expect(cueTimeError(timed, "start_us", 5_000_000)).toBe(
       "In must not be later than Out.",
     );
+  });
+
+  it("rejects a time after the end of the source", () => {
+    expect(cueTimeError(timed, "end_us", 5_000_000, 5_000_000)).toBeNull();
+    expect(cueTimeError(timed, "end_us", 5_000_001, 5_000_000)).toBe(
+      "Out must not be later than the end of the source.",
+    );
+    expect(cueTimeError(timed, "end_us", 9_000_000, 0)).toBeNull();
   });
 });

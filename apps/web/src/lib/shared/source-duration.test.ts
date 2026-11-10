@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { clampToDuration, knownDurationUs } from "./source-duration";
+import {
+  clampToDuration,
+  knownDurationUs,
+  maxCueEndUs,
+} from "./source-duration";
 
 describe("knownDurationUs", () => {
   it("keeps positive safe integers, including numeric strings", () => {
@@ -14,6 +18,19 @@ describe("knownDurationUs", () => {
       expect(knownDurationUs(value)).toBe(0);
     },
   );
+});
+
+describe("maxCueEndUs", () => {
+  it("allows cues up to the longer of the media and the transcript", () => {
+    expect(maxCueEndUs(10_000_000, 10_400_000)).toBe(10_400_000);
+    expect(maxCueEndUs(10_000_000, 9_000_000)).toBe(10_000_000);
+  });
+
+  it("uses whichever duration is known, or zero when neither is", () => {
+    expect(maxCueEndUs(null, 9_000_000)).toBe(9_000_000);
+    expect(maxCueEndUs(10_000_000, undefined)).toBe(10_000_000);
+    expect(maxCueEndUs(null, undefined)).toBe(0);
+  });
 });
 
 describe("clampToDuration", () => {
