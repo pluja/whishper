@@ -116,7 +116,6 @@
         class="inline-flex items-center gap-1.5 text-xs {saveProblem
           ? 'text-danger'
           : 'text-text-muted'}"
-        aria-live="polite"
       >
         {#if autosave.state === "saving"}
           <span

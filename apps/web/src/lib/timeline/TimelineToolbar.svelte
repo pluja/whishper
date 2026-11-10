@@ -30,10 +30,10 @@
       class="text-[0.6875rem] font-semibold tracking-wide text-text-muted uppercase"
       >Timeline</strong
     >
-    <output
-      class="font-mono text-xs text-text-muted tabular-nums max-sm:hidden"
-      aria-label="Current playback time">{formatEditorTime(playbackUs)}</output
-    >
+    <span class="font-mono text-xs text-text-muted tabular-nums max-sm:hidden">
+      <span class="sr-only">Playback time</span>
+      {formatEditorTime(playbackUs)}
+    </span>
   </div>
   <div
     bind:this={toolbarFocus.element}

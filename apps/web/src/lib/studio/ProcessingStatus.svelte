@@ -19,9 +19,10 @@
   progress: number | null,
   cancelAction?: string,
 )}
-  <div class="grid gap-2 border-b border-border px-4 py-2.5" aria-live="polite">
+  <div class="grid gap-2 border-b border-border px-4 py-2.5">
     <div class="flex items-center gap-3">
-      <p class="min-w-0 flex-1 truncate text-sm text-text">
+      <!-- Only the stage is live: the percentage would be read out on every update. -->
+      <p class="min-w-0 flex-1 truncate text-sm text-text" aria-live="polite">
         <span class="text-xs font-medium text-accent">{stage}</span>
         <span class="text-text-muted" aria-hidden="true">·</span>
         {message}

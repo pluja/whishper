@@ -169,21 +169,25 @@
     {/if}
   {/if}
 </div>
-{#if editor.autosave.message}
-  {@const failed = saveState === "error" || saveState === "conflict"}
-  <div
-    class={[
-      "flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-1 text-sm",
-      failed ? "bg-danger-soft text-danger" : "bg-accent-soft text-text",
-    ]}
-  >
-    <span class="min-w-0 py-1">{editor.autosave.message}</span>
-    {#if saveState === "error" && !editor.readOnly}
-      <Button size="sm" onclick={() => void editor.autosave.flush()}
-        >Retry</Button
-      >
-    {:else if saveState === "conflict"}
-      <Button size="sm" onclick={() => location.reload()}>Reload</Button>
-    {/if}
-  </div>
-{/if}
+<!-- The save status itself changes with every edit, so only these messages are
+     announced. The live region stays mounted so a new message is read out. -->
+<div role="status" class="shrink-0">
+  {#if editor.autosave.message}
+    {@const failed = saveState === "error" || saveState === "conflict"}
+    <div
+      class={[
+        "flex items-center justify-between gap-3 border-b border-border px-4 py-1 text-sm",
+        failed ? "bg-danger-soft text-danger" : "bg-accent-soft text-text",
+      ]}
+    >
+      <span class="min-w-0 py-1">{editor.autosave.message}</span>
+      {#if saveState === "error" && !editor.readOnly}
+        <Button size="sm" onclick={() => void editor.autosave.flush()}
+          >Retry</Button
+        >
+      {:else if saveState === "conflict"}
+        <Button size="sm" onclick={() => location.reload()}>Reload</Button>
+      {/if}
+    </div>
+  {/if}
+</div>
