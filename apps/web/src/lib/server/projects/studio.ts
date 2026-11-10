@@ -15,6 +15,7 @@ import type {
   StudioPreparation,
   StudioProject,
   StudioRun,
+  StudioStatus,
 } from "$lib/shared/studio-data";
 
 const JOB_PROGRESS = {
@@ -69,7 +70,6 @@ export function latestRun(
       status: transcriptionRuns.status,
       adapterId: transcriptionRuns.adapterId,
       modelId: transcriptionRuns.modelId,
-      createdAt: transcriptionRuns.createdAt,
     })
     .from(transcriptionRuns)
     .where(eq(transcriptionRuns.projectId, projectId))
@@ -105,6 +105,16 @@ export function latestMediaPreparation(
     .limit(1)
     .get();
   return job ?? null;
+}
+
+export function studioStatus(
+  executor: Executor,
+  projectId: string,
+): StudioStatus {
+  return {
+    run: latestRun(executor, projectId),
+    preparation: latestMediaPreparation(executor, projectId),
+  };
 }
 
 export function readyDerivatives(

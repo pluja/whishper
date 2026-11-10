@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { derivativeUrl, editorCues, isEditingLocked } from "./project-view";
+import {
+  derivativeUrl,
+  editorCues,
+  isEditingLocked,
+  processingStateChanged,
+} from "./project-view";
 import type { StudioData } from "$lib/shared/studio-data";
 
 describe("editorCues", () => {
@@ -49,5 +54,54 @@ describe("isEditingLocked", () => {
 
   it("has nothing to lock before the first track exists", () => {
     expect(isEditingLocked(null, { status: "running" })).toBe(false);
+  });
+});
+
+describe("processingStateChanged", () => {
+  const progress = {
+    progress: 0.2,
+    progressMessage: "Transcribing",
+    error: null,
+  };
+  const run = {
+    ...progress,
+    id: "run",
+    status: "running",
+    adapterId: "whisperx",
+    modelId: "small",
+    jobState: "leased",
+  };
+  const preparation = { ...progress, state: "running" };
+  const status = { run, preparation };
+
+  it("ignores progress within the same state", () => {
+    expect(
+      processingStateChanged(status, {
+        run: { ...run, progress: 0.6, progressMessage: "Aligning" },
+        preparation: { ...preparation, progress: 0.9 },
+      }),
+    ).toBe(false);
+  });
+
+  it("notices a finished run, a new run or a changed preparation", () => {
+    expect(
+      processingStateChanged(status, {
+        ...status,
+        run: { ...run, status: "completed" },
+      }),
+    ).toBe(true);
+    expect(
+      processingStateChanged(status, {
+        ...status,
+        run: { ...run, id: "next" },
+      }),
+    ).toBe(true);
+    expect(
+      processingStateChanged(status, {
+        ...status,
+        preparation: { ...preparation, state: "completed" },
+      }),
+    ).toBe(true);
+    expect(processingStateChanged(status, { ...status, run: null })).toBe(true);
   });
 });

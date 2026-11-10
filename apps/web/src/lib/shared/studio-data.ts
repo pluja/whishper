@@ -39,11 +39,15 @@ export type StudioRun = JobProgress & {
   status: string;
   adapterId: string;
   modelId: string;
-  createdAt: Date;
   jobState: string | null;
 };
 
 export type StudioPreparation = JobProgress & { state: string };
+
+export type StudioStatus = {
+  run: StudioRun | null;
+  preparation: StudioPreparation | null;
+};
 
 export type StudioDerivative = {
   kind: MediaDerivativeKind;

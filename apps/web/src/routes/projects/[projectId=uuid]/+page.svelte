@@ -11,12 +11,15 @@
   import { frameDurationUs } from "$lib/editor/transport.svelte";
   import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
   import { isRunActive, isStudioActive } from "$lib/shared/project-status";
+  import { projectStatusUrl } from "$lib/shared/routes";
   import { maxCueEndUs } from "$lib/shared/source-duration";
+  import type { StudioData, StudioStatus } from "$lib/shared/studio-data";
   import MediaMonitor from "$lib/studio/MediaMonitor.svelte";
   import {
     derivativeUrl,
     editorCues,
     isEditingLocked,
+    processingStateChanged,
   } from "$lib/studio/project-view";
   import ShortcutGuide from "$lib/studio/ShortcutGuide.svelte";
   import StudioTitlebar from "$lib/studio/StudioTitlebar.svelte";
@@ -26,7 +29,33 @@
 
   let { data, form } = $props();
 
-  pollWhileActive(() => isStudioActive(data), 1_500);
+  // A poll applies only to the page data it was taken against, so a full
+  // reload replaces it.
+  let polled = $state.raw<{ loaded: StudioData; status: StudioStatus }>();
+  let status: StudioStatus = $derived(
+    polled?.loaded === data
+      ? polled.status
+      : { run: data.run, preparation: data.preparation },
+  );
+
+  pollWhileActive(() => isStudioActive(status), 1_500, refreshStatus);
+
+  async function refreshStatus(): Promise<void> {
+    const loaded = data;
+    let response: Response;
+    try {
+      response = await fetch(projectStatusUrl(loaded.project.id), {
+        cache: "no-store",
+      });
+    } catch {
+      return; // Offline for now: the next poll tries again.
+    }
+    if (!response.ok) return invalidateAll();
+    const next: StudioStatus = await response.json();
+    if (data !== loaded) return;
+    if (processingStateChanged(status, next)) return invalidateAll();
+    polled = { loaded, status: next };
+  }
 
   let shortcutGuideOpen = $state(false);
   let transcribeDialogOpen = $state(false);
@@ -41,7 +70,7 @@
   const editor = new CueEditor({
     cues: untrack(() => editorCues(data.cues)),
     maxLineLength: () => maxLineLength,
-    readOnly: () => isEditingLocked(data.track, data.run),
+    readOnly: () => isEditingLocked(data.track, status.run),
     transport: {
       frameDurationUs: () =>
         frameDurationUs(
@@ -154,7 +183,7 @@
     track={data.track}
     derivativeKinds={data.derivatives.map((derivative) => derivative.kind)}
     autosave={editor.autosave}
-    canRetranscribe={hasTrackAndMedia && !isRunActive(data.run)}
+    canRetranscribe={hasTrackAndMedia && !isRunActive(status.run)}
     onretranscribe={() => (transcribeDialogOpen = true)}
     onopenshortcuts={() => (shortcutGuideOpen = true)}
   />
@@ -202,8 +231,8 @@
     <TranscriptPanel
       {editor}
       track={data.track}
-      run={data.run}
-      preparation={data.preparation}
+      run={status.run}
+      preparation={status.preparation}
       mediaPreparationStatus={data.project.mediaPreparationStatus}
       hasSourceMedia={data.project.hasSourceMedia}
       transcriptionModels={data.transcriptionModels}

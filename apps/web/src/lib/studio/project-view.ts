@@ -3,7 +3,7 @@ import type { MediaDerivativeKind } from "@anysub/contracts";
 import type { EditorCue } from "$lib/editor/cues";
 import { isRunActive } from "$lib/shared/project-status";
 import type { SubtitleCueSnapshot } from "$lib/shared/subtitles";
-import type { StudioData } from "$lib/shared/studio-data";
+import type { StudioData, StudioStatus } from "$lib/shared/studio-data";
 
 export function editorCues(cues: readonly SubtitleCueSnapshot[]): EditorCue[] {
   return cues.map((cue) => ({
@@ -30,4 +30,18 @@ export function isEditingLocked(
   run: { status: string } | null,
 ): boolean {
   return track !== null && isRunActive(run);
+}
+
+// Progress within a state is shown from the status alone; a new run or a
+// changed state can bring a new track, derivatives or editing lock, so it
+// reloads the whole studio.
+export function processingStateChanged(
+  previous: StudioStatus,
+  next: StudioStatus,
+): boolean {
+  return (
+    previous.run?.id !== next.run?.id ||
+    previous.run?.status !== next.run?.status ||
+    previous.preparation?.state !== next.preparation?.state
+  );
 }

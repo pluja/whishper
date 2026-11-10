@@ -10,6 +10,7 @@ import {
   latestRun,
   readyDerivatives,
   studioProject,
+  studioStatus,
 } from "$lib/server/projects/studio";
 
 describe("studio queries", () => {
@@ -49,5 +50,9 @@ describe("studio queries", () => {
     expect(latestRun(db, project.projectId)).toBeNull();
     expect(latestMediaPreparation(db, project.projectId)).toBeNull();
     expect(readyDerivatives(db, project.projectId)).toEqual([]);
+    expect(studioStatus(db, project.projectId)).toEqual({
+      run: null,
+      preparation: null,
+    });
   });
 });

@@ -23,6 +23,10 @@ export function projectCaptionsUrl(projectId: string): string {
   return `${projectApiUrl(projectId)}/captions.vtt`;
 }
 
+export function projectStatusUrl(projectId: string): string {
+  return `${projectApiUrl(projectId)}/status`;
+}
+
 export function projectDerivativeUrl(
   projectId: string,
   kind: MediaDerivativeKind,
