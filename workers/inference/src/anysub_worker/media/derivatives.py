@@ -76,7 +76,7 @@ async def generate_thumbnail(
                     "-frames:v",
                     "1",
                     "-vf",
-                    f"scale={THUMBNAIL_MAX_WIDTH}:-2:force_original_aspect_ratio=decrease",
+                    f"scale='min({THUMBNAIL_MAX_WIDTH},iw)':-2",
                     "-q:v",
                     "3",
                     str(path),
