@@ -29,8 +29,8 @@ function cueSnapshot(cues: readonly EditorCue[], cueId: string): string {
 }
 
 export class CueHistory {
-  undoStack = $state<EditorCue[][]>([]);
-  redoStack = $state<EditorCue[][]>([]);
+  undoStack = $state.raw<EditorCue[][]>([]);
+  redoStack = $state.raw<EditorCue[][]>([]);
   #session: EditSession | null = null;
   #lastCoalesced: { key: string; at: number } | null = null;
 
