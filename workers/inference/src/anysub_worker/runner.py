@@ -3,10 +3,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import random
 import signal
 from collections.abc import Callable
-from typing import Protocol
+from typing import NoReturn, Protocol
 
 import httpx
 from pydantic import ValidationError
@@ -74,6 +75,16 @@ async def run_forever(settings: WorkerSettings, registry: AdapterRegistry) -> No
         for signum in SHUTDOWN_SIGNALS:
             loop.remove_signal_handler(signum)
         await client.close()
+    if has_abandoned_threads():
+        _exit_without_joining_threads()
+
+
+def _exit_without_joining_threads() -> NoReturn:
+    # Interpreter shutdown joins every executor thread, and abandoned inference
+    # can run for hours, so a normal exit would last until the container is killed.
+    LOGGER.info("exiting without waiting for abandoned inference")
+    logging.shutdown()
+    os._exit(0)
 
 
 class LeasingClient(JobClient, Protocol):

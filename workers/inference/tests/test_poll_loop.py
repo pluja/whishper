@@ -21,7 +21,7 @@ from anysub_worker.models import (
     WorkerLease,
 )
 from anysub_worker.registry import AdapterRegistry
-from anysub_worker.threads import run_in_thread
+from anysub_worker.threads import run_in_thread, wait_for_abandoned_threads
 
 
 class LeaseOnceClient(RecordingClient):
@@ -118,6 +118,51 @@ async def test_sigterm_stops_the_worker_and_closes_the_client(
     await asyncio.wait_for(runner.run_forever(settings, AdapterRegistry(())), timeout=2)
 
     assert IdleClient.closed
+
+
+async def test_sigterm_during_inference_exits_once_the_failure_is_reported(
+    settings: WorkerSettings,
+    monkeypatch: pytest.MonkeyPatch,
+    transcription_lease: WorkerLease,
+) -> None:
+    release_thread = threading.Event()
+
+    def blocking_inference() -> None:
+        os.kill(os.getpid(), signal.SIGTERM)
+        release_thread.wait(timeout=5)
+
+    class ThreadedAdapter(FakeAdapter):
+        async def transcribe(
+            self, request: TranscriptionRequest, report_progress: ProgressReporter
+        ) -> TranscriptArtifact:
+            await run_in_thread(blocking_inference)
+            return await super().transcribe(request, report_progress)
+
+    class LeaseOnceApplicationClient(LeaseOnceClient):
+        worker_id = "worker-1"
+        hardware_summary = "device=cpu"
+
+        async def close(self) -> None:
+            pass
+
+    client = LeaseOnceApplicationClient(transcription_lease)
+    failures_reported_at_exit: list[int] = []
+    monkeypatch.setattr(runner, "ApplicationClient", lambda *_args: client)
+    monkeypatch.setattr(
+        runner,
+        "_exit_without_joining_threads",
+        lambda: failures_reported_at_exit.append(len(client.failures)),
+    )
+
+    try:
+        await asyncio.wait_for(
+            runner.run_forever(settings, AdapterRegistry((ThreadedAdapter(),))), timeout=5
+        )
+    finally:
+        release_thread.set()
+        await wait_for_abandoned_threads()
+
+    assert failures_reported_at_exit == [1]
 
 
 async def test_unexpected_execute_errors_do_not_kill_the_poll_loop(
