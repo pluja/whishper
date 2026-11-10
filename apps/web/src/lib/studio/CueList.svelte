@@ -13,6 +13,7 @@
     type EditorCue,
   } from "$lib/editor/cues";
   import type { CueEditor } from "$lib/editor/editor.svelte";
+  import { shortcutAriaKeys, shortcutLabel } from "$lib/editor/shortcuts";
   import { CUE_TIME_ERROR_ID } from "./cue-status";
   import { revealOffset } from "./reveal";
 
@@ -53,8 +54,8 @@
   });
 
   const TIME_FIELDS = {
-    start_us: { edge: "start", shortcut: "I" },
-    end_us: { edge: "end", shortcut: "O" },
+    start_us: { edge: "start", shortcut: "set-start" },
+    end_us: { edge: "end", shortcut: "set-end" },
   } as const;
   const timecodeHintId = `${uid}-timecode-hint`;
 
@@ -147,7 +148,8 @@
       size="xs"
       icon="playhead"
       label={`Set ${edge} to playhead`}
-      {shortcut}
+      shortcut={shortcutLabel(shortcut)}
+      aria-keyshortcuts={shortcutAriaKeys(shortcut)}
       class={selected ? undefined : "invisible"}
       disabled={editor.readOnly}
       onclick={(event) =>

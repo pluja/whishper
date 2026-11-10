@@ -4,6 +4,7 @@ type ShortcutDefinition = {
   id: string;
   keys: readonly string[];
   description: string;
+  ariaKeys?: string; // aria-keyshortcuts of the control that runs it
 };
 
 export type ShortcutGroup = {
@@ -58,7 +59,7 @@ const SINGLE_PRESS_KEYS = new Set([
   "backspace",
 ]);
 
-export const shortcutGroups: readonly ShortcutGroup[] = [
+export const shortcutGroups = [
   {
     title: "Playback",
     shortcuts: [
@@ -116,31 +117,37 @@ export const shortcutGroups: readonly ShortcutGroup[] = [
         id: "split",
         keys: ["Ctrl/Command", "K"],
         description: "Split the selected cue",
+        ariaKeys: "Control+K Meta+K",
       },
       {
         id: "set-start",
         keys: ["I"],
         description: "Set the selected cue's start to the playhead",
+        ariaKeys: "I",
       },
       {
         id: "set-end",
         keys: ["O"],
         description: "Set the selected cue's end to the playhead",
+        ariaKeys: "O",
       },
       {
         id: "delete",
         keys: ["Shift", "Delete / Backspace"],
         description: "Deliberately delete the selected cue",
+        ariaKeys: "Shift+Delete Shift+Backspace",
       },
       {
         id: "undo",
         keys: ["Ctrl/Command", "Z"],
         description: "Undo the last cue edit; text fields keep their own undo",
+        ariaKeys: "Control+Z Meta+Z",
       },
       {
         id: "redo",
         keys: ["Ctrl/Command", "Shift", "Z"],
         description: "Redo the last edit; Ctrl/Command+Y also works",
+        ariaKeys: "Control+Y Control+Shift+Z Meta+Shift+Z",
       },
       {
         id: "save",
@@ -225,7 +232,30 @@ export const shortcutGroups: readonly ShortcutGroup[] = [
       },
     ],
   },
-];
+] as const satisfies readonly ShortcutGroup[];
+
+export type ShortcutId =
+  (typeof shortcutGroups)[number]["shortcuts"][number]["id"];
+
+const shortcutsById: ReadonlyMap<string, ShortcutDefinition> = new Map(
+  shortcutGroups.flatMap((group) =>
+    group.shortcuts.map((shortcut) => [shortcut.id, shortcut] as const),
+  ),
+);
+
+function shortcutDefinition(id: ShortcutId): ShortcutDefinition {
+  const shortcut = shortcutsById.get(id);
+  if (!shortcut) throw new Error(`Unknown shortcut: ${id}`);
+  return shortcut;
+}
+
+export function shortcutLabel(id: ShortcutId): string {
+  return shortcutDefinition(id).keys.join("+");
+}
+
+export function shortcutAriaKeys(id: ShortcutId): string | undefined {
+  return shortcutDefinition(id).ariaKeys;
+}
 
 function matchesClosest(target: EventTarget | null, selector: string): boolean {
   return target instanceof Element && target.closest(selector) !== null;

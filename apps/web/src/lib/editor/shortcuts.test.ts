@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { handleStudioKeydown, type StudioCommands } from "./shortcuts";
+import {
+  handleStudioKeydown,
+  shortcutAriaKeys,
+  shortcutGroups,
+  shortcutLabel,
+  type StudioCommands,
+} from "./shortcuts";
 
 // Matches the selectors of the element itself and its ancestors.
 class FakeElement {
@@ -246,5 +252,24 @@ describe("handleStudioKeydown", () => {
     expect(studio.transport.playForwardAtNormalRate).not.toHaveBeenCalled();
     press(keydown("k"), studio);
     expect(studio.transport.playForwardAtNormalRate).toHaveBeenCalledOnce();
+  });
+});
+
+describe("shortcut hints", () => {
+  it("spell a shortcut the way the guide does", () => {
+    expect(shortcutLabel("redo")).toBe("Ctrl/Command+Shift+Z");
+    expect(shortcutLabel("set-start")).toBe("I");
+  });
+
+  it("expose every key combination to assistive technology", () => {
+    expect(shortcutAriaKeys("delete")).toBe("Shift+Delete Shift+Backspace");
+    expect(shortcutAriaKeys("timeline-move")).toBeUndefined();
+  });
+
+  it("are looked up by ids that the guide never repeats", () => {
+    const ids = shortcutGroups.flatMap((group) =>
+      group.shortcuts.map((shortcut) => shortcut.id),
+    );
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

@@ -5,14 +5,18 @@
   import type { IconName } from "$lib/components/icon-names";
   import { charactersPerSecond } from "$lib/editor/cues";
   import type { CueEditor } from "$lib/editor/editor.svelte";
+  import {
+    shortcutAriaKeys,
+    shortcutLabel,
+    type ShortcutId,
+  } from "$lib/editor/shortcuts";
   import { pluralize } from "$lib/shared/format";
   import { CUE_TIME_ERROR_ID } from "./cue-status";
 
   type ToolbarAction = {
     label: string;
     icon?: IconName;
-    keyshortcuts?: string;
-    shortcut?: string;
+    shortcut?: ShortcutId;
     disabled: boolean;
     run: () => void;
   };
@@ -28,16 +32,14 @@
       {
         label: "Undo",
         icon: "undo",
-        keyshortcuts: "Control+Z Meta+Z",
-        shortcut: "Ctrl/⌘+Z",
+        shortcut: "undo",
         disabled: !editor.canUndo,
         run: () => editor.undo(),
       },
       {
         label: "Redo",
         icon: "redo",
-        keyshortcuts: "Control+Y Control+Shift+Z Meta+Shift+Z",
-        shortcut: "Ctrl/⌘+Shift+Z",
+        shortcut: "redo",
         disabled: !editor.canRedo,
         run: () => editor.redo(),
       },
@@ -46,8 +48,7 @@
       {
         label: "Split cue",
         icon: "scissors",
-        keyshortcuts: "Control+K Meta+K",
-        shortcut: "Ctrl/⌘+K",
+        shortcut: "split",
         disabled: editDisabled,
         run: () => editor.splitSelected(),
       },
@@ -67,8 +68,7 @@
       {
         label: "Delete selected cue",
         icon: "trash",
-        keyshortcuts: "Shift+Delete Shift+Backspace",
-        shortcut: "Shift+Delete",
+        shortcut: "delete",
         disabled: editDisabled,
         run: () => editor.deleteSelected(),
       },
@@ -113,9 +113,10 @@
           <IconButton
             label={action.label}
             icon={action.icon}
-            shortcut={action.shortcut}
+            shortcut={action.shortcut && shortcutLabel(action.shortcut)}
             size="sm"
-            aria-keyshortcuts={action.keyshortcuts}
+            aria-keyshortcuts={action.shortcut &&
+              shortcutAriaKeys(action.shortcut)}
             tabindex={toolbarFocus.tabIndex(index)}
             disabled={action.disabled}
             onclick={action.run}
@@ -164,7 +165,7 @@
     {/if}
     {#if !editor.readOnly}
       <span class="hidden min-w-0 shrink-[999] truncate @min-[34rem]:block"
-        >Ctrl/⌘ S to save · Ctrl/⌘ Z to undo</span
+        >{shortcutLabel("save")} to save · {shortcutLabel("undo")} to undo</span
       >
     {/if}
   {/if}
