@@ -29,6 +29,7 @@
 
   const id = $props.id();
   let returnFocusTo: HTMLElement | null = null;
+  let pressedOnBackdrop = false;
 
   // Runs before the modal attachment calls showModal, while focus is still on the opener.
   $effect.pre(() => {
@@ -41,8 +42,17 @@
     if (!dismissible) event.preventDefault();
   }
 
+  // A text selection dragged out of the dialog ends with a click on the
+  // backdrop, so the press must have started there too.
+  function handlePointerDown(event: PointerEvent) {
+    pressedOnBackdrop = event.target === event.currentTarget;
+  }
+
   function handleBackdropClick(event: MouseEvent) {
-    if (dismissible && event.target === event.currentTarget) open = false;
+    const clickedBackdrop =
+      pressedOnBackdrop && event.target === event.currentTarget;
+    pressedOnBackdrop = false;
+    if (dismissible && clickedBackdrop) open = false;
   }
 
   // Chromium closes a modal on a repeated Escape even after cancel was
@@ -64,6 +74,7 @@
   closedby={dismissible ? "closerequest" : "none"}
   oncancel={handleCancel}
   onclose={handleClose}
+  onpointerdown={handlePointerDown}
   onclick={handleBackdropClick}
   aria-labelledby="{id}-title"
   aria-describedby={description ? `${id}-description` : undefined}
