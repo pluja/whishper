@@ -6,6 +6,7 @@ import {
   decodePeaks,
   loadWaveform,
   validateWaveform,
+  WaveformError,
   waveformFitsTimeline,
 } from "./waveform";
 
@@ -46,6 +47,7 @@ describe("decodePeaks", () => {
   });
 
   it("rejects malformed or mis-sized data", () => {
+    expect(() => decodePeaks("", 1)).toThrow(WaveformError);
     expect(() => decodePeaks("", 1)).toThrow("not valid base64");
     expect(() => decodePeaks("ab$=", 1)).toThrow("not valid base64");
     expect(() => decodePeaks(encodePeaks([1, 2]), 2)).toThrow(

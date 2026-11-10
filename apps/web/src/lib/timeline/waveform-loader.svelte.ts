@@ -1,4 +1,4 @@
-import { loadWaveform, type DecodedWaveform } from "./waveform";
+import { loadWaveform, WaveformError, type DecodedWaveform } from "./waveform";
 
 export type LoadState = "idle" | "loading" | "ready" | "failed";
 
@@ -28,7 +28,7 @@ export class WaveformLoader {
         if (controller.signal.aborted) return;
         this.state = "failed";
         this.error =
-          cause instanceof Error && cause.message.startsWith("Waveform")
+          cause instanceof WaveformError
             ? cause.message
             : "Waveform data is invalid or unavailable.";
       });

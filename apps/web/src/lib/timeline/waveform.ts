@@ -2,6 +2,10 @@ import { MEDIA_PREPARATION_VERSION } from "@anysub/contracts";
 
 import { isRecord } from "$lib/shared/is-record";
 
+// Its message explains the problem to the user, unlike a network or parse
+// failure, which only gets a general message.
+export class WaveformError extends Error {}
+
 export type DecodedWaveformLevel = {
   samplesPerPeak: number;
   peaksPerSecond: number;
@@ -31,17 +35,17 @@ export function decodePeaks(data: string, expectedLength: number): Int8Array {
     data.length % 4 !== 0 ||
     !BASE64_PATTERN.test(data)
   ) {
-    throw new Error("Waveform peak data is not valid base64.");
+    throw new WaveformError("Waveform peak data is not valid base64.");
   }
 
   let binary: string;
   try {
     binary = atob(data);
   } catch {
-    throw new Error("Waveform peak data could not be decoded.");
+    throw new WaveformError("Waveform peak data could not be decoded.");
   }
   if (binary.length !== expectedLength * 2) {
-    throw new Error("Waveform peak data has an unexpected length.");
+    throw new WaveformError("Waveform peak data has an unexpected length.");
   }
 
   const peaks = new Int8Array(binary.length);
@@ -63,7 +67,7 @@ function validateLevel(candidate: unknown): DecodedWaveformLevel {
     (candidate.length as number) <= 0 ||
     typeof candidate.data !== "string"
   ) {
-    throw new Error("Waveform JSON contains an invalid level.");
+    throw new WaveformError("Waveform JSON contains an invalid level.");
   }
 
   const length = candidate.length as number;
@@ -89,7 +93,7 @@ export function validateWaveform(value: unknown): DecodedWaveform {
     !Array.isArray(value.levels) ||
     value.levels.length === 0
   ) {
-    throw new Error(
+    throw new WaveformError(
       `Waveform JSON does not match schema ${MEDIA_PREPARATION_VERSION}.`,
     );
   }
@@ -141,7 +145,9 @@ export async function loadWaveform(
 ): Promise<DecodedWaveform> {
   const response = await fetch(url, { signal, credentials: "same-origin" });
   if (!response.ok) {
-    throw new Error(`Waveform request failed with status ${response.status}.`);
+    throw new WaveformError(
+      `Waveform request failed with status ${response.status}.`,
+    );
   }
   return validateWaveform(await response.json());
 }
