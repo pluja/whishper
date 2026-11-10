@@ -10,6 +10,7 @@ import {
 } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { holdsActiveLease } from "$lib/server/jobs/predicates";
+import { RELEASED_LEASE } from "$lib/server/jobs/release";
 import { cleanupStagedMediaAttempt } from "$lib/server/media/artifact-staging";
 
 const RETRY_DELAY_MS = 5_000;
@@ -65,9 +66,7 @@ export async function failJob(
         }),
         error: failure,
         progressMessage: failure.message,
-        leasedBy: null,
-        leaseTokenHash: null,
-        leaseExpiresAt: null,
+        ...RELEASED_LEASE,
       })
       .where(eq(jobs.id, jobId))
       .run();
@@ -101,9 +100,7 @@ export function reclaimExpiredLeases(tx: Executor): ReclaimedMediaAttempt[] {
       .set({
         state: retry ? "queued" : "failed",
         availableAt: now,
-        leasedBy: null,
-        leaseTokenHash: null,
-        leaseExpiresAt: null,
+        ...RELEASED_LEASE,
         progressMessage: retry
           ? LEASE_EXPIRED_RETRY_MESSAGE
           : LEASE_EXPIRED_FAILURE.message,

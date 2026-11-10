@@ -12,6 +12,7 @@ import { jobs, subtitleTracks, transcriptionRuns } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { unprocessable } from "$lib/server/http/errors";
 import { holdsActiveLease } from "$lib/server/jobs/predicates";
+import { RELEASED_LEASE } from "$lib/server/jobs/release";
 import {
   commitMediaFinalization,
   linkMediaArtifacts,
@@ -139,8 +140,7 @@ function markCompleted(
       progress: 1,
       progressMessage: "Completed",
       completedAt: now,
-      leaseTokenHash: null,
-      leaseExpiresAt: null,
+      ...RELEASED_LEASE,
     })
     .where(eq(jobs.id, jobId))
     .run();

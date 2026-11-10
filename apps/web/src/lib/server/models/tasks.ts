@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { jobs } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { conflict, notFound } from "$lib/server/http/errors";
-import { isActiveJob } from "$lib/server/jobs/predicates";
+import { cancelActiveJobs } from "$lib/server/jobs/release";
 import { workerModelInventories } from "$lib/server/models/inventory";
 import { formatBytes } from "$lib/shared/format";
 
@@ -78,18 +78,9 @@ export function requestModelTask(request: ModelTaskRequest): void {
 export function cancelModelTask(jobId: string): boolean {
   return withTransaction(
     (tx) =>
-      tx
-        .update(jobs)
-        .set({
-          state: "cancelled",
-          leaseTokenHash: null,
-          leaseExpiresAt: null,
-          progressMessage: "Cancelled",
-        })
-        .where(
-          and(eq(jobs.id, jobId), eq(jobs.kind, "model_cache"), isActiveJob),
-        )
-        .returning({ id: jobs.id })
-        .all().length > 0,
+      cancelActiveJobs(
+        tx,
+        and(eq(jobs.id, jobId), eq(jobs.kind, "model_cache")),
+      ).length > 0,
   );
 }

@@ -5,6 +5,7 @@ import type { Executor } from "$lib/server/db";
 import { jobs, mediaUploads, projects } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { isActiveJob, isMediaPrepareJob } from "$lib/server/jobs/predicates";
+import { cancelActiveJobs } from "$lib/server/jobs/release";
 import { cleanupStagedMediaArtifacts } from "$lib/server/media/artifact-staging";
 import { projectForUser } from "$lib/server/projects/access";
 
@@ -97,15 +98,7 @@ export async function cancelMediaPreparationForUser(
       .limit(1)
       .get();
     if (!job) return null;
-    tx.update(jobs)
-      .set({
-        state: "cancelled",
-        leaseTokenHash: null,
-        leaseExpiresAt: null,
-        progressMessage: "Cancelled",
-      })
-      .where(eq(jobs.id, job.id))
-      .run();
+    cancelActiveJobs(tx, eq(jobs.id, job.id));
     tx.update(projects)
       .set({
         mediaPreparationStatus:

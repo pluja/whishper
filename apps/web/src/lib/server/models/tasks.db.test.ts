@@ -12,7 +12,7 @@ import { db } from "$lib/server/db";
 import { jobs } from "$lib/server/db/schema";
 import { completeJob } from "$lib/server/jobs/completion";
 import { failJob } from "$lib/server/jobs/failure";
-import { leaseJob } from "$lib/server/jobs/lease";
+import { leaseJob, reportProgress } from "$lib/server/jobs/lease";
 import { workerModelInventories } from "$lib/server/models/inventory";
 import { cancelModelTask, requestModelTask } from "$lib/server/models/tasks";
 import { recordWorkerPresence } from "$lib/server/workers/presence";
@@ -205,5 +205,29 @@ describe("model downloads", () => {
         .get(),
     ).toEqual({ state: "cancelled" });
     expect(await leaseJob(worker)).toBeNull();
+  });
+
+  it("end the worker's lease when cancelled while running", async () => {
+    const worker = connectWorker();
+    download(worker.workerId);
+    const lease = await leaseJob(worker);
+    if (!lease) throw new Error("Expected a lease");
+
+    expect(cancelModelTask(lease.jobId)).toBe(true);
+
+    expect(
+      db
+        .select({
+          state: jobs.state,
+          leasedBy: jobs.leasedBy,
+          leaseTokenHash: jobs.leaseTokenHash,
+        })
+        .from(jobs)
+        .where(eq(jobs.id, lease.jobId))
+        .get(),
+    ).toEqual({ state: "cancelled", leasedBy: null, leaseTokenHash: null });
+    expect(reportProgress(lease.jobId, lease.leaseToken, 0.5, "Halfway")).toBe(
+      false,
+    );
   });
 });

@@ -2,7 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { jobs, transcriptionRuns } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
-import { isActiveJob } from "$lib/server/jobs/predicates";
+import { cancelActiveJobs } from "$lib/server/jobs/release";
 import { projectForUser } from "$lib/server/projects/access";
 
 export function cancelTranscriptionForUser(
@@ -23,23 +23,13 @@ export function cancelTranscriptionForUser(
       .returning({ id: transcriptionRuns.id })
       .all();
     if (active.length === 0) return false;
-    tx.update(jobs)
-      .set({
-        state: "cancelled",
-        leaseTokenHash: null,
-        leaseExpiresAt: null,
-        progressMessage: "Cancelled",
-      })
-      .where(
-        and(
-          inArray(
-            jobs.runId,
-            active.map((run) => run.id),
-          ),
-          isActiveJob,
-        ),
-      )
-      .run();
+    cancelActiveJobs(
+      tx,
+      inArray(
+        jobs.runId,
+        active.map((run) => run.id),
+      ),
+    );
     return true;
   });
 }
