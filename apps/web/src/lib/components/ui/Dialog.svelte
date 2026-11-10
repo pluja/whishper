@@ -45,7 +45,13 @@
     if (dismissible && event.target === event.currentTarget) open = false;
   }
 
-  function handleClose() {
+  // Chromium closes a modal on a repeated Escape even after cancel was
+  // prevented, and browsers without closedby support can do the same.
+  function handleClose(event: Event) {
+    if (open && !dismissible) {
+      (event.currentTarget as HTMLDialogElement).showModal();
+      return;
+    }
     open = false;
     onclose?.();
     returnFocusTo?.focus();
@@ -55,6 +61,7 @@
 
 <dialog
   {@attach modal(open)}
+  closedby={dismissible ? "closerequest" : "none"}
   oncancel={handleCancel}
   onclose={handleClose}
   onclick={handleBackdropClick}
