@@ -66,6 +66,16 @@ describe("ProjectUpload", () => {
     expect(events.onUploaded).toHaveBeenCalledExactlyOnceWith("project-1");
   });
 
+  it("tracks byte progress without changing the status message", async () => {
+    const { upload } = createUpload();
+    await upload.start(file, "workspace", "Talk");
+
+    lastTusUpload().options.onProgress?.(25, 100);
+
+    expect(upload.message).toBe("Uploading");
+    expect(upload.progress).toBe(0.25);
+  });
+
   it("reports a missing project header as no project", async () => {
     const { upload, events } = createUpload();
     await upload.start(file, "workspace", "Talk");

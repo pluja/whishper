@@ -53,6 +53,7 @@
       !upload.busy,
   );
   let percent = $derived(Math.round(upload.progress * 100));
+  let announcement = $derived(fileProblem ?? upload.message);
 
   // A "leave" navigation unloads the page; cancelling it makes the browser ask instead.
   beforeNavigate((navigation) => {
@@ -205,14 +206,16 @@
     </p>
 
     {#if upload.status !== "idle" || upload.message}
-      <div class="grid gap-1.5" aria-live="polite">
+      <div class="grid gap-1.5">
         <div class="flex items-center justify-between gap-3 text-xs">
           <span
             class={upload.status === "error"
               ? "text-danger"
               : "text-text-muted"}
           >
-            {upload.message}
+            {upload.uploading
+              ? `${formatBytes(upload.bytesUploaded)} of ${formatBytes(upload.bytesTotal)}`
+              : upload.message}
           </span>
           <span class="font-mono text-text-muted tabular-nums">{percent}%</span>
         </div>
@@ -220,6 +223,8 @@
       </div>
     {/if}
   </form>
+
+  <p class="sr-only" role="status">{announcement}</p>
 
   {#snippet actions()}
     <Button

@@ -1,4 +1,3 @@
-import { formatBytes } from "$lib/shared/format";
 import { Upload } from "tus-js-client";
 import { uploadErrorMessage } from "./upload-messages";
 
@@ -11,13 +10,18 @@ type UploadEvents = {
 
 export class ProjectUpload {
   status = $state<UploadStatus>("idle");
-  progress = $state(0);
   message = $state("");
+  bytesUploaded = $state(0);
+  bytesTotal = $state(0);
   #upload: Upload | null = null;
   #events: UploadEvents;
 
   constructor(events: UploadEvents) {
     this.#events = events;
+  }
+
+  get progress(): number {
+    return this.bytesTotal > 0 ? this.bytesUploaded / this.bytesTotal : 0;
   }
 
   get uploading(): boolean {
@@ -36,14 +40,17 @@ export class ProjectUpload {
   reset() {
     this.#upload = null;
     this.status = "idle";
-    this.progress = 0;
     this.message = "";
+    this.bytesUploaded = 0;
+    this.bytesTotal = 0;
   }
 
   async start(file: File, workspaceId: string, projectName: string) {
     if (this.busy) return;
     this.status = "uploading";
-    this.message = "Preparing resumable upload";
+    this.message = "Uploading";
+    this.bytesUploaded = 0;
+    this.bytesTotal = file.size;
     const upload = new Upload(file, {
       endpoint: "/api/uploads",
       chunkSize: 32 * 1024 * 1024,
@@ -57,8 +64,8 @@ export class ProjectUpload {
       },
       onProgress: (bytesUploaded, bytesTotal) => {
         if (!this.#isRunning(upload)) return;
-        this.progress = bytesTotal > 0 ? bytesUploaded / bytesTotal : 0;
-        this.message = `${formatBytes(bytesUploaded)} of ${formatBytes(bytesTotal)}`;
+        this.bytesUploaded = bytesUploaded;
+        this.bytesTotal = bytesTotal;
       },
       onError: (error) => {
         if (this.#isRunning(upload)) this.#fail(uploadErrorMessage(error));
@@ -67,7 +74,7 @@ export class ProjectUpload {
         if (!this.#isRunning(upload)) return;
         this.#upload = null;
         this.status = "success";
-        this.progress = 1;
+        this.bytesUploaded = this.bytesTotal;
         this.message = "Upload complete";
         this.#events.onUploaded(
           lastResponse.getHeader("Upload-Project") || null,
