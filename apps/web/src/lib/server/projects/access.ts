@@ -11,8 +11,8 @@ export type MemberProject = {
   canManage: boolean;
 };
 
-// Managing covers destructive changes, open to the project's creator and to
-// workspace owners and admins.
+// Every deletion needs manage rights, held by the project's creator and by
+// workspace owners and admins. Any member may edit, rename, cancel and retry.
 const canManage = sql<boolean>`(${projects.createdBy} = ${memberships.userId} or ${memberships.role} in ('owner', 'admin'))`;
 
 function findProject(

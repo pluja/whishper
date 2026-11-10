@@ -6,7 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "$lib/server/db";
 import { mediaDerivatives } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
-import { projectForUser } from "$lib/server/projects/access";
+import { manageableProjectForUser } from "$lib/server/projects/access";
 import { resolveDataPath } from "$lib/server/storage/paths";
 import { GIB, MAX_UPLOAD_LIMIT_GIB } from "$lib/shared/instance-settings";
 
@@ -88,7 +88,7 @@ export async function deleteDerivativeForUser(
   userId: string,
 ): Promise<boolean> {
   const storageKey = withTransaction((tx) => {
-    if (!projectForUser(tx, projectId, userId)) return null;
+    if (!manageableProjectForUser(tx, projectId, userId)) return null;
     const derivative = tx
       .delete(mediaDerivatives)
       .where(
