@@ -144,6 +144,26 @@ jobs:
             image: anysub-worker
             suffix: -cuda
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # Each shared tag moves only when this release is the highest one it
+      # covers, so a fix for an older line never moves latest or 4 backwards.
+      - id: rank
+        run: |
+          is_highest() {
+            highest="$(git tag --list "$1" --sort=v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | tail -n 1)"
+            if [ "$highest" = "$GITHUB_REF_NAME" ]; then echo true; else echo false; fi
+          }
+          version="${GITHUB_REF_NAME#v}"
+          {
+            echo "latest=$(is_highest 'v*')"
+            echo "major=$(is_highest "v${version%%.*}.*")"
+            echo "minor=$(is_highest "v${version%.*}.*")"
+          } >> "$GITHUB_OUTPUT"
+
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
@@ -159,11 +179,11 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
           flavor: |
-            latest=true
+            latest=${{ steps.rank.outputs.latest }}
             suffix=${{ matrix.suffix }},onlatest=true
           tags: |
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ steps.rank.outputs.minor }}
+            type=semver,pattern={{major}},enable=${{ steps.rank.outputs.major }}
 
       # A single source index is reused as it is, so every tag points at the
       # same digest as the version tag.
@@ -176,6 +196,10 @@ jobs:
           while read -r tag; do
             if [ -n "$tag" ]; then arguments+=(--tag "$tag"); fi
           done <<< "$TAGS"
+          if [ ${#arguments[@]} -eq 0 ]; then
+            echo "Higher releases hold every shared tag."
+            exit 0
+          fi
           docker buildx imagetools create "${arguments[@]}" "$IMAGE:${GITHUB_REF_NAME#v}$SUFFIX"
 
   release:
