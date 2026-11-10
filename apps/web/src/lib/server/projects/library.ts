@@ -12,6 +12,7 @@ import {
   transcriptionRuns,
   workspaces,
 } from "$lib/server/db/schema";
+import { projectForUser } from "$lib/server/projects/access";
 import { IDLE_BEFORE_RETRY_MS } from "$lib/server/uploads/maintenance";
 import type {
   LibrarySearch,
@@ -275,13 +276,7 @@ export function renameProjectForUser(
   userId: string,
   name: string,
 ): boolean {
-  const member = executor
-    .select({ workspaceId: memberships.workspaceId })
-    .from(memberships)
-    .innerJoin(projects, eq(projects.workspaceId, memberships.workspaceId))
-    .where(and(eq(projects.id, projectId), eq(memberships.userId, userId)))
-    .get();
-  if (!member) return false;
+  if (!projectForUser(executor, projectId, userId)) return false;
   executor
     .update(projects)
     .set({ name })
