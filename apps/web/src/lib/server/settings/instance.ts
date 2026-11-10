@@ -1,6 +1,8 @@
 import { db, type Executor } from "$lib/server/db";
 import { instanceSettings } from "$lib/server/db/schema";
 import {
+  AUTOMATIC_MODEL,
+  CUSTOM_UPLOAD_LIMIT,
   DEFAULT_INSTANCE_SETTINGS,
   GIB,
   isPrecision,
@@ -13,9 +15,6 @@ import {
 } from "$lib/shared/instance-settings";
 import { DETECT_LANGUAGE, LANGUAGE_TAG } from "$lib/shared/languages";
 import { parseModelKey } from "$lib/shared/transcription-models";
-
-export const AUTOMATIC_MODEL = "auto";
-export const CUSTOM_UPLOAD_LIMIT = "custom";
 
 export type SettingsProblem = { field: string; message: string };
 type Parsed<T> = { value: T } | { problem: SettingsProblem };

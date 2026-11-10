@@ -3,13 +3,12 @@
   import Input from "$lib/components/ui/Input.svelte";
   import { formatBytes } from "$lib/shared/format";
   import {
+    CUSTOM_UPLOAD_LIMIT,
     GIB,
     MAX_UPLOAD_LIMIT_GIB,
     MIN_UPLOAD_LIMIT_GIB,
     UPLOAD_LIMIT_PRESETS_GIB,
   } from "$lib/shared/instance-settings";
-
-  const CUSTOM = "custom";
 
   type Props = {
     initialBytes: number;
@@ -24,13 +23,13 @@
   let choice = $state(
     UPLOAD_LIMIT_PRESETS_GIB.some((preset) => preset === initialBytes / GIB)
       ? String(initialBytes / GIB)
-      : CUSTOM,
+      : CUSTOM_UPLOAD_LIMIT,
   );
   // svelte-ignore state_referenced_locally
   let custom = $state(Math.round((initialBytes / GIB) * 10) / 10);
 
   const chosenBytes = $derived(
-    (choice === CUSTOM ? Number(custom) : Number(choice)) * GIB,
+    (choice === CUSTOM_UPLOAD_LIMIT ? Number(custom) : Number(choice)) * GIB,
   );
   const exceedsDisk = $derived(
     freeBytes !== null &&
@@ -46,7 +45,7 @@
 <div class="grid gap-3">
   <fieldset class="flex flex-wrap gap-2" aria-describedby="{id}-hint">
     <legend class="sr-only">Largest upload</legend>
-    {#each [...UPLOAD_LIMIT_PRESETS_GIB.map(String), CUSTOM] as option (option)}
+    {#each [...UPLOAD_LIMIT_PRESETS_GIB.map(String), CUSTOM_UPLOAD_LIMIT] as option (option)}
       <label
         class="inline-flex h-9 cursor-pointer items-center rounded-full border px-4 text-sm font-medium transition-colors duration-150 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus motion-reduce:transition-none {choice ===
         option
@@ -60,12 +59,14 @@
           bind:group={choice}
           class="sr-only"
         />
-        {option === CUSTOM ? "Custom" : presetLabel(Number(option))}
+        {option === CUSTOM_UPLOAD_LIMIT
+          ? "Custom"
+          : presetLabel(Number(option))}
       </label>
     {/each}
   </fieldset>
 
-  {#if choice === CUSTOM}
+  {#if choice === CUSTOM_UPLOAD_LIMIT}
     <div class="flex max-w-56 items-center gap-2">
       <label for="{id}-custom" class="sr-only">Custom limit in GiB</label>
       <Input

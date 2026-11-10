@@ -3,13 +3,12 @@
   import { FIT_TONES } from "$lib/components/model-fit";
   import Badge from "$lib/components/ui/Badge.svelte";
   import Picker from "$lib/components/ui/Picker.svelte";
+  import { AUTOMATIC_MODEL } from "$lib/shared/instance-settings";
   import {
     defaultModelKey,
     parseModelKey,
     type AvailableTranscriptionModel,
   } from "$lib/shared/transcription-models";
-
-  const AUTOMATIC = "auto";
 
   type Choice = {
     key: string;
@@ -26,14 +25,14 @@
   let { models, initial }: Props = $props();
 
   // svelte-ignore state_referenced_locally
-  let value = $state(initial ?? AUTOMATIC);
+  let value = $state(initial ?? AUTOMATIC_MODEL);
 
   const automaticPick = $derived(
     models.find((model) => model.key === defaultModelKey(models)),
   );
   const choices = $derived<Choice[]>([
     {
-      key: AUTOMATIC,
+      key: AUTOMATIC_MODEL,
       name: "Automatic",
       description: automaticPick
         ? `Uses ${automaticPick.displayName}, the best fit for the connected hardware right now.`
@@ -65,7 +64,10 @@
   <span class="grid gap-1">
     <span class="flex min-w-0 items-center gap-2">
       <span class="shrink-0 text-text-muted">
-        <Icon name={choice?.key === AUTOMATIC ? "gauge" : "cube"} size={16} />
+        <Icon
+          name={choice?.key === AUTOMATIC_MODEL ? "gauge" : "cube"}
+          size={16}
+        />
       </span>
       <strong class="min-w-0 flex-1 truncate text-sm font-semibold text-text">
         {choice?.name ?? "Choose a model"}

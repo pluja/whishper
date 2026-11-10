@@ -3,6 +3,9 @@ import { DEFAULT_MAX_LINE_LENGTH } from "./limits";
 export const PRECISIONS = ["auto", "memory", "precise"] as const;
 export type Precision = (typeof PRECISIONS)[number];
 
+export const AUTOMATIC_MODEL = "auto";
+export const CUSTOM_UPLOAD_LIMIT = "custom";
+
 export const MIN_LINE_LENGTH = 20;
 export const MAX_LINE_LENGTH = 120;
 
