@@ -5,6 +5,7 @@
   import Input from "$lib/components/ui/Input.svelte";
   import {
     OWNER_NAME_MAX_LENGTH,
+    OWNER_NAME_MIN_LENGTH,
     PASSWORD_MAX_LENGTH,
     PASSWORD_MIN_LENGTH,
   } from "$lib/shared/limits";
@@ -61,7 +62,7 @@
           name="name"
           autocomplete="name"
           required
-          minlength={2}
+          minlength={OWNER_NAME_MIN_LENGTH}
           maxlength={OWNER_NAME_MAX_LENGTH}
           value={form?.name ?? ""}
           aria-describedby={describedBy}

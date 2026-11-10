@@ -11,7 +11,10 @@ import {
   hostCodeThrottle,
   retryMessage,
 } from "$lib/server/auth/throttle";
-import { OWNER_NAME_MAX_LENGTH } from "$lib/shared/limits";
+import {
+  OWNER_NAME_MAX_LENGTH,
+  OWNER_NAME_MIN_LENGTH,
+} from "$lib/shared/limits";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -50,10 +53,13 @@ export const actions: Actions = {
     }
     hostCodeThrottle.recordSuccess(keys);
 
-    if (name.length < 2 || name.length > OWNER_NAME_MAX_LENGTH) {
+    if (
+      name.length < OWNER_NAME_MIN_LENGTH ||
+      name.length > OWNER_NAME_MAX_LENGTH
+    ) {
       return rejected(
         "name",
-        `Use between 2 and ${OWNER_NAME_MAX_LENGTH} characters for your name.`,
+        `Use between ${OWNER_NAME_MIN_LENGTH} and ${OWNER_NAME_MAX_LENGTH} characters for your name.`,
       );
     }
     if (!isValidOwnerEmail(email)) {
