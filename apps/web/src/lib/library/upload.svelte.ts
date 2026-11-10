@@ -1,15 +1,23 @@
-import { goto, invalidateAll } from "$app/navigation";
 import { formatBytes } from "$lib/shared/format";
-import { projectPageUrl } from "$lib/shared/routes";
 import { Upload } from "tus-js-client";
 
 type UploadStatus = "idle" | "uploading" | "error" | "success";
+
+type UploadEvents = {
+  onUploaded: (projectId: string | null) => void;
+  onCancelled: () => void;
+};
 
 export class ProjectUpload {
   status = $state<UploadStatus>("idle");
   progress = $state(0);
   message = $state("");
   #upload: Upload | null = null;
+  #events: UploadEvents;
+
+  constructor(events: UploadEvents) {
+    this.#events = events;
+  }
 
   get uploading(): boolean {
     return this.status === "uploading";
@@ -38,28 +46,33 @@ export class ProjectUpload {
         projectName,
       },
       onProgress: (bytesUploaded, bytesTotal) => {
+        if (!this.#isRunning(upload)) return;
         this.progress = bytesTotal > 0 ? bytesUploaded / bytesTotal : 0;
         this.message = `${formatBytes(bytesUploaded)} of ${formatBytes(bytesTotal)}`;
       },
       onError: (error) => {
+        if (!this.#isRunning(upload)) return;
         this.#fail(error.message || "The upload could not be completed.");
       },
       onSuccess: ({ lastResponse }) => {
+        if (!this.#isRunning(upload)) return;
         this.#upload = null;
         this.status = "success";
         this.progress = 1;
         this.message = "Upload complete";
-        const projectId = lastResponse.getHeader("Upload-Project");
-        if (projectId) void goto(projectPageUrl(projectId));
-        else void invalidateAll();
+        this.#events.onUploaded(
+          lastResponse.getHeader("Upload-Project") || null,
+        );
       },
     });
     this.#upload = upload;
     try {
       const previous = await upload.findPreviousUploads();
+      if (!this.#isRunning(upload)) return;
       if (previous[0]) upload.resumeFromPreviousUpload(previous[0]);
       upload.start();
     } catch (error) {
+      if (!this.#isRunning(upload)) return;
       this.#fail(
         error instanceof Error ? error.message : "Could not start the upload.",
       );
@@ -72,12 +85,23 @@ export class ProjectUpload {
       await this.#upload.abort(true);
       this.reset();
       this.message = "Upload cancelled";
-      await invalidateAll();
+      this.#events.onCancelled();
     } catch (error) {
       this.#fail(
         error instanceof Error ? error.message : "Could not cancel the upload.",
       );
     }
+  }
+
+  // Leaves the upload on the server, so choosing the same file again resumes it.
+  dispose() {
+    const upload = this.#upload;
+    this.#upload = null;
+    void upload?.abort(false);
+  }
+
+  #isRunning(upload: Upload): boolean {
+    return this.#upload === upload && this.uploading;
   }
 
   #fail(message: string) {

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { onDestroy, untrack } from "svelte";
+  import { beforeNavigate, goto, invalidateAll } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import Dialog from "$lib/components/ui/Dialog.svelte";
@@ -9,6 +10,7 @@
   import { buttonClasses } from "$lib/components/ui/variants";
   import { formatBytes } from "$lib/shared/format";
   import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/limits";
+  import { projectPageUrl } from "$lib/shared/routes";
   import { ProjectUpload } from "./upload.svelte";
 
   type Props = {
@@ -26,7 +28,12 @@
   const id = $props.id();
   const formId = `${id}-form`;
   const fileStatusId = `${id}-file-status`;
-  const upload = new ProjectUpload();
+  const LEAVE_WARNING =
+    "Leave this page and stop the upload? Choose the same file again later to resume it.";
+  const upload = new ProjectUpload({
+    onUploaded: showProject,
+    onCancelled: () => void invalidateAll(),
+  });
   let selectedFile = $state<File | null>(null);
   let projectName = $state("");
   let projectNameEdited = $state(false);
@@ -39,6 +46,25 @@
       !upload.uploading,
   );
   let percent = $derived(Math.round(upload.progress * 100));
+
+  // A "leave" navigation unloads the page; cancelling it makes the browser ask instead.
+  beforeNavigate((navigation) => {
+    if (!upload.uploading) return;
+    if (navigation.type === "leave" || !confirm(LEAVE_WARNING)) {
+      navigation.cancel();
+    }
+  });
+
+  onDestroy(() => upload.dispose());
+
+  function showProject(projectId: string | null) {
+    if (projectId) {
+      void goto(projectPageUrl(projectId));
+      return;
+    }
+    open = false;
+    void invalidateAll();
+  }
 
   $effect(() => {
     if (!open || !initialFile) return;
