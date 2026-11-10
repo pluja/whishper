@@ -1,15 +1,12 @@
 <script lang="ts">
-  type Props = { form: unknown; success?: string };
+  type Props = { form: unknown };
 
-  let { form, success }: Props = $props();
+  let { form }: Props = $props();
 
   const message = $derived(
     form && typeof form === "object" && "message" in form
       ? String(form.message)
       : null,
-  );
-  const done = $derived(
-    Boolean(form && typeof form === "object" && "done" in form),
   );
 </script>
 
@@ -20,10 +17,6 @@
       role="alert"
     >
       {message}
-    </p>
-  {:else if done && success}
-    <p class="mb-4 rounded-md bg-success-soft px-3 py-2 text-sm text-success">
-      {success}
     </p>
   {/if}
 </div>

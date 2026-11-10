@@ -8,7 +8,7 @@ export type ActionMessage = { message: string };
 // reaches the handleError hook, which logs it and answers generically.
 export function runFormAction(
   work: () => void,
-): ActionFailure<ActionMessage> | { done: true } {
+): ActionFailure<ActionMessage> | undefined {
   try {
     work();
   } catch (cause) {
@@ -16,5 +16,4 @@ export function runFormAction(
     if (!failure) throw cause;
     return fail(failure.status, { message: failure.message });
   }
-  return { done: true };
 }
