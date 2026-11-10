@@ -14,6 +14,7 @@
   } from "$lib/editor/cues";
   import type { CueEditor } from "$lib/editor/editor.svelte";
   import { CUE_TIME_ERROR_ID } from "./cue-status";
+  import { revealOffset } from "./reveal";
 
   let { editor }: { editor: CueEditor } = $props();
 
@@ -23,6 +24,7 @@
 
   const activeCueId = $derived(editor.transport.activeCue?.id);
 
+  let list = $state<HTMLElement>();
   const rows = new Map<string, HTMLElement>();
 
   function registerRow(cueId: string): Attachment<HTMLElement> {
@@ -41,9 +43,12 @@
     void activeCueId;
     void editor.transport.seekRevision;
     untrack(() => {
-      if (cueId && !editor.editing) {
-        rows.get(cueId)?.scrollIntoView({ block: "nearest" });
-      }
+      const row = cueId ? rows.get(cueId) : undefined;
+      if (!row || !list || editor.editing) return;
+      list.scrollTop += revealOffset(
+        list.getBoundingClientRect(),
+        row.getBoundingClientRect(),
+      );
     });
   });
 
@@ -173,6 +178,7 @@
     {/key}
   </p>
   <ol
+    bind:this={list}
     class="min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
     aria-label="Cues"
   >
