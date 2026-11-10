@@ -1,4 +1,4 @@
-import { mkdir, rm, stat, unlink } from "node:fs/promises";
+import { link, mkdir, rm, stat, unlink } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import type {
@@ -21,7 +21,6 @@ import {
   primaryFrameRate,
   requiredArtifactKinds,
 } from "$lib/server/media/probe";
-import { linkIdempotent } from "$lib/server/storage/files";
 import {
   derivativeStorageKey,
   resolveDataPath,
@@ -69,9 +68,12 @@ export async function linkMediaArtifacts(
       }
       const destination = resolveDataPath(storageKey);
       await mkdir(dirname(destination), { recursive: true });
-      if (await linkIdempotent(stagedPath, destination)) {
-        createdPaths.push(destination);
-      }
+      // The name belongs to this job, and its lock admits only the current
+      // lease, so a file already there came from an earlier attempt that
+      // stopped before recording it.
+      await rm(destination, { force: true });
+      await link(stagedPath, destination);
+      createdPaths.push(destination);
     }
   } catch (cause) {
     await removePaths(createdPaths);
