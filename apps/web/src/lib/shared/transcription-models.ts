@@ -10,6 +10,7 @@ export type AvailableTranscriptionModel = {
   parameterCount: number | null;
   requiredVramBytes: number | null;
   recommendedRamBytes: number | null;
+  downloadSizeBytes: number | null;
   downloaded: boolean | null;
   recommended: boolean;
   memoryRequirementBytes: number | null;

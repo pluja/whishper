@@ -5,7 +5,7 @@
     AvailableTranscriptionModel,
     DetectedWorkerHardware,
   } from "$lib/shared/transcription-models";
-  import TranscribePanel from "./TranscribePanel.svelte";
+  import TranscribePanel, { PROCESSING_NOTE } from "./TranscribePanel.svelte";
 
   type Props = {
     open?: boolean;
@@ -24,6 +24,6 @@
   }: Props = $props();
 </script>
 
-<Dialog bind:open title="Re-transcribe">
+<Dialog bind:open title="Re-transcribe" description={PROCESSING_NOTE}>
   <TranscribePanel {models} {hardware} {defaults} {onbeforesubmit} />
 </Dialog>

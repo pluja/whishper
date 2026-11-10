@@ -47,6 +47,7 @@ export function availableTranscriptionModels(
           parameterCount: positiveNumber(model.parameterCount),
           requiredVramBytes: positiveNumber(model.requiredVramBytes),
           recommendedRamBytes: positiveNumber(model.recommendedRamBytes),
+          downloadSizeBytes: positiveNumber(model.downloadSizeBytes),
           downloaded:
             typeof model.downloaded === "boolean" ? model.downloaded : null,
           recommended: isRecommended(model, fit.fit),

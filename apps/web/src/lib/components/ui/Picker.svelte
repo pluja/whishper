@@ -227,7 +227,7 @@
   {/if}
   <button
     bind:this={trigger}
-    class="flex w-full min-w-0 items-center justify-between gap-3 rounded-md border border-border-strong bg-surface px-3 py-2.5 text-left transition-colors duration-150 hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus aria-expanded:border-accent motion-reduce:transition-none"
+    class="flex w-full min-w-0 items-center justify-between gap-3 rounded-md border border-border-strong bg-surface px-3 py-2 text-left transition-colors duration-150 hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus aria-expanded:border-accent motion-reduce:transition-none"
     type="button"
     popovertarget="{id}-popover"
     aria-haspopup="dialog"

@@ -8,7 +8,7 @@
   import EditorToolbar from "./EditorToolbar.svelte";
   import JournalNotice from "./JournalNotice.svelte";
   import ProcessingStatus from "./ProcessingStatus.svelte";
-  import TranscribePanel from "./TranscribePanel.svelte";
+  import TranscribePanel, { PROCESSING_NOTE } from "./TranscribePanel.svelte";
   import type { StudioData } from "$lib/shared/studio-data";
 
   type Props = {
@@ -73,29 +73,29 @@
       <CueList {editor} />
     </div>
   {:else}
-    <div class="min-h-0 flex-1 overflow-y-auto px-5 py-6">
+    <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-4">
       <div class="mx-auto grid max-w-md gap-4">
-        <div class="grid justify-items-start gap-2">
-          <span
-            class="grid size-10 place-items-center rounded-md bg-accent-soft text-accent"
-            aria-hidden="true"
-          >
-            <Icon name="subtitles" size={20} />
-          </span>
-          {#if isRunActive(run)}
-            <h3 class="text-base font-semibold text-text">
+        <div class="grid gap-1">
+          <h3 class="flex items-center gap-2 text-sm font-semibold text-text">
+            <span class="text-accent" aria-hidden="true">
+              <Icon name="subtitles" size={16} />
+            </span>
+            {#if isRunActive(run)}
               Preparing the first track
-            </h3>
+            {:else if hasSourceMedia}
+              Ready to transcribe
+            {:else}
+              No subtitle track
+            {/if}
+          </h3>
+          {#if isRunActive(run)}
             <p class="text-sm text-text-muted">
               The worker will place normalized subtitle cues here when
               processing finishes.
             </p>
           {:else if hasSourceMedia}
-            <h3 class="text-base font-semibold text-text">
-              Ready to transcribe
-            </h3>
+            <p class="text-xs text-text-muted">{PROCESSING_NOTE}</p>
           {:else}
-            <h3 class="text-base font-semibold text-text">No subtitle track</h3>
             <p class="text-sm text-text-muted">
               This project does not have source media or a transcription run.
             </p>

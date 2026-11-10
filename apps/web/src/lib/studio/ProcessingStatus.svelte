@@ -19,17 +19,22 @@
   progress: number | null,
   cancelAction?: string,
 )}
-  <div class="grid gap-2 border-b border-border px-4 py-3" aria-live="polite">
-    <div class="flex items-center justify-between gap-3">
-      <div class="min-w-0">
-        <p class="text-xs font-medium text-accent">{stage}</p>
-        <p class="truncate text-sm text-text">{message}</p>
-      </div>
-      <span class="font-mono text-xs text-text-muted tabular-nums">
+  <div class="grid gap-2 border-b border-border px-4 py-2.5" aria-live="polite">
+    <div class="flex items-center gap-3">
+      <p class="min-w-0 flex-1 truncate text-sm text-text">
+        <span class="text-xs font-medium text-accent">{stage}</span>
+        <span class="text-text-muted" aria-hidden="true">·</span>
+        {message}
+      </p>
+      <span class="shrink-0 font-mono text-xs text-text-muted tabular-nums">
         {Math.round((progress ?? 0) * 100)}%
       </span>
       {#if cancelAction}
-        <form method="POST" action={cancelAction}>
+        <form
+          method="POST"
+          action={cancelAction}
+          class="-my-1.5 -mr-3 shrink-0"
+        >
           <Button type="submit" size="sm" variant="ghost">Cancel</Button>
         </form>
       {/if}

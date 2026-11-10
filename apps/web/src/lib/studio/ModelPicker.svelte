@@ -24,6 +24,9 @@
       defaultModelKey(models, preferredKey),
   );
   let recommendedModel = $derived(models.find((model) => model.recommended));
+  let selectedModel = $derived(
+    models.find((model) => model.key === selectedModelKey),
+  );
 
   function formatModelMemory(
     bytes: number | null,
@@ -40,26 +43,6 @@
     return `~${formatBytes(bytes)} ${kind.toUpperCase()}`;
   }
 </script>
-
-{#snippet hardwareCard(kind: string | null, name: string, specs: string)}
-  <li
-    class="grid grid-cols-[1.75rem_minmax(0,1fr)] items-start gap-2.5 rounded-md border border-border bg-surface-sunken px-2.5 py-2"
-  >
-    <span
-      class="grid size-7 place-items-center rounded-md bg-accent-soft text-accent"
-      aria-hidden="true"
-    >
-      <Icon name="cpu" size={16} />
-    </span>
-    <span class="grid min-w-0 gap-0.5">
-      <span class="text-xs text-text-muted">
-        {kind ? `Detected hardware · ${kind}` : "Detected hardware"}
-      </span>
-      <strong class="text-sm font-medium break-words text-text">{name}</strong>
-      <span class="text-xs break-words text-text-muted">{specs}</span>
-    </span>
-  </li>
-{/snippet}
 
 {#snippet fitBadge(model: AvailableTranscriptionModel | undefined)}
   <span class="shrink-0">
@@ -84,16 +67,11 @@
   divided
 >
   {#snippet selection(model)}
-    <span class="grid gap-1">
-      <span class="flex min-w-0 items-center gap-2">
-        <strong class="min-w-0 flex-1 truncate text-sm font-semibold text-text">
-          {model?.displayName ?? "Choose a model"}
-        </strong>
-        {@render fitBadge(model)}
+    <span class="flex min-w-0 items-center gap-2">
+      <span class="min-w-0 flex-1 truncate text-sm font-medium text-text">
+        {model?.displayName ?? "Choose a model"}
       </span>
-      <span class="text-xs break-words text-text-muted">
-        {model?.description ?? "Description unavailable."}
-      </span>
+      {@render fitBadge(model)}
     </span>
   {/snippet}
   {#snippet option(model)}
@@ -135,21 +113,30 @@
       </span>
     </span>
   {/snippet}
-  <ul class="grid min-w-0 gap-1.5" aria-label="Detected hardware">
-    {#each hardware as device (device)}
-      {@render hardwareCard(
-        device.kind,
-        device.name,
-        device.details.length
-          ? device.details.join(" · ")
-          : "Details unavailable",
-      )}
-    {:else}
-      {@render hardwareCard(
-        null,
-        "Details unavailable",
-        "CPU and GPU details were not reported.",
-      )}
-    {/each}
-  </ul>
+  <div class="grid gap-1 text-xs text-text-muted">
+    <ul class="grid gap-1" aria-label="Detected hardware">
+      {#each hardware as device (device)}
+        <li class="flex items-start gap-1.5">
+          <span class="mt-px shrink-0" aria-hidden="true">
+            <Icon name="cpu" size={14} />
+          </span>
+          <span class="min-w-0 break-words">
+            {[device.name, ...device.details].join(" · ")}
+          </span>
+        </li>
+      {:else}
+        <li>Hardware details unavailable</li>
+      {/each}
+    </ul>
+    {#if selectedModel?.downloaded === false}
+      <p class="flex items-start gap-1.5">
+        <span class="mt-px shrink-0" aria-hidden="true">
+          <Icon name="download" size={14} />
+        </span>
+        {selectedModel.downloadSizeBytes
+          ? `First use downloads ${formatBytes(selectedModel.downloadSizeBytes)}.`
+          : "First use downloads the model."}
+      </p>
+    {/if}
+  </div>
 </Picker>
