@@ -13,8 +13,8 @@ import httpx
 
 from .adapter import AdapterExecutionError, ProgressReporter, TranscriptionAdapter
 from .errors import LeaseLostError, describe_error, failure_for
-from .media import prepare_media
 from .media.errors import MediaPreparationError
+from .media.prepare import prepare_media
 from .model_cache import ModelCacheError, run_model_cache_job
 from .models import (
     AdapterCapability,

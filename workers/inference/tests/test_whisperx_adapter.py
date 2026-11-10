@@ -8,8 +8,8 @@ from typing import Any
 import pytest
 
 from anysub_worker.adapter import AdapterExecutionError
-from anysub_worker.adapters.whisperx import WhisperXAdapter
 from anysub_worker.adapters.whisperx import adapter as adapter_module
+from anysub_worker.adapters.whisperx.adapter import WhisperXAdapter
 from anysub_worker.adapters.whisperx.adapter import _ModelKey as ModelKey
 from anysub_worker.adapters.whisperx.options import parse_options
 from anysub_worker.config import WorkerSettings

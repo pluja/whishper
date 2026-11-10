@@ -21,8 +21,8 @@ from anysub_worker.adapter import ProgressReporter
 from anysub_worker.client import ApplicationClient
 from anysub_worker.config import WorkerSettings
 from anysub_worker.errors import LeaseLostError
-from anysub_worker.media import PreparedMedia
 from anysub_worker.media.derivatives import prepared_derivative
+from anysub_worker.media.prepare import PreparedMedia
 from anysub_worker.models import (
     JobCompletion,
     JobFailure,

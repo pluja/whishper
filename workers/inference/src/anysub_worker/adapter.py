@@ -10,8 +10,6 @@ ProgressReporter = Callable[[float, str], Awaitable[None]]
 
 
 class AdapterExecutionError(JobError):
-    """An actionable adapter failure with an explicit queue retry policy."""
-
     code = "adapter_error"
 
 
@@ -31,8 +29,6 @@ class Adapter(Protocol):
 
 @runtime_checkable
 class TranscriptionAdapter(Adapter, Protocol):
-    """An adapter that implements the transcription capability."""
-
     async def transcribe(
         self, request: TranscriptionRequest, report_progress: ProgressReporter
     ) -> TranscriptArtifact: ...
@@ -40,8 +36,6 @@ class TranscriptionAdapter(Adapter, Protocol):
 
 @runtime_checkable
 class ModelCacheAdapter(Adapter, Protocol):
-    """An adapter that downloads and removes its models on request."""
-
     async def download_model(self, model_id: str, report_progress: ProgressReporter) -> None: ...
 
     async def delete_model(self, model_id: str) -> None: ...

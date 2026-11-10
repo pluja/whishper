@@ -19,8 +19,7 @@ class Backoff:
 
         A jitter between 0 and 1 picks a delay between half and all of it, so workers
         that fail together do not retry in lockstep. The default of 1 is the full delay
-        with no jitter. Only the poll loop jitters; `retry`, used for final reports and
-        uploads, waits the deterministic delay.
+        with no jitter.
         """
         doublings_to_cap = math.ceil(math.log2(self.cap_seconds / self.base_seconds))
         doublings = min(failures - 1, doublings_to_cap)

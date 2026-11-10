@@ -6,7 +6,8 @@ from types import SimpleNamespace
 import pytest
 
 from anysub_worker.adapter import AdapterExecutionError
-from anysub_worker.adapters.whisperx import WhisperXAdapter, cache
+from anysub_worker.adapters.whisperx import cache
+from anysub_worker.adapters.whisperx.adapter import WhisperXAdapter
 from anysub_worker.adapters.whisperx.adapter import _ModelKey as ModelKey
 from anysub_worker.adapters.whisperx.profiles import ModelProfile
 from anysub_worker.config import WorkerSettings
