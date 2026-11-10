@@ -4,15 +4,10 @@ import {
   defaultModelKey,
   modelKey,
   parseModelKey,
-  type AvailableTranscriptionModel,
 } from "./transcription-models";
 
-function model(
-  key: string,
-  modelId: string,
-  recommended = false,
-): AvailableTranscriptionModel {
-  return { key, modelId, recommended } as AvailableTranscriptionModel;
+function model(key: string, modelId: string, recommended = false) {
+  return { key, modelId, recommended };
 }
 
 describe("parseModelKey", () => {

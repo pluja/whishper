@@ -44,7 +44,7 @@ export function parseModelKey(
 }
 
 export function defaultModelKey(
-  models: AvailableTranscriptionModel[],
+  models: Pick<TranscriptionModel, "key" | "modelId" | "recommended">[],
   preferredKey: string | null = null,
 ): string {
   return (

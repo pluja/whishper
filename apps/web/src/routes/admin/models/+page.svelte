@@ -7,6 +7,7 @@
   import { pollWhileActive } from "$lib/browser/polling.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { pluralize } from "$lib/shared/format";
+  import { defaultModelKey } from "$lib/shared/transcription-models";
 
   const TASK_POLL_MS = 1_500;
 
@@ -20,12 +21,7 @@
   const downloaded = $derived(
     worker?.models.filter((model) => model.downloaded).length ?? 0,
   );
-  const suggestedKey = $derived(
-    (
-      worker?.models.find((model) => model.recommended) ??
-      worker?.models.find((model) => model.modelId === "small")
-    )?.key,
-  );
+  const suggestedKey = $derived(defaultModelKey(worker?.models ?? []));
 
   pollWhileActive(
     () =>
