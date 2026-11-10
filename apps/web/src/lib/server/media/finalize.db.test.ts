@@ -1,5 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -11,9 +18,20 @@ import {
   type WorkerManifest,
 } from "@anysub/contracts";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-const testState = vi.hoisted(() => ({ dataRoot: "" }));
+const testState = vi.hoisted(() => ({
+  dataRoot: "",
+  afterLink: () => {},
+}));
 
 vi.mock("$lib/server/env", () => ({
   privateEnv: {
@@ -24,8 +42,19 @@ vi.mock("$lib/server/env", () => ({
   },
 }));
 
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...actual,
+    link: async (...args: Parameters<typeof actual.link>) => {
+      await actual.link(...args);
+      testState.afterLink();
+    },
+  };
+});
+
 import { db } from "$lib/server/db";
-import { jobs, mediaDerivatives } from "$lib/server/db/schema";
+import { jobs, mediaDerivatives, projects } from "$lib/server/db/schema";
 import {
   seedProject,
   type SeededProject,
@@ -34,7 +63,11 @@ import { completeJob } from "$lib/server/jobs/completion";
 import { leaseJob } from "$lib/server/jobs/lease";
 import { stagedArtifactPath } from "$lib/server/media/artifact-staging";
 import { linkMediaArtifacts } from "$lib/server/media/finalize";
-import { resolveDataPath } from "$lib/server/storage/paths";
+import {
+  derivativeStorageKey,
+  resolveDataPath,
+  workerArtifactsPath,
+} from "$lib/server/storage/paths";
 
 const WAVEFORM_TYPE = "application/vnd.anysub.waveform+json";
 
@@ -152,9 +185,103 @@ function readStored(storageKey: string): Promise<string> {
 beforeAll(async () => {
   testState.dataRoot = await mkdtemp(join(tmpdir(), "anysub-finalize-"));
 });
+afterEach(() => {
+  testState.afterLink = () => {};
+});
 afterAll(() => rm(testState.dataRoot, { recursive: true, force: true }));
 
 describe("media preparation completion", () => {
+  it("links the staged derivatives and records them", async () => {
+    const { project, jobId } = seedMediaJob();
+    const leased = await lease();
+    const completion = await stageWaveform(leased, "peaks");
+
+    await expect(
+      completeJob(jobId, leased.leaseToken, completion),
+    ).resolves.toBe("completed");
+
+    const [derivative] = derivatives(project.projectId);
+    expect(derivative).toMatchObject({ kind: "waveform", jobId });
+    expect(await readStored(derivative.storageKey)).toBe("peaks");
+    expect(
+      db
+        .select({
+          status: projects.mediaPreparationStatus,
+          durationUs: projects.mediaDurationUs,
+        })
+        .from(projects)
+        .where(eq(projects.id, project.projectId))
+        .get(),
+    ).toEqual({ status: "completed", durationUs: 5_000_000 });
+    await expect(stat(workerArtifactsPath(jobId))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("deletes the file of the derivative it replaces", async () => {
+    const { project, jobId, payload } = seedMediaJob();
+    const previousKey = derivativeStorageKey(
+      project.workspaceId,
+      project.projectId,
+      "waveform",
+      "previous.json",
+    );
+    await mkdir(dirname(resolveDataPath(previousKey)), { recursive: true });
+    await writeFile(resolveDataPath(previousKey), "old");
+    db.insert(mediaDerivatives)
+      .values({
+        projectId: project.projectId,
+        kind: "waveform",
+        storageKey: previousKey,
+        sourceStorageKey: payload.sourceStorageKey,
+        mediaType: WAVEFORM_TYPE,
+        sizeBytes: 3,
+        schemaVersion: "1.0",
+        generatorVersion: "1.0",
+      })
+      .run();
+    const leased = await lease();
+
+    await completeJob(
+      jobId,
+      leased.leaseToken,
+      await stageWaveform(leased, "new"),
+    );
+
+    const [derivative] = derivatives(project.projectId);
+    expect(await readStored(derivative.storageKey)).toBe("new");
+    await expect(stat(resolveDataPath(previousKey))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("removes the linked files when the lease ends before they are recorded", async () => {
+    const { project, jobId } = seedMediaJob();
+    const leased = await lease();
+    const completion = await stageWaveform(leased, "peaks");
+    testState.afterLink = () => {
+      db.update(jobs)
+        .set({ state: "cancelled" })
+        .where(eq(jobs.id, jobId))
+        .run();
+    };
+
+    await expect(
+      completeJob(jobId, leased.leaseToken, completion),
+    ).resolves.toBe("lease-rejected");
+
+    expect(derivatives(project.projectId)).toEqual([]);
+    const linkedKey = derivativeStorageKey(
+      project.workspaceId,
+      project.projectId,
+      "waveform",
+      `${jobId}.json`,
+    );
+    await expect(stat(resolveDataPath(linkedKey))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
   it("completes after an earlier attempt stopped between linking and recording", async () => {
     const { project, jobId, payload } = seedMediaJob();
     const first = await lease();
