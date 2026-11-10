@@ -48,7 +48,7 @@ export const actions: Actions = {
     const jobId = String((await request.formData()).get("jobId") ?? "");
     return runFormAction(() => {
       if (!isUuid(jobId) || !cancelModelTask(jobId)) {
-        throw conflict("That download has already finished.");
+        throw conflict("That download or removal has already finished.");
       }
     });
   },
