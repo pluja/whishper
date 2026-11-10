@@ -10,9 +10,7 @@ import { jobs } from "$lib/server/db/schema";
 import {
   compareModels,
   describeHardware,
-  isRecommended,
-  positiveNumber,
-  scoreModelFit,
+  describeModel,
 } from "$lib/server/transcription/models";
 import { activeWorkerManifests } from "$lib/server/workers/presence";
 import type {
@@ -39,11 +37,7 @@ export function workerModelInventories(
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-export function taskKey(
-  workerId: string,
-  adapterId: string,
-  modelId: string,
-): string {
+function taskKey(workerId: string, adapterId: string, modelId: string): string {
   return `${workerId}/${modelKey(adapterId, modelId)}`;
 }
 
@@ -51,31 +45,16 @@ function inventoryFor(
   manifest: WorkerManifest,
   latest: Map<string, LatestModelJob>,
 ): WorkerModelInventory {
-  const hardware = manifest.hardware ?? null;
+  const { hardware } = manifest;
   const models: InventoryModel[] = [];
   for (const adapter of manifest.adapters) {
     for (const model of adapter.models) {
       if (!model.capabilities.includes("transcribe")) continue;
-      const fit = scoreModelFit(model, manifest.name, hardware);
       const outcome = latest.get(
         taskKey(manifest.workerId, adapter.id, model.id),
       );
       models.push({
-        key: modelKey(adapter.id, model.id),
-        adapterId: adapter.id,
-        adapterName: adapter.displayName,
-        modelId: model.id,
-        displayName: model.displayName,
-        description: model.description ?? null,
-        parameterCount: positiveNumber(model.parameterCount),
-        downloadSizeBytes: positiveNumber(model.downloadSizeBytes),
-        memoryRequirementBytes: fit.memoryRequirementBytes,
-        memoryRequirementKind: fit.memoryRequirementKind,
-        fit: fit.fit,
-        fitLabel: fit.fitLabel,
-        fitReason: fit.fitReason,
-        recommended: isRecommended(model, fit.fit),
-        downloaded: model.downloaded ?? null,
+        ...describeModel(adapter, model, hardware),
         task: outcome?.task ?? null,
         failure: outcome?.failure ?? null,
       });
@@ -85,7 +64,7 @@ function inventoryFor(
     workerId: manifest.workerId,
     name: manifest.name,
     hardware: hardware ? describeHardware(hardware) : null,
-    storage: manifest.modelStorage ?? null,
+    storage: manifest.modelStorage,
     manageable: manifest.capabilities.modelCache === MODEL_CACHE_VERSION,
     models: models.sort(compareModels),
   };

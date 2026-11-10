@@ -2,15 +2,16 @@ import type {
   AdapterManifest,
   AdapterModel,
   WorkerHardware,
+  WorkerManifest,
 } from "@anysub/contracts";
 
 import { formatBytes } from "$lib/shared/format";
-import { isRecord } from "$lib/shared/is-record";
 import {
   modelKey,
   type AvailableTranscriptionModel,
   type DetectedWorkerHardware,
   type ModelFit,
+  type TranscriptionModel,
 } from "$lib/shared/transcription-models";
 
 const FIT_RANK: Record<ModelFit, number> = {
@@ -21,43 +22,20 @@ const FIT_RANK: Record<ModelFit, number> = {
 };
 
 export function availableTranscriptionModels(
-  manifests: unknown[],
+  manifests: WorkerManifest[],
 ): AvailableTranscriptionModel[] {
   const models = new Map<string, AvailableTranscriptionModel>();
-  for (const workerManifest of manifests) {
-    if (!isRecord(workerManifest) || !Array.isArray(workerManifest.adapters))
-      continue;
-    const workerName =
-      typeof workerManifest.name === "string" ? workerManifest.name : "Worker";
-    const hardware = isWorkerHardware(workerManifest.hardware)
-      ? workerManifest.hardware
-      : null;
-    for (const candidate of workerManifest.adapters) {
-      if (!isAdapterManifest(candidate)) continue;
-      for (const model of candidate.models) {
+  for (const manifest of manifests) {
+    for (const adapter of manifest.adapters) {
+      for (const model of adapter.models) {
         if (!model.capabilities.includes("transcribe")) continue;
-        const key = modelKey(candidate.id, model.id);
-        const fit = scoreModelFit(model, workerName, hardware);
         const available: AvailableTranscriptionModel = {
-          key,
-          adapterId: candidate.id,
-          adapterName: candidate.displayName,
-          modelId: model.id,
-          displayName: model.displayName,
-          description: model.description ?? null,
-          parameterCount: positiveNumber(model.parameterCount),
-          requiredVramBytes: positiveNumber(model.requiredVramBytes),
-          recommendedRamBytes: positiveNumber(model.recommendedRamBytes),
-          downloadSizeBytes: positiveNumber(model.downloadSizeBytes),
-          downloaded:
-            typeof model.downloaded === "boolean" ? model.downloaded : null,
-          recommended: isRecommended(model, fit.fit),
-          optionsSchema: model.optionsSchema ?? {},
-          ...fit,
+          ...describeModel(adapter, model, manifest.hardware),
+          optionsSchema: model.optionsSchema,
         };
-        const current = models.get(key);
+        const current = models.get(available.key);
         if (!current) {
-          models.set(key, available);
+          models.set(available.key, available);
           continue;
         }
         const downloaded = mergeDownloadedState(
@@ -65,14 +43,35 @@ export function availableTranscriptionModels(
           available.downloaded,
         );
         if (FIT_RANK[available.fit] > FIT_RANK[current.fit]) {
-          models.set(key, { ...available, downloaded });
+          models.set(available.key, { ...available, downloaded });
         } else if (downloaded !== current.downloaded) {
-          models.set(key, { ...current, downloaded });
+          models.set(available.key, { ...current, downloaded });
         }
       }
     }
   }
   return [...models.values()].sort(compareModels);
+}
+
+export function describeModel(
+  adapter: AdapterManifest,
+  model: AdapterModel,
+  hardware: WorkerHardware | null,
+): TranscriptionModel {
+  const fit = scoreModelFit(model, hardware);
+  return {
+    key: modelKey(adapter.id, model.id),
+    adapterId: adapter.id,
+    adapterName: adapter.displayName,
+    modelId: model.id,
+    displayName: model.displayName,
+    description: model.description,
+    parameterCount: model.parameterCount,
+    downloadSizeBytes: model.downloadSizeBytes,
+    downloaded: model.downloaded,
+    recommended: isRecommended(model, fit.fit),
+    ...fit,
+  };
 }
 
 const PREFERRED_ORDER = [
@@ -105,16 +104,16 @@ export function compareModels(
   );
 }
 
-export function isRecommended(model: AdapterModel, fit: ModelFit): boolean {
+function isRecommended(model: AdapterModel, fit: ModelFit): boolean {
   return model.id === "large-v3-turbo" && fit === "good";
 }
 
 export function detectedWorkerHardware(
-  manifests: unknown[],
+  manifests: WorkerManifest[],
 ): DetectedWorkerHardware[] {
   const devices = new Map<string, DetectedWorkerHardware>();
   for (const manifest of manifests) {
-    if (!isRecord(manifest) || !isWorkerHardware(manifest.hardware)) continue;
+    if (!manifest.hardware) continue;
     const detected = describeHardware(manifest.hardware);
     devices.set(JSON.stringify(detected), detected);
   }
@@ -130,19 +129,17 @@ function mergeDownloadedState(
   return null;
 }
 
-export type ModelFitScore = Pick<
-  AvailableTranscriptionModel,
+type ModelFitScore = Pick<
+  TranscriptionModel,
   | "fit"
   | "fitLabel"
   | "fitReason"
-  | "workerSummary"
   | "memoryRequirementBytes"
   | "memoryRequirementKind"
 >;
 
-export function scoreModelFit(
+function scoreModelFit(
   model: AdapterModel,
-  workerName: string,
   hardware: WorkerHardware | null,
 ): ModelFitScore {
   if (!hardware) {
@@ -150,26 +147,19 @@ export function scoreModelFit(
       fit: "unknown",
       fitLabel: "Not checked",
       fitReason: "Hardware details are unavailable.",
-      workerSummary: workerName,
       memoryRequirementBytes: null,
       memoryRequirementKind: null,
     };
   }
 
   const availableRam = hardware.memory.availableBytes;
-  const workerSummary = formatWorkerSummary(workerName, hardware);
   const memoryRequirementKind: "ram" | "vram" =
     hardware.device === "cuda" ? "vram" : "ram";
-  const memoryRequirementBytes = positiveNumber(
+  const memoryRequirementBytes =
     hardware.device === "cuda"
       ? model.requiredVramBytes
-      : model.recommendedRamBytes,
-  );
-  const resource = {
-    workerSummary,
-    memoryRequirementBytes,
-    memoryRequirementKind,
-  };
+      : model.recommendedRamBytes;
+  const resource = { memoryRequirementBytes, memoryRequirementKind };
 
   if (hardware.device === "cuda") {
     const gpu = hardware.gpus[0];
@@ -250,14 +240,6 @@ export function scoreModelFit(
   };
 }
 
-function formatWorkerSummary(
-  workerName: string,
-  hardware: WorkerHardware,
-): string {
-  const detected = describeHardware(hardware);
-  return `${workerName} · ${detected.name} · ${detected.details.join(" · ")}`;
-}
-
 export function describeHardware(
   hardware: WorkerHardware,
 ): DetectedWorkerHardware {
@@ -275,39 +257,4 @@ export function describeHardware(
     name: hardware.cpu.model ?? "CPU",
     details: [`${hardware.cpu.logicalCores} logical cores`, ram],
   };
-}
-
-export function positiveNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? value
-    : null;
-}
-
-export function isAdapterManifest(value: unknown): value is AdapterManifest {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.displayName === "string" &&
-    Array.isArray(value.models) &&
-    value.models.every(
-      (model) =>
-        isRecord(model) &&
-        typeof model.id === "string" &&
-        typeof model.displayName === "string" &&
-        Array.isArray(model.capabilities),
-    )
-  );
-}
-
-export function isWorkerHardware(value: unknown): value is WorkerHardware {
-  return (
-    isRecord(value) &&
-    (value.device === "cpu" || value.device === "cuda") &&
-    isRecord(value.cpu) &&
-    typeof value.cpu.logicalCores === "number" &&
-    isRecord(value.memory) &&
-    typeof value.memory.totalBytes === "number" &&
-    typeof value.memory.availableBytes === "number" &&
-    Array.isArray(value.gpus)
-  );
 }

@@ -2,7 +2,7 @@ import type { ModelCacheAction } from "@anysub/contracts";
 
 import type {
   DetectedWorkerHardware,
-  ModelFit,
+  TranscriptionModel,
 } from "$lib/shared/transcription-models";
 
 export type ModelTask = {
@@ -13,22 +13,7 @@ export type ModelTask = {
   progress: number;
 };
 
-export type InventoryModel = {
-  key: string;
-  adapterId: string;
-  adapterName: string;
-  modelId: string;
-  displayName: string;
-  description: string | null;
-  parameterCount: number | null;
-  downloadSizeBytes: number | null;
-  memoryRequirementBytes: number | null;
-  memoryRequirementKind: "ram" | "vram" | null;
-  fit: ModelFit;
-  fitLabel: string;
-  fitReason: string;
-  recommended: boolean;
-  downloaded: boolean | null;
+export type InventoryModel = TranscriptionModel & {
   task: ModelTask | null;
   // The message of the last download or removal, when it failed.
   failure: string | null;
