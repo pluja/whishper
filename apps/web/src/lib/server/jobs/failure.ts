@@ -1,5 +1,5 @@
 import type { JobFailure, WorkerJobPayload } from "@anysub/contracts";
-import { and, eq, gt, lte } from "drizzle-orm";
+import { and, eq, lte } from "drizzle-orm";
 
 import type { Executor } from "$lib/server/db";
 import {
@@ -9,7 +9,7 @@ import {
   type StoredJobError,
 } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
-import { hashToken } from "$lib/server/jobs/lease-token";
+import { holdsActiveLease } from "$lib/server/jobs/predicates";
 import { cleanupStagedMediaAttempt } from "$lib/server/media/artifact-staging";
 
 const RETRY_DELAY_MS = 5_000;
@@ -51,14 +51,7 @@ export async function failJob(
         payload: jobs.payload,
       })
       .from(jobs)
-      .where(
-        and(
-          eq(jobs.id, jobId),
-          eq(jobs.state, "leased"),
-          eq(jobs.leaseTokenHash, hashToken(leaseToken)),
-          gt(jobs.leaseExpiresAt, now),
-        ),
-      )
+      .where(and(eq(jobs.id, jobId), holdsActiveLease(leaseToken, now)))
       .get();
     if (!job) return null;
 

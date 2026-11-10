@@ -1,10 +1,11 @@
 import type { WorkerManifest } from "@anysub/contracts";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import type { Executor } from "$lib/server/db";
 import { jobs, projects, workers } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { conflict } from "$lib/server/http/errors";
+import { isModelCacheJobOf } from "$lib/server/jobs/predicates";
 import { LIVENESS_WINDOW_MS } from "$lib/server/workers/presence";
 import type {
   WorkerJobSummary,
@@ -77,13 +78,7 @@ export function forgetWorker(workerId: string): void {
     }
     tx.update(jobs)
       .set({ state: "cancelled", progressMessage: "Worker removed" })
-      .where(
-        and(
-          eq(jobs.kind, "model_cache"),
-          eq(jobs.state, "queued"),
-          sql`${jobs.payload} ->> 'workerId' = ${workerId}`,
-        ),
-      )
+      .where(and(isModelCacheJobOf(workerId), eq(jobs.state, "queued")))
       .run();
     tx.delete(workers).where(eq(workers.id, workerId)).run();
   });

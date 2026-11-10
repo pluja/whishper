@@ -9,14 +9,16 @@ import type {
   MediaPreparationJobPayload,
 } from "@anysub/contracts";
 
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "$lib/server/db";
 import { jobs, mediaUploads, projects } from "$lib/server/db/schema";
 import { isNodeError } from "$lib/server/guards";
 import { badRequest, conflict, notFound } from "$lib/server/http/errors";
-import { hashToken } from "$lib/server/jobs/lease-token";
-import { isMediaPrepareJob } from "$lib/server/jobs/predicates";
+import {
+  holdsActiveLease,
+  isMediaPrepareJob,
+} from "$lib/server/jobs/predicates";
 import { ARTIFACT_LIMITS } from "$lib/server/media/derivatives";
 import { withKeyedLock } from "$lib/server/storage/keyed-lock";
 import {
@@ -57,13 +59,7 @@ export function requireMediaPreparationLease(
     .innerJoin(projects, eq(projects.id, jobs.projectId))
     .leftJoin(mediaUploads, eq(mediaUploads.projectId, projects.id))
     .where(
-      and(
-        eq(jobs.id, jobId),
-        eq(jobs.state, "leased"),
-        eq(jobs.leaseTokenHash, hashToken(leaseToken)),
-        gt(jobs.leaseExpiresAt, new Date()),
-        isMediaPrepareJob,
-      ),
+      and(eq(jobs.id, jobId), holdsActiveLease(leaseToken), isMediaPrepareJob),
     )
     .get();
   if (

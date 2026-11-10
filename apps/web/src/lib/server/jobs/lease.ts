@@ -4,7 +4,7 @@ import {
   type WorkerLease,
   type WorkerManifest,
 } from "@anysub/contracts";
-import { and, asc, desc, eq, gt, inArray, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lte, or } from "drizzle-orm";
 
 import {
   jobs,
@@ -19,8 +19,10 @@ import {
 } from "$lib/server/jobs/failure";
 import { generateLeaseToken, hashToken } from "$lib/server/jobs/lease-token";
 import {
+  holdsActiveLease,
   isMediaPrepareJob,
-  isModelCacheJobFor,
+  isModelCacheJobOf,
+  payloadField,
 } from "$lib/server/jobs/predicates";
 import { recordWorkerPresence } from "$lib/server/workers/presence";
 
@@ -40,18 +42,14 @@ export async function leaseJob(
     recordWorkerPresence(tx, manifest);
     const reclaimed = reclaimExpiredLeases(tx);
 
+    const offeredAdapter = inArray(payloadField("adapterId"), adapterIds);
     const compatible = [
       ...(adapterIds.length > 0
-        ? [
-            and(
-              eq(jobs.kind, "transcribe"),
-              inArray(sql`${jobs.payload} ->> 'adapterId'`, adapterIds),
-            ),
-          ]
+        ? [and(eq(jobs.kind, "transcribe"), offeredAdapter)]
         : []),
       ...(supportsMediaPreparation ? [isMediaPrepareJob] : []),
       ...(supportsModelCache
-        ? [isModelCacheJobFor(manifest.workerId, adapterIds)]
+        ? [and(isModelCacheJobOf(manifest.workerId), offeredAdapter)]
         : []),
     ];
     if (compatible.length === 0) return { lease: null, reclaimed };
@@ -131,14 +129,7 @@ export function reportProgress(
         progressMessage: message,
         leaseExpiresAt: new Date(now.getTime() + LEASE_MS),
       })
-      .where(
-        and(
-          eq(jobs.id, jobId),
-          eq(jobs.state, "leased"),
-          eq(jobs.leaseTokenHash, hashToken(leaseToken)),
-          gt(jobs.leaseExpiresAt, now),
-        ),
-      )
+      .where(and(eq(jobs.id, jobId), holdsActiveLease(leaseToken, now)))
       .returning({ leasedBy: jobs.leasedBy })
       .get();
     if (!job) return false;

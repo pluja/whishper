@@ -5,13 +5,13 @@ import type {
   TranscriptionJobPayload,
   WorkerJobPayload,
 } from "@anysub/contracts";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db, type Executor } from "$lib/server/db";
 import { jobs, subtitleTracks, transcriptionRuns } from "$lib/server/db/schema";
 import { withTransaction } from "$lib/server/db/transaction";
 import { unprocessable } from "$lib/server/http/errors";
-import { hashToken } from "$lib/server/jobs/lease-token";
+import { holdsActiveLease } from "$lib/server/jobs/predicates";
 import {
   commitMediaFinalization,
   linkMediaArtifacts,
@@ -108,25 +108,21 @@ function leasedJob(
 ): LeasedJob | Exclude<CompletionOutcome, "completed"> {
   const job = executor
     .select({
-      state: jobs.state,
       runId: jobs.runId,
       workspaceId: jobs.workspaceId,
       attempts: jobs.attempts,
       payload: jobs.payload,
-      leaseTokenHash: jobs.leaseTokenHash,
-      leaseExpiresAt: jobs.leaseExpiresAt,
     })
     .from(jobs)
-    .where(eq(jobs.id, jobId))
+    .where(and(eq(jobs.id, jobId), holdsActiveLease(leaseToken)))
     .get();
-  if (!job) return "lease-rejected";
-  if (job.state === "completed") return "already-completed";
-  const leaseAccepted =
-    job.state === "leased" &&
-    job.leaseTokenHash === hashToken(leaseToken) &&
-    job.leaseExpiresAt !== null &&
-    job.leaseExpiresAt.getTime() > Date.now();
-  return leaseAccepted ? job : "lease-rejected";
+  if (job) return job;
+  const state = executor
+    .select({ state: jobs.state })
+    .from(jobs)
+    .where(eq(jobs.id, jobId))
+    .get()?.state;
+  return state === "completed" ? "already-completed" : "lease-rejected";
 }
 
 function markCompleted(
