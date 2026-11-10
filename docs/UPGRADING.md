@@ -1,6 +1,6 @@
 # Upgrading
 
-Your `compose.yaml` names an exact version of both images, for example `ghcr.io/pluja/anysub:4.0.0`. Anysub changes only when you change those tags. The web and worker images must always carry the same version.
+Your `compose.yaml` names an exact version of both images, for example `ghcr.io/pluja/anysub:4.0.1`. Anysub changes only when you change those tags. The web and worker images must always carry the same version.
 
 ## Before you upgrade
 
