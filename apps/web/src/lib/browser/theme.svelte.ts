@@ -9,7 +9,7 @@ import {
 } from "$lib/shared/theme";
 import { readStorage, writeStorage } from "./safe-storage";
 
-const SYSTEM_DARK_QUERY = "(prefers-color-scheme: dark)";
+export const SYSTEM_DARK_QUERY = "(prefers-color-scheme: dark)";
 
 export class ThemeController {
   preference = $state<ThemePreference>("system");
