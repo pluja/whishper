@@ -21,7 +21,7 @@
   );
 </script>
 
-<div class="grid gap-1.5">
+<div class="grid grid-cols-1 gap-1.5">
   <label for={id} class="text-sm font-medium text-text">{label}</label>
   {@render control({ id, describedBy, invalid: Boolean(error) })}
   {#if error}

@@ -1,6 +1,7 @@
 import { checkPickers } from "./pickers.mjs";
 import { checkTimecodeField } from "./timecode.mjs";
 import {
+  animationsFinished,
   axeViolations,
   focusedText,
   isFocused,
@@ -62,9 +63,7 @@ async function checkRetranscribeDialog(page, theme) {
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Re-transcribe" });
   await dialog.waitFor();
-  await dialog.evaluate((node) =>
-    Promise.all(node.getAnimations().map((animation) => animation.finished)),
-  );
+  await animationsFinished(dialog);
   await page.screenshot({
     path: `${outputDir}/studio-retranscribe-${theme}-1440.png`,
   });
@@ -185,9 +184,7 @@ async function checkShortcutGuide(page, theme) {
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Keyboard shortcuts" });
   await dialog.waitFor();
-  await dialog.evaluate((node) =>
-    Promise.all(node.getAnimations().map((animation) => animation.finished)),
-  );
+  await animationsFinished(dialog);
   await page.screenshot({
     path: `${outputDir}/studio-shortcuts-${theme}-${page.viewportSize().width}.png`,
   });

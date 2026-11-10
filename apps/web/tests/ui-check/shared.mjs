@@ -60,6 +60,12 @@ export async function axeViolations(page, selector) {
   return results.violations;
 }
 
+export async function animationsFinished(locator) {
+  await locator.evaluate((node) =>
+    Promise.all(node.getAnimations().map((animation) => animation.finished)),
+  );
+}
+
 export async function focusedText(page) {
   return page.evaluate(() => document.activeElement?.textContent?.trim());
 }
