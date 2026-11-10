@@ -52,6 +52,18 @@ export function rulerStepUs(targetUs: number): number {
   return Math.max(1_000, Math.round(multiplier * magnitude));
 }
 
+// Ticks fall on multiples of the step, so a sub-second step needs exactly as
+// many decimals as its own magnitude to give every tick its own label.
+export function rulerLabel(tickUs: number, majorStepUs: number): string {
+  const clock = formatClock(Math.floor(tickUs / 1_000_000));
+  if (majorStepUs >= 1_000_000) return clock;
+  const decimals = 6 - Math.floor(Math.log10(majorStepUs));
+  const fraction = String(tickUs % 1_000_000)
+    .padStart(6, "0")
+    .slice(0, decimals);
+  return `${clock}.${fraction}`;
+}
+
 type VisibleRange = {
   startUs: number;
   endUs: number;
@@ -77,7 +89,7 @@ function drawRuler(
     const x = Math.round(tickUs * pixelsPerUs - offset) + 0.5;
     context.moveTo(x, 15);
     context.lineTo(x, RULER_HEIGHT);
-    context.fillText(formatClock(Math.floor(tickUs / 1_000_000)), x + 4, 3);
+    context.fillText(rulerLabel(tickUs, majorStepUs), x + 4, 3);
   }
   context.stroke();
 
