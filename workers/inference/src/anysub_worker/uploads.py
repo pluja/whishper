@@ -8,10 +8,9 @@ import httpx
 
 from .errors import LeaseLostError
 from .models import MediaDerivativeKind, WorkerLease
-from .retry import Sleep, is_transient, retry
+from .retry import APPLICATION_RETRY_ATTEMPTS, Sleep, is_transient, retry
 
 ARTIFACT_CHUNK_BYTES = 16 * 1024 * 1024
-ARTIFACT_UPLOAD_ATTEMPTS = 3
 UPLOAD_OFFSET = re.compile(r"[0-9]{1,15}")
 
 
@@ -32,7 +31,7 @@ async def upload_artifact(
         while not upload.complete:
             await retry(
                 lambda: upload.send_next_chunk(artifact),
-                attempts=ARTIFACT_UPLOAD_ATTEMPTS,
+                attempts=APPLICATION_RETRY_ATTEMPTS,
                 is_retryable=_is_retryable,
                 sleep=sleep,
             )

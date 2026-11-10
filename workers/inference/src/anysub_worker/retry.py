@@ -28,6 +28,8 @@ class Backoff:
 
 
 APPLICATION_BACKOFF = Backoff(base_seconds=1, cap_seconds=30)
+# About a minute of backoff, which outlasts an application restart.
+APPLICATION_RETRY_ATTEMPTS = 7
 
 
 def is_transient(error: Exception) -> bool:

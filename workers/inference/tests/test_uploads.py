@@ -8,7 +8,8 @@ from fakes import RecordedSleeps
 
 from anysub_worker.errors import LeaseLostError
 from anysub_worker.models import WorkerLease
-from anysub_worker.uploads import ARTIFACT_UPLOAD_ATTEMPTS, ArtifactUploadError, upload_artifact
+from anysub_worker.retry import APPLICATION_RETRY_ATTEMPTS
+from anysub_worker.uploads import ArtifactUploadError, upload_artifact
 
 ARTIFACT_URL = "http://app.test/api/internal/jobs/job-media/artifacts/waveform"
 
@@ -98,16 +99,18 @@ async def test_rejected_artifact_upload_is_raised_without_retrying(
     assert raised.value.response.status_code == 400
 
 
-async def test_artifact_upload_gives_up_with_the_last_server_error(
+async def test_artifact_upload_waits_out_an_application_restart_before_giving_up(
     upload: Upload, respx_mock: respx.MockRouter
 ) -> None:
+    sleeps = RecordedSleeps()
     respx_mock.head(ARTIFACT_URL).mock(return_value=staged_offset(0))
     patch = respx_mock.patch(ARTIFACT_URL).mock(return_value=httpx.Response(502))
 
     with pytest.raises(httpx.HTTPStatusError):
-        await upload()
+        await upload(sleeps)
 
-    assert patch.call_count == ARTIFACT_UPLOAD_ATTEMPTS
+    assert patch.call_count == APPLICATION_RETRY_ATTEMPTS
+    assert sleeps == [1, 2, 4, 8, 16, 30]
 
 
 @pytest.mark.parametrize("method", ["head", "patch"])
@@ -147,13 +150,12 @@ async def test_failed_offset_resyncs_count_toward_the_upload_attempts(
     upload: Upload, respx_mock: respx.MockRouter
 ) -> None:
     sleeps = RecordedSleeps()
-    head = respx_mock.head(ARTIFACT_URL).mock(
-        side_effect=[staged_offset(0), httpx.Response(503), httpx.Response(503)]
-    )
+    failed_resyncs = [httpx.Response(503)] * (APPLICATION_RETRY_ATTEMPTS - 1)
+    head = respx_mock.head(ARTIFACT_URL).mock(side_effect=[staged_offset(0), *failed_resyncs])
     patch = respx_mock.patch(ARTIFACT_URL).mock(return_value=httpx.Response(503))
 
     with pytest.raises(httpx.HTTPStatusError):
         await upload(sleeps)
 
-    assert (patch.call_count, head.call_count) == (1, 3)
-    assert len(sleeps) == ARTIFACT_UPLOAD_ATTEMPTS - 1
+    assert (patch.call_count, head.call_count) == (1, APPLICATION_RETRY_ATTEMPTS)
+    assert len(sleeps) == APPLICATION_RETRY_ATTEMPTS - 1

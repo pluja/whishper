@@ -7,7 +7,7 @@ import respx
 from fakes import RecordedSleeps
 
 from anysub_worker import client as client_module
-from anysub_worker.client import FINAL_REPORT_ATTEMPTS, ApplicationClient
+from anysub_worker.client import ApplicationClient
 from anysub_worker.config import AdapterRuntimeSettings, WorkerSettings
 from anysub_worker.errors import LeaseLostError
 from anysub_worker.models import (
@@ -19,6 +19,7 @@ from anysub_worker.models import (
     WorkerMemory,
 )
 from anysub_worker.registry import AdapterRegistry
+from anysub_worker.retry import APPLICATION_RETRY_ATTEMPTS
 
 COMPLETE_URL = "http://app.test/api/internal/jobs/job-media/complete"
 LEASE_URL = "http://app.test/api/internal/workers/lease"
@@ -85,7 +86,7 @@ async def test_completion_gives_up_after_the_retry_budget(
         await client.close()
 
     assert sleeps == [1, 2, 4, 8, 16, 30]
-    assert route.call_count == FINAL_REPORT_ATTEMPTS
+    assert route.call_count == APPLICATION_RETRY_ATTEMPTS
 
 
 async def test_rejected_completion_is_not_retried(

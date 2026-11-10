@@ -28,13 +28,12 @@ from .models import (
     WorkerManifest,
 )
 from .registry import AdapterRegistry
-from .retry import Sleep, is_transient, retry
+from .retry import APPLICATION_RETRY_ATTEMPTS, Sleep, is_transient, retry
 from .token import WorkerTokenAuth
 from .uploads import upload_artifact
 
 LOGGER = logging.getLogger(__name__)
 WORKER_VERSION = version("anysub-worker")
-FINAL_REPORT_ATTEMPTS = 7
 
 
 class ApplicationClient:
@@ -150,7 +149,7 @@ class ApplicationClient:
 
         await retry(
             lambda: self._post_job_report(lease, action, report),
-            attempts=FINAL_REPORT_ATTEMPTS,
+            attempts=APPLICATION_RETRY_ATTEMPTS,
             is_retryable=is_transient,
             sleep=self._sleep,
             on_retry=log_retry,
