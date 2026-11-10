@@ -196,7 +196,9 @@ export class CueEditor {
   setTimeToPlayhead(index: number, field: CueTimeField): void {
     const cue = this.cues[index];
     if (!cue || this.readOnly) return;
-    const playheadUs = this.transport.clampToSource(this.transport.playbackUs);
+    const playheadUs = this.transport.clampToSource(
+      this.transport.currentPlayheadUs(),
+    );
     const message = cueTimeError(cue, field, playheadUs);
     if (message) {
       this.showTimeError(cue.id, field, message);
@@ -254,7 +256,7 @@ export class CueEditor {
     const index = this.selectedCueIndex;
     if (index < 0 || this.readOnly) return;
     const result = splitCue(this.cues, index, {
-      playbackUs: this.transport.playbackUs,
+      playbackUs: this.transport.currentPlayheadUs(),
       cursorPosition: this.#cursorPositions.get(this.cues[index].id),
       newId: createUuid(),
     });

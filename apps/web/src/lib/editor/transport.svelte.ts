@@ -118,7 +118,9 @@ export class Transport {
     return Math.round(clampToDuration(microseconds, this.sourceDurationUs));
   }
 
-  #currentPlayheadUs(): number {
+  // playbackUs follows timeupdate, which fires only a few times a second, so
+  // anything acting on the exact playhead reads the media element instead.
+  currentPlayheadUs(): number {
     if (!this.mediaElement || !Number.isFinite(this.mediaElement.currentTime)) {
       return this.playbackUs;
     }
@@ -175,7 +177,7 @@ export class Transport {
     this.#reverseShuttleLastTickMs = now;
     const nextUs = Math.max(
       0,
-      this.#currentPlayheadUs() -
+      this.currentPlayheadUs() -
         Math.round(elapsedMs * 1_000 * this.#shuttleRate),
     );
     this.mediaElement.currentTime = nextUs / 1_000_000;
@@ -214,7 +216,7 @@ export class Transport {
     this.#clearReverseShuttleTimer();
     this.mediaElement.pause();
     this.mediaElement.playbackRate = 1;
-    this.playbackUs = this.#currentPlayheadUs();
+    this.playbackUs = this.currentPlayheadUs();
     if (this.playbackUs <= 0) {
       this.playbackUs = 0;
       this.mediaElement.currentTime = 0;
@@ -243,14 +245,14 @@ export class Transport {
   stepFrames(direction: -1 | 1, frameCount: number): boolean {
     if (!this.mediaElement) return false;
     return this.#setPausedPlayhead(
-      this.#currentPlayheadUs() +
+      this.currentPlayheadUs() +
         direction * frameCount * this.#options.frameDurationUs(),
     );
   }
 
   jumpToCueStart(direction: -1 | 1): boolean {
     if (!this.mediaElement) return false;
-    const playheadUs = this.#currentPlayheadUs();
+    const playheadUs = this.currentPlayheadUs();
     let destination: EditorCue | undefined;
     for (const cue of this.#selection.cues) {
       if (

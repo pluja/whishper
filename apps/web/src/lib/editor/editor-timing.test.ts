@@ -326,6 +326,16 @@ describe("CueEditor.setTimeToPlayhead", () => {
     });
   });
 
+  it("reads the media element rather than the last timeupdate", () => {
+    const editor = editorAt(1_200_000);
+    editor.transport.mediaElement = {
+      currentTime: 1.45,
+    } as HTMLMediaElement;
+    editor.setTimeToPlayhead(0, "start_us");
+
+    expect(editor.cues[0].start_us).toBe(1_450_000);
+  });
+
   it("never sets a time past the end of the source", () => {
     const editor = editorAt(9_000_000, () => false, 3_800_000);
     editor.setTimeToPlayhead(1, "end_us");
@@ -340,6 +350,24 @@ describe("CueEditor.setTimeToPlayhead", () => {
 
     expect(editor.cues[0].end_us).toBe(2_000_000);
     expect(editor.timeError).toBeNull();
+  });
+});
+
+describe("CueEditor.splitSelected", () => {
+  it("splits at the media element's time rather than the last timeupdate", () => {
+    const editor = newEditor();
+    editor.loadTrack(
+      trackA,
+      [{ ...cue("a", "one two"), start_us: 0, end_us: 2_000_000 }],
+      1,
+    );
+    editor.transport.playbackUs = 1_000_000;
+    editor.transport.mediaElement = {
+      currentTime: 1.2,
+    } as HTMLMediaElement;
+    editor.splitSelected();
+
+    expect(editor.cues.map((item) => item.start_us)).toEqual([0, 1_200_000]);
   });
 });
 
