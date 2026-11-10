@@ -27,6 +27,7 @@ import type {
   RunStatus,
   UploadStatus,
 } from "$lib/shared/project-status";
+import { matchesSearch, normalizeSearchText } from "$lib/shared/search";
 
 export function parseProjectLibrarySearch(
   searchParams: URLSearchParams,
@@ -73,50 +74,41 @@ export function primaryWorkspaceForUser(
   return workspace ?? null;
 }
 
-type SubtitleSummary = {
-  updatedAt: Date | null;
-  subtitleMatch: boolean;
-};
-
-const NO_SUBTITLES: SubtitleSummary = {
-  updatedAt: null,
-  subtitleMatch: false,
-};
-
-function containsFolded(text: string, query: string): boolean {
-  return query !== "" && text.toLowerCase().includes(query.toLowerCase());
-}
-
-function subtitleSummaries(
+function latestSubtitleEdits(
   executor: Executor,
   workspaceId: string,
-  query: string,
-): Map<string, SubtitleSummary> {
-  const matches =
-    query === ""
-      ? sql<number>`0`
-      : sql<number>`max(instr(unicode_lower(${cues.text}), unicode_lower(${query})) > 0)`;
+): Map<string, Date> {
   const rows = executor
     .select({
       projectId: subtitleTracks.projectId,
-      updatedAt: sql<number | null>`max(${subtitleTracks.updatedAt})`,
-      subtitleMatch: matches,
+      updatedAt: sql<number>`max(${subtitleTracks.updatedAt})`,
     })
     .from(subtitleTracks)
     .innerJoin(projects, eq(projects.id, subtitleTracks.projectId))
-    .leftJoin(cues, eq(cues.trackId, subtitleTracks.id))
     .where(eq(projects.workspaceId, workspaceId))
     .groupBy(subtitleTracks.projectId)
     .all();
-  return new Map(
-    rows.map((row) => [
-      row.projectId,
-      {
-        updatedAt: row.updatedAt === null ? null : new Date(row.updatedAt),
-        subtitleMatch: Boolean(row.subtitleMatch),
-      },
-    ]),
-  );
+  return new Map(rows.map((row) => [row.projectId, new Date(row.updatedAt)]));
+}
+
+function projectsWithSubtitleText(
+  executor: Executor,
+  workspaceId: string,
+  query: string,
+): Set<string> {
+  const rows = executor
+    .selectDistinct({ projectId: subtitleTracks.projectId })
+    .from(cues)
+    .innerJoin(subtitleTracks, eq(subtitleTracks.id, cues.trackId))
+    .innerJoin(projects, eq(projects.id, subtitleTracks.projectId))
+    .where(
+      and(
+        eq(projects.workspaceId, workspaceId),
+        sql`instr(search_text(${cues.text}), ${normalizeSearchText(query)}) > 0`,
+      ),
+    )
+    .all();
+  return new Set(rows.map((row) => row.projectId));
 }
 
 type RunProgress = Pick<
@@ -240,17 +232,19 @@ export function listLibraryProjects(
     .where(eq(projects.workspaceId, workspaceId))
     .all();
   const projectIds = rows.map((row) => row.id);
-  const subtitles = subtitleSummaries(executor, workspaceId, search.query);
+  const subtitleEdits = latestSubtitleEdits(executor, workspaceId);
+  const subtitleMatches =
+    search.includeSubtitles && search.query !== ""
+      ? projectsWithSubtitleText(executor, workspaceId, search.query)
+      : new Set<string>();
   const runs = latestRunProgress(executor, projectIds);
   const thumbnails = thumbnailProjects(executor, projectIds);
 
   return rows
     .map(({ updatedAt, uploadUpdatedAt, ...row }) => {
-      const summary = subtitles.get(row.id) ?? NO_SUBTITLES;
+      const subtitleEdit = subtitleEdits.get(row.id);
       const activityAt =
-        summary.updatedAt && summary.updatedAt > updatedAt
-          ? summary.updatedAt
-          : updatedAt;
+        subtitleEdit && subtitleEdit > updatedAt ? subtitleEdit : updatedAt;
       return {
         ...row,
         ...(runs.get(row.id) ?? NO_RUN),
@@ -261,14 +255,12 @@ export function listLibraryProjects(
         ),
         activityAt,
         hasThumbnail: thumbnails.has(row.id),
-        subtitleMatch: summary.subtitleMatch,
+        subtitleMatch: subtitleMatches.has(row.id),
       };
     })
     .filter(
       (project) =>
-        search.query === "" ||
-        containsFolded(project.name, search.query) ||
-        (search.includeSubtitles && project.subtitleMatch),
+        project.subtitleMatch || matchesSearch(search.query, [project.name]),
     )
     .toSorted(
       (a, b) =>

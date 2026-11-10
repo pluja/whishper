@@ -4,8 +4,12 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { db } from "$lib/server/db";
-import { mediaUploads, projects as projectsTable } from "$lib/server/db/schema";
-import { seedProject } from "$lib/server/db/testing/fixtures";
+import {
+  cues,
+  mediaUploads,
+  projects as projectsTable,
+} from "$lib/server/db/schema";
+import { seedProject, seedTrack } from "$lib/server/db/testing/fixtures";
 import {
   listLibraryProjects,
   primaryWorkspaceForUser,
@@ -90,5 +94,57 @@ describe("project library", () => {
       id: project.projectId,
       mediaDurationUs: 7_200_000_000,
     });
+  });
+});
+
+describe("project library search", () => {
+  function seedNamedProject(name: string, cueText: string) {
+    const project = seedProject();
+    db.update(projectsTable)
+      .set({ name })
+      .where(eq(projectsTable.id, project.projectId))
+      .run();
+    db.insert(cues)
+      .values({
+        trackId: seedTrack(project.projectId),
+        position: 0,
+        startUs: 0,
+        endUs: 1_000_000,
+        text: cueText,
+      })
+      .run();
+    return project;
+  }
+
+  const foundNames = (
+    workspaceId: string,
+    query: string,
+    includeSubtitles: boolean,
+  ) =>
+    listLibraryProjects(db, workspaceId, { query, includeSubtitles }).map(
+      (project) => project.name,
+    );
+
+  it("matches titles regardless of case and accents", () => {
+    const project = seedNamedProject("Entrevista Café", "Hola");
+
+    expect(foundNames(project.workspaceId, "cafe", false)).toEqual([
+      "Entrevista Café",
+    ]);
+    expect(foundNames(project.workspaceId, "ÉNTREVISTA", false)).toEqual([
+      "Entrevista Café",
+    ]);
+  });
+
+  it("matches subtitle text regardless of case and accents only when asked", () => {
+    const project = seedNamedProject("Interview", "Él habló de la canción");
+
+    expect(foundNames(project.workspaceId, "cancion", true)).toEqual([
+      "Interview",
+    ]);
+    expect(foundNames(project.workspaceId, "EL HABLO", true)).toEqual([
+      "Interview",
+    ]);
+    expect(foundNames(project.workspaceId, "cancion", false)).toEqual([]);
   });
 });
