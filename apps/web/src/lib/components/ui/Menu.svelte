@@ -37,11 +37,12 @@
 
   function focusItem(key: string) {
     const items = menuItems();
-    const enabled = items.map(
-      (item) => item.getAttribute("aria-disabled") !== "true",
-    );
     const current = items.indexOf(document.activeElement as HTMLElement);
-    const next = nextMenuIndex(current, key, enabled);
+    const next = nextMenuIndex(
+      current,
+      key,
+      items.map(() => true),
+    );
     if (next === null) return false;
     items[next].focus();
     return true;
