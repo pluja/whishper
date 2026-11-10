@@ -196,6 +196,14 @@ describe("handleStudioKeydown", () => {
     expect(event.preventDefault).toHaveBeenCalledOnce();
   });
 
+  it("deletes one cue per press of a held Shift+Delete or Shift+Backspace", () => {
+    const studio = commands();
+    for (const key of ["Delete", "Backspace"]) {
+      press({ ...keydown(key, { shiftKey: true }), repeat: true }, studio);
+    }
+    expect(studio.deleteSelected).not.toHaveBeenCalled();
+  });
+
   it("sets the selected cue's In and Out to the playhead with I and O", () => {
     const studio = commands();
     const setIn = keydown("i", { target: "button" });

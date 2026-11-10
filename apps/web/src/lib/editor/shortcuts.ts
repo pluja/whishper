@@ -46,6 +46,17 @@ const ACTIVATION_TARGET_SELECTOR =
   'button, a, summary, [role="button"], [role="link"]';
 // Focus can only be inside a popover, such as a menu or picker, while it is open.
 const OPEN_POPOVER_SELECTOR = "[popover]";
+// Keys that toggle, mark or delete act once per press, never on key repeat.
+const SINGLE_PRESS_KEYS = new Set([
+  " ",
+  "j",
+  "k",
+  "l",
+  "i",
+  "o",
+  "delete",
+  "backspace",
+]);
 
 export const shortcutGroups: readonly ShortcutGroup[] = [
   {
@@ -315,12 +326,7 @@ export function handleStudioKeydown(
   }
 
   const key = event.key.toLowerCase();
-  if (
-    event.repeat &&
-    (event.key === " " || ["j", "k", "l", "i", "o"].includes(key))
-  ) {
-    return;
-  }
+  if (event.repeat && SINGLE_PRESS_KEYS.has(key)) return;
 
   if ((event.ctrlKey || event.metaKey) && !event.altKey) {
     handleCommandShortcut(event, key, commands);
