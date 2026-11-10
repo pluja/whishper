@@ -11,16 +11,19 @@
   import { formatBytes } from "$lib/shared/format";
   import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/limits";
   import { projectPageUrl } from "$lib/shared/routes";
+  import { selectedFileProblem } from "./upload-messages";
   import { ProjectUpload } from "./upload.svelte";
 
   type Props = {
     workspaceId: string;
+    maxUploadBytes: number;
     open?: boolean;
     initialFile?: File | null;
   };
 
   let {
     workspaceId,
+    maxUploadBytes,
     open = $bindable(false),
     initialFile = null,
   }: Props = $props();
@@ -39,10 +42,14 @@
   let projectNameEdited = $state(false);
   let fileInput = $state<HTMLInputElement>();
   let normalizedProjectName = $derived(projectName.trim());
+  let fileProblem = $derived(
+    selectedFile ? selectedFileProblem(selectedFile, maxUploadBytes) : null,
+  );
   let canCreateProject = $derived(
     normalizedProjectName.length > 0 &&
       normalizedProjectName.length <= PROJECT_TITLE_MAX_LENGTH &&
       selectedFile !== null &&
+      fileProblem === null &&
       !upload.busy,
   );
   let percent = $derived(Math.round(upload.progress * 100));
@@ -112,7 +119,7 @@
 
   function submit(event: SubmitEvent) {
     event.preventDefault();
-    if (!selectedFile || !normalizedProjectName) return;
+    if (!selectedFile || !canCreateProject) return;
     void upload.start(selectedFile, workspaceId, normalizedProjectName);
   }
 </script>
@@ -155,7 +162,7 @@
             type="file"
             accept="audio/*,video/*"
             disabled={upload.busy}
-            aria-invalid={upload.status === "error"}
+            aria-invalid={fileProblem !== null || upload.status === "error"}
             aria-describedby={fileStatusId}
             onchange={chooseFile}
             class="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
@@ -170,10 +177,16 @@
             <span class="block truncate text-sm font-medium text-text">
               {selectedFile?.name ?? "Choose an audio or video file"}
             </span>
-            <span class="block text-xs text-text-muted">
-              {selectedFile
-                ? `${formatBytes(selectedFile.size)} · ready to upload`
-                : "Drop a file here or browse your device"}
+            <span
+              class={[
+                "block text-xs",
+                fileProblem ? "text-danger" : "text-text-muted",
+              ]}
+            >
+              {fileProblem ??
+                (selectedFile
+                  ? `${formatBytes(selectedFile.size)} · ready to upload`
+                  : "Drop a file here or browse your device")}
             </span>
           </span>
           <span

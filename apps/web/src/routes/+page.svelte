@@ -192,6 +192,7 @@
     <CreateProjectDialog
       bind:open={createDialogOpen}
       workspaceId={data.workspace.id}
+      maxUploadBytes={data.maxUploadBytes}
       initialFile={droppedFile}
     />
   {/if}

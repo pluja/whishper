@@ -9,6 +9,7 @@ import {
   primaryWorkspaceForUser,
   renameProjectForUser,
 } from "$lib/server/projects/library";
+import { readInstanceSettings } from "$lib/server/settings/instance";
 import type { LibraryData } from "$lib/shared/library-data";
 import { isUuid } from "$lib/shared/uuid";
 import { fail, redirect } from "@sveltejs/kit";
@@ -17,7 +18,7 @@ import type { Actions, PageServerLoad } from "./$types";
 export const load: PageServerLoad = async ({
   locals,
   url,
-}): Promise<LibraryData> => {
+}): Promise<LibraryData & { maxUploadBytes: number }> => {
   if (!isInstanceInitialized()) redirect(303, "/setup");
   const user = requireUserOrLogin(locals);
   const search = parseProjectLibrarySearch(url.searchParams);
@@ -26,7 +27,12 @@ export const load: PageServerLoad = async ({
   const projects = workspace
     ? listLibraryProjects(db, workspace.id, search)
     : [];
-  return { workspace, projects, search };
+  return {
+    workspace,
+    projects,
+    search,
+    maxUploadBytes: readInstanceSettings(db).maxUploadBytes,
+  };
 };
 
 export const actions: Actions = {
