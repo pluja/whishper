@@ -13,6 +13,7 @@
 
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { hideOnTab, returnFocusOnHide } from "$lib/browser/popover-focus";
   import { nextMenuIndex } from "./menu-keyboard";
 
   type Props = {
@@ -94,11 +95,10 @@
         : fallbackPlacement();
       return;
     }
-    // Synchronous so that a dialog opened from an item's onselect captures the trigger as its return target.
-    const focused = document.activeElement;
-    if (!focused || focused === document.body || panel.contains(focused)) {
-      anchor.querySelector<HTMLElement>(`[popovertarget="${id}"]`)?.focus();
-    }
+    returnFocusOnHide(
+      panel,
+      anchor.querySelector<HTMLElement>(`[popovertarget="${id}"]`),
+    );
   }
 
   function handleToggle(event: ToggleEvent) {
@@ -108,10 +108,7 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === "Tab") {
-      panel.hidePopover();
-      return;
-    }
+    if (hideOnTab(event, panel)) return;
     if (focusItem(event.key)) event.preventDefault();
   }
 </script>

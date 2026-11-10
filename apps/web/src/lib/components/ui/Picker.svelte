@@ -1,5 +1,6 @@
 <script lang="ts" generics="T">
   import { tick, type Snippet } from "svelte";
+  import { hideOnTab, returnFocusOnHide } from "$lib/browser/popover-focus";
   import Icon from "../Icon.svelte";
   import {
     groupIntoSections,
@@ -154,10 +155,7 @@
     }
     clearTimeout(announcementTimer);
     announcement = "";
-    const focused = document.activeElement;
-    if (!focused || focused === document.body || panel.contains(focused)) {
-      trigger.focus();
-    }
+    returnFocusOnHide(panel, trigger);
   }
 
   function handleToggle(event: ToggleEvent): void {
@@ -167,11 +165,7 @@
   }
 
   function handleKeydown(event: KeyboardEvent): void {
-    if (event.isComposing) return;
-    if (event.key === "Tab") {
-      panel.hidePopover();
-      return;
-    }
+    if (event.isComposing || hideOnTab(event, panel)) return;
     if (event.key === "Escape") {
       event.preventDefault();
       panel.hidePopover();
