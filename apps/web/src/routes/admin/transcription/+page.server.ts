@@ -31,7 +31,7 @@ export const actions: Actions = {
   save: async ({ locals, request }) => {
     requireAdminOrLogin(locals);
     const parsed = parseTranscriptionDefaults(await request.formData());
-    if ("problem" in parsed) return fail(400, parsed.problem);
+    if ("problem" in parsed) return fail(400, { problem: parsed.problem });
     updateInstanceSettings(parsed.value);
     return { saved: true };
   },

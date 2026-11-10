@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { SubmitFunction } from "@sveltejs/kit";
   import { enhance } from "$app/forms";
+  import { FormSubmission } from "$lib/admin/form-submission.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { FIT_TONES } from "$lib/components/model-fit";
   import Badge from "$lib/components/ui/Badge.svelte";
@@ -31,7 +31,7 @@
     suggested,
   }: Props = $props();
 
-  let submitting = $state(false);
+  const submission = new FormSubmission();
 
   const size = $derived(model.downloadSizeBytes);
   const task = $derived(model.task);
@@ -43,20 +43,6 @@
       ? `~${formatBytes(model.memoryRequirementBytes)} ${model.memoryRequirementKind === "vram" ? "graphics memory" : "memory"}`
       : null,
   );
-
-  function track(confirmation?: string): SubmitFunction {
-    return ({ cancel }) => {
-      if (confirmation && !window.confirm(confirmation)) {
-        cancel();
-        return;
-      }
-      submitting = true;
-      return async ({ update }) => {
-        await update({ reset: false });
-        submitting = false;
-      };
-    };
-  }
 </script>
 
 {#snippet modelFields()}
@@ -144,10 +130,15 @@
           method="POST"
           action="?/cancel"
           class="justify-self-end"
-          use:enhance={track()}
+          use:enhance={submission.handle()}
         >
           <input type="hidden" name="jobId" value={task.jobId} />
-          <Button type="submit" variant="ghost" size="xs" loading={submitting}>
+          <Button
+            type="submit"
+            variant="ghost"
+            size="xs"
+            loading={submission.busy}
+          >
             Cancel
           </Button>
         </form>
@@ -175,7 +166,7 @@
           <form
             method="POST"
             action="?/remove"
-            use:enhance={track(
+            use:enhance={submission.handle(
               `Remove ${model.displayName} from ${workerName}? Transcriptions that use it will download it again.`,
             )}
           >
@@ -185,19 +176,19 @@
               icon="trash"
               size="sm"
               label={`Remove ${model.displayName}`}
-              disabled={submitting}
+              disabled={submission.busy}
             />
           </form>
         {/if}
       </div>
     {:else}
-      <form method="POST" action="?/download" use:enhance={track()}>
+      <form method="POST" action="?/download" use:enhance={submission.handle()}>
         {@render modelFields()}
         <Button
           type="submit"
           size="sm"
           variant={suggested ? "primary" : "secondary"}
-          loading={submitting}
+          loading={submission.busy}
           disabled={!manageable || !fitsOnDisk}
         >
           <Icon name={model.failure ? "refresh" : "download"} size={16} />

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { SubmitFunction } from "@sveltejs/kit";
   import { enhance } from "$app/forms";
   import DiskUsage from "$lib/admin/DiskUsage.svelte";
+  import { FormSubmission } from "$lib/admin/form-submission.svelte";
   import SectionHeader from "$lib/admin/SectionHeader.svelte";
   import SettingsCard from "$lib/admin/SettingsCard.svelte";
   import UploadLimitSetting from "$lib/admin/UploadLimitSetting.svelte";
@@ -10,19 +10,7 @@
 
   let { data, form } = $props();
 
-  let saving = $state(false);
-
-  const problem = $derived(
-    form?.field ? { field: form.field, message: form.message ?? "" } : null,
-  );
-
-  const save: SubmitFunction = () => {
-    saving = true;
-    return async ({ update }) => {
-      await update({ reset: false });
-      saving = false;
-    };
-  };
+  const submission = new FormSubmission();
 </script>
 
 <SectionHeader
@@ -40,15 +28,15 @@
       method="POST"
       action="?/saveUploadLimit"
       class="grid gap-4"
-      use:enhance={save}
+      use:enhance={submission.handle()}
     >
       <UploadLimitSetting
         initialBytes={data.maxUploadBytes}
         freeBytes={data.usage.volume?.availableBytes ?? null}
-        error={problem}
+        error={form?.problem ?? null}
       />
       <div class="flex flex-wrap items-center gap-3">
-        <Button type="submit" variant="primary" loading={saving}>
+        <Button type="submit" variant="primary" loading={submission.busy}>
           Save limit
         </Button>
         <span aria-live="polite" class="text-sm">

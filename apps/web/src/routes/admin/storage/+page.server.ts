@@ -22,7 +22,7 @@ export const actions: Actions = {
   saveUploadLimit: async ({ locals, request }) => {
     requireAdminOrLogin(locals);
     const parsed = parseUploadLimit(await request.formData());
-    if ("problem" in parsed) return fail(400, parsed.problem);
+    if ("problem" in parsed) return fail(400, { problem: parsed.problem });
     updateInstanceSettings({ maxUploadBytes: parsed.value });
     return { saved: true };
   },

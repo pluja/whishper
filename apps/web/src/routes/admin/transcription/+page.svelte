@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { SubmitFunction } from "@sveltejs/kit";
   import { enhance } from "$app/forms";
   import DefaultModelPicker from "$lib/admin/DefaultModelPicker.svelte";
+  import { FormSubmission } from "$lib/admin/form-submission.svelte";
   import LineLengthSetting from "$lib/admin/LineLengthSetting.svelte";
   import PrecisionChoice from "$lib/admin/PrecisionChoice.svelte";
   import SectionHeader from "$lib/admin/SectionHeader.svelte";
@@ -13,19 +13,7 @@
 
   let { data, form } = $props();
 
-  let saving = $state(false);
-
-  const problem = $derived(
-    form?.field ? { field: form.field, message: form.message ?? "" } : null,
-  );
-
-  const save: SubmitFunction = () => {
-    saving = true;
-    return async ({ update }) => {
-      await update({ reset: false });
-      saving = false;
-    };
-  };
+  const submission = new FormSubmission();
 </script>
 
 <SectionHeader
@@ -33,7 +21,12 @@
   description="The starting point for every new transcription. People can still change the model, language and alignment each time they transcribe."
 />
 
-<form method="POST" action="?/save" class="grid gap-4" use:enhance={save}>
+<form
+  method="POST"
+  action="?/save"
+  class="grid gap-4"
+  use:enhance={submission.handle()}
+>
   <SettingsCard
     icon="cube"
     title="Default model"
@@ -84,8 +77,8 @@
     description="Transcripts are split into subtitles at whole words, each no longer than this."
   >
     <LineLengthSetting initial={data.defaults.maxLineLength} />
-    {#if problem?.field === "maxLineLength"}
-      <p class="text-sm text-danger" role="alert">{problem.message}</p>
+    {#if form?.problem?.field === "maxLineLength"}
+      <p class="text-sm text-danger" role="alert">{form.problem.message}</p>
     {/if}
   </SettingsCard>
 
@@ -101,10 +94,10 @@
     class="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-border bg-bg/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border sm:bg-surface/95"
   >
     <div aria-live="polite" class="mr-auto text-sm">
-      {#if problem}
+      {#if form?.problem}
         <span class="inline-flex items-center gap-1.5 text-danger">
           <Icon name="alert" size={16} />
-          {problem.message}
+          {form.problem.message}
         </span>
       {:else if form?.saved}
         <span class="inline-flex items-center gap-1.5 text-success">
@@ -113,7 +106,7 @@
         </span>
       {/if}
     </div>
-    <Button type="submit" variant="primary" loading={saving}>
+    <Button type="submit" variant="primary" loading={submission.busy}>
       Save changes
     </Button>
   </div>
