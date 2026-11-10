@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
+import { building } from "$app/environment";
 import Database from "better-sqlite3";
 import type { RunResult } from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
@@ -14,8 +15,7 @@ import { privateEnv } from "$lib/server/env";
 const schema = { ...authSchema, ...appSchema };
 const IN_MEMORY = ":memory:";
 
-function open() {
-  const file = privateEnv.databaseFile;
+function open(file: string) {
   if (file !== IN_MEMORY) mkdirSync(dirname(file), { recursive: true });
   const sqlite = new Database(file);
   // WAL lets reads proceed while a write commits.
@@ -32,6 +32,8 @@ function open() {
   return database;
 }
 
-export const db = open();
+// The build imports server modules to analyse routes, and must not create or
+// migrate the real database while it does.
+export const db = open(building ? IN_MEMORY : privateEnv.databaseFile);
 
 export type Executor = BaseSQLiteDatabase<"sync", RunResult, typeof schema>;
