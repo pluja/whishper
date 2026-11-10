@@ -2,20 +2,37 @@ import asyncio
 import sys
 import threading
 from collections.abc import Callable
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-from anysub_worker.adapter import AdapterExecutionError
+from anysub_worker.adapter import AdapterExecutionError, ProgressReporter
 from anysub_worker.adapters.whisperx import adapter as adapter_module
 from anysub_worker.adapters.whisperx.adapter import WhisperXAdapter
 from anysub_worker.adapters.whisperx.adapter import _ModelKey as ModelKey
 from anysub_worker.adapters.whisperx.options import parse_options
+from anysub_worker.adapters.whisperx.profiles import ModelProfile, find_profile
 from anysub_worker.config import WorkerSettings
 from anysub_worker.models import TranscriptionRequest, WorkerDevice
 
 type InstallStub = Callable[[object], tuple[WhisperXAdapter, TranscriptionRequest]]
+
+
+COMPLETE_SNAPSHOT = ("config.json", "model.bin", "tokenizer.json")
+
+
+def write_snapshot(
+    settings: WorkerSettings, model_id: str, files: tuple[str, ...] = COMPLETE_SNAPSHOT
+) -> None:
+    profile = find_profile(model_id)
+    assert profile is not None
+    model_cache = profile.cache_directory(settings.runtime.model_root / "whisperx")
+    snapshot = model_cache / "snapshots" / "revision"
+    snapshot.mkdir(parents=True)
+    for filename in files:
+        (snapshot / filename).touch()
 
 
 def test_manifest_exposes_accurate_models_without_importing_ml_dependencies(
@@ -48,14 +65,8 @@ def test_manifest_options_schemas_are_independent(settings: WorkerSettings) -> N
 
 
 def test_manifest_detects_complete_cached_models(settings: WorkerSettings) -> None:
-    model_cache = settings.runtime.model_root / "whisperx"
-    snapshot = model_cache / "models--Systran--faster-whisper-small" / "snapshots" / "revision"
-    snapshot.mkdir(parents=True)
-    for filename in ("config.json", "model.bin", "tokenizer.json"):
-        (snapshot / filename).touch()
-    incomplete = model_cache / "models--Systran--faster-whisper-tiny" / "snapshots" / "revision"
-    incomplete.mkdir(parents=True)
-    (incomplete / "config.json").touch()
+    write_snapshot(settings, "small")
+    write_snapshot(settings, "tiny", ("config.json",))
 
     manifest = WhisperXAdapter(settings.runtime).manifest
 
@@ -171,6 +182,7 @@ class StubWhisperX:
 def transcribe_setup(settings: WorkerSettings, monkeypatch: pytest.MonkeyPatch) -> InstallStub:
     media = settings.runtime.data_root / "audio.wav"
     media.touch()
+    write_snapshot(settings, "small")
     monkeypatch.setitem(
         sys.modules,
         "whisperx.SubtitlesProcessor",
@@ -336,7 +348,7 @@ async def test_invalid_compute_type_on_model_load_is_not_retryable(
     assert "precision" in str(raised.value)
 
 
-async def test_download_errors_on_model_load_stay_retryable(transcribe_setup: InstallStub) -> None:
+async def test_other_model_load_errors_propagate(transcribe_setup: InstallStub) -> None:
     adapter, request = transcribe_setup(StubWhisperX(load_error=ConnectionError("offline")))
 
     with pytest.raises(ConnectionError):
@@ -355,37 +367,67 @@ def install_fake_hub_errors(monkeypatch: pytest.MonkeyPatch) -> type[Exception]:
     return FakeLocalEntryNotFoundError
 
 
-async def test_a_cached_model_loads_without_contacting_hugging_face(
-    settings: WorkerSettings,
+class RecordingDownloads:
+    def __init__(self, settings: WorkerSettings, error: AdapterExecutionError | None = None):
+        self.settings = settings
+        self.error = error
+        self.model_ids: list[str] = []
+
+    async def __call__(
+        self, profile: ModelProfile, model_root: Path, report_progress: ProgressReporter
+    ) -> None:
+        self.model_ids.append(profile.id)
+        await report_progress(0.5, f"Downloading {profile.display_name}")
+        if self.error is not None:
+            raise self.error
+        write_snapshot(self.settings, profile.id)
+
+
+class RecordedProgress:
+    def __init__(self) -> None:
+        self.updates: list[tuple[float, str]] = []
+
+    async def __call__(self, fraction: float, message: str) -> None:
+        self.updates.append((fraction, message))
+
+
+async def test_a_model_that_is_not_downloaded_downloads_before_it_loads_from_the_cache(
+    settings: WorkerSettings, transcribe_setup: InstallStub, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    snapshot = (
-        settings.runtime.model_root
-        / "whisperx"
-        / "models--Systran--faster-whisper-small"
-        / "snapshots"
-        / "revision"
-    )
-    snapshot.mkdir(parents=True)
-    for filename in ("config.json", "model.bin", "tokenizer.json"):
-        (snapshot / filename).touch()
+    loads: list[bool] = []
 
-    class RecordingWhisperX:
-        def __init__(self) -> None:
-            self.local_files_only: list[bool] = []
-
+    class LocalOnlyWhisperX(StubWhisperX):
         def load_model(self, model_id: str, device: str, **kwargs: Any) -> object:
-            self.local_files_only.append(kwargs["local_files_only"])
-            return object()
+            loads.append(kwargs["local_files_only"])
+            return super().load_model(model_id, device, **kwargs)
 
-    whisperx = RecordingWhisperX()
-    adapter = WhisperXAdapter(settings.runtime)
-    await adapter._load_model(whisperx, ModelKey("small", None, "int8"))
-    await adapter._load_model(whisperx, ModelKey("tiny", None, "int8"))
+    downloads = RecordingDownloads(settings)
+    monkeypatch.setattr(adapter_module, "download_profile", downloads)
+    adapter, request = transcribe_setup(LocalOnlyWhisperX())
+    progress = RecordedProgress()
 
-    assert whisperx.local_files_only == [True, False]
+    await adapter.transcribe(request.model_copy(update={"model_id": "tiny"}), progress)
+    await adapter.transcribe(request.model_copy(update={"model_id": "tiny"}), progress)
+
+    assert downloads.model_ids == ["tiny"]
+    assert loads == [True]
+    assert progress.updates[0] == (0.05, "Downloading Tiny")
 
 
-async def test_an_unreachable_hub_is_a_retryable_download_error(
+async def test_a_failed_model_download_stops_the_transcription_before_loading(
+    settings: WorkerSettings, transcribe_setup: InstallStub, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    failure = AdapterExecutionError("network is unreachable", retryable=True)
+    monkeypatch.setattr(adapter_module, "download_profile", RecordingDownloads(settings, failure))
+    adapter, request = transcribe_setup(StubWhisperX(load_error=AssertionError("loaded")))
+
+    with pytest.raises(AdapterExecutionError) as raised:
+        await adapter.transcribe(request.model_copy(update={"model_id": "tiny"}), noop_progress)
+
+    assert raised.value is failure
+
+
+async def test_incomplete_cached_model_files_are_not_blamed_on_precision(
     transcribe_setup: InstallStub, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     missing = install_fake_hub_errors(monkeypatch)
@@ -396,8 +438,8 @@ async def test_an_unreachable_hub_is_a_retryable_download_error(
     with pytest.raises(AdapterExecutionError) as raised:
         await adapter.transcribe(request, noop_progress)
 
-    assert raised.value.retryable is True
-    assert "huggingface.co" in str(raised.value)
+    assert raised.value.retryable is False
+    assert "Remove the model" in str(raised.value)
     assert "precision" not in str(raised.value)
 
 
@@ -418,6 +460,7 @@ async def test_out_of_memory_from_any_library_is_terminal(
 ) -> None:
     media = settings.runtime.data_root / "audio.wav"
     media.touch()
+    write_snapshot(settings, "small")
     monkeypatch.setitem(sys.modules, "whisperx", StubWhisperX(asr_error=error))
     runtime = settings.runtime.model_copy(update={"device": device})
     request = TranscriptionRequest(

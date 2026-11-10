@@ -20,6 +20,7 @@ from anysub_worker.models import (
     TranscriptArtifact,
     TranscriptionRequest,
 )
+from anysub_worker.progress import progress_span
 from anysub_worker.threads import run_in_thread
 from anysub_worker.timing import MICROSECONDS_PER_SECOND
 
@@ -31,6 +32,7 @@ from .result import WhisperSegment
 from .subtitles import split_subtitle_segments
 
 SAMPLE_RATE = 16_000
+MODEL_DOWNLOAD_SPAN = (0.0, 0.1)
 LOGGER = logging.getLogger(__name__)
 
 
@@ -94,8 +96,13 @@ class WhisperXAdapter:
         whisperx = _import_whisperx()
         media_path = self._media_path(request.media_path)
         options = parse_options(request.options, device=self._runtime.device)
+        profile = self._profile(request.model_id)
+        if not profile.is_downloaded(self._model_root):
+            await download_profile(
+                profile, self._model_root, progress_span(report_progress, *MODEL_DOWNLOAD_SPAN)
+            )
 
-        await report_progress(0.02, "Loading source audio")
+        await report_progress(MODEL_DOWNLOAD_SPAN[1], "Loading source audio")
         audio = await _run_in_thread(whisperx.load_audio, str(media_path))
         try:
             return await self._transcribe_audio(whisperx, audio, request, options, report_progress)
@@ -123,7 +130,7 @@ class WhisperXAdapter:
     ) -> TranscriptArtifact:
         duration_us = max(0, int(len(audio) / SAMPLE_RATE * MICROSECONDS_PER_SECOND))
 
-        await report_progress(0.08, f"Loading {request.model_id} model")
+        await report_progress(0.12, f"Loading {request.model_id} model")
         model = await self._load_model(
             whisperx, _ModelKey(request.model_id, request.language, options.compute_type)
         )
@@ -201,8 +208,8 @@ class WhisperXAdapter:
             "compute_type": key.compute_type,
             "download_root": str(self._model_root),
             "threads": self._runtime.cpu_threads or usable_cpu_count(),
-            # A cached model loads without contacting Hugging Face, so it works offline.
-            "local_files_only": _is_cached(model_id, self._model_root),
+            # Downloads run before loading, where they can be cancelled and report progress.
+            "local_files_only": True,
         }
         if key.language:
             kwargs["language"] = key.language
@@ -213,12 +220,12 @@ class WhisperXAdapter:
                 self._runtime.device,
                 **kwargs,
             )
-        except _model_download_errors() as error:
+        except _missing_model_file_errors() as error:
             raise AdapterExecutionError(
-                f"The {model_id} model is not downloaded yet, and the worker could not fetch it "
-                f"from Hugging Face ({describe_error(error)}). Check that the worker can reach "
-                "huggingface.co, then try again.",
-                retryable=True,
+                f"The {model_id} model files on this worker are incomplete "
+                f"({describe_error(error)}). Remove the model in Administration and download it "
+                "again.",
+                retryable=False,
             ) from error
         except ValueError as error:
             raise AdapterExecutionError(
@@ -296,23 +303,12 @@ def _import_whisperx() -> Any:
         ) from cause
 
 
-def _is_cached(model_id: str, model_root: Path) -> bool:
-    profile = find_profile(model_id)
-    return profile is not None and profile.is_downloaded(model_root)
-
-
-def _model_download_errors() -> tuple[type[Exception], ...]:
+def _missing_model_file_errors() -> tuple[type[Exception], ...]:
     try:
         errors = import_module("huggingface_hub.errors")
     except ImportError:
         return ()
-    names = ("LocalEntryNotFoundError", "HfHubHTTPError", "OfflineModeIsEnabled")
-    return tuple(
-        error_type
-        for name in names
-        if isinstance(error_type := getattr(errors, name, None), type)
-        and issubclass(error_type, Exception)
-    )
+    return (errors.LocalEntryNotFoundError,)
 
 
 def _release_memory() -> None:
