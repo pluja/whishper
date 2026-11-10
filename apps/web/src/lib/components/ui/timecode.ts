@@ -1,3 +1,4 @@
+import { clamp } from "$lib/shared/clamp";
 import { formatEditorTime, parseEditorTime } from "$lib/shared/subtitles";
 
 export type TimecodeEdit = { text: string; caret: number };
@@ -108,7 +109,7 @@ export function stepTimecode(
     sourceDurationUs > 0
       ? Math.min(TIMECODE_MAX_US, Math.max(sourceDurationUs, wholeMilliseconds))
       : TIMECODE_MAX_US;
-  return Math.min(limit, Math.max(0, stepped));
+  return clamp(stepped, 0, limit);
 }
 
 export function parsePastedTimecode(value: string): number | null {

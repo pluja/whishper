@@ -1,9 +1,9 @@
 import { tick, untrack } from "svelte";
 
+import { clamp } from "$lib/shared/clamp";
 import { decideFollow, zoomAnchorUs, type FollowTrigger } from "./follow";
 import {
   clampInteger,
-  clampNumber,
   pxToTime,
   scrollLeftCentredOn,
   scrollLeftRevealing,
@@ -188,10 +188,10 @@ export class TimelineViewport {
     const node = this.element;
     const durationUs = this.#playback.durationUs();
     if (!node || this.width <= 0 || durationUs <= 0) return;
-    const targetZoom = clampNumber(nextZoom, 1, MAX_ZOOM);
+    const targetZoom = clamp(nextZoom, 1, MAX_ZOOM);
     if (targetZoom === this.zoom) return;
 
-    const viewCentreUs = clampNumber(
+    const viewCentreUs = clamp(
       pxToTime(
         node.scrollLeft + node.clientWidth / 2,
         durationUs,
@@ -230,11 +230,7 @@ export class TimelineViewport {
     const maxScrollLeft = node.scrollWidth - node.clientWidth;
     if (maxScrollLeft <= 0) return;
 
-    const targetScrollLeft = clampNumber(
-      node.scrollLeft + delta,
-      0,
-      maxScrollLeft,
-    );
+    const targetScrollLeft = clamp(node.scrollLeft + delta, 0, maxScrollLeft);
     if (targetScrollLeft === node.scrollLeft) return;
 
     event.preventDefault();

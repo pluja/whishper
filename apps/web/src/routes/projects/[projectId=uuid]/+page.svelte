@@ -11,12 +11,12 @@
   import { frameDurationUs } from "$lib/editor/transport.svelte";
   import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
   import { isRunActive, isStudioActive } from "$lib/shared/project-status";
+  import { knownDurationUs } from "$lib/shared/source-duration";
   import MediaMonitor from "$lib/studio/MediaMonitor.svelte";
   import {
     derivativeUrl,
     editorCues,
     isEditingLocked,
-    knownDurationUs,
   } from "$lib/studio/project-view";
   import ShortcutGuide from "$lib/studio/ShortcutGuide.svelte";
   import StudioTitlebar from "$lib/studio/StudioTitlebar.svelte";

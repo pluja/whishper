@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  derivativeUrl,
-  editorCues,
-  isEditingLocked,
-  knownDurationUs,
-} from "./project-view";
+import { derivativeUrl, editorCues, isEditingLocked } from "./project-view";
 import type { StudioData } from "$lib/shared/studio-data";
 
 describe("editorCues", () => {
@@ -16,20 +11,6 @@ describe("editorCues", () => {
       ]),
     ).toEqual([{ id: "a", position: 0, start_us: 1, end_us: 2, text: "Hi" }]);
   });
-});
-
-describe("knownDurationUs", () => {
-  it("keeps positive safe integers, including numeric strings", () => {
-    expect(knownDurationUs(5_000_000)).toBe(5_000_000);
-    expect(knownDurationUs("5000000")).toBe(5_000_000);
-  });
-
-  it.each([null, undefined, 0, -1, 1.5, "soon", Number.MAX_VALUE])(
-    "treats %s as unknown",
-    (value) => {
-      expect(knownDurationUs(value)).toBe(0);
-    },
-  );
 });
 
 describe("derivativeUrl", () => {

@@ -1,3 +1,4 @@
+import { clampToDuration } from "$lib/shared/source-duration";
 import type { EditorCue } from "./cues";
 
 type ShuttleDirection = -1 | 0 | 1;
@@ -120,6 +121,10 @@ export class Transport {
     this.seekRevision += 1;
   };
 
+  clampToSource(microseconds: number): number {
+    return Math.round(clampToDuration(microseconds, this.sourceDurationUs));
+  }
+
   #currentPlayheadUs(): number {
     if (!this.mediaElement || !Number.isFinite(this.mediaElement.currentTime)) {
       return this.playbackUs;
@@ -158,12 +163,8 @@ export class Transport {
   #setPausedPlayhead(microseconds: number): boolean {
     if (!this.mediaElement) return false;
     this.#pauseAndResetPlayback();
-    const endUs = this.#playbackEndUs();
-    const boundedUs = Math.max(
-      0,
-      endUs > 0
-        ? Math.min(Math.round(microseconds), endUs)
-        : Math.round(microseconds),
+    const boundedUs = Math.round(
+      clampToDuration(microseconds, this.#playbackEndUs()),
     );
     this.mediaElement.currentTime = boundedUs / 1_000_000;
     this.playbackUs = boundedUs;

@@ -192,11 +192,7 @@ export class CueEditor {
   setTimeToPlayhead(index: number, field: CueTimeField): void {
     const cue = this.cues[index];
     if (!cue || this.readOnly) return;
-    const sourceDurationUs = this.transport.sourceDurationUs;
-    const playheadUs =
-      sourceDurationUs > 0
-        ? Math.min(this.transport.playbackUs, sourceDurationUs)
-        : this.transport.playbackUs;
+    const playheadUs = this.transport.clampToSource(this.transport.playbackUs);
     const message = cueTimeError(cue, field, playheadUs);
     if (message) {
       this.showTimeError(cue.id, field, message);

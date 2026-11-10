@@ -1,4 +1,5 @@
 import type { EditorCue } from "$lib/editor/cues";
+import { clamp } from "$lib/shared/clamp";
 
 export type CueTiming = Pick<EditorCue, "id" | "start_us" | "end_us">;
 
@@ -8,20 +9,12 @@ export type TimingPart = "whole" | "start" | "end";
 
 export type TimingBounds = { minUs: number; maxUs: number };
 
-export function clampNumber(
-  value: number,
-  minimum: number,
-  maximum: number,
-): number {
-  return Math.min(maximum, Math.max(minimum, value));
-}
-
 export function clampInteger(
   value: number,
   minimum: number,
   maximum: number,
 ): number {
-  return Math.round(clampNumber(value, minimum, maximum));
+  return Math.round(clamp(value, minimum, maximum));
 }
 
 export function cueIsValid(cue: CueTiming, durationUs: number): boolean {
@@ -127,7 +120,7 @@ export function scrollLeftCentredOn(
   timeUs: number,
   geometry: ScrollGeometry,
 ): number {
-  return clampNumber(
+  return clamp(
     timeToPx(timeUs, geometry.durationUs, geometry.contentWidthPx) -
       geometry.viewportWidthPx / 2,
     0,
@@ -145,7 +138,7 @@ export function scrollLeftRevealing(
 ): number {
   const { durationUs, contentWidthPx, viewportWidthPx } = geometry;
   const limit = maxScrollLeft(geometry);
-  const current = clampNumber(scrollLeft, 0, limit);
+  const current = clamp(scrollLeft, 0, limit);
   const gutter = Math.min(gutterPx, viewportWidthPx / 2);
   const playheadX = timeToPx(
     clampInteger(timeUs, 0, durationUs),
@@ -158,5 +151,5 @@ export function scrollLeftRevealing(
   } else if (playheadX >= current + viewportWidthPx - gutter) {
     target = playheadX - viewportWidthPx + gutter;
   }
-  return clampNumber(target, 0, limit);
+  return clamp(target, 0, limit);
 }

@@ -1,5 +1,6 @@
 import { innerWidth } from "svelte/reactivity/window";
 import { readStorage, writeStorage } from "$lib/browser/safe-storage";
+import { clamp } from "$lib/shared/clamp";
 
 const STORAGE_KEY = "anysub:editor-pane-width";
 // Matches Tailwind's lg breakpoint, below which the studio stacks its panes.
@@ -31,7 +32,7 @@ export class PaneWidth {
   }
 
   #clamp(width: number): number {
-    return Math.min(Math.max(width, this.min), this.max);
+    return clamp(width, this.min, this.max);
   }
 
   restore(): void {

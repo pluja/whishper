@@ -94,6 +94,16 @@ describe("Transport stopped playback", () => {
   });
 });
 
+describe("Transport.clampToSource", () => {
+  it("keeps a time between zero and the end of the source", () => {
+    const transport = newTransport();
+
+    expect(transport.clampToSource(-1)).toBe(0);
+    expect(transport.clampToSource(4_000_000.4)).toBe(4_000_000);
+    expect(transport.clampToSource(12_000_000)).toBe(10_000_000);
+  });
+});
+
 describe("Transport.seekRevision", () => {
   it("counts every deliberate playhead jump", () => {
     const transport = newTransport();

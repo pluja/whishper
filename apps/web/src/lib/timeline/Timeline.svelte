@@ -54,11 +54,8 @@
   let root = $state<HTMLElement>();
   let canvas = $state<HTMLCanvasElement>();
   const loader = new WaveformLoader();
-  let timelineDurationUs = $derived(
-    Number.isSafeInteger(durationUs) && durationUs > 0 ? durationUs : 0,
-  );
   const viewport = new TimelineViewport({
-    durationUs: () => timelineDurationUs,
+    durationUs: () => durationUs,
     playbackUs: () => playbackUs,
     playing: () => playing,
     seekRevision: () => seekRevision,
@@ -67,15 +64,15 @@
 
   let waveformMismatch = $derived(
     loader.waveform !== null &&
-      timelineDurationUs > 0 &&
-      !waveformMatchesDuration(loader.waveform, timelineDurationUs),
+      durationUs > 0 &&
+      !waveformMatchesDuration(loader.waveform, durationUs),
   );
   let selectedLevel = $derived(
-    waveformMismatch || timelineDurationUs <= 0
+    waveformMismatch || durationUs <= 0
       ? null
       : chooseWaveformLevel(
           loader.waveform,
-          (viewport.contentWidthPx * 1_000_000) / timelineDurationUs,
+          (viewport.contentWidthPx * 1_000_000) / durationUs,
         ),
   );
   $effect(() => loader.load(waveformUrl));
@@ -105,7 +102,7 @@
       themeSource: root,
       viewportWidthPx: viewport.width,
       scrollLeft: viewport.scrollLeft,
-      durationUs: timelineDurationUs,
+      durationUs,
       contentWidthPx: viewport.contentWidthPx,
       level: selectedLevel,
     });
@@ -221,13 +218,9 @@
             number={cueIndex + 1}
             selected={cue.id === selectedCueId}
             tabStop={cueIndex === tabStopIndex}
-            durationUs={timelineDurationUs}
+            {durationUs}
             contentWidthPx={viewport.contentWidthPx}
-            neighbourBounds={neighbourBounds(
-              cues,
-              cueIndex,
-              timelineDurationUs,
-            )}
+            neighbourBounds={neighbourBounds(cues, cueIndex, durationUs)}
             {editable}
             cueKeysId={`${uid}-cue-keys`}
             handleKeysId={`${uid}-handle-keys`}
@@ -238,10 +231,10 @@
           />
         {/each}
 
-        {#if timelineDurationUs > 0}
+        {#if durationUs > 0}
           <div
             class="pointer-events-none absolute inset-y-0 z-6 w-px bg-danger"
-            style:left={`${timeToPx(clampInteger(playbackUs, 0, timelineDurationUs), timelineDurationUs, viewport.contentWidthPx)}px`}
+            style:left={`${timeToPx(clampInteger(playbackUs, 0, durationUs), durationUs, viewport.contentWidthPx)}px`}
             aria-hidden="true"
           >
             <span
