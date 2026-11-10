@@ -24,14 +24,8 @@ export function readInstanceSettings(
 ): InstanceSettings {
   const row = executor.select().from(instanceSettings).get();
   if (!row) return DEFAULT_INSTANCE_SETTINGS;
-  return {
-    model: row.defaultModel,
-    language: row.defaultLanguage,
-    alignment: row.wordAlignment,
-    maxLineLength: row.maxLineLength,
-    precision: row.precision,
-    maxUploadBytes: row.maxUploadBytes,
-  };
+  const { id, updatedAt, ...settings } = row;
+  return settings;
 }
 
 export function readTranscriptionDefaults(
@@ -46,23 +40,7 @@ export function updateInstanceSettings(
   changes: Partial<InstanceSettings>,
   executor: Executor = db,
 ): void {
-  const values = {
-    ...(changes.model !== undefined && { defaultModel: changes.model }),
-    ...(changes.language !== undefined && {
-      defaultLanguage: changes.language,
-    }),
-    ...(changes.alignment !== undefined && {
-      wordAlignment: changes.alignment,
-    }),
-    ...(changes.maxLineLength !== undefined && {
-      maxLineLength: changes.maxLineLength,
-    }),
-    ...(changes.precision !== undefined && { precision: changes.precision }),
-    ...(changes.maxUploadBytes !== undefined && {
-      maxUploadBytes: changes.maxUploadBytes,
-    }),
-    updatedAt: new Date(),
-  };
+  const values = { ...changes, updatedAt: new Date() };
   executor
     .insert(instanceSettings)
     .values({ id: 1, ...values })

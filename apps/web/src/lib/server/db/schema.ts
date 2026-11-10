@@ -56,9 +56,9 @@ export const instanceSettings = sqliteTable(
   "instance_settings",
   {
     id: integer("id").primaryKey().default(1),
-    defaultModel: text("default_model"),
-    defaultLanguage: text("default_language"),
-    wordAlignment: flag("word_alignment")
+    model: text("default_model"),
+    language: text("default_language"),
+    alignment: flag("word_alignment")
       .notNull()
       .default(DEFAULT_INSTANCE_SETTINGS.alignment),
     maxLineLength: integer("max_line_length")
