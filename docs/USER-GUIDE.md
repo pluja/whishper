@@ -1,182 +1,172 @@
 # User guide
 
-This guide follows a file from upload to export. To set Anysub up, see [Install](INSTALL.md). The owner's settings are in [Administration](ADMINISTRATION.md), and [Troubleshooting](TROUBLESHOOTING.md) covers what can go wrong.
+This guide follows a file from upload to export. For setup, see [Install](INSTALL.md). For the owner's settings, see [Administration](ADMINISTRATION.md).
 
 ## Uploading media
 
-Create a project from the library by choosing a file, or drop an audio or video file anywhere on the library page. A drop opens the same dialog with the file already chosen, and the upload starts when you confirm. A file that is not audio or video is flagged while you drag it and refused on drop. The project takes its name from the filename, and names do not need to be unique.
+In the library, create a project by choosing a file, or drop one anywhere on the page. The project takes its name from the file.
 
-- Audio and video files are accepted. If the browser reports a media type other than `audio/*`, `video/*`, `application/ogg`, or `application/mp4`, the upload is rejected. A file that reports no type at all is accepted.
-- Uploads go in 32 MiB chunks. If the connection drops or you reload the page, choosing the same file in the same browser resumes where it stopped.
-- The default size limit is 500 GiB per file. The owner changes it under [Administration > Storage](ADMINISTRATION.md#storage). The dialog checks the size and type before anything is sent.
-- Leaving or reloading the page while an upload runs asks first. If you leave anyway, the upload pauses and resumes when you choose the same file again.
-- An upload that has made no progress for ten minutes shows as **Upload paused** in the library.
-- Cancelling an upload from the browser that started it removes the draft project at once. Uploads that never finish are deleted after seven days.
+- Audio and video only. The browser checks the file type before anything is sent.
+- If the connection drops or you reload the page, choose the same file in the same browser and the upload picks up where it stopped.
+- The default limit is 500 GiB per file. The owner can change it under [Administration > Storage](ADMINISTRATION.md#storage).
+- An upload with no progress for ten minutes shows as **Upload paused**. Unfinished uploads are deleted after seven days.
+- Uploading the same file twice makes two projects.
 
-Uploading a finished file a second time creates a second project with its own copy of the media. Anysub does not deduplicate.
+After the upload, Anysub prepares the media: it draws a waveform, makes a thumbnail for video, and converts the file only if your browser can't play it. The project page shows progress.
 
-When an upload completes, the worker prepares the media. It probes the streams, draws a waveform, makes a thumbnail for video, and builds an H.264/AAC editing proxy only when the browser cannot play the original or the frame timing is variable. The project page shows progress, and you can cancel or retry preparation there.
-
-Deleting a project, from the overflow menu in the studio's title bar, removes its media and everything derived from it.
+To delete a project, use the menu in the studio's title bar. This removes its media too.
 
 ## Finding projects
 
-The library search box matches project names. Tick **Subtitle text** to match cue text as well. Matching is a case-insensitive substring match.
+The library search matches project names. Tick **Subtitle text** to search the subtitles as well.
 
 ## Transcribing
 
-1. Open the project and choose a model. The picker starts on the owner's default model and compares model size, memory estimates, and fit against your connected workers. `Small` is a good CPU starting point.
-2. Leave **Accurate word alignment** on for editing and word-level timings.
-3. Under **Advanced options**, change the maximum line length if 42 characters does not suit your platform, or the batch size if the worker runs out of memory. The batch size defaults to 4 on CPU and 16 on CUDA. A higher value can raise throughput and also raises peak memory.
-4. Choose the spoken language, or leave it on **Detect automatically**. The list offers every language Whisper knows, with the most used ones first. Type in its search field to filter by English name, native name or code; accents are optional, so `espanol` finds Spanish.
-5. Start the transcription and leave the worker running. **Cancel** next to the progress bar stops waiting for the run, for example when no connected worker offers the model.
+1. Open the project and choose a model. `Small` is a good start on a CPU.
+2. Leave **Accurate word alignment** on if you want word-level timings.
+3. Choose the spoken language, or leave it on **Detect automatically**. You can search the list without accents: `espanol` finds Spanish.
+4. Start the transcription.
 
-The language, alignment and line length also start from the owner's [transcription defaults](ADMINISTRATION.md#transcription-defaults).
+**Advanced options** has the maximum line length (42 characters by default) and the batch size. Lower the batch size if the worker runs out of memory.
 
-A model that is not downloaded yet downloads on its first run, unless the owner fetched it ahead of time under [Administration > Models](ADMINISTRATION.md#models). Accurate alignment then downloads a smaller model for the language. Both land in the `model-cache` volume and survive upgrades. A network connection is needed only for files that are not cached yet: a downloaded speech model loads without contacting Hugging Face, so a worker can transcribe offline with the models it already has. Telemetry from Hugging Face and Pyannote is disabled, and transcript text is never written to worker logs.
+The form starts from the owner's [transcription defaults](ADMINISTRATION.md#transcription-defaults).
+
+A model downloads the first time you use it, unless the owner downloaded it already. After that, transcription works offline. Anysub doesn't send telemetry, and transcript text never goes into the logs.
 
 ### Choosing a model
 
-| Model          | Use it for                                | Hardware guidance                   |
-| -------------- | ----------------------------------------- | ----------------------------------- |
-| Tiny           | Quick drafts and pipeline checks          | Fastest, least accurate             |
-| Base           | Short, clear recordings                   | Light                               |
-| Small          | General creator and archive work          | Recommended CPU default             |
-| Medium         | Harder audio where accuracy matters       | Slow and memory-heavy               |
-| Large v3 Turbo | Large-model quality with faster inference | Default when it fits the usable GPU |
-| Large v3       | Maximum Whisper accuracy                  | GPU strongly recommended            |
+| Model          | Good for                   | Notes                         |
+| -------------- | -------------------------- | ----------------------------- |
+| Tiny           | Quick drafts               | Fastest, least accurate       |
+| Base           | Short, clear recordings    | Light                         |
+| Small          | Most things                | Best default on a CPU         |
+| Medium         | Hard audio                 | Slow, needs more memory       |
+| Large v3 Turbo | Near-Large quality, faster | Default on a GPU that fits it |
+| Large v3       | Best accuracy              | Best with a GPU               |
 
-The picker labels each model **Recommended**, **Runs well**, **May be slow**, **Not recommended**, or **Not checked**. Each row shows the model's purpose and approximate memory need, and a download icon: green when the files are cached, gray when they still need downloading. The estimate is system RAM in CPU mode and graphics memory in CUDA mode. Large v3 Turbo shows about 12 GB of RAM on CPU or 3 GB of VRAM with FP16 on CUDA. When it fits a connected CUDA worker, Anysub selects it by default. Otherwise `Small` is the suggestion.
+The picker marks each model as **Recommended**, **Runs well**, **May be slow**, **Not recommended** or **Not checked**, based on your worker's hardware. A green download icon means the model is already downloaded.
 
-Below the picker, the form shows the worker's detected CPU or usable GPU, logical core count, and available memory. A worker configured for CPU counts as a CPU worker even when its host has a GPU.
+Speed depends on the model, your hardware and the length of the file. A two-hour film on a CPU takes a while.
 
-Speed and quality vary with language, recording quality, core count, memory, and duration. A two-hour film can take a long time on CPU. The worker keeps renewing its lease during loading and inference, so a slow run is not treated as abandoned.
+### Line length
 
-### Subtitle segmentation
-
-After transcription and alignment, WhisperX splits long segments at nearby natural boundaries. The maximum line length defaults to 42 characters and accepts 20 to 120 per run. Whole words stay intact, so only a single word longer than the limit can exceed it. WhisperX applies shorter limits to denser scripts such as Chinese, Japanese, Korean, Arabic, and several South Asian scripts. The setting shapes new cues only and does not touch the media.
+After transcription, long lines are split at natural breaks. The limit is 42 characters by default and can be 20 to 120. Words are never cut, so a single very long word can go over. Scripts such as Chinese, Japanese and Korean get shorter limits automatically.
 
 ### Runs and failures
 
-The project page shows the current stage and progress. On failure it shows the adapter error and lets you start another run. Retranscribing creates a new run and keeps the earlier output until you delete it.
+If a run fails, the project page shows the error and lets you try again. The worker retries temporary errors up to three times. When a run keeps failing because the worker restarts, it's usually out of memory, and the error says so.
 
-To transcribe a project again, choose **Re-transcribe** in the studio title bar. Anysub saves your pending edits first, and if they cannot be saved the run does not start. While the run works, the cue sheet and timeline are read-only and a notice says why. When the run finishes, the new transcript loads on its own. If the run fails or you cancel it, editing resumes on the current transcript, and edits that were waiting are saved.
+To transcribe again, choose **Re-transcribe** in the studio title bar. Anysub saves your edits first. While it runs, the editor is read-only. If the run fails or you cancel it, you go back to the transcript you had.
 
-Edits that never reached the server, such as typing in a second tab after the run started, cannot move to the new transcript. Anysub discards them when the new transcript loads and shows a notice.
-
-The worker retries transient errors up to three attempts. Errors a retry cannot fix fail at once: FFmpeg timeouts, running out of memory on the CPU or the graphics card, and rejected requests. A worker that is stopped mid-job reports it as a retryable failure before exiting, so the job returns to the queue while attempts remain and fails once they run out. A worker that disappears without reporting loses its lease after a minute, and the application returns the job to the queue even when no other worker is polling. When that happens on every attempt, the worker is usually being killed for running out of memory, and the run fails with a message that says so.
-
-Deleting a transcript removes its cues and its run, including the job result and retry history, but keeps the project media.
+Deleting a transcript keeps the media.
 
 ## The studio
 
-Opening a project switches to the studio workspace, in the same light or dark theme as the rest of the app. Pick **Light**, **Dark**, or **System** from the theme menu in the library's top bar. **System** follows your operating system, and the choice is remembered in that browser. A compact title bar replaces the project navigation, and it keeps export and save state in view. Destructive actions live in the overflow menu.
+Opening a project opens the studio. On desktop, the video sits next to the subtitle list, and you can drag the divider between them. On small screens they stack.
 
-On desktop the media monitor sits beside the cue sheet, and you can drag the divider between them or move it with the left and right arrow keys. Your position is remembered in that browser. On narrow screens the panels stack and the cue sheet scrolls on its own.
+Each subtitle shows its timing, text, duration and any warnings. The line under the toolbar shows the selected subtitle's character count and characters per second.
 
-Each cue row shows timing, text, duration, playback state, and quality warnings. The status line under the cue toolbar shows the selected cue's character count and characters per second.
+Pick **Light**, **Dark** or **System** from the theme menu in the top bar.
 
 ### Waveform timeline
 
-Across the bottom of the studio, the timeline draws a time ruler and the visible part of the waveform. Fit, zoom, scroll, drag to pan, click to seek, and playhead following all stay in sync with the player and the cue sheet. When zoomed in, the mouse wheel pans horizontally. At the edge of the range, or when fitted, the wheel scrolls the page.
+The timeline at the bottom shows the waveform and stays in sync with the player and the list. Click to seek, drag to pan, and zoom in or out.
 
-Drag a cue to move it, or drag either edge to trim it. One drag makes one undo step and one autosave. Hold `Alt` to move a cue or edge past its neighbours. Without it, the drag stops at the adjacent cues. Overlaps are reported but never blocked.
+Drag a subtitle to move it, or drag an edge to trim it. It stops at its neighbours unless you hold `Alt`. Overlaps get a warning but are allowed.
 
-The cues take a single `Tab` stop, on the selected cue. From a focused cue:
+With a subtitle focused on the timeline:
 
-- The left and right arrow keys select the previous or next cue, and `Home` and `End` select the first or last. `Enter` or `Space` selects the focused cue.
-- `Alt` with the left or right arrow key nudges the cue by 1 ms, and `Alt` + `Shift` by 100 ms.
-- `[` and `]` focus the start and end handles, where the same `Alt` keys trim that edge. `Escape` returns to the cue.
+- Left and right arrows select the previous or next one. `Home` and `End` jump to the first or last.
+- `Alt` + arrow moves it by 1 ms, `Alt` + `Shift` + arrow by 100 ms.
+- `[` and `]` focus its start and end edges, so the same keys trim them. `Escape` goes back.
 
-### Editing cues
+### Editing subtitles
 
-Select a cue by focusing its text or timing fields. Clicking the numbered badge seeks to the cue start. During playback the active cue is selected and scrolled into view, unless you are typing in a text field.
+Click a subtitle's text or timing to select it. Click its number to jump to its start. During playback, the current subtitle is selected and scrolled into view.
 
 You can:
 
-- Edit multiline text and type timings into fixed `HH:MM:SS.mmm` fields.
-- Set the selected cue's start or end to the playhead with the buttons beside its timing fields, or with `I` and `O`.
-- Nudge a whole cue by 100 ms from the cue sheet.
-- Split at the playhead, or at the cue midpoint when the playhead is outside the cue. With a text cursor, the split snaps to the nearest word boundary.
-- Merge with the following cue.
-- Insert a cue after the selected one, or delete it.
-- Undo and redo until you close the page.
+- Edit the text, over several lines.
+- Type the start and end times.
+- Set the start or end to the playhead with the buttons next to the times, or with `I` and `O`.
+- Split at the playhead, or at the text cursor.
+- Merge with the next subtitle.
+- Insert or delete a subtitle.
+- Undo and redo, until you close the page.
 
-Editing a cue's text, or changing its start or end on their own, clears that cue's word timings, because the old timings no longer describe the cue. Moving a whole cue shifts its word timings with it. Unchanged cues keep theirs.
+Changing a subtitle's text, or only its start or end, removes its word timings. Moving the whole subtitle keeps them.
 
 ### Timing fields
 
-Each start and end field always shows `HH:MM:SS.mmm`. Typing works like overtype mode:
+Times are always `HH:MM:SS.mmm`, and typing overwrites digits in place:
 
-- A digit replaces the digit under the caret and the caret moves on, skipping `:` and `.`. With a selection, typing starts at its first digit. Letters and other characters are ignored. Minutes and seconds refuse a first digit above 5.
-- `Backspace` sets the digit before the caret to zero and moves onto it. `Delete` sets the digit after the caret to zero and moves past it. With a selection, both set every selected digit to zero.
-- Up and down arrows add or remove one unit of the part under the caret: an hour, a minute, a second, or a millisecond. Hold `Shift` to step by ten. Steps carry into the next part, stop at zero and at the end of the media, and apply at once, so the player and timeline follow.
-- Paste accepts looser forms such as `27`, `62.5`, `1:02.5`, `1:02:03`, or `00:01:02,500`.
-- `Enter` or leaving the field applies the typed time. `Escape` returns to the last applied time.
+- Digits replace the one under the cursor. Other characters are ignored.
+- `Backspace` and `Delete` set digits to zero.
+- Up and down arrows change the part under the cursor by one. Hold `Shift` for ten.
+- You can paste looser forms, such as `62.5`, `1:02:03` or `00:01:02,500`.
+- `Enter` applies the time. `Escape` cancels.
 
-A start later than the end, or an end earlier than the start, is refused. The field gets a red border and the status line under the cue toolbar shows the reason. The message goes away once the value is valid again, or when you press `Escape` or leave the field, which restores the last valid time. `I`, `O`, and the playhead buttons refuse the same cases with the same message. No edit moves a cue past the end of the source.
-
-Everything you change in one timing field, from focusing it until you leave it, is one undo step. `Ctrl/Command+Z` inside the field first drops digits you have not applied, then undoes the changes made since you focused it. `Ctrl/Command+Shift+Z` or `Ctrl/Command+Y` redoes them. Neither reaches past the moment you focused the field: undo and redo outside the field for earlier edits.
+A start after the end, or an end past the media, is refused, and the reason shows under the toolbar.
 
 ### Keyboard shortcuts
 
-Press `?` outside a text field, or use the **Shortcuts** button, for the full key map.
+Press `?`, or use the **Shortcuts** button, to see them all.
 
-| Key                                      | Action                                                  |
-| ---------------------------------------- | ------------------------------------------------------- |
-| `Space`                                  | Play or pause                                           |
-| `J`, `K`, `L`                            | Shuttle backward, resume forward at 1x, shuttle forward |
-| Repeated `J` or `L`                      | Cycle through 1x, 2x, and 4x                            |
-| Left, right arrow                        | Step one frame, or five with `Shift`                    |
-| Up, down arrow                           | Jump between cue starts                                 |
-| `Home`, `End`                            | Jump to the start or end of the media                   |
-| `I`, `O`                                 | Set the selected cue's start or end to the playhead     |
-| `Ctrl/Command+K`                         | Split the selected cue, at the cursor when typing       |
-| `Shift+Delete`, `Shift+Backspace`        | Delete the selected cue                                 |
-| `Ctrl/Command+Z`                         | Undo                                                    |
-| `Ctrl/Command+Shift+Z`, `Ctrl/Command+Y` | Redo                                                    |
-| `Ctrl/Command+S`                         | Save now                                                |
+| Key                                      | Action                                                   |
+| ---------------------------------------- | -------------------------------------------------------- |
+| `Space`                                  | Play or pause                                            |
+| `J`, `K`, `L`                            | Rewind, play at 1x, fast forward                         |
+| Repeated `J` or `L`                      | Cycle through 1x, 2x and 4x                              |
+| Left, right arrow                        | Step one frame, or five with `Shift`                     |
+| Up, down arrow                           | Jump between subtitles                                   |
+| `Home`, `End`                            | Jump to the start or end                                 |
+| `I`, `O`                                 | Set the selected subtitle's start or end to the playhead |
+| `Ctrl/Command+K`                         | Split the selected subtitle                              |
+| `Shift+Delete`, `Shift+Backspace`        | Delete the selected subtitle                             |
+| `Ctrl/Command+Z`                         | Undo                                                     |
+| `Ctrl/Command+Shift+Z`, `Ctrl/Command+Y` | Redo                                                     |
+| `Ctrl/Command+S`                         | Save now                                                 |
 
-Opening the shortcut guide suspends the studio shortcuts. Unmodified shortcuts never capture keystrokes inside text fields. Save and split keep their `Ctrl` or `Command` forms while you type. Undo and redo stay native in text fields, which keep their own history. Timing fields have no history of their own, so there undo and redo act on the cue edits made in that field. `Space` keeps its normal behaviour on a focused button, link, or disclosure.
+Single-key shortcuts don't fire while you type in a text field.
 
-## Saving and recovery
+## Saving
 
-Changes autosave after a short pause. Each track has a revision number. The server compares your expected revision, validates the whole cue snapshot, and commits it in one database transaction. If another session saved first, Anysub refuses to overwrite that work and asks you to reload.
+Changes save on their own after a short pause. If the same transcript was saved from another tab or device, Anysub won't overwrite it and asks you to reload.
 
-While changes are unsaved, the browser keeps a local journal for the project and track. After a reload or crash, Anysub offers the journal back if it still matches the saved revision. A journal older than the saved track is discarded with a notice. Only the latest transcript of a project can be edited, so once a newer one replaces it, unsaved edits to the old one are discarded with a notice too. The server's database stays the source of truth.
+If the browser crashes or you reload before a save, Anysub offers to restore your unsaved changes.
 
-## Quality warnings
+## Warnings
 
-The cue list flags problems and never changes your text on its own:
+The list flags these, but never changes your text:
 
-- Empty cue or zero duration.
-- Duration under 0.5 seconds or over 7 seconds.
-- Overlap with the previous cue.
-- Ends after the source. The track cannot be saved until the cue ends in time.
+- Empty, or zero length.
+- Shorter than 0.5 seconds or longer than 7 seconds.
+- Overlaps the previous subtitle.
+- Ends after the media. You can't save until you fix it.
 - More than 20 characters per second.
-- Text longer than the run's maximum line length, or 42 characters when none was recorded.
+- Longer than the maximum line length.
 
-These are general signals and not a broadcaster or accessibility profile.
+These are general guidelines, not a broadcast or accessibility standard.
 
 ## Exporting
 
-Download the active track as:
+Download the transcript as:
 
-- SRT with millisecond timecodes.
-- WebVTT.
-- Plain text, one cue per line without timecodes.
-- Anysub JSON with project and track metadata, stable cue IDs, integer-microsecond timing, and word tokens.
+- SRT
+- WebVTT
+- Plain text, one subtitle per line
+- Anysub JSON, with word timings
 
-Exports use the latest saved revision. Wait for the **Saved** indicator before downloading if you just edited.
+Exports use the last saved version, so wait for **Saved** if you just made changes.
 
 ## Your account
 
-Choose **Change password** in the account menu to set a new password. Every other device is signed out when it changes.
+To change your password, choose **Change password** in the account menu. This signs out your other devices.
 
-If you forget the password, choose **Forgot your password?** on the sign-in page, then **Print a recovery code**. Anysub sends no email, so it prints the code in its log instead, which only someone with access to the server can read:
+If you forget it, choose **Forgot your password?** on the sign-in page, then **Print a recovery code**. Anysub doesn't send email, so the code goes to the log:
 
 ```sh
 docker compose logs web
 ```
 
-Enter the code with your email address and a new password within 15 minutes. Asking again prints the same code until it expires or is used. Anysub signs the account out everywhere and returns you to the sign-in page.
+Enter the code, your email and a new password within 15 minutes.

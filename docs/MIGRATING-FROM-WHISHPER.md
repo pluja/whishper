@@ -1,16 +1,16 @@
 # Coming from Whishper 3
 
-Anysub is the next version of Whishper, rewritten from scratch and renamed. It does the same job, transcribing your media on your own machine, and adds a proper subtitle editor. It shares no code or data format with Whishper 3, so moving over means installing Anysub next to Whishper and bringing your media across.
+Anysub is Whishper rewritten from scratch and renamed. It does the same job, with a much better subtitle editor. It can't read Whishper 3 data, so you install it alongside and bring your media over.
 
 ## What happens to Whishper 3
 
-- Your installation keeps running. It pulls `pluja/whishper` from Docker Hub, and those images stay where they are.
-- Whishper 3 gets no more updates or fixes. Its code lives on in the [`v3-legacy` branch](https://github.com/pluja/anysub/tree/v3-legacy).
-- The Whishper 3 install script, `get-whishper.sh`, no longer works, because the files it downloads are gone from the main branch. The [Whishper 3 documentation](https://whishper-docs.pages.dev) still describes the old version.
+- Your install keeps working. The `pluja/whishper` images stay on Docker Hub.
+- It gets no more updates. The code is in the [`v3-legacy` branch](https://github.com/pluja/anysub/tree/v3-legacy).
+- The `get-whishper.sh` install script no longer works. The [old docs](https://whishper-docs.pages.dev) are still online.
 
 ## What carries over
 
-Nothing moves automatically. Anysub cannot read Whishper's MongoDB database, and it cannot import subtitle files yet. Plan to transcribe again the recordings you still work with.
+Nothing. Anysub can't read Whishper's database or import subtitle files yet, so you'll need to transcribe again.
 
 ## What changes
 
@@ -32,16 +32,16 @@ Anysub JSON is a new format, not the one Whishper exported.
 
 ## Move over
 
-1. **Keep Whishper running for now.** Its port, 8082, does not clash with Anysub's, so both can run at once. They compete for memory while both transcribe, so avoid running jobs in both.
-2. **Install Anysub** in a new directory, following [Install](INSTALL.md).
-3. **Save what you need from Whishper.** For each transcription you edited and want to keep, open it in Whishper and download its subtitles. Keep the files next to the media: Anysub cannot import them yet, but you will not lose the work.
-4. **Bring the media.** Whishper kept every uploaded file in `whishper_data/uploads` inside its directory. Upload the recordings you still need to Anysub and transcribe them there.
-5. **Remove Whishper** once you have everything. In Whishper's directory:
+1. **Keep Whishper running for now.** The ports don't clash, so both can run. Avoid transcribing in both at once, as they share memory.
+2. **Install Anysub** in a new directory. See [Install](INSTALL.md).
+3. **Save your edited subtitles** from Whishper. Anysub can't import them yet, but you keep the work.
+4. **Upload your media** to Anysub. Whishper kept it in `whishper_data/uploads`.
+5. **Remove Whishper** when you're done. In its directory:
    ```sh
    docker compose down
    docker image rm pluja/whishper mongo libretranslate/libretranslate
    ```
-   Then delete `whishper_data` when you are sure nothing in it is still needed. It holds the uploads, the database and LibreTranslate's language models.
+   Then delete `whishper_data` once you're sure you don't need it.
 
 ## Settings
 
@@ -57,4 +57,4 @@ Anysub JSON is a new format, not the one Whishper exported.
 
 ## Questions
 
-Ask in the [issue tracker](https://github.com/pluja/anysub/issues). Issues about Whishper 3 itself will be closed, because that version is no longer maintained.
+Ask in the [issue tracker](https://github.com/pluja/anysub/issues). Issues about Whishper 3 itself will be closed.

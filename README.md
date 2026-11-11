@@ -2,22 +2,22 @@
   <img src="apps/web/static/favicon.svg" alt="" width="96" height="96">
 </p>
 
-# Anysub
+<h1 align="center">Anysub</h1>
 
-Anysub turns audio and video into subtitles you can ship. It transcribes your media with Whisper, aligns the words to the sound, and gives you a waveform editor to fix what the model got wrong. Everything runs on your own machine, and your recordings never leave it.
+Anysub turns audio and video into subtitles with an easy-to-use web UI. Everything runs on your own machine.
 
-Anysub is the successor to Whishper, rewritten from scratch.
+It is the successor to Whishper, rewritten from scratch.
 
 ## Features
 
-- Transcription in the languages Whisper supports, with models from `tiny` to `large-v3-turbo`.
-- Word-level timings from forced alignment.
-- A cue editor with a waveform timeline, playback in sync, split, merge, retime, undo, redo, and autosave.
-- Warnings for cues that run too fast, too long, or overlap.
-- Export to SRT, WebVTT, plain text, or JSON.
-- Resumable uploads for hours-long files.
-- A searchable project library.
-- An administration area to download models ahead of time, set transcription defaults and precision, choose the upload limit, and watch disk space and workers.
+- Transcription with Whisper, from the `tiny` model to `large-v3-turbo`.
+- Word-level timings.
+- A subtitle editor with a waveform timeline, undo and autosave.
+- Warnings for subtitles that are too fast, too long, or overlap.
+- Export to SRT, WebVTT, plain text or JSON.
+- Uploads that resume, for hours-long files.
+- A searchable library.
+- Admin pages for models, defaults, upload limits, disk space and workers.
 
 ## Install
 
@@ -29,13 +29,13 @@ curl -fsSLO https://github.com/pluja/anysub/releases/latest/download/compose.yam
 docker compose up -d
 ```
 
-Open `http://localhost:5173` and create the owner account. Anysub asks for a setup code, which it prints in its log: run `docker compose logs web` to see it. There is nothing to configure first.
+Open `http://localhost:5173` and create your account. It asks for a setup code, which you find with `docker compose logs web`.
 
 [Install](docs/INSTALL.md) covers requirements, Podman, NVIDIA GPUs, reverse proxies and building from source.
 
 ## Coming from Whishper 3
 
-Anysub cannot read Whishper 3 data, and Whishper 3 is no longer maintained. [Coming from Whishper 3](docs/MIGRATING-FROM-WHISHPER.md) explains what changed and how to move over. The old code is in the [`v3-legacy`](https://github.com/pluja/anysub/tree/v3-legacy) branch.
+Whishper 3 is no longer maintained, and Anysub can't read its data. [Coming from Whishper 3](docs/MIGRATING-FROM-WHISHPER.md) explains how to move over. The old code is in the [`v3-legacy`](https://github.com/pluja/anysub/tree/v3-legacy) branch.
 
 ## Not built yet
 
@@ -47,16 +47,16 @@ Anysub cannot read Whishper 3 data, and Whishper 3 is no longer maintained. [Com
 - Workers on other machines.
 - ARM images.
 
-New features arrive in 4.x releases. The [changelog](CHANGELOG.md) lists what each one brings.
+These will come in 4.x releases. See the [changelog](CHANGELOG.md).
 
 ## Documentation
 
-Everything is in [docs](docs/README.md): installing, upgrading, backups, the user guide, administration, troubleshooting, and how to contribute.
+See [docs](docs/README.md).
 
 ## AI disclosure
 
-Large language models helped write this project, including application code, worker code, and documentation. A human reviews, tests, and accepts every change before it ships.
+Large language models helped write the code and docs. A human reviews and tests every change before it ships.
 
 ## License
 
-Anysub is licensed under the GNU Affero General Public License, version 3 only. See [LICENSE](LICENSE).
+[AGPL-3.0-only](LICENSE).

@@ -1,25 +1,25 @@
 # Troubleshooting
 
-Start with the state of the two services and their logs, from the directory that holds `compose.yaml`:
+Start with the status and logs, next to `compose.yaml`:
 
 ```sh
 docker compose ps
 docker compose logs --tail 100 web worker
 ```
 
-Both services should be `running`, and the web service `healthy`. The worker waits for the web service to become healthy before it starts.
+Both services should be `running`, and `web` should be `healthy`.
 
 ## Installing and starting
 
-**`port is already allocated` or `bind: address already in use`.** Another program uses port 5173. Pick a free port with `ANYSUB_PORT=8080` in `.env`, then run `docker compose up -d` again.
+**`port is already allocated` or `bind: address already in use`.** Something else uses port 5173. Set `ANYSUB_PORT=8080` in `.env` and run `docker compose up -d` again.
 
-**`denied` or `unauthorized` when pulling from `ghcr.io`.** The images are public, so this comes from an expired login stored on your machine. Run `docker logout ghcr.io` and pull again.
+**`denied` or `unauthorized` when pulling from `ghcr.io`.** You have an old login saved. Run `docker logout ghcr.io` and try again.
 
 **`exec format error`.** The host is not x86-64. Anysub has no ARM images yet.
 
-**`podman compose` misbehaves.** Anysub is tested with Docker Compose as Podman's provider, not with `podman-compose`. Set `PODMAN_COMPOSE_PROVIDER` as shown in [Install](INSTALL.md#podman).
+**`podman compose` misbehaves.** Use Docker Compose with Podman, not `podman-compose`. See [Install](INSTALL.md#podman).
 
-**The setup code is gone from the log.** Restart the web service to print a new one, then read the log again:
+**The setup code is gone from the log.** Restart to print a new one:
 
 ```sh
 docker compose restart web
@@ -28,43 +28,43 @@ docker compose logs web
 
 ## Signing in
 
-**Sign-in returns to the sign-in page without an error.** `BETTER_AUTH_URL` is an HTTPS address and you opened Anysub over plain HTTP, so the browser refused the Secure session cookie. Use the HTTPS address, or remove `BETTER_AUTH_URL` from `.env`. See [Reverse proxy](INSTALL.md#reverse-proxy).
+**Sign-in goes back to the sign-in page with no error.** `BETTER_AUTH_URL` is set to an HTTPS address, but you opened Anysub over plain HTTP. Use the HTTPS address, or remove `BETTER_AUTH_URL`. See [Reverse proxy](INSTALL.md#reverse-proxy).
 
-**You forgot your password.** Choose **Forgot your password?** on the sign-in page. Anysub prints a recovery code in the web service's log. See [Your account](USER-GUIDE.md#your-account).
+**You forgot your password.** See [Your account](USER-GUIDE.md#your-account).
 
-**Sign-in is slow after a few wrong passwords.** Anysub waits longer after each failed attempt, up to a minute. Behind a reverse proxy, set `ANYSUB_ADDRESS_HEADER` so one person's mistakes do not slow down everyone. See [Network](CONFIGURATION.md#network).
+**Sign-in is slow after a few wrong passwords.** That's on purpose, up to a minute. Behind a reverse proxy, set `ANYSUB_ADDRESS_HEADER` so it doesn't slow down everyone. See [Network](CONFIGURATION.md#network).
 
 ## Uploading
 
-**Every upload fails.** A reverse proxy limits the request body, or `ANYSUB_BODY_SIZE_LIMIT` is below 32 MiB. Uploads arrive in 32 MiB chunks, and nginx accepts only 1 MiB by default. See [Reverse proxy](INSTALL.md#reverse-proxy).
+**Every upload fails.** Your reverse proxy probably limits the request size. Uploads come in 32 MiB chunks, and nginx allows only 1 MiB by default. See [Reverse proxy](INSTALL.md#reverse-proxy).
 
-**A file is refused.** Anysub accepts audio and video. If the browser labels the file as something else, convert it, for example with `ffmpeg -i input.ext output.mp4`.
+**A file is refused.** Only audio and video are accepted. If your browser sees the file as something else, convert it, for example with `ffmpeg -i input.ext output.mp4`.
 
 **A file is too large.** The owner sets the limit under **Administration > Storage**.
 
-**The upload stopped.** Choose the same file again in the same browser, and it resumes where it stopped.
+**The upload stopped.** Choose the same file again in the same browser to resume.
 
 ## Transcribing
 
-**The project says it is waiting for a speech worker.** The worker is not connected. Check that it runs and that its log has a `worker started` line listing the `whisperx` adapter. **Administration > Workers** shows whether the application sees it.
+**The project is waiting for a speech worker.** The worker isn't connected. Check that it's running and that its log has a `worker started` line. **Administration > Workers** shows whether Anysub sees it.
 
-**A model download fails.** The error shows under the model in **Administration > Models**. The worker needs outbound access to Hugging Face. Fix the connection and choose **Try again**.
+**A model download fails.** The error shows in **Administration > Models**. The worker needs internet access to Hugging Face. Fix that and choose **Try again**.
 
-**Transcription is slow.** On a CPU it is, especially with the larger models. Choose a smaller model, or use an [NVIDIA GPU](GPU.md).
+**Transcription is slow.** It is on a CPU, especially with larger models. Use a smaller model or an [NVIDIA GPU](GPU.md).
 
-**The worker runs out of memory, or the run fails after the worker restarts every attempt.** Lower the batch size under **Advanced options**, choose a smaller model, or choose **Lower memory** under **Administration > Transcription > Precision**. The model picker's memory estimates show what fits.
+**The worker runs out of memory, or keeps restarting.** Lower the batch size under **Advanced options**, use a smaller model, or set **Administration > Transcription > Precision** to **Lower memory**.
 
-**Word timings are missing for a language.** Forced alignment has no model for every language. Anysub keeps the cues without word timings and records the reason with the run.
+**Word timings are missing for a language.** Not every language has an alignment model. The subtitles are kept, just without word timings.
 
 ## Editing
 
-**A video does not play in the studio.** Anysub prepares an editing copy when the browser cannot play the original. Wait for preparation to finish on the project page, or retry it there if it failed.
+**A video doesn't play in the studio.** Anysub converts files your browser can't play. Wait for that to finish on the project page, or retry it there if it failed.
 
-**Anysub says another session saved first.** The same track is open in another tab or on another device. Reload to load the version that was saved. Changes this tab had not saved are discarded, so copy any text you want to keep first.
+**Anysub says another session saved first.** The project is open in another tab or device. Reload to get the saved version. Unsaved changes in this tab are lost, so copy any text you want first.
 
 ## Disk space
 
-**Administration > Storage** shows what uses the data disk. Deleting a project frees its media and everything made from it. **Administration > Models** removes models you no longer use. Old images from earlier versions stay until you run `docker image prune`.
+**Administration > Storage** shows what uses the disk. Delete projects or models you don't need, and run `docker image prune` to remove old images.
 
 ## GPU
 
@@ -72,10 +72,10 @@ See [When the GPU path fails](GPU.md#when-the-gpu-path-fails).
 
 ## Reporting a bug
 
-If none of this helps, [open an issue](https://github.com/pluja/anysub/issues/new/choose). Include the Anysub version from the top right of **Administration**, whether you run the CPU or NVIDIA worker, and the output of:
+[Open an issue](https://github.com/pluja/anysub/issues/new/choose) with the Anysub version (top right of **Administration**), whether you use the CPU or GPU worker, and the output of:
 
 ```sh
 docker compose logs --tail 200 web worker
 ```
 
-Remove transcript text and anything private from the logs first.
+Remove anything private from the logs first.
