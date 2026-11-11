@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="apps/web/static/favicon.svg" alt="" width="96" height="96">
+</p>
+
 # Anysub
 
 Anysub turns audio and video into subtitles you can ship. It transcribes your media with Whisper, aligns the words to the sound, and gives you a waveform editor to fix what the model got wrong. Everything runs on your own machine, and your recordings never leave it.

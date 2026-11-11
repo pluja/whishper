@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import Logo from "./Logo.svelte";
   import ThemeMenu from "./ThemeMenu.svelte";
   import Menu from "./ui/Menu.svelte";
   import MenuItem from "./ui/MenuItem.svelte";
@@ -21,7 +22,7 @@
       href="/"
       class="-mx-1.5 inline-flex items-center gap-2 rounded-md px-1.5 py-1 text-base font-semibold tracking-tight text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
     >
-      <span class="text-accent"><Icon name="subtitles" size={20} /></span>
+      <Logo size={22} />
       Anysub
     </a>
 

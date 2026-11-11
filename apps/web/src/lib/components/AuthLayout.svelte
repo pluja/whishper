@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import Icon from "./Icon.svelte";
+  import Logo from "./Logo.svelte";
 
   type Props = {
     title: string;
@@ -17,7 +17,7 @@
     aria-labelledby="auth-title"
   >
     <div class="flex items-center gap-2 text-sm font-semibold tracking-tight">
-      <span class="text-accent"><Icon name="subtitles" size={20} /></span>
+      <Logo size={22} />
       Anysub
     </div>
     <h1 id="auth-title" class="mt-6 text-xl font-semibold tracking-tight">
