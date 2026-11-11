@@ -8,6 +8,10 @@ Anysub turns audio and video into subtitles with an easy-to-use web UI. Everythi
 
 It is the successor to Whishper, rewritten from scratch.
 
+<p align="center">
+  <img src="docs/images/studio.webp" alt="The Anysub studio with the video, the subtitle list and the waveform timeline" width="900">
+</p>
+
 ## Features
 
 - Transcription with Whisper, from the `tiny` model to `large-v3-turbo`.
