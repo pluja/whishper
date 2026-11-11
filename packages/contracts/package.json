@@ -14,6 +14,7 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "ajv": "^8.20.0",
     "json-schema-to-typescript": "^16.0.0",
     "prettier": "catalog:",

@@ -7,9 +7,10 @@ packages:
 # security or protocol behaviour. Caret ranges everywhere else. Dev tools that
 # several packages share are declared once here and referenced as "catalog:".
 catalog:
-  prettier: ^3.6.2
-  typescript: ^5.9.2
-  vitest: ^3.2.4
+  "@types/node": ^24.19.2
+  prettier: ^3.9.10
+  typescript: ^5.9.3
+  vitest: ^4.1.12
 
 # pnpm deploy, used by apps/web/Dockerfile to assemble the production tree,
 # refuses workspace dependencies that are not injected before pnpm 12.2.
