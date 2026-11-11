@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "anysub-worker"
-version = "4.0.1"
+version = "4.0.2"
 description = "Model-agnostic processing worker for Anysub"
 readme = "README.md"
 requires-python = ">=3.12"

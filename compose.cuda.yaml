@@ -11,7 +11,7 @@
 
 services:
   worker:
-    image: ghcr.io/pluja/anysub-worker:4.0.1-cuda
+    image: ghcr.io/pluja/anysub-worker:4.0.2-cuda
     environment:
       # The CUDA image already defaults to this. Stating it makes a CPU image
       # behind this overlay fail at startup instead of ignoring the GPU.

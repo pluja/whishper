@@ -2,6 +2,16 @@
 
 Anysub follows [Semantic Versioning](https://semver.org). The web and worker images always share one version. Each release lists what changed for the people who run and use Anysub.
 
+## [4.0.2] - 2026-11-11
+
+This release updates Node.js and other dependencies with known security problems. Nothing changes in how Anysub works.
+
+### Security
+
+- The web image runs Node.js 24.22.2, with the Node.js security releases up to October 2026.
+- Updated the web libraries SvelteKit, Zod and devalue to versions with security fixes.
+- Updated the worker libraries Pillow, filelock, certifi and setuptools to versions with security fixes.
+
 ## [4.0.1] - 2026-11-11
 
 Anysub 4.0.1 is the first published release of the Whishper rewrite. It replaces Whishper 3 completely, under a new name, and cannot read Whishper 3 data. [4.0.0](https://github.com/pluja/anysub/blob/main/CHANGELOG.md#400---2026-11-10) lists what Anysub does, and [Coming from Whishper 3](https://github.com/pluja/anysub/blob/main/docs/MIGRATING-FROM-WHISHPER.md) explains how to move over. This release fixes what a review found before 4.0.0 went out.
@@ -77,5 +87,6 @@ Anysub 4.0.0 is the first release of the Whishper rewrite. It replaces Whishper 
 - More than one account.
 - ARM64 images.
 
+[4.0.2]: https://github.com/pluja/anysub/releases/tag/v4.0.2
 [4.0.1]: https://github.com/pluja/anysub/releases/tag/v4.0.1
 [4.0.0]: https://github.com/pluja/anysub/releases/tag/v4.0.0
