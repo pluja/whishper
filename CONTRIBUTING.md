@@ -53,7 +53,7 @@ Everything runs in containers, so none of these need to be on your host. Each ve
 
 | Tool   | Version | Declared in                                                          |
 | ------ | ------- | -------------------------------------------------------------------- |
-| Node   | 24.6.0  | `.node-version`, `FROM` in `apps/web/Dockerfile`                     |
+| Node   | 24.22.2 | `.node-version`, `FROM` in `apps/web/Dockerfile`                     |
 | pnpm   | 11.15.0 | `packageManager` in `package.json`                                   |
 | Python | 3.12.11 | `workers/inference/.python-version`, `FROM` in the worker Dockerfile |
 | uv     | 0.11.25 | `FROM ghcr.io/astral-sh/uv` in the worker Dockerfile, `ci.yml`       |
