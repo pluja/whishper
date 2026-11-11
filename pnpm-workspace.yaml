@@ -19,3 +19,11 @@ injectWorkspacePackages: true
 allowBuilds:
   better-sqlite3: true
   esbuild: true
+
+# Advisories for better-auth features Anysub does not use: device login,
+# the OAuth proxy, and magic links. Remove these once better-auth is on 1.7.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-q84f-53jg-9ppm
+    - GHSA-r4xp-prcw-77qf
+    - GHSA-965c-763c-88jm

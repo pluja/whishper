@@ -76,6 +76,38 @@ jobs:
       # Includes the check that packages/contracts/schema matches the Pydantic models.
       - run: uv run pytest
 
+  # Fails on known vulnerabilities in what the images ship. Web ignores live in
+  # pnpm-workspace.yaml under auditConfig. PyTorch comes from its own index, so
+  # pip-audit cannot check it.
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
+      - run: pnpm audit --prod --audit-level high
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: 0.11.25 # Matches the uv FROM tag in workers/inference/Dockerfile.
+
+      - name: pip-audit
+        working-directory: workers/inference
+        run: |
+          for extra in cpu cuda; do
+            uv export --locked --no-dev --no-hashes --no-emit-project \
+              --extra "$extra" --output-file "$RUNNER_TEMP/requirements-$extra.txt"
+            uvx pip-audit==2.10.1 --no-deps --disable-pip \
+              --requirement "$RUNNER_TEMP/requirements-$extra.txt"
+          done
+
   # Proves every published image still builds, so a broken image is caught here
   # rather than during a release. No layer cache: the worker images are 3 GB and
   # more, and exporting them would exhaust the 10 GB repository cache budget.

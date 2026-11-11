@@ -96,7 +96,7 @@ It runs `check`, `test`, `lint`, `format-check`, and `build`:
 - `format-check`: Prettier for the repository, and `ruff format --check` for the worker.
 - `build`: the production web bundle.
 
-CI runs the same checks with a frozen lockfile. The worker checks run without the `speech` and accelerator extras, as in CI, in a venv separate from the one the development worker uses. CI adds one job that builds both production images without pushing them. No `make` target builds production images, so a Dockerfile change is only fully checked in CI.
+CI runs the same checks with a frozen lockfile. The worker checks run without the `speech` and accelerator extras, as in CI, in a venv separate from the one the development worker uses. CI adds one job that builds both production images without pushing them. No `make` target builds production images, so a Dockerfile change is only fully checked in CI. Another job fails on known high or critical vulnerabilities in the web and worker dependencies, and it blocks releases too. To accept an advisory that does not affect Anysub, add its GHSA ID under `auditConfig` in `pnpm-workspace.yaml` with the reason.
 
 ## UI checks
 
