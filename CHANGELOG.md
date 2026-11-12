@@ -2,6 +2,23 @@
 
 Anysub follows [Semantic Versioning](https://semver.org). The web and worker images always share one version. Each release lists what changed for the people who run and use Anysub.
 
+## [4.1.0] - 2026-11-12
+
+This release moves the web app to new versions of its main libraries. Nothing changes in how Anysub works.
+
+### Changed
+
+- The web image is smaller: 305 MB instead of 443 MB. It now ships only the code the server runs.
+- The web app runs on SvelteKit 3 and better-auth 1.7.
+
+### Security
+
+- better-auth 1.7 fixes advisories in its device login, OAuth proxy and magic link features. Anysub doesn't use these features.
+
+### Known issues
+
+- The worker still uses PyTorch 2.8 and transformers 4.57, as in 4.0.3. The fixed versions need a newer WhisperX, which isn't released yet.
+
 ## [4.0.3] - 2026-11-12
 
 This release updates more worker libraries with known security problems. Nothing changes in how Anysub works.
@@ -99,6 +116,7 @@ Anysub 4.0.0 is the first release of the Whishper rewrite. It replaces Whishper 
 - More than one account.
 - ARM64 images.
 
+[4.1.0]: https://github.com/pluja/anysub/releases/tag/v4.1.0
 [4.0.3]: https://github.com/pluja/anysub/releases/tag/v4.0.3
 [4.0.2]: https://github.com/pluja/anysub/releases/tag/v4.0.2
 [4.0.1]: https://github.com/pluja/anysub/releases/tag/v4.0.1

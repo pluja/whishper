@@ -89,7 +89,7 @@ Build a worker image. Do not install the adapter on the Docker host. Derive it f
 
 ```dockerfile
 FROM ghcr.io/astral-sh/uv:0.11.25 AS uv
-FROM ghcr.io/pluja/anysub-worker:4.0.3
+FROM ghcr.io/pluja/anysub-worker:4.1.0
 
 USER root
 COPY --from=uv /uv /usr/local/bin/uv

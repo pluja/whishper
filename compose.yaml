@@ -11,7 +11,7 @@ name: anysub
 
 services:
   web:
-    image: ghcr.io/pluja/anysub:4.0.3
+    image: ghcr.io/pluja/anysub:4.1.0
     restart: unless-stopped
     environment:
       DATA_ROOT: /data
@@ -36,7 +36,7 @@ services:
       start_period: 15s
 
   worker:
-    image: ghcr.io/pluja/anysub-worker:4.0.3
+    image: ghcr.io/pluja/anysub-worker:4.1.0
     restart: unless-stopped
     environment:
       ANYSUB_APP_URL: http://web:3000
