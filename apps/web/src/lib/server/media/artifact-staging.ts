@@ -11,21 +11,21 @@ import type {
 
 import { and, eq } from "drizzle-orm";
 
-import { db } from "$lib/server/db";
-import { jobs, mediaUploads, projects } from "$lib/server/db/schema";
-import { isNodeError } from "$lib/server/guards";
-import { badRequest, conflict, notFound } from "$lib/server/http/errors";
+import { db } from "#lib/server/db/index.ts";
+import { jobs, mediaUploads, projects } from "#lib/server/db/schema.ts";
+import { isNodeError } from "#lib/server/guards.ts";
+import { badRequest, conflict, notFound } from "#lib/server/http/errors.ts";
 import {
   holdsActiveLease,
   isMediaPrepareJob,
-} from "$lib/server/jobs/predicates";
-import { DERIVATIVE_FORMATS } from "$lib/server/media/derivatives";
-import { withKeyedLock } from "$lib/server/storage/keyed-lock";
+} from "#lib/server/jobs/predicates.ts";
+import { DERIVATIVE_FORMATS } from "#lib/server/media/derivatives.ts";
+import { withKeyedLock } from "#lib/server/storage/keyed-lock.ts";
 import {
   resolveDataPath,
   workerArtifactsPath,
   workerAttemptPath,
-} from "$lib/server/storage/paths";
+} from "#lib/server/storage/paths.ts";
 
 const MAX_ARTIFACT_CHUNK_BYTES = 32 * 1024 * 1024;
 

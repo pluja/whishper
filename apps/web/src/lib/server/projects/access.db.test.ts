@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { eq } from "drizzle-orm";
 
-import { db } from "$lib/server/db";
-import { memberships } from "$lib/server/db/schema";
-import { seedMember, seedProject } from "$lib/server/db/testing/fixtures";
+import { db } from "#lib/server/db/index.ts";
+import { memberships } from "#lib/server/db/schema.ts";
+import { seedMember, seedProject } from "#lib/server/db/testing/fixtures.ts";
 import {
   manageableProjectForUser,
   projectForUser,
-} from "$lib/server/projects/access";
+} from "#lib/server/projects/access.ts";
 
 describe("projectForUser", () => {
   it("returns the project to a workspace member", async () => {

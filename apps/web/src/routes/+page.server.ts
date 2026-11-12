@@ -1,17 +1,17 @@
-import { auth } from "$lib/server/auth/auth";
-import { requireUserOrLogin } from "$lib/server/auth/session";
-import { db } from "$lib/server/db";
-import { isInstanceInitialized } from "$lib/server/auth/instance";
+import { auth } from "#lib/server/auth/auth.ts";
+import { requireUserOrLogin } from "#lib/server/auth/session.ts";
+import { db } from "#lib/server/db/index.ts";
+import { isInstanceInitialized } from "#lib/server/auth/instance.ts";
 import {
   listLibraryProjects,
   normalizeProjectTitle,
   parseProjectLibrarySearch,
   primaryWorkspaceForUser,
   renameProjectForUser,
-} from "$lib/server/projects/library";
-import { readInstanceSettings } from "$lib/server/settings/instance";
-import type { LibraryData } from "$lib/shared/library-data";
-import { isUuid } from "$lib/shared/uuid";
+} from "#lib/server/projects/library.ts";
+import { readInstanceSettings } from "#lib/server/settings/instance.ts";
+import type { LibraryData } from "#lib/shared/library-data.ts";
+import { isUuid } from "#lib/shared/uuid.ts";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 

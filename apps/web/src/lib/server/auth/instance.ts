@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { z } from "zod";
 
-import { account, user } from "$lib/server/auth/schema";
-import { db, type Executor } from "$lib/server/db";
-import { memberships, workspaces } from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
+import { account, user } from "#lib/server/auth/schema.ts";
+import { db, type Executor } from "#lib/server/db/index.ts";
+import { memberships, workspaces } from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
 
 export type InstanceOwner = {
   name: string;

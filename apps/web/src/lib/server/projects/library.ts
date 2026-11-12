@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
+import type { Executor } from "#lib/server/db/index.ts";
 import {
   cues,
   jobs,
@@ -11,25 +11,25 @@ import {
   subtitleTracks,
   transcriptionRuns,
   workspaces,
-} from "$lib/server/db/schema";
-import { projectForUser } from "$lib/server/projects/access";
-import { IDLE_BEFORE_RETRY_MS } from "$lib/server/uploads/maintenance";
-import { truncateText } from "$lib/shared/format";
+} from "#lib/server/db/schema.ts";
+import { projectForUser } from "#lib/server/projects/access.ts";
+import { IDLE_BEFORE_RETRY_MS } from "#lib/server/uploads/maintenance.ts";
+import { truncateText } from "#lib/shared/format.ts";
 import type {
   LibrarySearch,
   ProjectSummary,
   WorkspaceSummary,
-} from "$lib/shared/library-data";
+} from "#lib/shared/library-data.ts";
 import {
   PROJECT_SEARCH_MAX_LENGTH,
   PROJECT_TITLE_MAX_LENGTH,
-} from "$lib/shared/limits";
+} from "#lib/shared/limits.ts";
 import type {
   LibraryUploadStatus,
   RunStatus,
   UploadStatus,
-} from "$lib/shared/project-status";
-import { matchesSearch, normalizeSearchText } from "$lib/shared/search";
+} from "#lib/shared/project-status.ts";
+import { matchesSearch, normalizeSearchText } from "#lib/shared/search.ts";
 
 export function parseProjectLibrarySearch(
   searchParams: URLSearchParams,

@@ -4,14 +4,14 @@ import type { WorkerManifest } from "@anysub/contracts";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
-import { jobs, workers } from "$lib/server/db/schema";
+import { db } from "#lib/server/db/index.ts";
+import { jobs, workers } from "#lib/server/db/schema.ts";
 import {
   seedLeasedTranscriptionJob,
   seedProject,
-} from "$lib/server/db/testing/fixtures";
-import { recordWorkerPresence } from "$lib/server/workers/presence";
-import { forgetWorker, listWorkers } from "$lib/server/workers/status";
+} from "#lib/server/db/testing/fixtures.ts";
+import { recordWorkerPresence } from "#lib/server/workers/presence.ts";
+import { forgetWorker, listWorkers } from "#lib/server/workers/status.ts";
 
 const GIB = 1024 ** 3;
 

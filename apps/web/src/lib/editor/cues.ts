@@ -1,5 +1,5 @@
-import { clamp } from "$lib/shared/clamp";
-import { clampToDuration } from "$lib/shared/source-duration";
+import { clamp } from "#lib/shared/clamp.ts";
+import { clampToDuration } from "#lib/shared/source-duration.ts";
 
 export type EditorCue = {
   id: string;

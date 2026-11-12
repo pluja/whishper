@@ -26,9 +26,9 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
-    "@sveltejs/adapter-node": "^5.5.8",
-    "@sveltejs/kit": "^2.70.4",
-    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@sveltejs/adapter-node": "^6.0.2",
+    "@sveltejs/kit": "^3.2.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/vite": "^4.3.5",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "catalog:",
@@ -40,7 +40,10 @@
     "svelte-check": "^4.7.8",
     "tailwindcss": "^4.3.5",
     "typescript": "catalog:",
-    "vite": "^7.3.8",
+    "vite": "^8.3.8",
     "vitest": "catalog:"
+  },
+  "imports": {
+    "#lib/*": "./src/lib/*"
   }
 }

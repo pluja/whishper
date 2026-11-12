@@ -1,14 +1,13 @@
 import { sql } from "drizzle-orm";
-import { json } from "@sveltejs/kit";
 
-import { db } from "$lib/server/db";
+import { db } from "#lib/server/db/index.ts";
 
 export function GET() {
   try {
     db.get(sql`select 1`);
   } catch (cause) {
     console.error("Health check database query failed", cause);
-    return json({ status: "unavailable" }, { status: 503 });
+    return Response.json({ status: "unavailable" }, { status: 503 });
   }
-  return json({ status: "ok" });
+  return Response.json({ status: "ok" });
 }

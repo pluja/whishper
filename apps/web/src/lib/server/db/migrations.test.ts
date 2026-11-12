@@ -7,8 +7,8 @@ import {
 } from "drizzle-kit/api";
 import { describe, expect, it } from "vitest";
 
-import * as authSchema from "$lib/server/auth/schema";
-import * as appSchema from "$lib/server/db/schema";
+import * as authSchema from "#lib/server/auth/schema.ts";
+import * as appSchema from "#lib/server/db/schema.ts";
 
 const MIGRATIONS = resolve("migrations");
 

@@ -3,7 +3,7 @@ import type { ModelCacheAction } from "@anysub/contracts";
 import type {
   DetectedWorkerHardware,
   TranscriptionModel,
-} from "$lib/shared/transcription-models";
+} from "#lib/shared/transcription-models.ts";
 
 export type ModelTask = {
   jobId: string;

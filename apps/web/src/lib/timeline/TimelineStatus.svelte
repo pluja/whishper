@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ProbeState } from "$lib/shared/project-status";
+  import type { ProbeState } from "#lib/shared/project-status.ts";
   import type { LoadState } from "./waveform-loader.svelte";
 
   type Props = {

@@ -6,15 +6,15 @@ const { WORKER_TOKEN, getSession, handleUploadRequest } = vi.hoisted(() => ({
   getSession: vi.fn(),
   handleUploadRequest: vi.fn(),
 }));
-vi.mock("$lib/server/env", () => ({
+vi.mock("#lib/server/env.ts", () => ({
   privateEnv: {
     databaseFile: ":memory:",
     workerTokenOverride: WORKER_TOKEN,
     authUrl: "https://anysub.example",
   },
 }));
-vi.mock("$lib/server/auth/auth", () => ({ auth: { api: { getSession } } }));
-vi.mock("$lib/server/uploads/tus-server", () => ({
+vi.mock("#lib/server/auth/auth.ts", () => ({ auth: { api: { getSession } } }));
+vi.mock("#lib/server/uploads/tus-server.ts", () => ({
   handleUploadRequest,
   isUploadPath: (pathname: string) => pathname.startsWith("/api/uploads"),
 }));
@@ -185,18 +185,17 @@ describe("rejectCrossOriginRequests", () => {
 describe("logServerErrors", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("logs a 5xx and returns only the generic message", () => {
+  it("logs an unexpected error and keeps the generic message", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const cause = new Error("password=hunter2");
 
     const body = logServerErrors({
+      kind: "unknown",
       error: cause,
       event: eventFor("/api/projects/1/tracks/2"),
-      status: 500,
-      message: "Internal Error",
     });
 
-    expect(body).toEqual({ message: "Internal Error" });
+    expect(body).toBeUndefined();
     expect(log).toHaveBeenCalledWith(
       "GET /api/projects/1/tracks/2 failed",
       cause,
@@ -207,12 +206,11 @@ describe("logServerErrors", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     const body = logServerErrors({
+      kind: "unknown",
       error: new ServerFailure("The track could not be saved.", {
         cause: new Error("password=hunter2"),
       }),
       event: eventFor("/api/projects/1/tracks/2"),
-      status: 500,
-      message: "Internal Error",
     });
 
     expect(body).toEqual({ message: "The track could not be saved." });
@@ -221,10 +219,9 @@ describe("logServerErrors", () => {
   it("does not log a 404", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     logServerErrors({
-      error: new Error("Not found"),
+      kind: "framework",
+      error: { status: 404, message: "Not Found" },
       event: eventFor("/missing"),
-      status: 404,
-      message: "Not Found",
     });
 
     expect(log).not.toHaveBeenCalled();

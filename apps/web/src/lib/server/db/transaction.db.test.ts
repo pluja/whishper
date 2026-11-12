@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
-import { workspaces } from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
+import { db } from "#lib/server/db/index.ts";
+import { workspaces } from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
 
 describe("withTransaction", () => {
   it("commits the work and returns its result", () => {

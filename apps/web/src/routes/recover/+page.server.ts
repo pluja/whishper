@@ -1,19 +1,19 @@
-import { isInstanceInitialized } from "$lib/server/auth/instance";
+import { isInstanceInitialized } from "#lib/server/auth/instance.ts";
 import {
   passwordLengthProblem,
   resetPassword,
-} from "$lib/server/auth/password";
+} from "#lib/server/auth/password.ts";
 import {
   clearRecoveryCode,
   isRecoveryCode,
   issueRecoveryCode,
-} from "$lib/server/auth/recovery-code";
+} from "#lib/server/auth/recovery-code.ts";
 import {
   attemptKeys,
   hostCodeThrottle,
   retryMessage,
-} from "$lib/server/auth/throttle";
-import { RECOVERY_CODE_LIFETIME_MINUTES } from "$lib/shared/limits";
+} from "#lib/server/auth/throttle.ts";
+import { RECOVERY_CODE_LIFETIME_MINUTES } from "#lib/shared/limits.ts";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 

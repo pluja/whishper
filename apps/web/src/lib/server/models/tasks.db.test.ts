@@ -8,14 +8,14 @@ import {
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
-import { jobs } from "$lib/server/db/schema";
-import { completeJob } from "$lib/server/jobs/completion";
-import { failJob } from "$lib/server/jobs/failure";
-import { leaseJob, reportProgress } from "$lib/server/jobs/lease";
-import { workerModelInventories } from "$lib/server/models/inventory";
-import { cancelModelTask, requestModelTask } from "$lib/server/models/tasks";
-import { recordWorkerPresence } from "$lib/server/workers/presence";
+import { db } from "#lib/server/db/index.ts";
+import { jobs } from "#lib/server/db/schema.ts";
+import { completeJob } from "#lib/server/jobs/completion.ts";
+import { failJob } from "#lib/server/jobs/failure.ts";
+import { leaseJob, reportProgress } from "#lib/server/jobs/lease.ts";
+import { workerModelInventories } from "#lib/server/models/inventory.ts";
+import { cancelModelTask, requestModelTask } from "#lib/server/models/tasks.ts";
+import { recordWorkerPresence } from "#lib/server/workers/presence.ts";
 
 const GIB = 1024 ** 3;
 

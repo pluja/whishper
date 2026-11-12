@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { isInstanceInitialized } = vi.hoisted(() => ({
   isInstanceInitialized: vi.fn(),
 }));
-vi.mock("$lib/server/auth/instance", () => ({ isInstanceInitialized }));
+vi.mock("#lib/server/auth/instance.ts", () => ({ isInstanceInitialized }));
 
-import { announceSetupCode, isSetupCode } from "$lib/server/auth/setup-code";
+import { announceSetupCode, isSetupCode } from "#lib/server/auth/setup-code.ts";
 
 function announcedCode(log: ReturnType<typeof vi.fn>): string {
   const match = /^ {4}(\S+)$/m.exec(String(log.mock.calls[0][0]));

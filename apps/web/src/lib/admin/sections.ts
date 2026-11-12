@@ -1,4 +1,4 @@
-import type { IconName } from "$lib/components/icon-names";
+import type { IconName } from "#lib/components/icon-names.ts";
 
 export type AdminSection = {
   href: string;

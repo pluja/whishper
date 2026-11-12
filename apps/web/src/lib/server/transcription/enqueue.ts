@@ -1,25 +1,25 @@
 import type { TranscriptionJobPayload } from "@anysub/contracts";
 
-import { jobs, transcriptionRuns } from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
-import { badRequest, conflict, notFound } from "$lib/server/http/errors";
-import { projectForUser } from "$lib/server/projects/access";
-import { readInstanceSettings } from "$lib/server/settings/instance";
-import { resolveDataPath } from "$lib/server/storage/paths";
-import { hasActiveTranscriptionRun } from "$lib/server/transcription/active-run";
+import { jobs, transcriptionRuns } from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
+import { badRequest, conflict, notFound } from "#lib/server/http/errors.ts";
+import { projectForUser } from "#lib/server/projects/access.ts";
+import { readInstanceSettings } from "#lib/server/settings/instance.ts";
+import { resolveDataPath } from "#lib/server/storage/paths.ts";
+import { hasActiveTranscriptionRun } from "#lib/server/transcription/active-run.ts";
 import {
   acceptsOption,
   availableTranscriptionModels,
-} from "$lib/server/transcription/models";
-import { activeWorkerManifests } from "$lib/server/workers/presence";
+} from "#lib/server/transcription/models.ts";
+import { activeWorkerManifests } from "#lib/server/workers/presence.ts";
 import {
   MAX_LINE_LENGTH,
   MIN_LINE_LENGTH,
   type Precision,
-} from "$lib/shared/instance-settings";
-import { DETECT_LANGUAGE, LANGUAGE_TAG } from "$lib/shared/languages";
-import { DEFAULT_MAX_LINE_LENGTH, MAX_BATCH_SIZE } from "$lib/shared/limits";
-import { parseModelKey } from "$lib/shared/transcription-models";
+} from "#lib/shared/instance-settings.ts";
+import { DETECT_LANGUAGE, LANGUAGE_TAG } from "#lib/shared/languages.ts";
+import { DEFAULT_MAX_LINE_LENGTH, MAX_BATCH_SIZE } from "#lib/shared/limits.ts";
+import { parseModelKey } from "#lib/shared/transcription-models.ts";
 
 type TranscriptionOptions = {
   alignment: boolean;

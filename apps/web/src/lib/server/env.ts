@@ -1,4 +1,10 @@
-import { env } from "$env/dynamic/private";
+import {
+  ANYSUB_DATABASE_FILE,
+  BETTER_AUTH_URL,
+  DATA_ROOT,
+  BETTER_AUTH_SECRET,
+  ANYSUB_WORKER_TOKEN,
+} from "$app/env/private";
 
 const MINIMUM_AUTH_SECRET_LENGTH = 32;
 const MINIMUM_WORKER_TOKEN_LENGTH = 24;
@@ -15,12 +21,12 @@ const PUBLISHED_PLACEHOLDERS = new Set([
 ]);
 
 export const privateEnv = {
-  databaseFile: env.ANYSUB_DATABASE_FILE || "/database/anysub.db",
-  authUrl: env.BETTER_AUTH_URL || "http://localhost:5173",
-  dataRoot: env.DATA_ROOT || "/data",
+  databaseFile: ANYSUB_DATABASE_FILE || "/database/anysub.db",
+  authUrl: BETTER_AUTH_URL || "http://localhost:5173",
+  dataRoot: DATA_ROOT || "/data",
   // Unset means Anysub generates the secret and keeps it in the database.
-  authSecretOverride: env.BETTER_AUTH_SECRET || null,
-  workerTokenOverride: env.ANYSUB_WORKER_TOKEN || null,
+  authSecretOverride: BETTER_AUTH_SECRET || null,
+  workerTokenOverride: ANYSUB_WORKER_TOKEN || null,
 };
 
 export type SecretOverrides = {

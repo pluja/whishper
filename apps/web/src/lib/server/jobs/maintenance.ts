@@ -1,8 +1,8 @@
-import { withTransaction } from "$lib/server/db/transaction";
+import { withTransaction } from "#lib/server/db/transaction.ts";
 import {
   cleanupReclaimedArtifacts,
   reclaimExpiredLeases,
-} from "$lib/server/jobs/failure";
+} from "#lib/server/jobs/failure.ts";
 
 // Lease requests reclaim expired leases too, but while no worker polls, a job
 // whose worker died would otherwise keep its run looking active.

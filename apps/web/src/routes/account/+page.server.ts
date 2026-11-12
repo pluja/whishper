@@ -1,12 +1,12 @@
-import { auth } from "$lib/server/auth/auth";
-import { isAuthError } from "$lib/server/auth/errors";
-import { passwordLengthProblem } from "$lib/server/auth/password";
-import { requireUserOrLogin } from "$lib/server/auth/session";
+import { auth } from "#lib/server/auth/auth.ts";
+import { isAuthError } from "#lib/server/auth/errors.ts";
+import { passwordLengthProblem } from "#lib/server/auth/password.ts";
+import { requireUserOrLogin } from "#lib/server/auth/session.ts";
 import {
   attemptKeys,
   retryMessage,
   signInThrottle,
-} from "$lib/server/auth/throttle";
+} from "#lib/server/auth/throttle.ts";
 import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 

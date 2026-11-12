@@ -2,8 +2,8 @@ import { randomBytes } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
-import { db, type Executor } from "$lib/server/db";
-import { instanceSecrets } from "$lib/server/db/schema";
+import { db, type Executor } from "#lib/server/db/index.ts";
+import { instanceSecrets } from "#lib/server/db/schema.ts";
 
 export type SecretName = "session-signing" | "worker-token";
 

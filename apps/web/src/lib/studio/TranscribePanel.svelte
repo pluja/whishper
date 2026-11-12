@@ -4,21 +4,21 @@
 </script>
 
 <script lang="ts">
-  import Icon from "$lib/components/Icon.svelte";
-  import Button from "$lib/components/ui/Button.svelte";
-  import Field from "$lib/components/ui/Field.svelte";
-  import Input from "$lib/components/ui/Input.svelte";
+  import Icon from "#lib/components/Icon.svelte";
+  import Button from "#lib/components/ui/Button.svelte";
+  import Field from "#lib/components/ui/Field.svelte";
+  import Input from "#lib/components/ui/Input.svelte";
   import {
     MAX_LINE_LENGTH,
     MIN_LINE_LENGTH,
     type TranscriptionDefaults,
-  } from "$lib/shared/instance-settings";
-  import { DETECT_LANGUAGE } from "$lib/shared/languages";
-  import { MAX_BATCH_SIZE } from "$lib/shared/limits";
+  } from "#lib/shared/instance-settings.ts";
+  import { DETECT_LANGUAGE } from "#lib/shared/languages.ts";
+  import { MAX_BATCH_SIZE } from "#lib/shared/limits.ts";
   import type {
     AvailableTranscriptionModel,
     DetectedWorkerHardware,
-  } from "$lib/shared/transcription-models";
+  } from "#lib/shared/transcription-models.ts";
   import LanguagePicker from "./LanguagePicker.svelte";
   import ModelPicker from "./ModelPicker.svelte";
 

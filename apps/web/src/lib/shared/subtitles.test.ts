@@ -6,7 +6,7 @@ import {
   renderPlainText,
   renderSrt,
   renderWebVtt,
-} from "$lib/shared/subtitles";
+} from "#lib/shared/subtitles.ts";
 
 const cues = [
   {

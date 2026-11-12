@@ -1,8 +1,8 @@
 import { and, type SQL } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
-import { jobs } from "$lib/server/db/schema";
-import { isActiveJob } from "$lib/server/jobs/predicates";
+import type { Executor } from "#lib/server/db/index.ts";
+import { jobs } from "#lib/server/db/schema.ts";
+import { isActiveJob } from "#lib/server/jobs/predicates.ts";
 
 export const RELEASED_LEASE = {
   leasedBy: null,

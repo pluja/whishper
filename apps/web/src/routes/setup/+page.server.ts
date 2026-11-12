@@ -1,20 +1,20 @@
-import { auth } from "$lib/server/auth/auth";
+import { auth } from "#lib/server/auth/auth.ts";
 import {
   createInstanceOwner,
   isInstanceInitialized,
   isValidOwnerEmail,
-} from "$lib/server/auth/instance";
-import { passwordLengthProblem } from "$lib/server/auth/password";
-import { isSetupCode } from "$lib/server/auth/setup-code";
+} from "#lib/server/auth/instance.ts";
+import { passwordLengthProblem } from "#lib/server/auth/password.ts";
+import { isSetupCode } from "#lib/server/auth/setup-code.ts";
 import {
   attemptKeys,
   hostCodeThrottle,
   retryMessage,
-} from "$lib/server/auth/throttle";
+} from "#lib/server/auth/throttle.ts";
 import {
   OWNER_NAME_MAX_LENGTH,
   OWNER_NAME_MIN_LENGTH,
-} from "$lib/shared/limits";
+} from "#lib/shared/limits.ts";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 

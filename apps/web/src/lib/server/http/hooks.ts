@@ -1,13 +1,12 @@
-import { json, type Handle, type HandleServerError } from "@sveltejs/kit";
-
-import { auth } from "$lib/server/auth/auth";
-import { isCrossOriginRequest } from "$lib/server/http/cross-origin";
-import { ServerFailure } from "$lib/server/http/errors";
+import type { Handle, HandleServerError } from "@sveltejs/kit/hooks";
+import { auth } from "#lib/server/auth/auth.ts";
+import { isCrossOriginRequest } from "#lib/server/http/cross-origin.ts";
+import { ServerFailure } from "#lib/server/http/errors.ts";
 import {
   handleUploadRequest,
   isUploadPath,
-} from "$lib/server/uploads/tus-server";
-import { isAuthenticatedWorker } from "$lib/server/workers/auth";
+} from "#lib/server/uploads/tus-server.ts";
+import { isAuthenticatedWorker } from "#lib/server/workers/auth.ts";
 
 const WORKER_API = "/api/internal";
 const PROJECT_API = "/api/projects";
@@ -27,7 +26,10 @@ export const rejectCrossOriginRequests: Handle = ({ event, resolve }) => {
 export const authenticateWorkers: Handle = ({ event, resolve }) => {
   if (!isWithin(event.url.pathname, WORKER_API)) return resolve(event);
   if (!isAuthenticatedWorker(event.request)) {
-    return json({ message: "Worker authentication failed" }, { status: 401 });
+    return Response.json(
+      { message: "Worker authentication failed" },
+      { status: 401 },
+    );
   }
   return resolve(event);
 };
@@ -49,7 +51,10 @@ export const loadSession: Handle = async ({ event, resolve }) => {
 
 export const requireProjectApiSession: Handle = ({ event, resolve }) => {
   if (isWithin(event.url.pathname, PROJECT_API) && !event.locals.user) {
-    return json({ message: "Authentication required" }, { status: 401 });
+    return Response.json(
+      { message: "Authentication required" },
+      { status: 401 },
+    );
   }
   return resolve(event);
 };
@@ -62,17 +67,11 @@ export const handleUploads: Handle = ({ event, resolve }) => {
   return handleUploadRequest(event.request, event.locals.user.id);
 };
 
-export const logServerErrors: HandleServerError = ({
-  error,
-  event,
-  status,
-  message,
-}) => {
-  if (status >= 500) {
-    console.error(
-      `${event.request.method} ${event.url.pathname} failed`,
-      error,
-    );
-  }
-  return { message: error instanceof ServerFailure ? error.message : message };
+// Expected errors (error(...) and SvelteKit's own, such as a 404) keep their
+// status and message. Only unexpected ones are logged, and they show a generic
+// message unless they carry a public one.
+export const logServerErrors: HandleServerError = ({ kind, error, event }) => {
+  if (kind !== "unknown") return;
+  console.error(`${event.request.method} ${event.url.pathname} failed`, error);
+  if (error instanceof ServerFailure) return { message: error.message };
 };

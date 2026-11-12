@@ -1,13 +1,13 @@
 <script lang="ts">
-  import Flag from "$lib/components/Flag.svelte";
-  import Icon from "$lib/components/Icon.svelte";
-  import Picker from "$lib/components/ui/Picker.svelte";
+  import Flag from "#lib/components/Flag.svelte";
+  import Icon from "#lib/components/Icon.svelte";
+  import Picker from "#lib/components/ui/Picker.svelte";
   import {
     DETECT_LANGUAGE,
     LANGUAGES,
     matchesLanguage,
     type Language,
-  } from "$lib/shared/languages";
+  } from "#lib/shared/languages.ts";
 
   const DETECT_AUTOMATICALLY: Language = {
     code: DETECT_LANGUAGE,

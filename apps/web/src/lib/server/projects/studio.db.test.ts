@@ -2,16 +2,16 @@ import { randomUUID } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
-import { mediaUploads } from "$lib/server/db/schema";
-import { seedProject } from "$lib/server/db/testing/fixtures";
+import { db } from "#lib/server/db/index.ts";
+import { mediaUploads } from "#lib/server/db/schema.ts";
+import { seedProject } from "#lib/server/db/testing/fixtures.ts";
 import {
   latestMediaPreparation,
   latestRun,
   readyDerivatives,
   studioProject,
   studioStatus,
-} from "$lib/server/projects/studio";
+} from "#lib/server/projects/studio.ts";
 
 describe("studio queries", () => {
   it("maps the project and its upload to camelCase with numeric sizes", async () => {

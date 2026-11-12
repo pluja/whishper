@@ -1,6 +1,6 @@
 import { tick, untrack } from "svelte";
 
-import { clamp } from "$lib/shared/clamp";
+import { clamp } from "#lib/shared/clamp.ts";
 import { decideFollow, zoomAnchorUs, type FollowTrigger } from "./follow";
 import {
   clampInteger,

@@ -1,6 +1,9 @@
-import { generateHostCode, hostCodesMatch } from "$lib/server/auth/host-code";
-import { pluralize } from "$lib/shared/format";
-import { RECOVERY_CODE_LIFETIME_MINUTES } from "$lib/shared/limits";
+import {
+  generateHostCode,
+  hostCodesMatch,
+} from "#lib/server/auth/host-code.ts";
+import { pluralize } from "#lib/shared/format.ts";
+import { RECOVERY_CODE_LIFETIME_MINUTES } from "#lib/shared/limits.ts";
 
 const CODE_LIFETIME_MS = RECOVERY_CODE_LIFETIME_MINUTES * 60_000;
 // Asking again within this window prints nothing, so repeated clicks cannot

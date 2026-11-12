@@ -1,13 +1,13 @@
 import { fail } from "@sveltejs/kit";
 
-import { requireAdminOrLogin } from "$lib/server/auth/session";
-import { db } from "$lib/server/db";
+import { requireAdminOrLogin } from "#lib/server/auth/session.ts";
+import { db } from "#lib/server/db/index.ts";
 import {
   parseUploadLimit,
   readInstanceSettings,
   updateInstanceSettings,
-} from "$lib/server/settings/instance";
-import { storageUsage } from "$lib/server/storage/usage";
+} from "#lib/server/settings/instance.ts";
+import { storageUsage } from "#lib/server/storage/usage.ts";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {

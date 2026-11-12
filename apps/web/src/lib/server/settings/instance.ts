@@ -1,5 +1,5 @@
-import { db, type Executor } from "$lib/server/db";
-import { instanceSettings } from "$lib/server/db/schema";
+import { db, type Executor } from "#lib/server/db/index.ts";
+import { instanceSettings } from "#lib/server/db/schema.ts";
 import {
   AUTOMATIC_MODEL,
   CUSTOM_UPLOAD_LIMIT,
@@ -12,9 +12,9 @@ import {
   MIN_UPLOAD_LIMIT_GIB,
   type InstanceSettings,
   type TranscriptionDefaults,
-} from "$lib/shared/instance-settings";
-import { DETECT_LANGUAGE, LANGUAGE_TAG } from "$lib/shared/languages";
-import { parseModelKey } from "$lib/shared/transcription-models";
+} from "#lib/shared/instance-settings.ts";
+import { DETECT_LANGUAGE, LANGUAGE_TAG } from "#lib/shared/languages.ts";
+import { parseModelKey } from "#lib/shared/transcription-models.ts";
 
 export type SettingsProblem = { field: string; message: string };
 type Parsed<T> = { value: T } | { problem: SettingsProblem };

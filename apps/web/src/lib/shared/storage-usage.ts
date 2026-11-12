@@ -1,4 +1,4 @@
-import type { WorkerStorageSpace } from "$lib/shared/model-inventory";
+import type { WorkerStorageSpace } from "#lib/shared/model-inventory.ts";
 
 export type StoredFiles = { bytes: number; count: number };
 

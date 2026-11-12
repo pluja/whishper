@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
-import { seedProject, seedTrack } from "$lib/server/db/testing/fixtures";
-import { withTransaction } from "$lib/server/db/transaction";
-import { insertCues, listTrackCues } from "$lib/server/subtitles/cues";
-import { isUuid } from "$lib/shared/uuid";
+import { db } from "#lib/server/db/index.ts";
+import { seedProject, seedTrack } from "#lib/server/db/testing/fixtures.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
+import { insertCues, listTrackCues } from "#lib/server/subtitles/cues.ts";
+import { isUuid } from "#lib/shared/uuid.ts";
 
 const FIRST_CUE_ID = "6f1c1a52-8a4e-4c1b-9d6e-2f4b8f0a7c31";
 const SECOND_CUE_ID = "0b7e2d94-3c5a-4f8e-a1d2-9e6c4b3a2f10";

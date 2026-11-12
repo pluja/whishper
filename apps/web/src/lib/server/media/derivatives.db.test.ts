@@ -1,14 +1,14 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
-import { mediaDerivatives } from "$lib/server/db/schema";
+import { db } from "#lib/server/db/index.ts";
+import { mediaDerivatives } from "#lib/server/db/schema.ts";
 import {
   seedMember,
   seedProject,
   type SeededProject,
-} from "$lib/server/db/testing/fixtures";
-import { deleteDerivativeForUser } from "$lib/server/media/derivatives";
+} from "#lib/server/db/testing/fixtures.ts";
+import { deleteDerivativeForUser } from "#lib/server/media/derivatives.ts";
 
 function seedThumbnail(project: SeededProject): void {
   db.insert(mediaDerivatives)

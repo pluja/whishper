@@ -1,17 +1,17 @@
 import type { JobFailure, WorkerJobPayload } from "@anysub/contracts";
 import { and, eq, lte } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
+import type { Executor } from "#lib/server/db/index.ts";
 import {
   jobs,
   projects,
   transcriptionRuns,
   type StoredJobError,
-} from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
-import { holdsActiveLease } from "$lib/server/jobs/predicates";
-import { RELEASED_LEASE } from "$lib/server/jobs/release";
-import { cleanupStagedMediaAttempt } from "$lib/server/media/artifact-staging";
+} from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
+import { holdsActiveLease } from "#lib/server/jobs/predicates.ts";
+import { RELEASED_LEASE } from "#lib/server/jobs/release.ts";
+import { cleanupStagedMediaAttempt } from "#lib/server/media/artifact-staging.ts";
 
 const RETRY_DELAY_MS = 5_000;
 

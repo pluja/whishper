@@ -1,13 +1,13 @@
 <script lang="ts">
-  import EmptyState from "$lib/components/ui/EmptyState.svelte";
-  import FormMessage from "$lib/admin/FormMessage.svelte";
-  import ModelRow from "$lib/admin/ModelRow.svelte";
-  import SectionHeader from "$lib/admin/SectionHeader.svelte";
-  import UsageMeter from "$lib/admin/UsageMeter.svelte";
-  import { pollWhileActive } from "$lib/browser/polling.svelte";
-  import Icon from "$lib/components/Icon.svelte";
-  import { pluralize } from "$lib/shared/format";
-  import { defaultModelKey } from "$lib/shared/transcription-models";
+  import EmptyState from "#lib/components/ui/EmptyState.svelte";
+  import FormMessage from "#lib/admin/FormMessage.svelte";
+  import ModelRow from "#lib/admin/ModelRow.svelte";
+  import SectionHeader from "#lib/admin/SectionHeader.svelte";
+  import UsageMeter from "#lib/admin/UsageMeter.svelte";
+  import { pollWhileActive } from "#lib/browser/polling.svelte.ts";
+  import Icon from "#lib/components/Icon.svelte";
+  import { pluralize } from "#lib/shared/format.ts";
+  import { defaultModelKey } from "#lib/shared/transcription-models.ts";
 
   const TASK_POLL_MS = 1_500;
 

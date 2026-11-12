@@ -2,11 +2,11 @@
   import "../app.css";
   import { onMount } from "svelte";
   import { page } from "$app/state";
-  import AppTopBar from "$lib/components/AppTopBar.svelte";
+  import AppTopBar from "#lib/components/AppTopBar.svelte";
   import {
     setThemeController,
     ThemeController,
-  } from "$lib/browser/theme.svelte";
+  } from "#lib/browser/theme.svelte.ts";
 
   let { data, children } = $props();
 

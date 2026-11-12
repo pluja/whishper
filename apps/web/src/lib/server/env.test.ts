@@ -45,15 +45,21 @@ describe("secret overrides", () => {
 describe("private environment", () => {
   it("treats empty variables as unset", async () => {
     vi.resetModules();
-    vi.doMock("$env/dynamic/private", () => ({
-      env: { ANYSUB_DATABASE_FILE: "", BETTER_AUTH_URL: "", DATA_ROOT: "" },
+    vi.doMock("$app/env/private", () => ({
+      ANYSUB_DATABASE_FILE: "",
+      BETTER_AUTH_URL: "",
+      DATA_ROOT: "",
+      BETTER_AUTH_SECRET: "",
+      ANYSUB_WORKER_TOKEN: "",
     }));
     const { privateEnv } = await import("./env");
 
-    expect(privateEnv).toMatchObject({
+    expect(privateEnv).toEqual({
       databaseFile: "/database/anysub.db",
       authUrl: "http://localhost:5173",
       dataRoot: "/data",
+      authSecretOverride: null,
+      workerTokenOverride: null,
     });
   });
 });

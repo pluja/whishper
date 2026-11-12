@@ -5,7 +5,7 @@ import {
   type ActionFailure,
 } from "@sveltejs/kit";
 
-import { clientFailure } from "$lib/server/http/errors";
+import { clientFailure } from "#lib/server/http/errors.ts";
 
 export type ActionMessage = { message: string };
 

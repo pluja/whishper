@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 
 import { error, type RequestEvent } from "@sveltejs/kit";
 
-import { workerToken } from "$lib/server/workers/token";
+import { workerToken } from "#lib/server/workers/token.ts";
 
 export function isAuthenticatedWorker(request: Request): boolean {
   const authorization = request.headers.get("authorization");

@@ -1,16 +1,16 @@
 <script lang="ts">
-  import Button from "$lib/components/ui/Button.svelte";
-  import IconButton from "$lib/components/ui/IconButton.svelte";
-  import { ToolbarFocus } from "$lib/components/ui/toolbar-focus.svelte";
-  import type { IconName } from "$lib/components/icon-names";
-  import { charactersPerSecond } from "$lib/editor/cues";
-  import type { CueEditor } from "$lib/editor/editor.svelte";
+  import Button from "#lib/components/ui/Button.svelte";
+  import IconButton from "#lib/components/ui/IconButton.svelte";
+  import { ToolbarFocus } from "#lib/components/ui/toolbar-focus.svelte.ts";
+  import type { IconName } from "#lib/components/icon-names.ts";
+  import { charactersPerSecond } from "#lib/editor/cues.ts";
+  import type { CueEditor } from "#lib/editor/editor.svelte.ts";
   import {
     shortcutAriaKeys,
     shortcutLabel,
     type ShortcutId,
-  } from "$lib/editor/shortcuts";
-  import { pluralize } from "$lib/shared/format";
+  } from "#lib/editor/shortcuts.ts";
+  import { pluralize } from "#lib/shared/format.ts";
   import { CUE_TIME_ERROR_ID } from "./cue-status";
 
   type ToolbarAction = {

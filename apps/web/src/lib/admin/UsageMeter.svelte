@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatBytes } from "$lib/shared/format";
+  import { formatBytes } from "#lib/shared/format.ts";
 
   type Props = { label: string; usedBytes: number; totalBytes: number };
 

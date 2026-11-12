@@ -16,8 +16,8 @@ import {
 } from "./cues";
 import { CueHistory, type EditSession } from "./history.svelte";
 import { Transport, type TransportOptions } from "./transport.svelte";
-import { createUuid } from "$lib/shared/uuid";
-import type { TimingGesture } from "$lib/timeline/math";
+import { createUuid } from "#lib/shared/uuid.ts";
+import type { TimingGesture } from "#lib/timeline/math.ts";
 
 function nudgeHistoryKey(cueId: string): string {
   return `nudge:${cueId}`;

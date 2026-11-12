@@ -1,6 +1,6 @@
 <script lang="ts" generics="T">
   import { tick, type Snippet } from "svelte";
-  import { hideOnTab, returnFocusOnHide } from "$lib/browser/popover-focus";
+  import { hideOnTab, returnFocusOnHide } from "#lib/browser/popover-focus.ts";
   import Icon from "../Icon.svelte";
   import {
     groupIntoSections,

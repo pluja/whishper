@@ -1,22 +1,22 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import CreateProjectDialog from "$lib/library/CreateProjectDialog.svelte";
+  import CreateProjectDialog from "#lib/library/CreateProjectDialog.svelte";
   import ProjectRow, {
     PROJECT_ROW_COLUMNS,
-  } from "$lib/library/ProjectRow.svelte";
+  } from "#lib/library/ProjectRow.svelte";
   import {
     carriesMediaFile,
     firstDroppedMediaFile,
-  } from "$lib/library/drop-zone";
-  import Icon from "$lib/components/Icon.svelte";
-  import Button from "$lib/components/ui/Button.svelte";
-  import EmptyState from "$lib/components/ui/EmptyState.svelte";
-  import Input from "$lib/components/ui/Input.svelte";
-  import { buttonClasses } from "$lib/components/ui/variants";
-  import { pollWhileActive } from "$lib/browser/polling.svelte";
-  import { pluralize } from "$lib/shared/format";
-  import { PROJECT_SEARCH_MAX_LENGTH } from "$lib/shared/limits";
-  import { isProjectActive } from "$lib/shared/project-status";
+  } from "#lib/library/drop-zone.ts";
+  import Icon from "#lib/components/Icon.svelte";
+  import Button from "#lib/components/ui/Button.svelte";
+  import EmptyState from "#lib/components/ui/EmptyState.svelte";
+  import Input from "#lib/components/ui/Input.svelte";
+  import { buttonClasses } from "#lib/components/ui/variants.ts";
+  import { pollWhileActive } from "#lib/browser/polling.svelte.ts";
+  import { pluralize } from "#lib/shared/format.ts";
+  import { PROJECT_SEARCH_MAX_LENGTH } from "#lib/shared/limits.ts";
+  import { isProjectActive } from "#lib/shared/project-status.ts";
 
   let { data, form } = $props();
   let createDialogOpen = $state(false);

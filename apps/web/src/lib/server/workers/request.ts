@@ -2,8 +2,8 @@ import type { ProtocolValidator, WorkerManifest } from "@anysub/contracts";
 import { parseProtocolMessage } from "@anysub/contracts";
 import { error, type RequestEvent } from "@sveltejs/kit";
 
-import { authenticateWorker } from "$lib/server/workers/auth";
-import { parseWorkerManifest } from "$lib/server/workers/manifest";
+import { authenticateWorker } from "#lib/server/workers/auth.ts";
+import { parseWorkerManifest } from "#lib/server/workers/manifest.ts";
 
 const LEASE_TOKEN_HEADER = "x-anysub-lease-token";
 

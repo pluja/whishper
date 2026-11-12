@@ -1,8 +1,8 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
-import { subtitleTracks } from "$lib/server/db/schema";
-import type { SubtitleTrack } from "$lib/shared/subtitles";
+import type { Executor } from "#lib/server/db/index.ts";
+import { subtitleTracks } from "#lib/server/db/schema.ts";
+import type { SubtitleTrack } from "#lib/shared/subtitles.ts";
 
 const TRACK_COLUMNS = {
   id: subtitleTracks.id,

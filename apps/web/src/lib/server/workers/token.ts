@@ -1,8 +1,8 @@
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { instanceSecret } from "$lib/server/db/secrets";
-import { privateEnv } from "$lib/server/env";
+import { instanceSecret } from "#lib/server/db/secrets.ts";
+import { privateEnv } from "#lib/server/env.ts";
 
 let token: string | undefined;
 

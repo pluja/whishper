@@ -8,7 +8,7 @@ import {
   authenticateWorkerReport,
 } from "./request";
 
-vi.mock("$lib/server/workers/auth", () => ({ authenticateWorker: vi.fn() }));
+vi.mock("#lib/server/workers/auth.ts", () => ({ authenticateWorker: vi.fn() }));
 
 function eventFor(init: RequestInit): RequestEvent {
   return {

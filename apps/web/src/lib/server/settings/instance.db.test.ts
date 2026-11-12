@@ -5,8 +5,11 @@ import {
   parseUploadLimit,
   readInstanceSettings,
   updateInstanceSettings,
-} from "$lib/server/settings/instance";
-import { DEFAULT_INSTANCE_SETTINGS, GIB } from "$lib/shared/instance-settings";
+} from "#lib/server/settings/instance.ts";
+import {
+  DEFAULT_INSTANCE_SETTINGS,
+  GIB,
+} from "#lib/shared/instance-settings.ts";
 
 function form(values: Record<string, string>): FormData {
   const data = new FormData();

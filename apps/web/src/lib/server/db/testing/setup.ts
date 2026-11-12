@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { afterEach } from "vitest";
 
-import { db } from "$lib/server/db";
+import { db } from "#lib/server/db/index.ts";
 
 afterEach(() => {
   const tables = db.all<{ name: string }>(

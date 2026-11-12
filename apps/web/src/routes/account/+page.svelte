@@ -1,8 +1,11 @@
 <script lang="ts">
-  import Button from "$lib/components/ui/Button.svelte";
-  import Field from "$lib/components/ui/Field.svelte";
-  import Input from "$lib/components/ui/Input.svelte";
-  import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "$lib/shared/limits";
+  import Button from "#lib/components/ui/Button.svelte";
+  import Field from "#lib/components/ui/Field.svelte";
+  import Input from "#lib/components/ui/Input.svelte";
+  import {
+    PASSWORD_MAX_LENGTH,
+    PASSWORD_MIN_LENGTH,
+  } from "#lib/shared/limits.ts";
 
   let { data, form } = $props();
 

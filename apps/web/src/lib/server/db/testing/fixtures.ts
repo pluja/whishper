@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import type { TranscriptionJobPayload } from "@anysub/contracts";
 
-import { user } from "$lib/server/auth/schema";
-import { db } from "$lib/server/db";
+import { user } from "#lib/server/auth/schema.ts";
+import { db } from "#lib/server/db/index.ts";
 import {
   jobs,
   memberships,
@@ -11,8 +11,8 @@ import {
   subtitleTracks,
   transcriptionRuns,
   workspaces,
-} from "$lib/server/db/schema";
-import { hashToken } from "$lib/server/jobs/lease-token";
+} from "#lib/server/db/schema.ts";
+import { hashToken } from "#lib/server/jobs/lease-token.ts";
 
 function seedUser(): string {
   const userId = randomUUID();

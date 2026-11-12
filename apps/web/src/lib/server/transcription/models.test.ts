@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   availableTranscriptionModels,
   detectedWorkerHardware,
-} from "$lib/server/transcription/models";
+} from "#lib/server/transcription/models.ts";
 
 const GIB = 1024 ** 3;
 

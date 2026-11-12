@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isCrossOriginRequest } from "$lib/server/http/cross-origin";
+import { isCrossOriginRequest } from "#lib/server/http/cross-origin.ts";
 
 function request(method: string, headers: Record<string, string>): Request {
   return new Request("http://192.168.1.20:5173/login", { method, headers });

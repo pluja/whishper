@@ -2,10 +2,10 @@ import { stat } from "node:fs/promises";
 
 import { and, eq, inArray, ne } from "drizzle-orm";
 
-import { db } from "$lib/server/db";
-import { mediaUploads } from "$lib/server/db/schema";
-import { stagedUploadPath } from "$lib/server/storage/paths";
-import { deleteUnfinishedUploadProject } from "$lib/server/uploads/projects";
+import { db } from "#lib/server/db/index.ts";
+import { mediaUploads } from "#lib/server/db/schema.ts";
+import { stagedUploadPath } from "#lib/server/storage/paths.ts";
+import { deleteUnfinishedUploadProject } from "#lib/server/uploads/projects.ts";
 
 export const UPLOAD_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1_000;
 const SWEEP_INTERVAL_MS = 15 * 60 * 1_000;

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { generateHostCode, hostCodesMatch } from "$lib/server/auth/host-code";
+import {
+  generateHostCode,
+  hostCodesMatch,
+} from "#lib/server/auth/host-code.ts";
 
 describe("generateHostCode", () => {
   it("makes three dash-separated groups without look-alike characters", () => {

@@ -4,11 +4,11 @@ const { projectForUser, studioStatus } = vi.hoisted(() => ({
   projectForUser: vi.fn(),
   studioStatus: vi.fn(),
 }));
-vi.mock("$lib/server/auth/session", () => ({
+vi.mock("#lib/server/auth/session.ts", () => ({
   requireUser: () => ({ id: "user" }),
 }));
-vi.mock("$lib/server/projects/access", () => ({ projectForUser }));
-vi.mock("$lib/server/projects/studio", () => ({ studioStatus }));
+vi.mock("#lib/server/projects/access.ts", () => ({ projectForUser }));
+vi.mock("#lib/server/projects/studio.ts", () => ({ studioStatus }));
 
 import { GET } from "./+server";
 

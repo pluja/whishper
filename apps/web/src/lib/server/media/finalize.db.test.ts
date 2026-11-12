@@ -33,7 +33,7 @@ const testState = vi.hoisted(() => ({
   afterLink: () => {},
 }));
 
-vi.mock("$lib/server/env", () => ({
+vi.mock("#lib/server/env.ts", () => ({
   privateEnv: {
     databaseFile: ":memory:",
     get dataRoot() {
@@ -53,21 +53,21 @@ vi.mock("node:fs/promises", async (importOriginal) => {
   };
 });
 
-import { db } from "$lib/server/db";
-import { jobs, mediaDerivatives, projects } from "$lib/server/db/schema";
+import { db } from "#lib/server/db/index.ts";
+import { jobs, mediaDerivatives, projects } from "#lib/server/db/schema.ts";
 import {
   seedProject,
   type SeededProject,
-} from "$lib/server/db/testing/fixtures";
-import { completeJob } from "$lib/server/jobs/completion";
-import { leaseJob } from "$lib/server/jobs/lease";
-import { stagedArtifactPath } from "$lib/server/media/artifact-staging";
-import { linkMediaArtifacts } from "$lib/server/media/finalize";
+} from "#lib/server/db/testing/fixtures.ts";
+import { completeJob } from "#lib/server/jobs/completion.ts";
+import { leaseJob } from "#lib/server/jobs/lease.ts";
+import { stagedArtifactPath } from "#lib/server/media/artifact-staging.ts";
+import { linkMediaArtifacts } from "#lib/server/media/finalize.ts";
 import {
   derivativeStorageKey,
   resolveDataPath,
   workerArtifactsPath,
-} from "$lib/server/storage/paths";
+} from "#lib/server/storage/paths.ts";
 
 const WAVEFORM_TYPE = "application/vnd.anysub.waveform+json";
 

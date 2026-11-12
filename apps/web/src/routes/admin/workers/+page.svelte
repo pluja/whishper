@@ -1,9 +1,9 @@
 <script lang="ts">
-  import EmptyState from "$lib/components/ui/EmptyState.svelte";
-  import FormMessage from "$lib/admin/FormMessage.svelte";
-  import SectionHeader from "$lib/admin/SectionHeader.svelte";
-  import WorkerCard from "$lib/admin/WorkerCard.svelte";
-  import { pollWhileActive } from "$lib/browser/polling.svelte";
+  import EmptyState from "#lib/components/ui/EmptyState.svelte";
+  import FormMessage from "#lib/admin/FormMessage.svelte";
+  import SectionHeader from "#lib/admin/SectionHeader.svelte";
+  import WorkerCard from "#lib/admin/WorkerCard.svelte";
+  import { pollWhileActive } from "#lib/browser/polling.svelte.ts";
 
   // Fast enough to show a worker connecting or finishing a job.
   const REFRESH_MS = 5_000;

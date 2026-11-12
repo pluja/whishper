@@ -3,12 +3,12 @@ import { randomUUID } from "node:crypto";
 import type { AdapterModel, TranscriptionJobPayload } from "@anysub/contracts";
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
-import { jobs } from "$lib/server/db/schema";
-import { seedProject } from "$lib/server/db/testing/fixtures";
-import { updateInstanceSettings } from "$lib/server/settings/instance";
-import { enqueueTranscription } from "$lib/server/transcription/enqueue";
-import { recordWorkerPresence } from "$lib/server/workers/presence";
+import { db } from "#lib/server/db/index.ts";
+import { jobs } from "#lib/server/db/schema.ts";
+import { seedProject } from "#lib/server/db/testing/fixtures.ts";
+import { updateInstanceSettings } from "#lib/server/settings/instance.ts";
+import { enqueueTranscription } from "#lib/server/transcription/enqueue.ts";
+import { recordWorkerPresence } from "#lib/server/workers/presence.ts";
 
 function connectWorker(optionsSchema: Record<string, unknown>): void {
   const model: AdapterModel = {

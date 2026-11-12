@@ -3,16 +3,16 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
-import { db } from "$lib/server/db";
-import { mediaUploads, projects } from "$lib/server/db/schema";
+import { db } from "#lib/server/db/index.ts";
+import { mediaUploads, projects } from "#lib/server/db/schema.ts";
 import {
   seedProject,
   type SeededProject,
-} from "$lib/server/db/testing/fixtures";
+} from "#lib/server/db/testing/fixtures.ts";
 import {
   runUploadSweep,
   UPLOAD_EXPIRATION_MS,
-} from "$lib/server/uploads/maintenance";
+} from "#lib/server/uploads/maintenance.ts";
 
 function seedFailedUpload(project: SeededProject): void {
   db.insert(mediaUploads)

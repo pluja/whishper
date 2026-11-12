@@ -1,8 +1,8 @@
 <script lang="ts">
-  import Icon from "$lib/components/Icon.svelte";
-  import type { IconName } from "$lib/components/icon-names";
-  import { formatBytes, pluralize } from "$lib/shared/format";
-  import type { StorageUsage } from "$lib/shared/storage-usage";
+  import Icon from "#lib/components/Icon.svelte";
+  import type { IconName } from "#lib/components/icon-names.ts";
+  import { formatBytes, pluralize } from "#lib/shared/format.ts";
+  import type { StorageUsage } from "#lib/shared/storage-usage.ts";
 
   type Part = {
     label: string;

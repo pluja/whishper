@@ -1,16 +1,16 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
-  import { beforeNavigate, goto, invalidateAll } from "$app/navigation";
-  import Icon from "$lib/components/Icon.svelte";
-  import Button from "$lib/components/ui/Button.svelte";
-  import Dialog from "$lib/components/ui/Dialog.svelte";
-  import Field from "$lib/components/ui/Field.svelte";
-  import Input from "$lib/components/ui/Input.svelte";
-  import Progress from "$lib/components/ui/Progress.svelte";
-  import { buttonClasses } from "$lib/components/ui/variants";
-  import { formatBytes, truncateText } from "$lib/shared/format";
-  import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/limits";
-  import { projectPageUrl } from "$lib/shared/routes";
+  import { beforeNavigate, goto, refreshAll } from "$app/navigation";
+  import Icon from "#lib/components/Icon.svelte";
+  import Button from "#lib/components/ui/Button.svelte";
+  import Dialog from "#lib/components/ui/Dialog.svelte";
+  import Field from "#lib/components/ui/Field.svelte";
+  import Input from "#lib/components/ui/Input.svelte";
+  import Progress from "#lib/components/ui/Progress.svelte";
+  import { buttonClasses } from "#lib/components/ui/variants.ts";
+  import { formatBytes, truncateText } from "#lib/shared/format.ts";
+  import { PROJECT_TITLE_MAX_LENGTH } from "#lib/shared/limits.ts";
+  import { projectPageUrl } from "#lib/shared/routes.ts";
   import { selectedFileProblem } from "./upload-messages";
   import { ProjectUpload } from "./upload.svelte";
 
@@ -35,7 +35,7 @@
     "Leave this page and stop the upload? Choose the same file again later to resume it.";
   const upload = new ProjectUpload({
     onUploaded: showProject,
-    onCancelled: () => void invalidateAll(),
+    onCancelled: () => void refreshAll(),
   });
   let selectedFile = $state<File | null>(null);
   let projectName = $state("");
@@ -57,6 +57,7 @@
 
   // A "leave" navigation unloads the page; cancelling it makes the browser ask instead.
   beforeNavigate((navigation) => {
+    if (navigation.shallow && navigation.type === "goto") return;
     if (!upload.uploading) return;
     if (navigation.type === "leave" || !confirm(LEAVE_WARNING)) {
       navigation.cancel();
@@ -71,7 +72,7 @@
       return;
     }
     open = false;
-    void invalidateAll();
+    void refreshAll();
   }
 
   $effect(() => {
@@ -175,9 +176,10 @@
             <Icon name="file" size={18} />
           </span>
           <span id={fileStatusId} class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-medium text-text">
-              {selectedFile?.name ?? "Choose an audio or video file"}
-            </span>
+            <span class="block truncate text-sm font-medium text-text"
+              >{selectedFile?.name ?? "Choose an audio or video file"}</span
+            >
+
             <span
               class={[
                 "block text-xs",

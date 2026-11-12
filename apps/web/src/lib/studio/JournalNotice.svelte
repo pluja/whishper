@@ -1,7 +1,7 @@
 <script lang="ts">
-  import Icon from "$lib/components/Icon.svelte";
-  import IconButton from "$lib/components/ui/IconButton.svelte";
-  import type { Autosave } from "$lib/editor/autosave.svelte";
+  import Icon from "#lib/components/Icon.svelte";
+  import IconButton from "#lib/components/ui/IconButton.svelte";
+  import type { Autosave } from "#lib/editor/autosave.svelte.ts";
 
   let { autosave }: { autosave: Autosave } = $props();
 </script>

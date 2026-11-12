@@ -13,7 +13,7 @@
 
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { hideOnTab, returnFocusOnHide } from "$lib/browser/popover-focus";
+  import { hideOnTab, returnFocusOnHide } from "#lib/browser/popover-focus.ts";
   import { nextMenuIndex } from "./menu-keyboard";
 
   type Props = {

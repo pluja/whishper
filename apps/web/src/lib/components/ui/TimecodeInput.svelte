@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { keepFocusThrough } from "$lib/browser/focus";
-  import { parseEditorTime } from "$lib/shared/subtitles";
+  import { keepFocusThrough } from "#lib/browser/focus.ts";
+  import { parseEditorTime } from "#lib/shared/subtitles.ts";
   import {
     eraseBackward,
     eraseForward,

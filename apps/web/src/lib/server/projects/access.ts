@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
-import { memberships, projects } from "$lib/server/db/schema";
+import type { Executor } from "#lib/server/db/index.ts";
+import { memberships, projects } from "#lib/server/db/schema.ts";
 
 export type MemberProject = {
   id: string;

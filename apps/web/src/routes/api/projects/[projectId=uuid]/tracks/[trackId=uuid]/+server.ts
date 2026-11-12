@@ -1,13 +1,13 @@
-import { requireUser } from "$lib/server/auth/session";
+import { requireUser } from "#lib/server/auth/session.ts";
 import {
   parseTrackUpdate,
   TrackLockedByTranscription,
   TrackRevisionConflict,
   TrackValidationError,
   updateTrackForUser,
-} from "$lib/server/subtitles/track-editor";
-import { ServerFailure } from "$lib/server/http/errors";
-import { error, isHttpError, json } from "@sveltejs/kit";
+} from "#lib/server/subtitles/track-editor.ts";
+import { ServerFailure } from "#lib/server/http/errors.ts";
+import { error, isHttpError } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
 async function readTrackUpdate(request: Request) {
@@ -27,10 +27,10 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
       await readTrackUpdate(request),
     );
     if (revision === null) error(404, "Subtitle track not found");
-    return json({ revision });
+    return Response.json({ revision });
   } catch (cause) {
     if (cause instanceof TrackRevisionConflict) {
-      return json(
+      return Response.json(
         {
           code: "revision_conflict",
           message: cause.message,
@@ -40,13 +40,13 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
       );
     }
     if (cause instanceof TrackLockedByTranscription) {
-      return json(
+      return Response.json(
         { code: "transcription_running", message: cause.message },
         { status: 409 },
       );
     }
     if (cause instanceof TrackValidationError) {
-      return json({ message: cause.message }, { status: 400 });
+      return Response.json({ message: cause.message }, { status: 400 });
     }
     if (isHttpError(cause)) throw cause;
     throw new ServerFailure("The subtitle track could not be saved.", {

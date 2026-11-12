@@ -1,6 +1,6 @@
 import { extname, posix, resolve, sep } from "node:path";
 
-import { privateEnv } from "$lib/server/env";
+import { privateEnv } from "#lib/server/env.ts";
 
 const SAFE_EXTENSION = /^\.[a-zA-Z0-9]{1,12}$/;
 const UPLOAD_STAGING_KEY = posix.join("staging", "uploads");

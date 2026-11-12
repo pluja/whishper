@@ -1,7 +1,7 @@
-import { building } from "$app/environment";
-import { announceSetupCode } from "$lib/server/auth/setup-code";
-import { db } from "$lib/server/db";
-import { assertSecureRuntimeConfiguration } from "$lib/server/env";
+import { building } from "$app/env";
+import { announceSetupCode } from "#lib/server/auth/setup-code.ts";
+import { db } from "#lib/server/db/index.ts";
+import { assertSecureRuntimeConfiguration } from "#lib/server/env.ts";
 import {
   authenticateWorkers,
   handleUploads,
@@ -9,12 +9,11 @@ import {
   logServerErrors,
   rejectCrossOriginRequests,
   requireProjectApiSession,
-} from "$lib/server/http/hooks";
-import { startJobMaintenance } from "$lib/server/jobs/maintenance";
-import { startUploadCleanup } from "$lib/server/uploads/tus-server";
-import { publishWorkerToken } from "$lib/server/workers/token";
-import type { ServerInit } from "@sveltejs/kit";
-import { sequence } from "@sveltejs/kit/hooks";
+} from "#lib/server/http/hooks.ts";
+import { startJobMaintenance } from "#lib/server/jobs/maintenance.ts";
+import { startUploadCleanup } from "#lib/server/uploads/tus-server.ts";
+import { publishWorkerToken } from "#lib/server/workers/token.ts";
+import { sequence, type ServerInit } from "@sveltejs/kit/hooks";
 
 export const init: ServerInit = async () => {
   assertSecureRuntimeConfiguration();

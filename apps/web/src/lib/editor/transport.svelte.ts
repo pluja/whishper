@@ -1,4 +1,4 @@
-import { clampToDuration } from "$lib/shared/source-duration";
+import { clampToDuration } from "#lib/shared/source-duration.ts";
 import { cueAt, type EditorCue } from "./cues";
 
 type ShuttleDirection = -1 | 0 | 1;

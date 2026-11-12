@@ -1,13 +1,16 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
-  import Icon from "$lib/components/Icon.svelte";
-  import Badge from "$lib/components/ui/Badge.svelte";
-  import Button from "$lib/components/ui/Button.svelte";
-  import Progress from "$lib/components/ui/Progress.svelte";
-  import type { BadgeTone } from "$lib/components/ui/variants";
-  import { formatBytes, formatRelativeTime } from "$lib/shared/format";
-  import { projectPageUrl } from "$lib/shared/routes";
-  import type { WorkerOverview, WorkerState } from "$lib/shared/worker-status";
+  import Icon from "#lib/components/Icon.svelte";
+  import Badge from "#lib/components/ui/Badge.svelte";
+  import Button from "#lib/components/ui/Button.svelte";
+  import Progress from "#lib/components/ui/Progress.svelte";
+  import type { BadgeTone } from "#lib/components/ui/variants.ts";
+  import { formatBytes, formatRelativeTime } from "#lib/shared/format.ts";
+  import { projectPageUrl } from "#lib/shared/routes.ts";
+  import type {
+    WorkerOverview,
+    WorkerState,
+  } from "#lib/shared/worker-status.ts";
 
   const STATES: Record<WorkerState, { label: string; tone: BadgeTone }> = {
     busy: { label: "Working", tone: "accent" },

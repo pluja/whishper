@@ -1,39 +1,39 @@
-import { requireUserOrLogin } from "$lib/server/auth/session";
-import { db } from "$lib/server/db";
-import { runFormAction } from "$lib/server/http/actions";
+import { requireUserOrLogin } from "#lib/server/auth/session.ts";
+import { db } from "#lib/server/db/index.ts";
+import { runFormAction } from "#lib/server/http/actions.ts";
 import {
   deleteDerivativeForUser,
   isMediaDerivativeKind,
-} from "$lib/server/media/derivatives";
+} from "#lib/server/media/derivatives.ts";
 import {
   cancelMediaPreparationForUser,
   requestMediaPreparationForUser,
-} from "$lib/server/media/preparation";
-import { projectForUser } from "$lib/server/projects/access";
-import { deleteProjectForUser } from "$lib/server/projects/delete";
+} from "#lib/server/media/preparation.ts";
+import { projectForUser } from "#lib/server/projects/access.ts";
+import { deleteProjectForUser } from "#lib/server/projects/delete.ts";
 import {
   latestMediaPreparation,
   latestRun,
   readyDerivatives,
   studioProject,
-} from "$lib/server/projects/studio";
-import { readTranscriptionDefaults } from "$lib/server/settings/instance";
-import { listTrackCues } from "$lib/server/subtitles/cues";
-import { latestTrackForProject } from "$lib/server/subtitles/tracks";
-import { deleteTranscriptForUser } from "$lib/server/subtitles/transcripts";
-import { cancelTranscriptionForUser } from "$lib/server/transcription/cancel";
+} from "#lib/server/projects/studio.ts";
+import { readTranscriptionDefaults } from "#lib/server/settings/instance.ts";
+import { listTrackCues } from "#lib/server/subtitles/cues.ts";
+import { latestTrackForProject } from "#lib/server/subtitles/tracks.ts";
+import { deleteTranscriptForUser } from "#lib/server/subtitles/transcripts.ts";
+import { cancelTranscriptionForUser } from "#lib/server/transcription/cancel.ts";
 import {
   enqueueTranscription,
   parseTranscriptionRequest,
-} from "$lib/server/transcription/enqueue";
+} from "#lib/server/transcription/enqueue.ts";
 import {
   availableTranscriptionModels,
   detectedWorkerHardware,
-} from "$lib/server/transcription/models";
-import { activeWorkerManifests } from "$lib/server/workers/presence";
-import { projectDerivativeUrl, projectPageUrl } from "$lib/shared/routes";
-import type { StudioData } from "$lib/shared/studio-data";
-import { isUuid } from "$lib/shared/uuid";
+} from "#lib/server/transcription/models.ts";
+import { activeWorkerManifests } from "#lib/server/workers/presence.ts";
+import { projectDerivativeUrl, projectPageUrl } from "#lib/shared/routes.ts";
+import type { StudioData } from "#lib/shared/studio-data.ts";
+import { isUuid } from "#lib/shared/uuid.ts";
 import { error, fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 

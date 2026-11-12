@@ -1,6 +1,6 @@
 import { open } from "node:fs/promises";
 import { Readable } from "node:stream";
-import { normalizeMediaType } from "$lib/shared/media";
+import { normalizeMediaType } from "#lib/shared/media.ts";
 
 export type ByteRange = { start: number; end: number };
 

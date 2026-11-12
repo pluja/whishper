@@ -1,13 +1,13 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
-import { jobs, transcriptionRuns } from "$lib/server/db/schema";
+import { db } from "#lib/server/db/index.ts";
+import { jobs, transcriptionRuns } from "#lib/server/db/schema.ts";
 import {
   seedLeasedTranscriptionJob,
   seedProject,
-} from "$lib/server/db/testing/fixtures";
-import { reclaimAbandonedJobs } from "$lib/server/jobs/maintenance";
+} from "#lib/server/db/testing/fixtures.ts";
+import { reclaimAbandonedJobs } from "#lib/server/jobs/maintenance.ts";
 
 function jobAndRun(jobId: string) {
   return db

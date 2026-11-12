@@ -1,14 +1,14 @@
 <script lang="ts">
-  import Icon from "$lib/components/Icon.svelte";
-  import Input from "$lib/components/ui/Input.svelte";
-  import { formatBytes } from "$lib/shared/format";
+  import Icon from "#lib/components/Icon.svelte";
+  import Input from "#lib/components/ui/Input.svelte";
+  import { formatBytes } from "#lib/shared/format.ts";
   import {
     CUSTOM_UPLOAD_LIMIT,
     GIB,
     MAX_UPLOAD_LIMIT_GIB,
     MIN_UPLOAD_LIMIT_GIB,
     UPLOAD_LIMIT_PRESETS_GIB,
-  } from "$lib/shared/instance-settings";
+  } from "#lib/shared/instance-settings.ts";
 
   type Props = {
     initialBytes: number;

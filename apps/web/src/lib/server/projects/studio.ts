@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
+import type { Executor } from "#lib/server/db/index.ts";
 import {
   jobs,
   mediaDerivatives,
@@ -8,15 +8,15 @@ import {
   projects,
   transcriptionRuns,
   workspaces,
-} from "$lib/server/db/schema";
-import { isMediaPrepareJob } from "$lib/server/jobs/predicates";
+} from "#lib/server/db/schema.ts";
+import { isMediaPrepareJob } from "#lib/server/jobs/predicates.ts";
 import type {
   StudioDerivative,
   StudioPreparation,
   StudioProject,
   StudioRun,
   StudioStatus,
-} from "$lib/shared/studio-data";
+} from "#lib/shared/studio-data.ts";
 
 const JOB_PROGRESS = {
   progress: jobs.progress,

@@ -1,5 +1,5 @@
-import { clamp } from "$lib/shared/clamp";
-import { formatEditorTime, parseEditorTime } from "$lib/shared/subtitles";
+import { clamp } from "#lib/shared/clamp.ts";
+import { formatEditorTime, parseEditorTime } from "#lib/shared/subtitles.ts";
 
 export type TimecodeEdit = { text: string; caret: number };
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { instanceSecret } from "$lib/server/db/secrets";
+import { instanceSecret } from "#lib/server/db/secrets.ts";
 
 describe("instanceSecret", () => {
   it("creates a long URL-safe secret once and returns it afterwards", () => {

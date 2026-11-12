@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseTrackUpdate } from "$lib/server/subtitles/track-editor";
+import { parseTrackUpdate } from "#lib/server/subtitles/track-editor.ts";
 
 describe("subtitle track updates", () => {
   it("normalizes positions and line endings", () => {

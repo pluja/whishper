@@ -3,12 +3,12 @@ import { unlink } from "node:fs/promises";
 import type { MediaDerivativeKind } from "@anysub/contracts";
 import { and, eq } from "drizzle-orm";
 
-import { db } from "$lib/server/db";
-import { mediaDerivatives } from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
-import { manageableProjectForUser } from "$lib/server/projects/access";
-import { resolveDataPath } from "$lib/server/storage/paths";
-import { GIB, MAX_UPLOAD_LIMIT_GIB } from "$lib/shared/instance-settings";
+import { db } from "#lib/server/db/index.ts";
+import { mediaDerivatives } from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
+import { manageableProjectForUser } from "#lib/server/projects/access.ts";
+import { resolveDataPath } from "#lib/server/storage/paths.ts";
+import { GIB, MAX_UPLOAD_LIMIT_GIB } from "#lib/shared/instance-settings.ts";
 
 type DerivativeFormat = {
   directory: string;

@@ -5,8 +5,8 @@ import {
   removeStorage,
   storageKeys,
   writeStorage,
-} from "$lib/browser/safe-storage";
-import { trackUrl } from "$lib/shared/routes";
+} from "#lib/browser/safe-storage.ts";
+import { trackUrl } from "#lib/shared/routes.ts";
 
 type SaveState = "saved" | "unsaved" | "saving" | "error" | "conflict";
 

@@ -5,7 +5,7 @@ import {
   createAttemptThrottle,
   retryMessage,
   type AttemptThrottle,
-} from "$lib/server/auth/throttle";
+} from "#lib/server/auth/throttle.ts";
 
 const KEYS = attemptKeys("192.0.2.10", "owner@example.test");
 

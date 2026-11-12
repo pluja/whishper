@@ -3,21 +3,21 @@ import { basename, dirname, extname } from "node:path";
 
 import { and, eq, isNull, ne, sql } from "drizzle-orm";
 
-import { db } from "$lib/server/db";
-import { mediaUploads, memberships, projects } from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
-import { badRequest, notFound } from "$lib/server/http/errors";
-import { enqueueMediaPreparation } from "$lib/server/media/preparation";
-import { normalizeProjectTitle } from "$lib/server/projects/library";
-import { linkIdempotent } from "$lib/server/storage/files";
-import { withKeyedLock } from "$lib/server/storage/keyed-lock";
+import { db } from "#lib/server/db/index.ts";
+import { mediaUploads, memberships, projects } from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
+import { badRequest, notFound } from "#lib/server/http/errors.ts";
+import { enqueueMediaPreparation } from "#lib/server/media/preparation.ts";
+import { normalizeProjectTitle } from "#lib/server/projects/library.ts";
+import { linkIdempotent } from "#lib/server/storage/files.ts";
+import { withKeyedLock } from "#lib/server/storage/keyed-lock.ts";
 import {
   originalStorageKey,
   resolveDataPath,
   stagedUploadPath,
-} from "$lib/server/storage/paths";
-import { truncateText } from "$lib/shared/format";
-import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/limits";
+} from "#lib/server/storage/paths.ts";
+import { truncateText } from "#lib/shared/format.ts";
+import { PROJECT_TITLE_MAX_LENGTH } from "#lib/shared/limits.ts";
 
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 

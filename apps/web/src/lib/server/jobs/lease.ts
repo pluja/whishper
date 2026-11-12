@@ -11,20 +11,20 @@ import {
   projects,
   transcriptionRuns,
   workers,
-} from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
+} from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
 import {
   cleanupReclaimedArtifacts,
   reclaimExpiredLeases,
-} from "$lib/server/jobs/failure";
-import { generateLeaseToken, hashToken } from "$lib/server/jobs/lease-token";
+} from "#lib/server/jobs/failure.ts";
+import { generateLeaseToken, hashToken } from "#lib/server/jobs/lease-token.ts";
 import {
   holdsActiveLease,
   isMediaPrepareJob,
   isModelCacheJobOf,
   payloadField,
-} from "$lib/server/jobs/predicates";
-import { recordWorkerPresence } from "$lib/server/workers/presence";
+} from "#lib/server/jobs/predicates.ts";
+import { recordWorkerPresence } from "#lib/server/workers/presence.ts";
 
 const LEASE_MS = 60_000;
 export const WORKER_POLL_INTERVAL_MS = 2_000;

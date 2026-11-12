@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { updateTrackForUser } = vi.hoisted(() => ({
   updateTrackForUser: vi.fn(),
 }));
-vi.mock("$lib/server/auth/session", () => ({
+vi.mock("#lib/server/auth/session.ts", () => ({
   requireUser: () => ({ id: "user" }),
 }));
-vi.mock("$lib/server/subtitles/track-editor", async (importOriginal) => ({
+vi.mock("#lib/server/subtitles/track-editor.ts", async (importOriginal) => ({
   ...(await importOriginal<
-    typeof import("$lib/server/subtitles/track-editor")
+    typeof import("#lib/server/subtitles/track-editor.ts")
   >()),
   updateTrackForUser,
 }));
@@ -16,7 +16,7 @@ vi.mock("$lib/server/subtitles/track-editor", async (importOriginal) => ({
 import {
   TrackLockedByTranscription,
   TrackRevisionConflict,
-} from "$lib/server/subtitles/track-editor";
+} from "#lib/server/subtitles/track-editor.ts";
 
 import { PUT } from "./+server";
 

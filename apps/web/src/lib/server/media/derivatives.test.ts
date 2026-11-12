@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("$lib/server/env", () => ({
+vi.mock("#lib/server/env.ts", () => ({
   privateEnv: { databaseFile: ":memory:" },
 }));
 

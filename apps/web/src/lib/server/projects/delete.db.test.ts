@@ -3,14 +3,14 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
-import { jobs, projects } from "$lib/server/db/schema";
+import { db } from "#lib/server/db/index.ts";
+import { jobs, projects } from "#lib/server/db/schema.ts";
 import {
   seedLeasedTranscriptionJob,
   seedMember,
   seedProject,
-} from "$lib/server/db/testing/fixtures";
-import { deleteProjectForUser } from "$lib/server/projects/delete";
+} from "#lib/server/db/testing/fixtures.ts";
+import { deleteProjectForUser } from "#lib/server/projects/delete.ts";
 
 const ACTIVE_LEASE = { attempts: 1, maxAttempts: 3, expiresInSeconds: 60 };
 

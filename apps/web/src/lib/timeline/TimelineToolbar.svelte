@@ -1,7 +1,7 @@
 <script lang="ts">
-  import IconButton from "$lib/components/ui/IconButton.svelte";
-  import { ToolbarFocus } from "$lib/components/ui/toolbar-focus.svelte";
-  import { formatEditorTime } from "$lib/shared/subtitles";
+  import IconButton from "#lib/components/ui/IconButton.svelte";
+  import { ToolbarFocus } from "#lib/components/ui/toolbar-focus.svelte.ts";
+  import { formatEditorTime } from "#lib/shared/subtitles.ts";
 
   type Props = {
     playbackUs: number;

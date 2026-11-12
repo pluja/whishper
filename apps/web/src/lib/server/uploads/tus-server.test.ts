@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { StatusError } from "$lib/server/http/errors";
+import { StatusError } from "#lib/server/http/errors.ts";
 import {
   declaredUploadMediaType,
   removeStoredUpload,

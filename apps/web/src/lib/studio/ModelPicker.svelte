@@ -1,14 +1,14 @@
 <script lang="ts">
-  import Icon from "$lib/components/Icon.svelte";
-  import Badge from "$lib/components/ui/Badge.svelte";
-  import { FIT_TONES } from "$lib/components/model-fit";
-  import Picker from "$lib/components/ui/Picker.svelte";
-  import { formatBytes } from "$lib/shared/format";
+  import Icon from "#lib/components/Icon.svelte";
+  import Badge from "#lib/components/ui/Badge.svelte";
+  import { FIT_TONES } from "#lib/components/model-fit.ts";
+  import Picker from "#lib/components/ui/Picker.svelte";
+  import { formatBytes } from "#lib/shared/format.ts";
   import {
     defaultModelKey,
     type AvailableTranscriptionModel,
     type DetectedWorkerHardware,
-  } from "$lib/shared/transcription-models";
+  } from "#lib/shared/transcription-models.ts";
 
   type Props = {
     models: AvailableTranscriptionModel[];

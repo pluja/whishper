@@ -1,11 +1,11 @@
 <script lang="ts">
-  import Button from "$lib/components/ui/Button.svelte";
-  import { pluralize } from "$lib/shared/format";
+  import Button from "#lib/components/ui/Button.svelte";
+  import { pluralize } from "#lib/shared/format.ts";
   import {
     MAX_LINE_LENGTH,
     MIN_LINE_LENGTH,
-  } from "$lib/shared/instance-settings";
-  import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
+  } from "#lib/shared/instance-settings.ts";
+  import { DEFAULT_MAX_LINE_LENGTH } from "#lib/shared/limits.ts";
   import { splitIntoSubtitles } from "./subtitle-preview";
 
   const SAMPLE =

@@ -1,4 +1,4 @@
-import { isAcceptedMediaType } from "$lib/shared/media";
+import { isAcceptedMediaType } from "#lib/shared/media.ts";
 
 // During a drag the browser hides the files themselves; only item kinds and types are readable.
 export function carriesMediaFile(dataTransfer: DataTransfer | null): boolean {

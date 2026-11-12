@@ -1,6 +1,6 @@
 import { link, stat } from "node:fs/promises";
 
-import { isNodeError } from "$lib/server/guards";
+import { isNodeError } from "#lib/server/guards.ts";
 
 /**
  * Hard links source to destination. An existing destination is accepted only

@@ -3,19 +3,19 @@ import { randomUUID } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
+import { db } from "#lib/server/db/index.ts";
 import {
   cues,
   projects,
   subtitleTracks,
   transcriptionRuns,
-} from "$lib/server/db/schema";
-import { seedProject, seedTrack } from "$lib/server/db/testing/fixtures";
+} from "#lib/server/db/schema.ts";
+import { seedProject, seedTrack } from "#lib/server/db/testing/fixtures.ts";
 import {
   TrackLockedByTranscription,
   TrackValidationError,
   updateTrackForUser,
-} from "$lib/server/subtitles/track-editor";
+} from "#lib/server/subtitles/track-editor.ts";
 
 function spokenWord(text: string, startUs: number, endUs: number) {
   return { id: `word-${text}`, text, startUs, endUs, confidence: 0.9 };

@@ -1,8 +1,8 @@
 import { and, eq, inArray } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
-import { transcriptionRuns } from "$lib/server/db/schema";
-import { ACTIVE_RUN_STATUSES } from "$lib/shared/project-status";
+import type { Executor } from "#lib/server/db/index.ts";
+import { transcriptionRuns } from "#lib/server/db/schema.ts";
+import { ACTIVE_RUN_STATUSES } from "#lib/shared/project-status.ts";
 
 export function hasActiveTranscriptionRun(
   executor: Executor,

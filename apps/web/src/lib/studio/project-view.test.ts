@@ -6,7 +6,7 @@ import {
   isEditingLocked,
   processingStateChanged,
 } from "./project-view";
-import type { StudioData } from "$lib/shared/studio-data";
+import type { StudioData } from "#lib/shared/studio-data.ts";
 
 describe("editorCues", () => {
   it("maps stored cues to editor cues", () => {

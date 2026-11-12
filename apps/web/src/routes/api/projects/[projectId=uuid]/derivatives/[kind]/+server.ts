@@ -1,13 +1,13 @@
-import { projectForUser } from "$lib/server/projects/access";
-import { requireUser } from "$lib/server/auth/session";
-import { db } from "$lib/server/db";
-import { streamMediaFile } from "$lib/server/media/stream";
+import { projectForUser } from "#lib/server/projects/access.ts";
+import { requireUser } from "#lib/server/auth/session.ts";
+import { db } from "#lib/server/db/index.ts";
+import { streamMediaFile } from "#lib/server/media/stream.ts";
 import {
   derivativeMediaType,
   isMediaDerivativeKind,
   readyDerivativeFile,
-} from "$lib/server/media/derivatives";
-import { resolveDataPath } from "$lib/server/storage/paths";
+} from "#lib/server/media/derivatives.ts";
+import { resolveDataPath } from "#lib/server/storage/paths.ts";
 import { error } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 

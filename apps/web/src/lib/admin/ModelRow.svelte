@@ -1,14 +1,14 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
-  import { FormSubmission } from "$lib/admin/form-submission.svelte";
-  import Icon from "$lib/components/Icon.svelte";
-  import { FIT_TONES } from "$lib/components/model-fit";
-  import Badge from "$lib/components/ui/Badge.svelte";
-  import Button from "$lib/components/ui/Button.svelte";
-  import IconButton from "$lib/components/ui/IconButton.svelte";
-  import Progress from "$lib/components/ui/Progress.svelte";
-  import { formatBytes, formatCompactNumber } from "$lib/shared/format";
-  import type { InventoryModel } from "$lib/shared/model-inventory";
+  import { FormSubmission } from "#lib/admin/form-submission.svelte.ts";
+  import Icon from "#lib/components/Icon.svelte";
+  import { FIT_TONES } from "#lib/components/model-fit.ts";
+  import Badge from "#lib/components/ui/Badge.svelte";
+  import Button from "#lib/components/ui/Button.svelte";
+  import IconButton from "#lib/components/ui/IconButton.svelte";
+  import Progress from "#lib/components/ui/Progress.svelte";
+  import { formatBytes, formatCompactNumber } from "#lib/shared/format.ts";
+  import type { InventoryModel } from "#lib/shared/model-inventory.ts";
 
   type Props = {
     model: InventoryModel;

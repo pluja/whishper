@@ -11,7 +11,7 @@ import { join, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 
-import { migrateDatabase } from "$lib/server/db/migrate";
+import { migrateDatabase } from "#lib/server/db/migrate.ts";
 
 const MIGRATIONS = resolve("migrations");
 

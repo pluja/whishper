@@ -1,10 +1,10 @@
 <script lang="ts">
-  import Dialog from "$lib/components/ui/Dialog.svelte";
-  import type { TranscriptionDefaults } from "$lib/shared/instance-settings";
+  import Dialog from "#lib/components/ui/Dialog.svelte";
+  import type { TranscriptionDefaults } from "#lib/shared/instance-settings.ts";
   import type {
     AvailableTranscriptionModel,
     DetectedWorkerHardware,
-  } from "$lib/shared/transcription-models";
+  } from "#lib/shared/transcription-models.ts";
   import TranscribePanel, { PROCESSING_NOTE } from "./TranscribePanel.svelte";
 
   type Props = {

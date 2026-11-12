@@ -1,14 +1,14 @@
 <script lang="ts">
-  import Icon from "$lib/components/Icon.svelte";
-  import { FIT_TONES } from "$lib/components/model-fit";
-  import Badge from "$lib/components/ui/Badge.svelte";
-  import Picker from "$lib/components/ui/Picker.svelte";
-  import { AUTOMATIC_MODEL } from "$lib/shared/instance-settings";
+  import Icon from "#lib/components/Icon.svelte";
+  import { FIT_TONES } from "#lib/components/model-fit.ts";
+  import Badge from "#lib/components/ui/Badge.svelte";
+  import Picker from "#lib/components/ui/Picker.svelte";
+  import { AUTOMATIC_MODEL } from "#lib/shared/instance-settings.ts";
   import {
     defaultModelKey,
     parseModelKey,
     type AvailableTranscriptionModel,
-  } from "$lib/shared/transcription-models";
+  } from "#lib/shared/transcription-models.ts";
 
   type Choice = {
     key: string;

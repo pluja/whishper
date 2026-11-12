@@ -1,15 +1,15 @@
 <script lang="ts">
-  import Icon from "$lib/components/Icon.svelte";
-  import type { CueEditor } from "$lib/editor/editor.svelte";
-  import { pluralize } from "$lib/shared/format";
-  import { isRunActive } from "$lib/shared/project-status";
+  import Icon from "#lib/components/Icon.svelte";
+  import type { CueEditor } from "#lib/editor/editor.svelte.ts";
+  import { pluralize } from "#lib/shared/format.ts";
+  import { isRunActive } from "#lib/shared/project-status.ts";
   import { isEditingLocked } from "./project-view";
   import CueList from "./CueList.svelte";
   import EditorToolbar from "./EditorToolbar.svelte";
   import JournalNotice from "./JournalNotice.svelte";
   import ProcessingStatus from "./ProcessingStatus.svelte";
   import TranscribePanel, { PROCESSING_NOTE } from "./TranscribePanel.svelte";
-  import type { StudioData } from "$lib/shared/studio-data";
+  import type { StudioData } from "#lib/shared/studio-data.ts";
 
   type Props = {
     editor: CueEditor;

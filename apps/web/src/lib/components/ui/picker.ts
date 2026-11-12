@@ -1,4 +1,4 @@
-import { normalizeSearchText } from "$lib/shared/search";
+import { normalizeSearchText } from "#lib/shared/search.ts";
 import { nextMenuIndex } from "./menu-keyboard";
 
 const PAGE_SIZE = 10;

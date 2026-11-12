@@ -1,14 +1,14 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 
-import { cues, projects, subtitleTracks } from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
-import { projectForUser } from "$lib/server/projects/access";
-import { insertCues, listTrackCues } from "$lib/server/subtitles/cues";
-import { hasActiveTranscriptionRun } from "$lib/server/transcription/active-run";
-import { isRecord } from "$lib/shared/is-record";
-import { maxCueEndUs } from "$lib/shared/source-duration";
-import type { SubtitleCueSnapshot } from "$lib/shared/subtitles";
-import { isUuid } from "$lib/shared/uuid";
+import { cues, projects, subtitleTracks } from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
+import { projectForUser } from "#lib/server/projects/access.ts";
+import { insertCues, listTrackCues } from "#lib/server/subtitles/cues.ts";
+import { hasActiveTranscriptionRun } from "#lib/server/transcription/active-run.ts";
+import { isRecord } from "#lib/shared/is-record.ts";
+import { maxCueEndUs } from "#lib/shared/source-duration.ts";
+import type { SubtitleCueSnapshot } from "#lib/shared/subtitles.ts";
+import { isUuid } from "#lib/shared/uuid.ts";
 
 const MAX_CUES = 25_000;
 const MAX_CUE_TEXT = 20_000;

@@ -3,7 +3,7 @@
     stateLabel,
     statusTone,
     type DisplayState,
-  } from "$lib/shared/project-status";
+  } from "#lib/shared/project-status.ts";
   import Badge from "./Badge.svelte";
   import Progress from "./Progress.svelte";
 

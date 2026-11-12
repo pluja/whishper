@@ -1,12 +1,12 @@
 <script lang="ts">
   import type { WorkerDevice } from "@anysub/contracts";
-  import Icon from "$lib/components/Icon.svelte";
-  import type { IconName } from "$lib/components/icon-names";
-  import Badge from "$lib/components/ui/Badge.svelte";
+  import Icon from "#lib/components/Icon.svelte";
+  import type { IconName } from "#lib/components/icon-names.ts";
+  import Badge from "#lib/components/ui/Badge.svelte";
   import {
     PRECISION_COMPUTE_TYPES,
     type Precision,
-  } from "$lib/shared/instance-settings";
+  } from "#lib/shared/instance-settings.ts";
 
   type Option = {
     value: Precision;

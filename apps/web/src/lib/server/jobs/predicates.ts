@@ -1,8 +1,8 @@
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 
-import { jobs } from "$lib/server/db/schema";
-import { hashToken } from "$lib/server/jobs/lease-token";
-import { ACTIVE_JOB_STATES } from "$lib/shared/project-status";
+import { jobs } from "#lib/server/db/schema.ts";
+import { hashToken } from "#lib/server/jobs/lease-token.ts";
+import { ACTIVE_JOB_STATES } from "#lib/shared/project-status.ts";
 
 type PayloadField = "adapterId" | "workerId";
 

@@ -1,8 +1,8 @@
 import type { WorkerManifest } from "@anysub/contracts";
 import { gt } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
-import { workers } from "$lib/server/db/schema";
+import type { Executor } from "#lib/server/db/index.ts";
+import { workers } from "#lib/server/db/schema.ts";
 
 // Must exceed the worker's heartbeat interval plus its request timeout, or a
 // worker busy with a job drops out of the model picker between heartbeats.

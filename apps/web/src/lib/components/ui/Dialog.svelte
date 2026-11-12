@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { modal } from "$lib/browser/modal";
+  import { modal } from "#lib/browser/modal.ts";
   import IconButton from "./IconButton.svelte";
 
   type Props = {

@@ -1,9 +1,9 @@
-import { requireAdminOrLogin } from "$lib/server/auth/session";
-import { db } from "$lib/server/db";
-import { runFormAction } from "$lib/server/http/actions";
-import { badRequest } from "$lib/server/http/errors";
-import { forgetWorker, listWorkers } from "$lib/server/workers/status";
-import { isUuid } from "$lib/shared/uuid";
+import { requireAdminOrLogin } from "#lib/server/auth/session.ts";
+import { db } from "#lib/server/db/index.ts";
+import { runFormAction } from "#lib/server/http/actions.ts";
+import { badRequest } from "#lib/server/http/errors.ts";
+import { forgetWorker, listWorkers } from "#lib/server/workers/status.ts";
+import { isUuid } from "#lib/shared/uuid.ts";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ locals }) => {

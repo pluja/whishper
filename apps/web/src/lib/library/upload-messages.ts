@@ -1,5 +1,5 @@
-import { formatBytes } from "$lib/shared/format";
-import { isAcceptedMediaType } from "$lib/shared/media";
+import { formatBytes } from "#lib/shared/format.ts";
+import { isAcceptedMediaType } from "#lib/shared/media.ts";
 import { DetailedError } from "tus-js-client";
 
 export function selectedFileProblem(

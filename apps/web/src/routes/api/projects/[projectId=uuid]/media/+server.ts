@@ -1,9 +1,9 @@
-import { projectForUser } from "$lib/server/projects/access";
-import { requireUser } from "$lib/server/auth/session";
-import { db } from "$lib/server/db";
-import { safeMediaType, streamMediaFile } from "$lib/server/media/stream";
-import { resolveDataPath } from "$lib/server/storage/paths";
-import { uploadMediaType } from "$lib/server/uploads/projects";
+import { projectForUser } from "#lib/server/projects/access.ts";
+import { requireUser } from "#lib/server/auth/session.ts";
+import { db } from "#lib/server/db/index.ts";
+import { safeMediaType, streamMediaFile } from "#lib/server/media/stream.ts";
+import { resolveDataPath } from "#lib/server/storage/paths.ts";
+import { uploadMediaType } from "#lib/server/uploads/projects.ts";
 import { error } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 

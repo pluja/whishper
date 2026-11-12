@@ -1,11 +1,10 @@
 import { validateJobFailureReport } from "@anysub/contracts";
-import { httpErrorFrom } from "$lib/server/http/errors";
-import { failJob } from "$lib/server/jobs/failure";
+import { httpErrorFrom } from "#lib/server/http/errors.ts";
+import { failJob } from "#lib/server/jobs/failure.ts";
 import {
   authenticateWorkerReport,
   rejectLease,
-} from "$lib/server/workers/request";
-import { json } from "@sveltejs/kit";
+} from "#lib/server/workers/request.ts";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async (event) => {
@@ -20,5 +19,5 @@ export const POST: RequestHandler = async (event) => {
     report.error,
   ).catch(httpErrorFrom);
   if (!accepted) rejectLease();
-  return json({ accepted: true });
+  return Response.json({ accepted: true });
 };

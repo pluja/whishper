@@ -1,19 +1,19 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import type { Attachment } from "svelte/attachments";
-  import Icon from "$lib/components/Icon.svelte";
-  import Badge from "$lib/components/ui/Badge.svelte";
-  import { keepFocusThrough } from "$lib/browser/focus";
-  import Button from "$lib/components/ui/Button.svelte";
-  import IconButton from "$lib/components/ui/IconButton.svelte";
-  import TimecodeInput from "$lib/components/ui/TimecodeInput.svelte";
+  import Icon from "#lib/components/Icon.svelte";
+  import Badge from "#lib/components/ui/Badge.svelte";
+  import { keepFocusThrough } from "#lib/browser/focus.ts";
+  import Button from "#lib/components/ui/Button.svelte";
+  import IconButton from "#lib/components/ui/IconButton.svelte";
+  import TimecodeInput from "#lib/components/ui/TimecodeInput.svelte";
   import {
     cueTimeError,
     type CueTimeField,
     type EditorCue,
-  } from "$lib/editor/cues";
-  import type { CueEditor } from "$lib/editor/editor.svelte";
-  import { shortcutAriaKeys, shortcutLabel } from "$lib/editor/shortcuts";
+  } from "#lib/editor/cues.ts";
+  import type { CueEditor } from "#lib/editor/editor.svelte.ts";
+  import { shortcutAriaKeys, shortcutLabel } from "#lib/editor/shortcuts.ts";
   import { CUE_TIME_ERROR_ID } from "./cue-status";
   import { revealOffset } from "./reveal";
 

@@ -4,7 +4,7 @@ import {
   clearRecoveryCode,
   isRecoveryCode,
   issueRecoveryCode,
-} from "$lib/server/auth/recovery-code";
+} from "#lib/server/auth/recovery-code.ts";
 
 function issuedCode(log: ReturnType<typeof vi.fn>, call = 0): string {
   const match = /^ {4}(\S+)$/m.exec(String(log.mock.calls[call][0]));

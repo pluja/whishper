@@ -1,6 +1,6 @@
 import { MEDIA_PREPARATION_VERSION } from "@anysub/contracts";
 
-import { isRecord } from "$lib/shared/is-record";
+import { isRecord } from "#lib/shared/is-record.ts";
 
 // Its message explains the problem to the user, unlike a network or parse
 // failure, which only gets a general message.

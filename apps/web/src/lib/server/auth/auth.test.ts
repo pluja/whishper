@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { user } from "$lib/server/auth/schema";
-import { db } from "$lib/server/db";
+import { user } from "#lib/server/auth/schema.ts";
+import { db } from "#lib/server/db/index.ts";
 
 import { auth } from "./auth";
 

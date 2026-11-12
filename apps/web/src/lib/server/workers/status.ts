@@ -1,17 +1,17 @@
 import type { WorkerManifest } from "@anysub/contracts";
 import { asc, eq } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
-import { jobs, projects, workers } from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
-import { conflict } from "$lib/server/http/errors";
-import { isModelCacheJobOf } from "$lib/server/jobs/predicates";
-import { cancelActiveJobs } from "$lib/server/jobs/release";
-import { LIVENESS_WINDOW_MS } from "$lib/server/workers/presence";
+import type { Executor } from "#lib/server/db/index.ts";
+import { jobs, projects, workers } from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
+import { conflict } from "#lib/server/http/errors.ts";
+import { isModelCacheJobOf } from "#lib/server/jobs/predicates.ts";
+import { cancelActiveJobs } from "#lib/server/jobs/release.ts";
+import { LIVENESS_WINDOW_MS } from "#lib/server/workers/presence.ts";
 import type {
   WorkerJobSummary,
   WorkerOverview,
-} from "$lib/shared/worker-status";
+} from "#lib/shared/worker-status.ts";
 
 type LeasedJob = {
   leasedBy: string | null;

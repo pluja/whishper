@@ -1,7 +1,7 @@
 <script lang="ts">
-  import Dialog from "$lib/components/ui/Dialog.svelte";
-  import Kbd from "$lib/components/ui/Kbd.svelte";
-  import { shortcutGroups } from "$lib/editor/shortcuts";
+  import Dialog from "#lib/components/ui/Dialog.svelte";
+  import Kbd from "#lib/components/ui/Kbd.svelte";
+  import { shortcutGroups } from "#lib/editor/shortcuts.ts";
 
   let { open = $bindable(false) }: { open?: boolean } = $props();
 </script>

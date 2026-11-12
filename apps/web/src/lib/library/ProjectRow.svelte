@@ -10,25 +10,24 @@
 
 <script lang="ts">
   import { tick } from "svelte";
-  import { enhance } from "$app/forms";
+  import { enhance, type SubmitFunction } from "$app/forms";
   import { goto } from "$app/navigation";
-  import Icon from "$lib/components/Icon.svelte";
-  import Badge from "$lib/components/ui/Badge.svelte";
-  import IconButton from "$lib/components/ui/IconButton.svelte";
-  import Input from "$lib/components/ui/Input.svelte";
-  import Menu from "$lib/components/ui/Menu.svelte";
-  import MenuItem from "$lib/components/ui/MenuItem.svelte";
-  import StatusBadge from "$lib/components/ui/StatusBadge.svelte";
-  import { formatDuration, formatRelativeTime } from "$lib/shared/format";
-  import type { ProjectSummary } from "$lib/shared/library-data";
-  import { PROJECT_TITLE_MAX_LENGTH } from "$lib/shared/limits";
+  import Icon from "#lib/components/Icon.svelte";
+  import Badge from "#lib/components/ui/Badge.svelte";
+  import IconButton from "#lib/components/ui/IconButton.svelte";
+  import Input from "#lib/components/ui/Input.svelte";
+  import Menu from "#lib/components/ui/Menu.svelte";
+  import MenuItem from "#lib/components/ui/MenuItem.svelte";
+  import StatusBadge from "#lib/components/ui/StatusBadge.svelte";
+  import { formatDuration, formatRelativeTime } from "#lib/shared/format.ts";
+  import type { ProjectSummary } from "#lib/shared/library-data.ts";
+  import { PROJECT_TITLE_MAX_LENGTH } from "#lib/shared/limits.ts";
   import {
     displayState,
     projectProgress,
     projectSourceFallback,
-  } from "$lib/shared/project-status";
-  import { projectDerivativeUrl, projectPageUrl } from "$lib/shared/routes";
-  import type { SubmitFunction } from "@sveltejs/kit";
+  } from "#lib/shared/project-status.ts";
+  import { projectDerivativeUrl, projectPageUrl } from "#lib/shared/routes.ts";
   import { mediaPlaceholder } from "./media-placeholder";
 
   type RenameForm = { renameProjectId?: string; renameError?: string } | null;
@@ -87,11 +86,7 @@
     return async ({ result, update }) => {
       renameSaving = false;
       if (result.type === "redirect") {
-        await goto(result.location, {
-          invalidateAll: true,
-          noScroll: true,
-          keepFocus: true,
-        });
+        await goto(result.location, { refreshAll: true, reset: false });
         await endRename();
         return;
       }

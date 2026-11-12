@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeProjectTitle,
   parseProjectLibrarySearch,
-} from "$lib/server/projects/library";
+} from "#lib/server/projects/library.ts";
 import {
   PROJECT_SEARCH_MAX_LENGTH,
   PROJECT_TITLE_MAX_LENGTH,
-} from "$lib/shared/limits";
+} from "#lib/shared/limits.ts";
 
 describe("project library inputs", () => {
   it("parses title search and optional subtitle scope", () => {

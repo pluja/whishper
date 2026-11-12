@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { withKeyedLock } from "$lib/server/storage/keyed-lock";
+import { withKeyedLock } from "#lib/server/storage/keyed-lock.ts";
 
 describe("withKeyedLock", () => {
   it("runs same-key work one at a time and keeps going after a failure", async () => {

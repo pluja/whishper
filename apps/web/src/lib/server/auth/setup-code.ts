@@ -1,5 +1,8 @@
-import { isInstanceInitialized } from "$lib/server/auth/instance";
-import { generateHostCode, hostCodesMatch } from "$lib/server/auth/host-code";
+import { isInstanceInitialized } from "#lib/server/auth/instance.ts";
+import {
+  generateHostCode,
+  hostCodesMatch,
+} from "#lib/server/auth/host-code.ts";
 
 // Held in memory: a restart prints a new code, which is also how a user who
 // lost the log line gets one.

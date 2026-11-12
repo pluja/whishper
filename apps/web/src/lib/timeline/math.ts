@@ -1,5 +1,5 @@
-import type { EditorCue } from "$lib/editor/cues";
-import { clamp } from "$lib/shared/clamp";
+import type { EditorCue } from "#lib/editor/cues.ts";
+import { clamp } from "#lib/shared/clamp.ts";
 
 export type CueTiming = Pick<EditorCue, "id" | "start_us" | "end_us">;
 

@@ -5,19 +5,19 @@ import type {
   WorkerManifest,
 } from "@anysub/contracts";
 
-import { formatBytes } from "$lib/shared/format";
+import { formatBytes } from "#lib/shared/format.ts";
 import {
   PRECISION_MEMORY_FACTORS,
   type Precision,
-} from "$lib/shared/instance-settings";
-import { isRecord } from "$lib/shared/is-record";
+} from "#lib/shared/instance-settings.ts";
+import { isRecord } from "#lib/shared/is-record.ts";
 import {
   modelKey,
   type AvailableTranscriptionModel,
   type DetectedWorkerHardware,
   type ModelFit,
   type TranscriptionModel,
-} from "$lib/shared/transcription-models";
+} from "#lib/shared/transcription-models.ts";
 
 const FIT_RANK: Record<ModelFit, number> = {
   poor: 0,

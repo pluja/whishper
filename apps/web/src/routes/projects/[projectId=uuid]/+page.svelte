@@ -1,31 +1,31 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { beforeNavigate, invalidateAll } from "$app/navigation";
-  import { pollWhileActive } from "$lib/browser/polling.svelte";
-  import { CueEditor } from "$lib/editor/editor.svelte";
-  import { PaneWidth } from "$lib/editor/pane-width.svelte";
+  import { beforeNavigate, refreshAll } from "$app/navigation";
+  import { pollWhileActive } from "#lib/browser/polling.svelte.ts";
+  import { CueEditor } from "#lib/editor/editor.svelte.ts";
+  import { PaneWidth } from "#lib/editor/pane-width.svelte.ts";
   import {
     handleStudioKeydown,
     type StudioCommands,
-  } from "$lib/editor/shortcuts";
-  import { frameDurationUs } from "$lib/editor/transport.svelte";
-  import { DEFAULT_MAX_LINE_LENGTH } from "$lib/shared/limits";
-  import { isRunActive, isStudioActive } from "$lib/shared/project-status";
-  import { projectStatusUrl } from "$lib/shared/routes";
-  import { maxCueEndUs } from "$lib/shared/source-duration";
-  import type { StudioData, StudioStatus } from "$lib/shared/studio-data";
-  import MediaMonitor from "$lib/studio/MediaMonitor.svelte";
+  } from "#lib/editor/shortcuts.ts";
+  import { frameDurationUs } from "#lib/editor/transport.svelte.ts";
+  import { DEFAULT_MAX_LINE_LENGTH } from "#lib/shared/limits.ts";
+  import { isRunActive, isStudioActive } from "#lib/shared/project-status.ts";
+  import { projectStatusUrl } from "#lib/shared/routes.ts";
+  import { maxCueEndUs } from "#lib/shared/source-duration.ts";
+  import type { StudioData, StudioStatus } from "#lib/shared/studio-data.ts";
+  import MediaMonitor from "#lib/studio/MediaMonitor.svelte";
   import {
     derivativeUrl,
     editorCues,
     isEditingLocked,
     processingStateChanged,
-  } from "$lib/studio/project-view";
-  import ShortcutGuide from "$lib/studio/ShortcutGuide.svelte";
-  import StudioTitlebar from "$lib/studio/StudioTitlebar.svelte";
-  import TranscribeDialog from "$lib/studio/TranscribeDialog.svelte";
-  import TranscriptPanel from "$lib/studio/TranscriptPanel.svelte";
-  import Timeline from "$lib/timeline/Timeline.svelte";
+  } from "#lib/studio/project-view.ts";
+  import ShortcutGuide from "#lib/studio/ShortcutGuide.svelte";
+  import StudioTitlebar from "#lib/studio/StudioTitlebar.svelte";
+  import TranscribeDialog from "#lib/studio/TranscribeDialog.svelte";
+  import TranscriptPanel from "#lib/studio/TranscriptPanel.svelte";
+  import Timeline from "#lib/timeline/Timeline.svelte";
 
   let { data, form } = $props();
 
@@ -50,10 +50,10 @@
     } catch {
       return; // Offline for now: the next poll tries again.
     }
-    if (!response.ok) return invalidateAll();
+    if (!response.ok) return refreshAll();
     const next: StudioStatus = await response.json();
     if (data !== loaded) return;
-    if (processingStateChanged(status, next)) return invalidateAll();
+    if (processingStateChanged(status, next)) return refreshAll();
     polled = { loaded, status: next };
   }
 
@@ -135,7 +135,7 @@
   // Another tab started the run: reload the studio so the editor locks and
   // follows the run.
   $effect(() => {
-    if (editor.autosave.blockedByTranscription) untrack(() => invalidateAll());
+    if (editor.autosave.blockedByTranscription) untrack(() => refreshAll());
   });
 
   // The dialog unmounts without closing when its track or media goes away.
@@ -144,6 +144,8 @@
   });
 
   beforeNavigate((navigation) => {
+    if (navigation.shallow && navigation.type === "goto") return;
+
     const canSave = editor.autosave.leave();
     if (navigation.willUnload) {
       if (editor.autosave.hasUnsavedChanges) navigation.cancel();
@@ -169,10 +171,7 @@
   });
 </script>
 
-<svelte:head>
-  <title>{data.project.name} · Anysub</title>
-</svelte:head>
-
+<svelte:head><title>{data.project.name} · Anysub</title></svelte:head>
 <svelte:window onkeydown={onStudioKeydown} />
 
 <div

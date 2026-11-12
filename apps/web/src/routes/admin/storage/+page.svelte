@@ -1,12 +1,12 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
-  import DiskUsage from "$lib/admin/DiskUsage.svelte";
-  import { FormSubmission } from "$lib/admin/form-submission.svelte";
-  import SectionHeader from "$lib/admin/SectionHeader.svelte";
-  import SettingsCard from "$lib/admin/SettingsCard.svelte";
-  import UploadLimitSetting from "$lib/admin/UploadLimitSetting.svelte";
-  import Icon from "$lib/components/Icon.svelte";
-  import Button from "$lib/components/ui/Button.svelte";
+  import DiskUsage from "#lib/admin/DiskUsage.svelte";
+  import { FormSubmission } from "#lib/admin/form-submission.svelte.ts";
+  import SectionHeader from "#lib/admin/SectionHeader.svelte";
+  import SettingsCard from "#lib/admin/SettingsCard.svelte";
+  import UploadLimitSetting from "#lib/admin/UploadLimitSetting.svelte";
+  import Icon from "#lib/components/Icon.svelte";
+  import Button from "#lib/components/ui/Button.svelte";
 
   let { data, form } = $props();
 

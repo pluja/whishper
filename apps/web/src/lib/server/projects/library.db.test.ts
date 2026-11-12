@@ -3,18 +3,18 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
+import { db } from "#lib/server/db/index.ts";
 import {
   cues,
   mediaUploads,
   projects as projectsTable,
-} from "$lib/server/db/schema";
-import { seedProject, seedTrack } from "$lib/server/db/testing/fixtures";
+} from "#lib/server/db/schema.ts";
+import { seedProject, seedTrack } from "#lib/server/db/testing/fixtures.ts";
 import {
   listLibraryProjects,
   primaryWorkspaceForUser,
   renameProjectForUser,
-} from "$lib/server/projects/library";
+} from "#lib/server/projects/library.ts";
 
 function projectName(projectId: string): string | undefined {
   return db

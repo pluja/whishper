@@ -1,12 +1,12 @@
 <script lang="ts">
-  import Icon from "$lib/components/Icon.svelte";
-  import IconButton from "$lib/components/ui/IconButton.svelte";
-  import type { CueEditor } from "$lib/editor/editor.svelte";
-  import { projectCaptionsUrl, projectMediaUrl } from "$lib/shared/routes";
-  import { isAudioMedia } from "$lib/shared/media";
-  import { formatEditorTime } from "$lib/shared/subtitles";
+  import Icon from "#lib/components/Icon.svelte";
+  import IconButton from "#lib/components/ui/IconButton.svelte";
+  import type { CueEditor } from "#lib/editor/editor.svelte.ts";
+  import { projectCaptionsUrl, projectMediaUrl } from "#lib/shared/routes.ts";
+  import { isAudioMedia } from "#lib/shared/media.ts";
+  import { formatEditorTime } from "#lib/shared/subtitles.ts";
   import { derivativeUrl } from "./project-view";
-  import type { StudioData } from "$lib/shared/studio-data";
+  import type { StudioData } from "#lib/shared/studio-data.ts";
 
   type Props = {
     project: StudioData["project"];

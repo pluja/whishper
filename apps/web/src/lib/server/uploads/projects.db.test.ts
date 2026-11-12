@@ -15,7 +15,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const dataRoot = vi.hoisted(() => ({ path: "" }));
 
-vi.mock("$lib/server/env", () => ({
+vi.mock("#lib/server/env.ts", () => ({
   privateEnv: {
     databaseFile: ":memory:",
     get dataRoot() {
@@ -29,14 +29,17 @@ vi.mock("node:fs/promises", async (importOriginal) => {
   return { ...actual, mkdir: vi.fn(actual.mkdir) };
 });
 
-import { db } from "$lib/server/db";
-import { jobs, mediaUploads, projects } from "$lib/server/db/schema";
+import { db } from "#lib/server/db/index.ts";
+import { jobs, mediaUploads, projects } from "#lib/server/db/schema.ts";
 import {
   seedProject,
   type SeededProject,
-} from "$lib/server/db/testing/fixtures";
-import { resolveDataPath, stagedUploadPath } from "$lib/server/storage/paths";
-import { completeUpload } from "$lib/server/uploads/projects";
+} from "#lib/server/db/testing/fixtures.ts";
+import {
+  resolveDataPath,
+  stagedUploadPath,
+} from "#lib/server/storage/paths.ts";
+import { completeUpload } from "#lib/server/uploads/projects.ts";
 
 function seedUpload(project: SeededProject, sizeBytes: number): string {
   const uploadId = randomUUID();

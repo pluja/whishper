@@ -1,12 +1,12 @@
 import type { ModelCacheAction, ModelCacheJobPayload } from "@anysub/contracts";
 import { and, eq } from "drizzle-orm";
 
-import { jobs } from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
-import { conflict, notFound } from "$lib/server/http/errors";
-import { cancelActiveJobs } from "$lib/server/jobs/release";
-import { workerModelInventories } from "$lib/server/models/inventory";
-import { formatBytes } from "$lib/shared/format";
+import { jobs } from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
+import { conflict, notFound } from "#lib/server/http/errors.ts";
+import { cancelActiveJobs } from "#lib/server/jobs/release.ts";
+import { workerModelInventories } from "#lib/server/models/inventory.ts";
+import { formatBytes } from "#lib/shared/format.ts";
 
 // Ahead of transcriptions, so a download someone waits for starts next.
 const MODEL_JOB_PRIORITY = 10;

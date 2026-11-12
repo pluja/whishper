@@ -3,10 +3,10 @@ import { stat, statfs } from "node:fs/promises";
 import { count, eq, inArray, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import type { Executor } from "$lib/server/db";
-import { mediaDerivatives, mediaUploads } from "$lib/server/db/schema";
-import { privateEnv } from "$lib/server/env";
-import type { StorageUsage, StoredFiles } from "$lib/shared/storage-usage";
+import type { Executor } from "#lib/server/db/index.ts";
+import { mediaDerivatives, mediaUploads } from "#lib/server/db/schema.ts";
+import { privateEnv } from "#lib/server/env.ts";
+import type { StorageUsage, StoredFiles } from "#lib/shared/storage-usage.ts";
 
 const DATABASE_SIDE_FILES = ["", "-wal", "-shm"];
 const NO_FILES: StoredFiles = { bytes: 0, count: 0 };

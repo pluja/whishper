@@ -3,24 +3,24 @@ import { ERRORS, EVENTS, MemoryLocker, Server, type Upload } from "@tus/server";
 import { mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 
-import { privateEnv } from "$lib/server/env";
-import { clientFailure } from "$lib/server/http/errors";
+import { privateEnv } from "#lib/server/env.ts";
+import { clientFailure } from "#lib/server/http/errors.ts";
 import {
   cancelUpload,
   completeUpload,
   createUploadProject,
   requireOwnedUpload,
   updateUploadProgress,
-} from "$lib/server/uploads/projects";
-import { normalizeMediaType } from "$lib/shared/media";
+} from "#lib/server/uploads/projects.ts";
+import { normalizeMediaType } from "#lib/shared/media.ts";
 import {
   startUploadMaintenance,
   UPLOAD_EXPIRATION_MS,
-} from "$lib/server/uploads/maintenance";
-import { isNodeError } from "$lib/server/guards";
-import { readInstanceSettings } from "$lib/server/settings/instance";
-import { uploadStagingDirectory } from "$lib/server/storage/paths";
-import { isUuid } from "$lib/shared/uuid";
+} from "#lib/server/uploads/maintenance.ts";
+import { isNodeError } from "#lib/server/guards.ts";
+import { readInstanceSettings } from "#lib/server/settings/instance.ts";
+import { uploadStagingDirectory } from "#lib/server/storage/paths.ts";
+import { isUuid } from "#lib/shared/uuid.ts";
 
 const TUS_PATH = "/api/uploads";
 const USER_HEADER = "x-anysub-authenticated-user";

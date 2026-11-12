@@ -1,4 +1,4 @@
-import { db, type Executor } from "$lib/server/db";
+import { db, type Executor } from "#lib/server/db/index.ts";
 
 // The work must be synchronous: better-sqlite3 refuses a promise, and since a
 // synchronous transaction cannot interleave with another request, it needs no

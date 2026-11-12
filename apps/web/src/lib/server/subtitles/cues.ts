@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { asc, eq } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
-import { cues } from "$lib/server/db/schema";
-import type { SubtitleCueSnapshot } from "$lib/shared/subtitles";
-import { isUuid } from "$lib/shared/uuid";
+import type { Executor } from "#lib/server/db/index.ts";
+import { cues } from "#lib/server/db/schema.ts";
+import type { SubtitleCueSnapshot } from "#lib/shared/subtitles.ts";
+import { isUuid } from "#lib/shared/uuid.ts";
 
 export type CueContent = {
   startUs: number;

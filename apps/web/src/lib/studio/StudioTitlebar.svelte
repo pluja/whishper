@@ -1,7 +1,7 @@
 <script module lang="ts">
-  import type { IconName } from "$lib/components/icon-names";
-  import type { Autosave } from "$lib/editor/autosave.svelte";
-  import type { TrackExportFormat } from "$lib/shared/routes";
+  import type { IconName } from "#lib/components/icon-names.ts";
+  import type { Autosave } from "#lib/editor/autosave.svelte.ts";
+  import type { TrackExportFormat } from "#lib/shared/routes.ts";
 
   const EXPORTS: {
     format: TrackExportFormat;
@@ -32,16 +32,16 @@
 
 <script lang="ts">
   import type { MediaDerivativeKind } from "@anysub/contracts";
-  import Icon from "$lib/components/Icon.svelte";
-  import Button from "$lib/components/ui/Button.svelte";
-  import IconButton from "$lib/components/ui/IconButton.svelte";
-  import Menu from "$lib/components/ui/Menu.svelte";
-  import MenuItem from "$lib/components/ui/MenuItem.svelte";
-  import { buttonClasses } from "$lib/components/ui/variants";
-  import { confirmSubmit } from "$lib/browser/confirm-submit";
-  import { formatBytes } from "$lib/shared/format";
-  import { trackExportUrl } from "$lib/shared/routes";
-  import type { StudioData } from "$lib/shared/studio-data";
+  import Icon from "#lib/components/Icon.svelte";
+  import Button from "#lib/components/ui/Button.svelte";
+  import IconButton from "#lib/components/ui/IconButton.svelte";
+  import Menu from "#lib/components/ui/Menu.svelte";
+  import MenuItem from "#lib/components/ui/MenuItem.svelte";
+  import { buttonClasses } from "#lib/components/ui/variants.ts";
+  import { confirmSubmit } from "#lib/browser/confirm-submit.ts";
+  import { formatBytes } from "#lib/shared/format.ts";
+  import { trackExportUrl } from "#lib/shared/routes.ts";
+  import type { StudioData } from "#lib/shared/studio-data.ts";
 
   type Props = {
     project: StudioData["project"];

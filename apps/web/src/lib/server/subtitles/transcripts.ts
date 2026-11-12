@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 
-import { subtitleTracks, transcriptionRuns } from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
-import { manageableProjectForUser } from "$lib/server/projects/access";
+import { subtitleTracks, transcriptionRuns } from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
+import { manageableProjectForUser } from "#lib/server/projects/access.ts";
 
 export function deleteTranscriptForUser(
   projectId: string,

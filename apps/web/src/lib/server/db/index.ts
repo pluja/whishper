@@ -1,17 +1,17 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
-import { building } from "$app/environment";
+import { building } from "$app/env";
 import Database from "better-sqlite3";
 import type { RunResult } from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 
-import * as authSchema from "$lib/server/auth/schema";
-import { migrateDatabase } from "$lib/server/db/migrate";
-import * as appSchema from "$lib/server/db/schema";
-import { privateEnv } from "$lib/server/env";
-import { normalizeSearchText } from "$lib/shared/search";
+import * as authSchema from "#lib/server/auth/schema.ts";
+import { migrateDatabase } from "#lib/server/db/migrate.ts";
+import * as appSchema from "#lib/server/db/schema.ts";
+import { privateEnv } from "#lib/server/env.ts";
+import { normalizeSearchText } from "#lib/shared/search.ts";
 
 const schema = { ...authSchema, ...appSchema };
 const IN_MEMORY = ":memory:";

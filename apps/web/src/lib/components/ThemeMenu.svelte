@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { getThemeController } from "$lib/browser/theme.svelte";
-  import type { ThemePreference } from "$lib/shared/theme";
+  import { getThemeController } from "#lib/browser/theme.svelte.ts";
+  import type { ThemePreference } from "#lib/shared/theme.ts";
   import Icon from "./Icon.svelte";
   import type { IconName } from "./icon-names";
   import Menu from "./ui/Menu.svelte";

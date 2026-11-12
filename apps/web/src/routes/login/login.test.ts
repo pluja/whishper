@@ -3,8 +3,8 @@ import { APIError } from "better-auth/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { signInEmail } = vi.hoisted(() => ({ signInEmail: vi.fn() }));
-vi.mock("$lib/server/auth/auth", () => ({ auth: { api: { signInEmail } } }));
-vi.mock("$lib/server/auth/instance", () => ({
+vi.mock("#lib/server/auth/auth.ts", () => ({ auth: { api: { signInEmail } } }));
+vi.mock("#lib/server/auth/instance.ts", () => ({
   isInstanceInitialized: () => true,
 }));
 

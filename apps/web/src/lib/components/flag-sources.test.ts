@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LANGUAGES } from "$lib/shared/languages";
+import { LANGUAGES } from "#lib/shared/languages.ts";
 import { FLAG_SOURCES } from "./flag-sources";
 
 describe("FLAG_SOURCES", () => {

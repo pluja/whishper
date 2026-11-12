@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatEditorTime } from "$lib/shared/subtitles";
+  import { formatEditorTime } from "#lib/shared/subtitles.ts";
   import {
     cueIsValid,
     dragBounds,

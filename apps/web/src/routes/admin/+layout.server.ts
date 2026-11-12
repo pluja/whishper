@@ -1,4 +1,4 @@
-import { requireAdminOrLogin } from "$lib/server/auth/session";
+import { requireAdminOrLogin } from "#lib/server/auth/session.ts";
 import { version } from "../../../package.json";
 import type { LayoutServerLoad } from "./$types";
 

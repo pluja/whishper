@@ -1,6 +1,6 @@
-import type { IconName } from "$lib/components/icon-names";
-import type { ProjectSummary } from "$lib/shared/library-data";
-import { isAudioMedia } from "$lib/shared/media";
+import type { IconName } from "#lib/components/icon-names.ts";
+import type { ProjectSummary } from "#lib/shared/library-data.ts";
+import { isAudioMedia } from "#lib/shared/media.ts";
 
 export function mediaPlaceholder(
   project: Pick<ProjectSummary, "mediaType" | "originalFilename">,

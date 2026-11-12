@@ -5,22 +5,22 @@ import {
 } from "@anysub/contracts";
 import { desc, eq } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
-import { jobs } from "$lib/server/db/schema";
-import { readInstanceSettings } from "$lib/server/settings/instance";
+import type { Executor } from "#lib/server/db/index.ts";
+import { jobs } from "#lib/server/db/schema.ts";
+import { readInstanceSettings } from "#lib/server/settings/instance.ts";
 import {
   compareModels,
   describeHardware,
   describeModel,
-} from "$lib/server/transcription/models";
-import { activeWorkerManifests } from "$lib/server/workers/presence";
-import type { Precision } from "$lib/shared/instance-settings";
+} from "#lib/server/transcription/models.ts";
+import { activeWorkerManifests } from "#lib/server/workers/presence.ts";
+import type { Precision } from "#lib/shared/instance-settings.ts";
 import type {
   InventoryModel,
   ModelTask,
   WorkerModelInventory,
-} from "$lib/shared/model-inventory";
-import { modelKey } from "$lib/shared/transcription-models";
+} from "#lib/shared/model-inventory.ts";
+import { modelKey } from "#lib/shared/transcription-models.ts";
 
 // Enough history to find the latest outcome for every model on every worker.
 const RECENT_MODEL_JOBS = 500;

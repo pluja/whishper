@@ -1,11 +1,11 @@
-import { invalidateAll } from "$app/navigation";
+import { refreshAll } from "$app/navigation";
 
 import { singleFlight } from "./single-flight";
 
 export function pollWhileActive(
   isActive: () => boolean,
   intervalMs: number,
-  poll: () => Promise<unknown> = invalidateAll,
+  poll: () => Promise<unknown> = refreshAll,
 ) {
   let tabVisible = $state(true);
 

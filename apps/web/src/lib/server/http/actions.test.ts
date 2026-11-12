@@ -1,8 +1,8 @@
 import { isActionFailure, isRedirect, redirect } from "@sveltejs/kit";
 import { describe, expect, it, vi } from "vitest";
 
-import { runFormAction } from "$lib/server/http/actions";
-import { conflict } from "$lib/server/http/errors";
+import { runFormAction } from "#lib/server/http/actions.ts";
+import { conflict } from "#lib/server/http/errors.ts";
 
 describe("runFormAction", () => {
   it("turns a client failure into an inline message", async () => {

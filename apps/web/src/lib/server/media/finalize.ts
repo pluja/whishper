@@ -9,23 +9,23 @@ import type {
 } from "@anysub/contracts";
 import { and, eq, notInArray } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
-import { mediaDerivatives, projects } from "$lib/server/db/schema";
-import { unprocessable } from "$lib/server/http/errors";
-import { stagedArtifactPath } from "$lib/server/media/artifact-staging";
+import type { Executor } from "#lib/server/db/index.ts";
+import { mediaDerivatives, projects } from "#lib/server/db/schema.ts";
+import { unprocessable } from "#lib/server/http/errors.ts";
+import { stagedArtifactPath } from "#lib/server/media/artifact-staging.ts";
 import {
   DERIVATIVE_FORMATS,
   derivativeExtension,
-} from "$lib/server/media/derivatives";
+} from "#lib/server/media/derivatives.ts";
 import {
   primaryFrameRate,
   requiredArtifactKinds,
-} from "$lib/server/media/probe";
+} from "#lib/server/media/probe.ts";
 import {
   derivativeStorageKey,
   resolveDataPath,
   workerArtifactsPath,
-} from "$lib/server/storage/paths";
+} from "#lib/server/storage/paths.ts";
 
 export type MediaFinalizationInput = {
   jobId: string;

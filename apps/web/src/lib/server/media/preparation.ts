@@ -1,13 +1,13 @@
 import type { MediaPreparationJobPayload } from "@anysub/contracts";
 import { and, desc, eq } from "drizzle-orm";
 
-import type { Executor } from "$lib/server/db";
-import { jobs, mediaUploads, projects } from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
-import { isActiveJob, isMediaPrepareJob } from "$lib/server/jobs/predicates";
-import { cancelActiveJobs } from "$lib/server/jobs/release";
-import { cleanupStagedMediaArtifacts } from "$lib/server/media/artifact-staging";
-import { projectForUser } from "$lib/server/projects/access";
+import type { Executor } from "#lib/server/db/index.ts";
+import { jobs, mediaUploads, projects } from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
+import { isActiveJob, isMediaPrepareJob } from "#lib/server/jobs/predicates.ts";
+import { cancelActiveJobs } from "#lib/server/jobs/release.ts";
+import { cleanupStagedMediaArtifacts } from "#lib/server/media/artifact-staging.ts";
+import { projectForUser } from "#lib/server/projects/access.ts";
 
 // The payload is built from the project row read in the same transaction, so
 // it always describes the source the job will read.

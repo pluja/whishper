@@ -1,9 +1,9 @@
-import { db } from "$lib/server/db";
-import { projectForUser } from "$lib/server/projects/access";
-import { requireUser } from "$lib/server/auth/session";
-import { listTrackCues } from "$lib/server/subtitles/cues";
-import { latestTrackForProject } from "$lib/server/subtitles/tracks";
-import { renderWebVtt } from "$lib/shared/subtitles";
+import { db } from "#lib/server/db/index.ts";
+import { projectForUser } from "#lib/server/projects/access.ts";
+import { requireUser } from "#lib/server/auth/session.ts";
+import { listTrackCues } from "#lib/server/subtitles/cues.ts";
+import { latestTrackForProject } from "#lib/server/subtitles/tracks.ts";
+import { renderWebVtt } from "#lib/shared/subtitles.ts";
 import { error } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 

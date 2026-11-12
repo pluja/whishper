@@ -2,15 +2,15 @@ import { rm } from "node:fs/promises";
 
 import { eq } from "drizzle-orm";
 
-import { jobs, mediaUploads, projects } from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
-import { manageableProjectForUser } from "$lib/server/projects/access";
+import { jobs, mediaUploads, projects } from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
+import { manageableProjectForUser } from "#lib/server/projects/access.ts";
 import {
   projectStoragePath,
   stagedUploadMetadataPath,
   stagedUploadPath,
   workerArtifactsPath,
-} from "$lib/server/storage/paths";
+} from "#lib/server/storage/paths.ts";
 
 export async function deleteProjectForUser(
   projectId: string,

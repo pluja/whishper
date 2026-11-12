@@ -1,8 +1,11 @@
 <script lang="ts">
-  import Button from "$lib/components/ui/Button.svelte";
-  import Progress from "$lib/components/ui/Progress.svelte";
-  import { isPreparationActive, isRunActive } from "$lib/shared/project-status";
-  import type { StudioData } from "$lib/shared/studio-data";
+  import Button from "#lib/components/ui/Button.svelte";
+  import Progress from "#lib/components/ui/Progress.svelte";
+  import {
+    isPreparationActive,
+    isRunActive,
+  } from "#lib/shared/project-status.ts";
+  import type { StudioData } from "#lib/shared/studio-data.ts";
 
   type Props = {
     run: StudioData["run"];

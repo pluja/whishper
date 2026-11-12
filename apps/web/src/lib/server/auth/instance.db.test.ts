@@ -1,16 +1,16 @@
 import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { account, user } from "$lib/server/auth/schema";
+import { account, user } from "#lib/server/auth/schema.ts";
 import {
   createInstanceOwner,
   isInstanceInitialized,
   isValidOwnerEmail,
   workspaceSlug,
   type InstanceOwner,
-} from "$lib/server/auth/instance";
-import { db } from "$lib/server/db";
-import { memberships, workspaces } from "$lib/server/db/schema";
+} from "#lib/server/auth/instance.ts";
+import { db } from "#lib/server/db/index.ts";
+import { memberships, workspaces } from "#lib/server/db/schema.ts";
 
 function owner(name: string): InstanceOwner {
   return {

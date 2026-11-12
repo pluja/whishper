@@ -1,8 +1,8 @@
 <script lang="ts">
-  import AuthLayout from "$lib/components/AuthLayout.svelte";
-  import Button from "$lib/components/ui/Button.svelte";
-  import Field from "$lib/components/ui/Field.svelte";
-  import Input from "$lib/components/ui/Input.svelte";
+  import AuthLayout from "#lib/components/AuthLayout.svelte";
+  import Button from "#lib/components/ui/Button.svelte";
+  import Field from "#lib/components/ui/Field.svelte";
+  import Input from "#lib/components/ui/Input.svelte";
 
   let { data, form } = $props();
 </script>

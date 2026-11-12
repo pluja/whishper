@@ -1,9 +1,9 @@
-import { httpErrorFrom } from "$lib/server/http/errors";
+import { httpErrorFrom } from "#lib/server/http/errors.ts";
 import {
   openMediaPreparationSource,
   requireMediaPreparationLease,
-} from "$lib/server/media/artifact-staging";
-import { authenticateLeaseToken } from "$lib/server/workers/request";
+} from "#lib/server/media/artifact-staging.ts";
+import { authenticateLeaseToken } from "#lib/server/workers/request.ts";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async (event) => {

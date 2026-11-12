@@ -1,9 +1,9 @@
 import type { MediaDerivativeKind } from "@anysub/contracts";
 
-import type { EditorCue } from "$lib/editor/cues";
-import { isRunActive } from "$lib/shared/project-status";
-import type { SubtitleCueSnapshot } from "$lib/shared/subtitles";
-import type { StudioData, StudioStatus } from "$lib/shared/studio-data";
+import type { EditorCue } from "#lib/editor/cues.ts";
+import { isRunActive } from "#lib/shared/project-status.ts";
+import type { SubtitleCueSnapshot } from "#lib/shared/subtitles.ts";
+import type { StudioData, StudioStatus } from "#lib/shared/studio-data.ts";
 
 export function editorCues(cues: readonly SubtitleCueSnapshot[]): EditorCue[] {
   return cues.map((cue) => ({

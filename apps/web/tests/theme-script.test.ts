@@ -3,12 +3,12 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { SYSTEM_DARK_QUERY } from "$lib/browser/theme.svelte";
+import { SYSTEM_DARK_QUERY } from "#lib/browser/theme.svelte.ts";
 import {
   parseThemePreference,
   resolveTheme,
   THEME_STORAGE_KEY,
-} from "$lib/shared/theme";
+} from "#lib/shared/theme.ts";
 
 async function inlineThemeScript(): Promise<string> {
   const html = await readFile(resolve(process.cwd(), "src/app.html"), "utf8");

@@ -1,15 +1,15 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
-import { jobs, transcriptionRuns } from "$lib/server/db/schema";
+import { db } from "#lib/server/db/index.ts";
+import { jobs, transcriptionRuns } from "#lib/server/db/schema.ts";
 import {
   seedLeasedTranscriptionJob,
   seedProject,
-} from "$lib/server/db/testing/fixtures";
-import { reportProgress } from "$lib/server/jobs/lease";
-import { hasActiveTranscriptionRun } from "$lib/server/transcription/active-run";
-import { cancelTranscriptionForUser } from "$lib/server/transcription/cancel";
+} from "#lib/server/db/testing/fixtures.ts";
+import { reportProgress } from "#lib/server/jobs/lease.ts";
+import { hasActiveTranscriptionRun } from "#lib/server/transcription/active-run.ts";
+import { cancelTranscriptionForUser } from "#lib/server/transcription/cancel.ts";
 
 const ACTIVE_LEASE = { attempts: 1, maxAttempts: 3, expiresInSeconds: 60 };
 

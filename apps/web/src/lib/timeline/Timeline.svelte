@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { on } from "svelte/events";
-  import { THEME_CHANGE_EVENT } from "$lib/shared/theme";
+  import { THEME_CHANGE_EVENT } from "#lib/shared/theme.ts";
   import TimelineCue from "./TimelineCue.svelte";
   import TimelineStatus from "./TimelineStatus.svelte";
   import TimelineToolbar from "./TimelineToolbar.svelte";
@@ -13,7 +13,7 @@
     type CueTiming,
     type TimingGesture,
   } from "./math";
-  import type { ProbeState } from "$lib/shared/project-status";
+  import type { ProbeState } from "#lib/shared/project-status.ts";
   import { focusableCueIndex, nextRovingIndex } from "./roving-focus";
   import { MAX_ZOOM, TimelineViewport } from "./viewport.svelte";
   import { chooseWaveformLevel, waveformFitsTimeline } from "./waveform";

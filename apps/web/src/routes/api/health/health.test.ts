@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { db } from "$lib/server/db";
+import { db } from "#lib/server/db/index.ts";
 
 import { GET } from "./+server";
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { ADMIN_SECTIONS } from "$lib/admin/sections";
-  import Icon from "$lib/components/Icon.svelte";
+  import { ADMIN_SECTIONS } from "#lib/admin/sections.ts";
+  import Icon from "#lib/components/Icon.svelte";
 
   let { data, children } = $props();
 </script>

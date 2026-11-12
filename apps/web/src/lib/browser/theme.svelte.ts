@@ -6,7 +6,7 @@ import {
   THEME_STORAGE_KEY,
   type ResolvedTheme,
   type ThemePreference,
-} from "$lib/shared/theme";
+} from "#lib/shared/theme.ts";
 import { readStorage, writeStorage } from "./safe-storage";
 
 export const SYSTEM_DARK_QUERY = "(prefers-color-scheme: dark)";

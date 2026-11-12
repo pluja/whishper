@@ -1,13 +1,13 @@
 <script lang="ts">
-  import AuthLayout from "$lib/components/AuthLayout.svelte";
-  import Button from "$lib/components/ui/Button.svelte";
-  import Field from "$lib/components/ui/Field.svelte";
-  import Input from "$lib/components/ui/Input.svelte";
+  import AuthLayout from "#lib/components/AuthLayout.svelte";
+  import Button from "#lib/components/ui/Button.svelte";
+  import Field from "#lib/components/ui/Field.svelte";
+  import Input from "#lib/components/ui/Input.svelte";
   import {
     PASSWORD_MAX_LENGTH,
     PASSWORD_MIN_LENGTH,
     RECOVERY_CODE_LIFETIME_MINUTES,
-  } from "$lib/shared/limits";
+  } from "#lib/shared/limits.ts";
 
   let { form } = $props();
 

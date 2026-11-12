@@ -1,6 +1,6 @@
 import type { WorkerDevice } from "@anysub/contracts";
 
-import type { WorkerStorageSpace } from "$lib/shared/model-inventory";
+import type { WorkerStorageSpace } from "#lib/shared/model-inventory.ts";
 
 export type WorkerState = "busy" | "idle" | "offline";
 

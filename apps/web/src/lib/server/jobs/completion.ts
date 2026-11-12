@@ -7,20 +7,24 @@ import type {
 } from "@anysub/contracts";
 import { and, eq } from "drizzle-orm";
 
-import { db, type Executor } from "$lib/server/db";
-import { jobs, subtitleTracks, transcriptionRuns } from "$lib/server/db/schema";
-import { withTransaction } from "$lib/server/db/transaction";
-import { unprocessable } from "$lib/server/http/errors";
-import { holdsActiveLease } from "$lib/server/jobs/predicates";
-import { RELEASED_LEASE } from "$lib/server/jobs/release";
+import { db, type Executor } from "#lib/server/db/index.ts";
+import {
+  jobs,
+  subtitleTracks,
+  transcriptionRuns,
+} from "#lib/server/db/schema.ts";
+import { withTransaction } from "#lib/server/db/transaction.ts";
+import { unprocessable } from "#lib/server/http/errors.ts";
+import { holdsActiveLease } from "#lib/server/jobs/predicates.ts";
+import { RELEASED_LEASE } from "#lib/server/jobs/release.ts";
 import {
   commitMediaFinalization,
   linkMediaArtifacts,
   recordMediaFinalization,
   rollbackMediaFinalization,
-} from "$lib/server/media/finalize";
-import { withKeyedLock } from "$lib/server/storage/keyed-lock";
-import { insertCues } from "$lib/server/subtitles/cues";
+} from "#lib/server/media/finalize.ts";
+import { withKeyedLock } from "#lib/server/storage/keyed-lock.ts";
+import { insertCues } from "#lib/server/subtitles/cues.ts";
 
 type CompletionOutcome = "completed" | "already-completed" | "lease-rejected";
 

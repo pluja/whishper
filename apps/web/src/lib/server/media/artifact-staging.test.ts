@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const dataRoot = vi.hoisted(() => ({ path: "" }));
 
-vi.mock("$lib/server/env", () => ({
+vi.mock("#lib/server/env.ts", () => ({
   privateEnv: {
     databaseFile: ":memory:",
     get dataRoot() {

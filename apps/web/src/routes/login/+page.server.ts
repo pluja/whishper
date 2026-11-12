@@ -1,11 +1,11 @@
-import { auth } from "$lib/server/auth/auth";
-import { isAuthError } from "$lib/server/auth/errors";
-import { isInstanceInitialized } from "$lib/server/auth/instance";
+import { auth } from "#lib/server/auth/auth.ts";
+import { isAuthError } from "#lib/server/auth/errors.ts";
+import { isInstanceInitialized } from "#lib/server/auth/instance.ts";
 import {
   attemptKeys,
   retryMessage,
   signInThrottle,
-} from "$lib/server/auth/throttle";
+} from "#lib/server/auth/throttle.ts";
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 

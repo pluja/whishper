@@ -1,17 +1,17 @@
 import type { ModelCacheAction } from "@anysub/contracts";
 
-import { requireAdminOrLogin } from "$lib/server/auth/session";
-import { db } from "$lib/server/db";
-import { runFormAction } from "$lib/server/http/actions";
-import { badRequest, conflict } from "$lib/server/http/errors";
-import { workerModelInventories } from "$lib/server/models/inventory";
+import { requireAdminOrLogin } from "#lib/server/auth/session.ts";
+import { db } from "#lib/server/db/index.ts";
+import { runFormAction } from "#lib/server/http/actions.ts";
+import { badRequest, conflict } from "#lib/server/http/errors.ts";
+import { workerModelInventories } from "#lib/server/models/inventory.ts";
 import {
   cancelModelTask,
   requestModelTask,
   type ModelTaskRequest,
-} from "$lib/server/models/tasks";
-import { readTranscriptionDefaults } from "$lib/server/settings/instance";
-import { isUuid } from "$lib/shared/uuid";
+} from "#lib/server/models/tasks.ts";
+import { readTranscriptionDefaults } from "#lib/server/settings/instance.ts";
+import { isUuid } from "#lib/shared/uuid.ts";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ locals }) => {

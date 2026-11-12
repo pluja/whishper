@@ -9,22 +9,22 @@ import { describe, expect, it } from "vitest";
 
 import { asc, eq } from "drizzle-orm";
 
-import { db } from "$lib/server/db";
+import { db } from "#lib/server/db/index.ts";
 import {
   cues as cuesTable,
   jobs,
   subtitleTracks,
   transcriptionRuns,
   workers,
-} from "$lib/server/db/schema";
+} from "#lib/server/db/schema.ts";
 import {
   seedLeasedTranscriptionJob,
   seedProject,
-} from "$lib/server/db/testing/fixtures";
-import { completeJob } from "$lib/server/jobs/completion";
-import { failJob } from "$lib/server/jobs/failure";
-import { leaseJob } from "$lib/server/jobs/lease";
-import { isUuid } from "$lib/shared/uuid";
+} from "#lib/server/db/testing/fixtures.ts";
+import { completeJob } from "#lib/server/jobs/completion.ts";
+import { failJob } from "#lib/server/jobs/failure.ts";
+import { leaseJob } from "#lib/server/jobs/lease.ts";
+import { isUuid } from "#lib/shared/uuid.ts";
 
 const ACTIVE_LEASE = { attempts: 1, maxAttempts: 3, expiresInSeconds: 60 };
 

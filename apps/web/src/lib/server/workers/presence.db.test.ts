@@ -4,12 +4,12 @@ import type { WorkerManifest } from "@anysub/contracts";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { db } from "$lib/server/db";
-import { workers } from "$lib/server/db/schema";
+import { db } from "#lib/server/db/index.ts";
+import { workers } from "#lib/server/db/schema.ts";
 import {
   activeWorkerManifests,
   recordWorkerPresence,
-} from "$lib/server/workers/presence";
+} from "#lib/server/workers/presence.ts";
 
 function manifest(): WorkerManifest {
   return {

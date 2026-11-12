@@ -1,15 +1,15 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
-  import DefaultModelPicker from "$lib/admin/DefaultModelPicker.svelte";
-  import { FormSubmission } from "$lib/admin/form-submission.svelte";
-  import LineLengthSetting from "$lib/admin/LineLengthSetting.svelte";
-  import PrecisionChoice from "$lib/admin/PrecisionChoice.svelte";
-  import SectionHeader from "$lib/admin/SectionHeader.svelte";
-  import SettingsCard from "$lib/admin/SettingsCard.svelte";
-  import Icon from "$lib/components/Icon.svelte";
-  import Button from "$lib/components/ui/Button.svelte";
-  import LanguagePicker from "$lib/studio/LanguagePicker.svelte";
-  import { DETECT_LANGUAGE } from "$lib/shared/languages";
+  import DefaultModelPicker from "#lib/admin/DefaultModelPicker.svelte";
+  import { FormSubmission } from "#lib/admin/form-submission.svelte.ts";
+  import LineLengthSetting from "#lib/admin/LineLengthSetting.svelte";
+  import PrecisionChoice from "#lib/admin/PrecisionChoice.svelte";
+  import SectionHeader from "#lib/admin/SectionHeader.svelte";
+  import SettingsCard from "#lib/admin/SettingsCard.svelte";
+  import Icon from "#lib/components/Icon.svelte";
+  import Button from "#lib/components/ui/Button.svelte";
+  import LanguagePicker from "#lib/studio/LanguagePicker.svelte";
+  import { DETECT_LANGUAGE } from "#lib/shared/languages.ts";
 
   let { data, form } = $props();
 

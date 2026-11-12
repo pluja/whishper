@@ -1,22 +1,22 @@
 import {
   projectForUser,
   type MemberProject,
-} from "$lib/server/projects/access";
-import { requireUser } from "$lib/server/auth/session";
-import { db } from "$lib/server/db";
-import { listTrackCues } from "$lib/server/subtitles/cues";
-import { trackForProject } from "$lib/server/subtitles/tracks";
+} from "#lib/server/projects/access.ts";
+import { requireUser } from "#lib/server/auth/session.ts";
+import { db } from "#lib/server/db/index.ts";
+import { listTrackCues } from "#lib/server/subtitles/cues.ts";
+import { trackForProject } from "#lib/server/subtitles/tracks.ts";
 import {
   isTrackExportFormat,
   type TrackExportFormat,
-} from "$lib/shared/routes";
+} from "#lib/shared/routes.ts";
 import {
   renderPlainText,
   renderSrt,
   renderWebVtt,
   type SubtitleCueSnapshot,
   type SubtitleTrack,
-} from "$lib/shared/subtitles";
+} from "#lib/shared/subtitles.ts";
 import { error } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
