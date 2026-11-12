@@ -17,7 +17,7 @@
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@tus/file-store": "2.1.0",
     "@tus/server": "2.4.1",
-    "better-auth": "1.6.34",
+    "better-auth": "1.7.20",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
     "flag-icons": "7.6.0",
