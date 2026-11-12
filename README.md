@@ -35,6 +35,18 @@ docker compose up -d
 
 Open `http://localhost:5173` and create your account. It asks for a setup code, which you find with `docker compose logs web`.
 
+### NVIDIA GPU
+
+A GPU transcribes several times faster than a CPU. You need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) and a GTX 16xx, RTX 20xx or newer card. In the same folder:
+
+```sh
+curl -fsSLO https://github.com/pluja/anysub/releases/latest/download/compose.cuda.yaml
+echo "COMPOSE_FILE=compose.yaml:compose.cuda.yaml" >> .env
+docker compose up -d
+```
+
+[NVIDIA GPUs](docs/GPU.md) has the details and what to do when it fails. AMD and Intel GPUs aren't supported yet, but we plan to add them.
+
 [Install](docs/INSTALL.md) covers requirements, Podman, NVIDIA GPUs, reverse proxies and building from source.
 
 ## Coming from Whishper 3

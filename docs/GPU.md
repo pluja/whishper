@@ -74,4 +74,4 @@ Remove the `COMPOSE_FILE` line from `.env` and run `docker compose up -d`.
 
 ## AMD and Intel GPUs
 
-Not supported.
+Not supported yet. We plan to add them.
