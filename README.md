@@ -25,29 +25,33 @@ It is the successor to Whishper, rewritten from scratch.
 
 ## Install
 
-On a Linux x86-64 host with Docker and Docker Compose:
+You need Linux on x86-64 with Docker and Docker Compose.
 
-```sh
-mkdir anysub && cd anysub
-curl -fsSLO https://github.com/pluja/anysub/releases/latest/download/compose.yaml
-docker compose up -d
-```
+1. Create a folder and download the Compose file:
 
-Open `http://localhost:5173` and create your account. It asks for a setup code, which you find with `docker compose logs web`.
+   ```sh
+   mkdir anysub && cd anysub
+   curl -fsSLO https://github.com/pluja/anysub/releases/latest/download/compose.yaml
+   ```
 
-### NVIDIA GPU
+2. **Optional, NVIDIA GPU only.** Skip to step 3 if you don't have an NVIDIA GPU. Otherwise, download the GPU file into the same folder and turn it on. You need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) and a GTX 16xx, RTX 20xx or newer card.
 
-A GPU transcribes several times faster than a CPU. You need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) and a GTX 16xx, RTX 20xx or newer card. In the same folder:
+   ```sh
+   curl -fsSLO https://github.com/pluja/anysub/releases/latest/download/compose.cuda.yaml
+   echo "COMPOSE_FILE=compose.yaml:compose.cuda.yaml" >> .env
+   ```
 
-```sh
-curl -fsSLO https://github.com/pluja/anysub/releases/latest/download/compose.cuda.yaml
-echo "COMPOSE_FILE=compose.yaml:compose.cuda.yaml" >> .env
-docker compose up -d
-```
+3. Start Anysub:
 
-[NVIDIA GPUs](docs/GPU.md) has the details and what to do when it fails. AMD and Intel GPUs aren't supported yet, but we plan to add them.
+   ```sh
+   docker compose up -d
+   ```
 
-[Install](docs/INSTALL.md) covers requirements, Podman, NVIDIA GPUs, reverse proxies and building from source.
+4. Open `http://localhost:5173` and create your account. It asks for a setup code, which `docker compose logs web` shows.
+
+A GPU transcribes several times faster than a CPU. AMD and Intel GPUs aren't supported yet, but we plan to add them.
+
+[Install](docs/INSTALL.md) covers Podman, reverse proxies and building from source. [NVIDIA GPUs](docs/GPU.md) helps when the GPU doesn't work.
 
 ## Coming from Whishper 3
 
