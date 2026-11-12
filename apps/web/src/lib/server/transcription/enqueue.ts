@@ -85,8 +85,8 @@ export function enqueueTranscription(
   projectId: string,
   userId: string,
   request: TranscriptionRequest,
-): void {
-  withTransaction((tx) => {
+): string {
+  return withTransaction((tx) => {
     const project = projectForUser(tx, projectId, userId);
     if (!project) throw notFound("Project not found.");
     if (!project.mediaOriginalKey) {
@@ -149,6 +149,7 @@ export function enqueueTranscription(
         payload,
       })
       .run();
+    return run.id;
   });
 }
 

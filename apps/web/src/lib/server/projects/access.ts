@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import type { Executor } from "#lib/server/db/index.ts";
 import { memberships, projects } from "#lib/server/db/schema.ts";
+import { notFound } from "#lib/server/http/errors.ts";
 
 export type MemberProject = {
   id: string;
@@ -48,6 +49,16 @@ export function projectForUser(
   userId: string,
 ): MemberProject | null {
   return findProject(executor, projectId, userId, false);
+}
+
+export function requireMemberProject(
+  executor: Executor,
+  projectId: string,
+  userId: string,
+): MemberProject {
+  const project = projectForUser(executor, projectId, userId);
+  if (!project) throw notFound("Project not found.");
+  return project;
 }
 
 export function manageableProjectForUser(
