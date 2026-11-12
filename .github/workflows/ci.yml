@@ -77,8 +77,8 @@ jobs:
       - run: uv run pytest
 
   # Fails on known vulnerabilities in what the images ship. Web ignores live in
-  # pnpm-workspace.yaml under auditConfig. PyTorch comes from its own index, so
-  # pip-audit cannot check it.
+  # pnpm-workspace.yaml under auditConfig, worker ignores in the pip-audit step.
+  # PyTorch comes from its own index, so pip-audit cannot check it.
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest
@@ -98,13 +98,18 @@ jobs:
         with:
           version: 0.11.25 # Matches the uv FROM tag in workers/inference/Dockerfile.
 
+      # The transformers advisories cover loading untrusted models, training and
+      # saving models. The worker only loads the models in its manifest and does
+      # none of the rest. Their fixes need transformers 5, which WhisperX 3.8.6
+      # blocks. Remove these ignores once WhisperX 3.8.7 is in.
       - name: pip-audit
         working-directory: workers/inference
         run: |
+          ignored=(PYSEC-2025-217 PYSEC-2026-2288 PYSEC-2026-2289 PYSEC-2026-2290 PYSEC-2026-3929 PYSEC-2026-4174)
           for extra in cpu cuda; do
             uv export --locked --no-dev --no-hashes --no-emit-project \
-              --extra "$extra" --output-file "$RUNNER_TEMP/requirements-$extra.txt"
-            uvx pip-audit==2.10.1 --no-deps --disable-pip \
+              --extra speech --extra "$extra" --output-file "$RUNNER_TEMP/requirements-$extra.txt"
+            uvx pip-audit==2.10.1 --no-deps --disable-pip "${ignored[@]/#/--ignore-vuln=}" \
               --requirement "$RUNNER_TEMP/requirements-$extra.txt"
           done
 
