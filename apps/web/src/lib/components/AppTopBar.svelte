@@ -27,6 +27,16 @@
     </a>
 
     <div class="flex items-center gap-1">
+      {#if isAdmin}
+        <a
+          href="/admin"
+          class={buttonClasses("ghost", "md", true)}
+          aria-label="Administration"
+          title="Administration"
+        >
+          <Icon name="settings" />
+        </a>
+      {/if}
       <ThemeMenu />
       <Menu label="Account" align="end">
         {#snippet trigger(args)}

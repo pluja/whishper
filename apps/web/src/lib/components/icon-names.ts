@@ -38,6 +38,7 @@ export type IconName =
   | "playhead"
   | "key"
   | "shield"
+  | "settings"
   | "cube"
   | "sliders"
   | "hard-drive"

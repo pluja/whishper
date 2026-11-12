@@ -1,6 +1,6 @@
 # Administration
 
-Open **Administration** from the account menu. It has five pages: **Local models**, **External providers**, **Transcription**, **Storage** and **Workers**. The Anysub version is at the top right; include it in bug reports.
+Open **Administration** with the gear button in the top bar, or from the account menu. It has five pages: **Local models**, **External providers**, **Transcription**, **Storage** and **Workers**. The Anysub version is at the top right; include it in bug reports.
 
 Container settings, such as the port, go in `.env` instead. See [Configuration](CONFIGURATION.md).
 
