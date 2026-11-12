@@ -4,9 +4,7 @@
 
 <h1 align="center">Anysub</h1>
 
-Anysub turns audio and video into subtitles with an easy-to-use web UI. Everything runs on your own machine.
-
-It is the successor to Whishper, rewritten from scratch.
+Anysub (formerly Whishper) makes subtitles from audio and video. Upload a recording, let Whisper transcribe it, then fix the text and timing in the editor and export. It runs on your own computer or server.
 
 <p align="center">
   <img src="docs/images/studio.webp" alt="The Anysub studio with the video, the subtitle list and the waveform timeline" width="900">
