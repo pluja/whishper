@@ -1,3 +1,5 @@
+import type { ProviderBrand } from "#lib/shared/provider-brands.ts";
+
 export const PROVIDER_NAME_MAX_LENGTH = 60;
 
 export type NewProviderModel = { remoteId: string; displayName: string };
@@ -14,6 +16,7 @@ export type AdminProviderModel = {
 export type AdminProvider = {
   id: string;
   name: string;
+  brand: ProviderBrand | null;
   baseUrl: string;
   host: string;
   hasApiKey: boolean;

@@ -1,4 +1,5 @@
 import { isRecord } from "#lib/shared/is-record.ts";
+import type { ProviderBrand } from "#lib/shared/provider-brands.ts";
 
 export type ModelFit = "good" | "caution" | "poor" | "unknown";
 
@@ -8,6 +9,7 @@ export const REMOTE_ADAPTER_ID = "remote";
 
 export type RemoteModelDetails = {
   providerName: string;
+  brand: ProviderBrand | null;
   // Where the audio goes, shown so nobody sends it there by accident.
   host: string;
   priceMicrosPerMinute: number | null;

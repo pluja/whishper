@@ -299,7 +299,11 @@
     >
       {#each sections as section, sectionIndex}
         {#if section.label}
-          <div role="group" aria-labelledby="{id}-group-{sectionIndex}">
+          <div
+            role="group"
+            aria-labelledby="{id}-group-{sectionIndex}"
+            class={sectionIndex > 0 ? "mt-1 border-t border-border" : ""}
+          >
             <div
               id="{id}-group-{sectionIndex}"
               class="px-3 pt-3 pb-1 text-xs font-medium text-text-muted"

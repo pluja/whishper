@@ -20,6 +20,7 @@ import {
   type AdminProviderModel,
   type NewProviderModel,
 } from "#lib/shared/providers.ts";
+import { detectProviderBrand } from "#lib/shared/provider-brands.ts";
 import {
   modelKey,
   REMOTE_ADAPTER_ID,
@@ -192,6 +193,7 @@ export function adminProviders(executor: Executor = db): AdminProvider[] {
   return providers.map((provider) => ({
     id: provider.id,
     name: provider.name,
+    brand: detectProviderBrand(provider.name, provider.baseUrl),
     baseUrl: provider.baseUrl,
     host: hostOf(provider.baseUrl),
     hasApiKey: provider.apiKey !== null,
@@ -251,6 +253,7 @@ export function remoteTranscriptionModels(
         fitReason: `Runs on ${row.providerName}, not on this server.`,
         remote: {
           providerName: row.providerName,
+          brand: detectProviderBrand(row.providerName, row.baseUrl),
           host,
           priceMicrosPerMinute: row.priceMicrosPerMinute,
         },

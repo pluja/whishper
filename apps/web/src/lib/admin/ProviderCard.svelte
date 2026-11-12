@@ -6,6 +6,7 @@
   import ProviderForm from "#lib/admin/ProviderForm.svelte";
   import ProviderModelRow from "#lib/admin/ProviderModelRow.svelte";
   import Icon from "#lib/components/Icon.svelte";
+  import ProviderIcon from "#lib/components/provider-icons/ProviderIcon.svelte";
   import Button from "#lib/components/ui/Button.svelte";
   import Field from "#lib/components/ui/Field.svelte";
   import IconButton from "#lib/components/ui/IconButton.svelte";
@@ -48,7 +49,7 @@
       class="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent"
       aria-hidden="true"
     >
-      <Icon name="globe" size={18} />
+      <ProviderIcon name={provider.name} brand={provider.brand} size={18} />
     </span>
     <div class="grid min-w-0 flex-1 gap-0.5">
       <h3 id="provider-{provider.id}" class="text-base font-semibold text-text">
