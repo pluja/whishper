@@ -16,6 +16,7 @@ catalog:
 # refuses workspace dependencies that are not injected before pnpm 12.2.
 injectWorkspacePackages: true
 
+# better-sqlite3 ships prebuilt addons, so its install step has nothing to do.
 allowBuilds:
-  better-sqlite3: true
+  better-sqlite3: false
   esbuild: true

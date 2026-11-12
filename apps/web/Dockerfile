@@ -13,12 +13,6 @@ RUN corepack enable && corepack install
 
 FROM base AS deps
 
-# better-sqlite3 compiles its native addon during install. The runtime stage
-# receives the compiled module, not the toolchain.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends g++ make python3 \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
@@ -32,6 +26,14 @@ FROM deps AS builder
 COPY . .
 RUN pnpm --filter @anysub/web build \
     && pnpm --filter @anysub/web deploy --prod /opt/anysub
+
+# better-sqlite3 ships a prebuilt addon for each platform and loads the one for
+# the host. Keep only that one, and drop the sources it would compile from.
+RUN cd "$(realpath /opt/anysub/node_modules/better-sqlite3)" \
+    && addon="prebuilds/$(node -p 'process.platform + "-" + process.arch').node" \
+    && test -f "$addon" \
+    && find prebuilds -type f ! -path "$addon" -delete \
+    && rm -rf deps src binding.gyp
 
 FROM docker.io/library/node:24.22.2-bookworm-slim AS runtime
 
