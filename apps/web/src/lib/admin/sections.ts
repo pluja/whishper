@@ -7,7 +7,8 @@ export type AdminSection = {
 };
 
 export const ADMIN_SECTIONS: AdminSection[] = [
-  { href: "/admin/models", label: "Models", icon: "cube" },
+  { href: "/admin/models", label: "Local models", icon: "cube" },
+  { href: "/admin/providers", label: "External providers", icon: "globe" },
   { href: "/admin/transcription", label: "Transcription", icon: "sliders" },
   { href: "/admin/storage", label: "Storage", icon: "hard-drive" },
   { href: "/admin/workers", label: "Workers", icon: "server" },

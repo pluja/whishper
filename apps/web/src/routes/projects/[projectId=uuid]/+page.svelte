@@ -234,6 +234,7 @@
       preparation={status.preparation}
       mediaPreparationStatus={data.project.mediaPreparationStatus}
       hasSourceMedia={data.project.hasSourceMedia}
+      mediaDurationUs={data.project.mediaDurationUs}
       transcriptionModels={data.transcriptionModels}
       detectedHardware={data.detectedHardware}
       transcriptionDefaults={data.transcriptionDefaults}
@@ -263,6 +264,7 @@
       models={data.transcriptionModels}
       hardware={data.detectedHardware}
       defaults={data.transcriptionDefaults}
+      mediaDurationUs={data.project.mediaDurationUs}
       onbeforesubmit={saveBeforeTranscribing}
     />
   {/if}

@@ -95,6 +95,12 @@ Workers do not connect to the application database. They poll the internal API, 
 
 This rule protects the domain model from worker implementations and allows remote or managed workers later.
 
+## External providers
+
+Administrators add OpenAI-compatible speech APIs and choose which of their models Anysub offers. The application stores providers and models in its database, and lists those models next to the workers' own while a connected worker reports the `remoteTranscription` capability. Their jobs use the reserved adapter ID `remote`, which no installed adapter may claim.
+
+The worker runs these jobs itself, without an adapter: it encodes the audio as small mono MP3 files, splits recordings longer than 10 minutes at pauses, sends up to three parts at once, and asks for word and segment timestamps. It then places every part on the media timeline and splits the result into subtitles by line length. Models that return text without timestamps cannot make subtitles, so the application refuses them.
+
 ## Model adapter boundary
 
 The worker core does not import Faster-Whisper, WhisperX, or another model library directly. It discovers adapter packages through the `anysub.adapters` Python entry-point group. Each adapter publishes a manifest with its protocol version, adapter version, models, languages, capabilities, and a JSON Schema for model-specific options.
@@ -303,6 +309,7 @@ A monotonic track revision rejects a save made against an older copy, so concurr
 ## Security and privacy
 
 - Anysub sends zero telemetry.
+- A speech provider receives a project's audio only when someone transcribes it with that provider's model. The application hands the provider's API key to the worker with each lease and never stores it in a job.
 - Logs omit transcript text, media content, credentials, and sensitive filenames by default.
 - Workers share one installation-wide token. Planned: remote workers enroll through the administrator and receive narrowly scoped credentials.
 - Planned: remote worker traffic requires HTTPS outside the Compose network.

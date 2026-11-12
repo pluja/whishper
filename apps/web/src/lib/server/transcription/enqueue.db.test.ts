@@ -8,6 +8,14 @@ import { jobs } from "#lib/server/db/schema.ts";
 import { seedProject } from "#lib/server/db/testing/fixtures.ts";
 import { updateInstanceSettings } from "#lib/server/settings/instance.ts";
 import { enqueueTranscription } from "#lib/server/transcription/enqueue.ts";
+import {
+  connectWorker as connectManifest,
+  enqueueRemote,
+  onlyJob,
+  remoteWorker,
+  seedRemoteModel,
+  TEST_API_KEY,
+} from "#lib/server/db/testing/remote.ts";
 import { recordWorkerPresence } from "#lib/server/workers/presence.ts";
 
 function connectWorker(optionsSchema: Record<string, unknown>): void {
@@ -30,7 +38,11 @@ function connectWorker(optionsSchema: Record<string, unknown>): void {
     name: "local-worker",
     version: "1.0.0",
     architecture: "x86_64",
-    capabilities: { mediaPreparation: null, modelCache: null },
+    capabilities: {
+      mediaPreparation: null,
+      modelCache: null,
+      remoteTranscription: null,
+    },
     adapters: [
       {
         protocolVersion: "1.0",
@@ -76,5 +88,19 @@ describe("enqueueTranscription", () => {
     updateInstanceSettings({ precision: "memory" });
 
     expect(transcribe()).not.toHaveProperty("precision");
+  });
+});
+
+describe("enqueueTranscription with a remote model", () => {
+  it("queue with only the options they take", () => {
+    connectManifest(remoteWorker(true));
+    const { modelId } = seedRemoteModel();
+
+    enqueueRemote(modelId);
+
+    const job = onlyJob();
+    if (job.payload.kind !== "transcribe") throw new Error("Expected a job");
+    expect(job.payload.options).toEqual({ maxLineLength: 32 });
+    expect(JSON.stringify(job.payload)).not.toContain(TEST_API_KEY);
   });
 });

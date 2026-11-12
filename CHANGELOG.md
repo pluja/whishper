@@ -2,6 +2,12 @@
 
 Anysub follows [Semantic Versioning](https://semver.org). The web and worker images always share one version. Each release lists what changed for the people who run and use Anysub.
 
+## [Unreleased]
+
+### Added
+
+- External providers: transcribe with OpenAI, Groq or any service that offers OpenAI's transcription API. Add them under **Administration > External providers**, pick their models from the service's list, and set a price per minute to see what a run costs. Their models appear next to the local ones, and the form says where the audio goes. See [External providers](docs/PROVIDERS.md).
+
 ## [4.1.0] - 2026-11-12
 
 This release moves the web app to new versions of its main libraries. Nothing changes in how Anysub works.

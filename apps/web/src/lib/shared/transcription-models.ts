@@ -1,4 +1,17 @@
+import { isRecord } from "#lib/shared/is-record.ts";
+
 export type ModelFit = "good" | "caution" | "poor" | "unknown";
+
+// The worker protocol's adapter ID for models on a remote speech API, which
+// no installed adapter may use.
+export const REMOTE_ADAPTER_ID = "remote";
+
+export type RemoteModelDetails = {
+  providerName: string;
+  // Where the audio goes, shown so nobody sends it there by accident.
+  host: string;
+  priceMicrosPerMinute: number | null;
+};
 
 export type TranscriptionModel = {
   key: string;
@@ -16,6 +29,7 @@ export type TranscriptionModel = {
   fit: ModelFit;
   fitLabel: string;
   fitReason: string;
+  remote: RemoteModelDetails | null;
 };
 
 export type AvailableTranscriptionModel = TranscriptionModel & {
@@ -55,4 +69,11 @@ export function defaultModelKey(
       models[0]
     )?.key ?? ""
   );
+}
+
+export function acceptsOption(
+  optionsSchema: Record<string, unknown>,
+  name: string,
+): boolean {
+  return isRecord(optionsSchema.properties) && name in optionsSchema.properties;
 }

@@ -1,17 +1,21 @@
-import type {
-  AdapterManifest,
-  AdapterModel,
-  WorkerHardware,
-  WorkerManifest,
+import {
+  REMOTE_TRANSCRIPTION_VERSION,
+  type AdapterManifest,
+  type AdapterModel,
+  type WorkerHardware,
+  type WorkerManifest,
 } from "@anysub/contracts";
+
+import type { Executor } from "#lib/server/db/index.ts";
+import { remoteTranscriptionModels } from "#lib/server/transcription/providers.ts";
 
 import { formatBytes } from "#lib/shared/format.ts";
 import {
   PRECISION_MEMORY_FACTORS,
   type Precision,
 } from "#lib/shared/instance-settings.ts";
-import { isRecord } from "#lib/shared/is-record.ts";
 import {
+  acceptsOption,
   modelKey,
   type AvailableTranscriptionModel,
   type DetectedWorkerHardware,
@@ -59,6 +63,23 @@ export function availableTranscriptionModels(
   return [...models.values()].sort(compareModels);
 }
 
+export function supportsRemoteTranscription(manifest: WorkerManifest): boolean {
+  return (
+    manifest.capabilities.remoteTranscription === REMOTE_TRANSCRIPTION_VERSION
+  );
+}
+
+// Remote models need a worker too: it prepares the audio and calls the API.
+export function transcriptionModelChoices(
+  executor: Executor,
+  manifests: WorkerManifest[],
+  precision: Precision,
+): AvailableTranscriptionModel[] {
+  const local = availableTranscriptionModels(manifests, precision);
+  if (!manifests.some(supportsRemoteTranscription)) return local;
+  return [...local, ...remoteTranscriptionModels(executor)];
+}
+
 export function describeModel(
   adapter: AdapterManifest,
   model: AdapterModel,
@@ -78,6 +99,7 @@ export function describeModel(
     downloaded: model.downloaded,
     recommended: isRecommended(model, fit.fit),
     ...fit,
+    remote: null,
   };
 }
 
@@ -134,13 +156,6 @@ function mergeDownloadedState(
   if (left === true || right === true) return true;
   if (left === false || right === false) return false;
   return null;
-}
-
-export function acceptsOption(
-  optionsSchema: Record<string, unknown>,
-  name: string,
-): boolean {
-  return isRecord(optionsSchema.properties) && name in optionsSchema.properties;
 }
 
 type ModelFitScore = Pick<

@@ -30,7 +30,7 @@ Client folders in `apps/web/src/lib/`: `shared` (code used by server and client)
 
 Pages under `/admin` are for the administrator only. Each page load and each form action calls `requireAdminOrLogin`, because SvelteKit runs form actions without the layout load.
 
-Worker modules in `anysub_worker`: `models` (the Pydantic protocol), `config`, `cli`, `adapter`, `registry`, `hardware`, `threads`, `protocol_schema`, `errors`, `retry`, `timing`, `progress`, `execution`, `runner`, `client`, `uploads`, `model_cache`, `media/` for FFmpeg-based preparation, and `adapters/whisperx/` for the built-in adapter.
+Worker modules in `anysub_worker`: `models` (the Pydantic protocol), `config`, `cli`, `adapter`, `registry`, `hardware`, `threads`, `protocol_schema`, `errors`, `retry`, `timing`, `progress`, `execution`, `runner`, `client`, `uploads`, `model_cache`, `options` for the option types adapters share, `workspace`, `media/` for FFmpeg-based preparation, `transcripts/` for turning timed segments into subtitles, `remote/` for transcription with external providers, and `adapters/whisperx/` for the built-in adapter.
 
 ## Naming and structure
 

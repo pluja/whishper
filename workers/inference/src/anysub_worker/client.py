@@ -17,6 +17,7 @@ from .hardware import describe_hardware, detect_hardware, detect_memory, detect_
 from .models import (
     MEDIA_PREPARATION_VERSION,
     MODEL_CACHE_VERSION,
+    REMOTE_TRANSCRIPTION_VERSION,
     JobCompletion,
     JobCompletionReport,
     JobFailure,
@@ -87,7 +88,9 @@ class ApplicationClient:
             version=WORKER_VERSION,
             architecture=platform.machine(),
             capabilities=WorkerCapabilities(
-                mediaPreparation=MEDIA_PREPARATION_VERSION, modelCache=MODEL_CACHE_VERSION
+                mediaPreparation=MEDIA_PREPARATION_VERSION,
+                modelCache=MODEL_CACHE_VERSION,
+                remoteTranscription=REMOTE_TRANSCRIPTION_VERSION,
             ),
             adapters=tuple(adapter.manifest for adapter in self._registry.adapters),
             hardware=self._hardware.model_copy(update={"memory": detect_memory()}),

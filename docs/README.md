@@ -4,6 +4,7 @@
 
 - [Install](INSTALL.md): requirements, the first start, Podman, reverse proxies, building from source.
 - [NVIDIA GPUs](GPU.md): run the worker on a graphics card.
+- [External providers](PROVIDERS.md): transcribe with OpenAI, Groq or another compatible service.
 - [Configuration](CONFIGURATION.md): every setting `.env` can hold, and where data lives.
 - [Upgrading](UPGRADING.md): move to a new version.
 - [Backup and restore](BACKUP.md): copy your data out and back.
@@ -13,7 +14,7 @@
 ## Using Anysub
 
 - [User guide](USER-GUIDE.md): upload, transcribe, edit in the studio, and export.
-- [Administration](ADMINISTRATION.md): models, transcription defaults, storage and workers.
+- [Administration](ADMINISTRATION.md): local models, external providers, transcription defaults, storage and workers.
 
 ## Working on Anysub
 

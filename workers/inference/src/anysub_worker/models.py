@@ -3,18 +3,20 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, Any, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, WithJsonSchema, model_validator
 
 type AdapterProtocolVersion = Literal["1.0"]
 type WorkerProtocolVersion = Literal["1.0"]
 type MediaPreparationVersion = Literal["1.0"]
 type ModelCacheVersion = Literal["1.0"]
+type RemoteTranscriptionVersion = Literal["1.0"]
 type TranscriptSchemaVersion = Literal["1.0"]
 
 ADAPTER_PROTOCOL_VERSION: Final[AdapterProtocolVersion] = "1.0"
 WORKER_PROTOCOL_VERSION: Final[WorkerProtocolVersion] = "1.0"
 MEDIA_PREPARATION_VERSION: Final[MediaPreparationVersion] = "1.0"
 MODEL_CACHE_VERSION: Final[ModelCacheVersion] = "1.0"
+REMOTE_TRANSCRIPTION_VERSION: Final[RemoteTranscriptionVersion] = "1.0"
 TRANSCRIPT_SCHEMA_VERSION: Final[TranscriptSchemaVersion] = "1.0"
 
 
@@ -127,6 +129,9 @@ class WorkerCapabilities(StrictModel):
         default=None, alias="mediaPreparation"
     )
     model_cache: ModelCacheVersion | None = Field(default=None, alias="modelCache")
+    remote_transcription: RemoteTranscriptionVersion | None = Field(
+        default=None, alias="remoteTranscription"
+    )
 
 
 class WorkerStorage(StrictModel):
@@ -317,6 +322,25 @@ class ModelCacheJobPayload(InboundModel):
 type WorkerJobPayload = TranscriptionJobPayload | MediaPreparationJobPayload | ModelCacheJobPayload
 
 
+# Transcription jobs for this adapter ID run on a speech API the administrator
+# configured. No installed adapter may claim it.
+REMOTE_ADAPTER_ID: Final = "remote"
+
+
+# A secret, so a logged validation error or repr never shows it. On the wire it
+# is a plain string.
+ApiKey = Annotated[SecretStr, WithJsonSchema({"type": "string"})]
+
+
+# Sent with each lease rather than stored in the job, so the API key never lands
+# in job history.
+class RemoteModelAccess(InboundModel):
+    provider_name: str = Field(alias="providerName", min_length=1)
+    base_url: str = Field(alias="baseUrl", min_length=1)
+    api_key: ApiKey | None = Field(default=None, alias="apiKey")
+    model: str = Field(min_length=1)
+
+
 # The part of a lease the worker needs to report on the job, even one it cannot read.
 class JobLease(InboundModel):
     job_id: str = Field(alias="jobId")
@@ -327,6 +351,7 @@ class WorkerLease(JobLease):
     attempt: int = Field(ge=1)
     lease_expires_at: str = Field(alias="leaseExpiresAt")
     payload: WorkerJobPayload
+    remote: RemoteModelAccess | None = None
 
 
 class LeaseResponse(InboundModel):

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 from ..timing import us_to_seconds
 from .errors import MediaPreparationError, MediaToolTimeoutError
@@ -31,6 +32,7 @@ async def run_media_tool(
     *,
     program: str = "ffmpeg",
     on_stdout: Callable[[bytes], None] | None = None,
+    cwd: Path | None = None,
 ) -> MediaToolResult:
     """Runs a media tool to completion.
 
@@ -44,6 +46,7 @@ async def run_media_tool(
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            cwd=cwd,
         )
     except FileNotFoundError as cause:
         raise MediaPreparationError(f"{program} is not installed on this worker.") from cause

@@ -33,7 +33,7 @@
 </script>
 
 <SectionHeader
-  title="Models"
+  title="Local models"
   description="Whisper models turn speech into text. Download the ones you use so transcriptions start right away and work without an internet connection."
 />
 

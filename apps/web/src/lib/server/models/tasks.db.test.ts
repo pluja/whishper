@@ -52,7 +52,11 @@ function connectWorker(
     name: "local-worker",
     version: "1.0.0",
     architecture: "x86_64",
-    capabilities: { mediaPreparation: null, modelCache: MODEL_CACHE_VERSION },
+    capabilities: {
+      mediaPreparation: null,
+      modelCache: MODEL_CACHE_VERSION,
+      remoteTranscription: null,
+    },
     adapters: [
       {
         protocolVersion: "1.0",
@@ -197,7 +201,11 @@ describe("model downloads", () => {
 
   it("need a worker that can manage its models", () => {
     const worker = connectWorker({
-      capabilities: { mediaPreparation: null, modelCache: null },
+      capabilities: {
+        mediaPreparation: null,
+        modelCache: null,
+        remoteTranscription: null,
+      },
     });
 
     expect(() => download(worker.workerId)).toThrow(/cannot download/);

@@ -22,7 +22,7 @@ Nothing. Anysub can't read Whishper's database or import subtitle files yet, so 
 | Data in `./whishper_data`                           | Data in Docker volumes, see [Backup and restore](BACKUP.md)                                 |
 | Open to anyone who can reach it                     | An owner account with a password                                                            |
 | faster-whisper                                      | WhisperX: faster-whisper plus word alignment                                                |
-| Models chosen with `WHISPER_MODELS`                 | Models downloaded under **Administration > Models**                                         |
+| Models chosen with `WHISPER_MODELS`                 | Models downloaded under **Administration > Local models**                                   |
 | Subtitle editor with CPS warnings                   | Studio with a waveform timeline, undo, autosave, and warnings for speed, length and overlap |
 | Download as TXT, JSON, VTT or SRT                   | Export as TXT, SRT, WebVTT, or Anysub JSON with word timings                                |
 | Translation with LibreTranslate                     | Not available yet                                                                           |
@@ -47,7 +47,7 @@ Anysub JSON is a new format, not the one Whishper exported.
 
 | Whishper 3 setting                               | In Anysub                                                                                                                   |
 | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `WHISPER_MODELS`                                 | **Administration > Models**. Any model downloads on its first use too.                                                      |
+| `WHISPER_MODELS`                                 | **Administration > Local models**. Any model downloads on its first use too.                                                |
 | `WHISHPER_HOST`, `PUBLIC_API_HOST`               | Not needed. Behind an HTTPS reverse proxy, set `BETTER_AUTH_URL`, see [Reverse proxy](INSTALL.md#reverse-proxy).            |
 | `DB_USER`, `DB_PASS`                             | Not needed. The database is a file in a volume.                                                                             |
 | `LT_LOAD_ONLY` and other LibreTranslate settings | Not needed. There is no translation yet.                                                                                    |

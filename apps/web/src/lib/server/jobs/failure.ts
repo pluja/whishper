@@ -12,6 +12,7 @@ import { withTransaction } from "#lib/server/db/transaction.ts";
 import { holdsActiveLease } from "#lib/server/jobs/predicates.ts";
 import { RELEASED_LEASE } from "#lib/server/jobs/release.ts";
 import { cleanupStagedMediaAttempt } from "#lib/server/media/artifact-staging.ts";
+import { REMOTE_ADAPTER_ID } from "#lib/shared/transcription-models.ts";
 
 const RETRY_DELAY_MS = 5_000;
 
@@ -72,6 +73,23 @@ export async function failJob(
   return true;
 }
 
+// For a queued job the application itself cannot hand out, such as one whose
+// remote model was removed.
+export function failUnleasableJob(
+  tx: Executor,
+  jobId: string,
+  payload: WorkerJobPayload,
+  failure: StoredJobError,
+): void {
+  const job = tx
+    .update(jobs)
+    .set({ state: "failed", error: failure, progressMessage: failure.message })
+    .where(and(eq(jobs.id, jobId), eq(jobs.state, "queued")))
+    .returning({ runId: jobs.runId })
+    .get();
+  if (job) syncJobSubject(tx, { runId: job.runId, state: "failed", payload });
+}
+
 export function reclaimExpiredLeases(tx: Executor): ReclaimedMediaAttempt[] {
   const now = new Date();
   const expired = tx
@@ -88,7 +106,7 @@ export function reclaimExpiredLeases(tx: Executor): ReclaimedMediaAttempt[] {
 
   for (const job of expired) {
     const retry = job.attempts < job.maxAttempts;
-    const failure = leaseExpiredFailure(job.payload.kind);
+    const failure = leaseExpiredFailure(job.payload);
     tx.update(jobs)
       .set({
         state: retry ? "queued" : "failed",
@@ -113,13 +131,14 @@ export function reclaimExpiredLeases(tx: Executor): ReclaimedMediaAttempt[] {
 
 // A worker that vanishes during a transcription was usually killed for running
 // out of memory, so that message points at the settings that use less of it.
-function leaseExpiredFailure(kind: WorkerJobPayload["kind"]): StoredJobError {
+function leaseExpiredFailure(payload: WorkerJobPayload): StoredJobError {
+  const localTranscription =
+    payload.kind === "transcribe" && payload.adapterId !== REMOTE_ADAPTER_ID;
   return {
     code: "lease_expired",
-    message:
-      kind === "transcribe"
-        ? "The worker stopped before finishing, often because it ran out of memory. Try a smaller model or a lower batch size."
-        : "The worker stopped before finishing.",
+    message: localTranscription
+      ? "The worker stopped before finishing, often because it ran out of memory. Try a smaller model or a lower batch size."
+      : "The worker stopped before finishing.",
     retryable: false,
   };
 }

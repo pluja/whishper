@@ -23,7 +23,17 @@ import {
 } from "#lib/server/db/testing/fixtures.ts";
 import { completeJob } from "#lib/server/jobs/completion.ts";
 import { failJob } from "#lib/server/jobs/failure.ts";
+import {
+  connectWorker,
+  enqueueRemote,
+  onlyJob,
+  remoteWorker,
+  seedRemoteModel,
+  TEST_API_KEY,
+} from "#lib/server/db/testing/remote.ts";
 import { leaseJob } from "#lib/server/jobs/lease.ts";
+import { removeProviderModel } from "#lib/server/transcription/providers.ts";
+import { REMOTE_ADAPTER_ID } from "#lib/shared/transcription-models.ts";
 import { isUuid } from "#lib/shared/uuid.ts";
 
 const ACTIVE_LEASE = { attempts: 1, maxAttempts: 3, expiresInSeconds: 60 };
@@ -199,7 +209,11 @@ describe("leaseJob reclaim", () => {
       name: "reclaimer",
       version: "1.0.0",
       architecture: "x86_64",
-      capabilities: { mediaPreparation: null, modelCache: null },
+      capabilities: {
+        mediaPreparation: null,
+        modelCache: null,
+        remoteTranscription: null,
+      },
       adapters: [],
       hardware: null,
       modelStorage: null,
@@ -329,5 +343,91 @@ describe("failJob", () => {
       false,
     );
     expect(jobRow(job.jobId).state).toBe("leased");
+  });
+});
+
+describe("remote transcriptions", () => {
+  it("hand the provider details to a capable worker only", async () => {
+    const old = connectWorker(remoteWorker(false));
+    const capable = connectWorker(remoteWorker(true));
+    const { modelId } = seedRemoteModel();
+    enqueueRemote(modelId);
+
+    await expect(leaseJob(old)).resolves.toBeNull();
+    const lease = await leaseJob(capable);
+
+    expect(lease?.remote).toEqual({
+      providerName: "Groq",
+      baseUrl: "https://api.groq.com/openai/v1",
+      apiKey: TEST_API_KEY,
+      model: "whisper-large-v3",
+    });
+  });
+
+  it("fail when the model was removed before a worker took the job", async () => {
+    const capable = connectWorker(remoteWorker(true));
+    const { modelId } = seedRemoteModel();
+    enqueueRemote(modelId);
+    removeProviderModel(modelId);
+
+    await expect(leaseJob(capable)).resolves.toBeNull();
+
+    const job = onlyJob();
+    expect(job.state).toBe("failed");
+    expect(job.error).toMatchObject({ code: "remote_model_removed" });
+    expect(db.select().from(transcriptionRuns).get()?.status).toBe("failed");
+  });
+
+  it("name the transcript after the provider and price its length", async () => {
+    const capable = connectWorker(remoteWorker(true));
+    const { modelId } = seedRemoteModel(6_000);
+    enqueueRemote(modelId);
+    const lease = await leaseJob(capable);
+    if (!lease) throw new Error("Expected a lease");
+    const completion: TranscriptionJobCompletion = {
+      kind: "transcribe",
+      adapter: {
+        id: REMOTE_ADAPTER_ID,
+        version: "4.2.0",
+        modelId: "whisper-large-v3",
+      },
+      artifact: {
+        schemaVersion: "1.0",
+        language: "en",
+        durationUs: 150_000_000,
+        metadata: { provider: "Groq" },
+        cues: [
+          { id: "c1", startUs: 0, endUs: 1_000_000, text: "Hi", words: [] },
+        ],
+      },
+    };
+
+    await completeJob(lease.jobId, lease.leaseToken, completion);
+
+    expect(db.select().from(subtitleTracks).get()?.name).toBe(
+      "Groq · whisper-large-v3",
+    );
+    expect(db.select().from(transcriptionRuns).get()?.estimatedCostMicros).toBe(
+      15_000,
+    );
+  });
+
+  it("do not blame memory when a remote worker vanishes", async () => {
+    const capable = connectWorker(remoteWorker(true));
+    const { modelId } = seedRemoteModel();
+    enqueueRemote(modelId);
+    const lease = await leaseJob(capable);
+    if (!lease) throw new Error("Expected a lease");
+    db.update(jobs)
+      .set({ leaseExpiresAt: new Date(Date.now() - 1_000), attempts: 3 })
+      .where(eq(jobs.id, lease.jobId))
+      .run();
+
+    await leaseJob(remoteWorker(false));
+
+    expect(onlyJob().error).toMatchObject({
+      code: "lease_expired",
+      message: "The worker stopped before finishing.",
+    });
   });
 });

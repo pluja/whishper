@@ -8,7 +8,7 @@ import {
   readTranscriptionDefaults,
   updateInstanceSettings,
 } from "#lib/server/settings/instance.ts";
-import { availableTranscriptionModels } from "#lib/server/transcription/models.ts";
+import { transcriptionModelChoices } from "#lib/server/transcription/models.ts";
 import { activeWorkerManifests } from "#lib/server/workers/presence.ts";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -22,7 +22,7 @@ export const load: PageServerLoad = ({ locals }) => {
   const defaults = readTranscriptionDefaults(db);
   return {
     defaults,
-    models: availableTranscriptionModels(manifests, defaults.precision),
+    models: transcriptionModelChoices(db, manifests, defaults.precision),
     devices: [...devices],
   };
 };

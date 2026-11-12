@@ -6,10 +6,16 @@ import logging
 from collections.abc import Callable
 from importlib import import_module
 from importlib.metadata import version
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from anysub_worker.adapter import AdapterExecutionError, ProgressReporter
+from anysub_worker.adapter import (
+    AdapterExecutionError,
+    AdapterLibraryMissing,
+    ProgressReporter,
+    require_shared_media,
+)
 from anysub_worker.config import AdapterRuntimeSettings
 from anysub_worker.errors import describe_error
 from anysub_worker.hardware import usable_cpu_count
@@ -23,12 +29,12 @@ from anysub_worker.models import (
 from anysub_worker.progress import progress_span
 from anysub_worker.threads import run_in_thread
 from anysub_worker.timing import MICROSECONDS_PER_SECOND
+from anysub_worker.transcripts.normalize import normalize_segments
+from anysub_worker.transcripts.segments import WhisperSegment
 
 from .cache import delete_profile, download_profile
-from .normalize import normalize_segments
 from .options import TranscriptionOptions, options_schema, parse_options
 from .profiles import MODEL_PROFILES, ModelProfile, find_profile
-from .result import WhisperSegment
 from .subtitles import split_subtitle_segments
 
 SAMPLE_RATE = 16_000
@@ -95,7 +101,7 @@ class WhisperXAdapter:
         self, request: TranscriptionRequest, report_progress: ProgressReporter
     ) -> TranscriptArtifact:
         whisperx = _import_whisperx()
-        media_path = self._media_path(request.media_path)
+        media_path = require_shared_media(request.media_path, self._runtime.data_root)
         options = parse_options(request.options, device=self._runtime.device)
         _require_supported_language(request.language)
         profile = self._profile(request.model_id)
@@ -262,21 +268,6 @@ class WhisperXAdapter:
             raise AdapterExecutionError(f"Unknown model: {model_id}.", retryable=False)
         return profile
 
-    def _media_path(self, value: str | None) -> Path:
-        if not value:
-            raise AdapterExecutionError("The transcription job has no media path.", retryable=False)
-        root = self._runtime.data_root.resolve()
-        path = Path(value).resolve()
-        if not path.is_relative_to(root):
-            raise AdapterExecutionError(
-                "The media path is outside the worker data mount.", retryable=False
-            )
-        if not path.is_file():
-            raise AdapterExecutionError(
-                f"The source media is not available at {path}.", retryable=False
-            )
-        return path
-
     def _release_asr_model(self) -> None:
         self._model = None
         self._model_key = None
@@ -289,6 +280,15 @@ class WhisperXAdapter:
     def _release_all_models(self) -> None:
         self._release_asr_model()
         self._release_align_model()
+
+
+class InstalledWhisperXAdapter(WhisperXAdapter):
+    """Skips WhisperX on worker images built without the speech extra."""
+
+    def __init__(self) -> None:
+        if find_spec("whisperx") is None:
+            raise AdapterLibraryMissing("WhisperX is not installed in this worker image")
+        super().__init__()
 
 
 def _import_whisperx() -> Any:

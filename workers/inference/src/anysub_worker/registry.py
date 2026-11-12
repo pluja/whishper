@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import logging
 from importlib.metadata import EntryPoint, entry_points
 from typing import Any
 
-from .adapter import Adapter
+from .adapter import Adapter, AdapterLibraryMissing
 from .errors import JobError
-from .models import AdapterCapability
+from .models import REMOTE_ADAPTER_ID, AdapterCapability
 
 ENTRYPOINT_GROUP = "anysub.adapters"
+LOGGER = logging.getLogger(__name__)
 
 
 class AdapterLoadError(JobError):
@@ -22,6 +24,8 @@ class AdapterRegistry:
         by_id: dict[str, Adapter] = {}
         for adapter in adapters:
             adapter_id = adapter.manifest.id
+            if adapter_id == REMOTE_ADAPTER_ID:
+                raise AdapterLoadError(f"the adapter ID {REMOTE_ADAPTER_ID} is reserved")
             if adapter_id in by_id:
                 raise AdapterLoadError(f"duplicate adapter ID: {adapter_id}")
             by_id[adapter_id] = adapter
@@ -29,8 +33,8 @@ class AdapterRegistry:
 
     @classmethod
     def discover(cls) -> AdapterRegistry:
-        loaded = tuple(_load_entry_point(ep) for ep in entry_points(group=ENTRYPOINT_GROUP))
-        return cls(loaded)
+        loaded = (_load_entry_point(ep) for ep in entry_points(group=ENTRYPOINT_GROUP))
+        return cls(tuple(adapter for adapter in loaded if adapter is not None))
 
     @property
     def adapters(self) -> tuple[Adapter, ...]:
@@ -53,12 +57,16 @@ class AdapterRegistry:
         return adapter
 
 
-def _load_entry_point(entry_point: EntryPoint) -> Adapter:
+def _load_entry_point(entry_point: EntryPoint) -> Adapter | None:
     try:
         loaded: Any = entry_point.load()
         # Third-party adapters rely on a no-argument constructor, so every adapter,
         # the built-in one included, reads its own runtime settings.
-        candidate: Any = loaded() if isinstance(loaded, type) else loaded
+        try:
+            candidate: Any = loaded() if isinstance(loaded, type) else loaded
+        except AdapterLibraryMissing as missing:
+            LOGGER.info("skipping adapter %s: %s", entry_point.name, missing)
+            return None
         if not isinstance(candidate, Adapter):
             raise TypeError("entry point does not implement the Adapter protocol")
         _ = candidate.manifest

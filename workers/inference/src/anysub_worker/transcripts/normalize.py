@@ -5,7 +5,7 @@ from typing import Any
 from anysub_worker.models import TranscriptArtifact, TranscriptCue, WordToken
 from anysub_worker.timing import seconds_to_us
 
-from .result import WhisperSegment, WhisperWord
+from .segments import WhisperSegment, WhisperWord
 
 type TimedWord = tuple[WhisperWord, int, int]
 

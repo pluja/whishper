@@ -854,6 +854,44 @@
       "const": "1.0",
       "type": "string"
     },
+    "RemoteModelAccess": {
+      "properties": {
+        "providerName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "baseUrl": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "apiKey": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "model": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "providerName",
+        "baseUrl",
+        "model"
+      ],
+      "title": "RemoteModelAccess",
+      "type": "object"
+    },
+    "RemoteTranscriptionVersion": {
+      "const": "1.0",
+      "type": "string"
+    },
     "TranscriptArtifact": {
       "additionalProperties": false,
       "properties": {
@@ -1089,11 +1127,23 @@
             }
           ],
           "default": null
+        },
+        "remoteTranscription": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RemoteTranscriptionVersion"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
         "mediaPreparation",
-        "modelCache"
+        "modelCache",
+        "remoteTranscription"
       ],
       "title": "WorkerCapabilities",
       "type": "object"
@@ -1219,6 +1269,17 @@
         },
         "payload": {
           "$ref": "#/$defs/WorkerJobPayload"
+        },
+        "remote": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RemoteModelAccess"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [

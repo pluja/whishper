@@ -1,4 +1,4 @@
-from anysub_worker.adapters.whisperx.normalize import normalize_segments
+from anysub_worker.transcripts.normalize import normalize_segments
 
 
 def test_normalizes_aligned_segments_to_contract_microseconds() -> None:

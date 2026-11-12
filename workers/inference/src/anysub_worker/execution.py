@@ -12,11 +12,13 @@ from typing import Any, Protocol
 import httpx
 
 from .adapter import AdapterExecutionError, ProgressReporter, TranscriptionAdapter
+from .client import WORKER_VERSION
 from .errors import LeaseLostError, UnreadableJobError, describe_error, failure_for
 from .media.errors import MediaPreparationError
 from .media.prepare import prepare_media
 from .model_cache import ModelCacheError, run_model_cache_job
 from .models import (
+    REMOTE_ADAPTER_ID,
     AdapterCapability,
     AdapterReference,
     JobCompletion,
@@ -33,6 +35,8 @@ from .models import (
 )
 from .progress import progress_span
 from .registry import AdapterLoadError, AdapterRegistry
+from .remote.transcribe import transcribe_remotely
+from .workspace import WORK_DIRECTORY_PREFIX
 
 LOGGER = logging.getLogger(__name__)
 # The application drops workers it has not heard from in 45 s.
@@ -40,7 +44,6 @@ LEASE_HEARTBEAT_SECONDS = 10
 # Compose stops containers after 10s, so the shutdown failure report must finish well before.
 SHUTDOWN_REPORT_SECONDS = 5
 MEDIA_DOWNLOAD_PROGRESS = 0.02
-WORK_DIRECTORY_PREFIX = "anysub-media-"
 SAFE_SUFFIX = re.compile(r"\.[a-z0-9]{1,16}")
 MEDIA_PREPARATION_SPAN = (0.1, 0.86)
 MEDIA_UPLOAD_SPAN = (0.86, 0.98)
@@ -234,6 +237,9 @@ async def _run_transcription(
     report: ProgressReporter,
 ) -> None:
     await report(0.0, "Starting transcription")
+    if payload.adapter_id == REMOTE_ADAPTER_ID:
+        await _run_remote_transcription(client, lease, payload, report)
+        return
     adapter = registry.require(payload.adapter_id, payload.model_id, AdapterCapability.TRANSCRIBE)
     if not isinstance(adapter, TranscriptionAdapter):
         raise AdapterLoadError(
@@ -248,6 +254,29 @@ async def _run_transcription(
             artifact=artifact,
             adapter=AdapterReference(
                 id=manifest.id, version=manifest.version, modelId=payload.model_id
+            ),
+        ),
+    )
+
+
+async def _run_remote_transcription(
+    client: JobClient,
+    lease: WorkerLease,
+    payload: TranscriptionJobPayload,
+    report: ProgressReporter,
+) -> None:
+    if lease.remote is None:
+        raise AdapterLoadError(
+            "The application sent no provider details for this remote transcription. Update "
+            "the application to the version of the worker, then try again."
+        )
+    artifact = await transcribe_remotely(payload.to_request(lease.job_id), lease.remote, report)
+    await client.complete(
+        lease,
+        TranscriptionJobCompletion(
+            artifact=artifact,
+            adapter=AdapterReference(
+                id=REMOTE_ADAPTER_ID, version=WORKER_VERSION, modelId=lease.remote.model
             ),
         ),
     )

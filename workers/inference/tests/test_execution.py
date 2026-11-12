@@ -15,6 +15,7 @@ from fakes import (
     network_error,
     status_error,
 )
+from pydantic import SecretStr
 
 from anysub_worker import execution
 from anysub_worker.adapter import ProgressReporter
@@ -24,10 +25,14 @@ from anysub_worker.errors import LeaseLostError
 from anysub_worker.media.derivatives import prepared_derivative
 from anysub_worker.media.prepare import PreparedMedia
 from anysub_worker.models import (
+    REMOTE_ADAPTER_ID,
     JobCompletion,
     JobFailure,
     MediaGenerator,
     MediaProbeArtifact,
+    RemoteModelAccess,
+    TranscriptArtifact,
+    TranscriptionRequest,
     WorkerLease,
 )
 from anysub_worker.registry import AdapterRegistry
@@ -236,3 +241,67 @@ def test_stale_work_directories_are_removed_at_startup(tmp_path: Path) -> None:
 
     assert not leftover.exists()
     assert unrelated.exists()
+
+
+class CompletionRecordingClient(RecordingClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.completions: list[JobCompletion] = []
+
+    async def complete(self, lease: WorkerLease, completion: JobCompletion) -> None:
+        self.completions.append(completion)
+        await super().complete(lease, completion)
+
+
+async def test_remote_jobs_run_on_the_provider_named_in_the_lease(
+    monkeypatch: pytest.MonkeyPatch, transcription_lease: WorkerLease
+) -> None:
+    access = RemoteModelAccess(
+        providerName="Groq",
+        baseUrl="https://api.groq.test",
+        apiKey=SecretStr("key"),
+        model="whisper",
+    )
+    lease = transcription_lease.model_copy(
+        update={
+            "payload": transcription_lease.payload.model_copy(
+                update={"adapter_id": REMOTE_ADAPTER_ID, "model_id": "model-row"}
+            ),
+            "remote": access,
+        }
+    )
+    used: list[RemoteModelAccess] = []
+
+    async def transcribe(
+        request: TranscriptionRequest, given: RemoteModelAccess, report: ProgressReporter
+    ) -> TranscriptArtifact:
+        used.append(given)
+        return TranscriptArtifact(language="en", durationUs=0, cues=())
+
+    monkeypatch.setattr(execution, "transcribe_remotely", transcribe)
+    client = CompletionRecordingClient()
+
+    await execution.execute_job(client, AdapterRegistry(()), lease)
+
+    assert used == [access]
+    completion = client.completions[0]
+    assert completion.kind == "transcribe"
+    assert completion.adapter.id == REMOTE_ADAPTER_ID
+    assert completion.adapter.model_id == "whisper"
+
+
+async def test_remote_job_without_provider_details_fails_for_good(
+    recording_client: RecordingClient, transcription_lease: WorkerLease
+) -> None:
+    lease = transcription_lease.model_copy(
+        update={
+            "payload": transcription_lease.payload.model_copy(
+                update={"adapter_id": REMOTE_ADAPTER_ID}
+            )
+        }
+    )
+
+    await execution.execute_job(recording_client, AdapterRegistry(()), lease)
+
+    assert recording_client.failures[0].code == "adapter_unavailable"
+    assert recording_client.failures[0].retryable is False

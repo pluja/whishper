@@ -4,8 +4,8 @@ from typing import Any
 
 import pytest
 
-from anysub_worker.adapters.whisperx.result import WhisperWord
 from anysub_worker.adapters.whisperx.subtitles import split_subtitle_segments
+from anysub_worker.transcripts.segments import WhisperWord
 
 
 def install_processor(monkeypatch: pytest.MonkeyPatch, processor: type) -> None:

@@ -39,7 +39,7 @@ Enter the code with your name, email and a password. This is the only account: t
 
 ## First transcription
 
-Create a project from the library, upload a recording, and choose **Start transcription**. The model downloads on first use. To download it ahead of time, go to **Administration > Models** in the account menu.
+Create a project from the library, upload a recording, and choose **Start transcription**. The model downloads on first use. To download it ahead of time, go to **Administration > Local models** in the account menu.
 
 The [user guide](USER-GUIDE.md) covers the rest.
 

@@ -22,6 +22,13 @@
       "when": 1794285802332,
       "tag": "0002_first_account_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1794496723768,
+      "tag": "0003_remote_providers",
+      "breakpoints": true
     }
   ]
 }

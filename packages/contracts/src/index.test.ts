@@ -21,6 +21,7 @@ const manifest = {
   capabilities: {
     mediaPreparation: MEDIA_PREPARATION_VERSION,
     modelCache: MODEL_CACHE_VERSION,
+    remoteTranscription: null,
   },
   adapters: [
     {

@@ -7,10 +7,7 @@ import { projectForUser } from "#lib/server/projects/access.ts";
 import { readInstanceSettings } from "#lib/server/settings/instance.ts";
 import { resolveDataPath } from "#lib/server/storage/paths.ts";
 import { hasActiveTranscriptionRun } from "#lib/server/transcription/active-run.ts";
-import {
-  acceptsOption,
-  availableTranscriptionModels,
-} from "#lib/server/transcription/models.ts";
+import { transcriptionModelChoices } from "#lib/server/transcription/models.ts";
 import { activeWorkerManifests } from "#lib/server/workers/presence.ts";
 import {
   MAX_LINE_LENGTH,
@@ -19,11 +16,14 @@ import {
 } from "#lib/shared/instance-settings.ts";
 import { DETECT_LANGUAGE, LANGUAGE_TAG } from "#lib/shared/languages.ts";
 import { DEFAULT_MAX_LINE_LENGTH, MAX_BATCH_SIZE } from "#lib/shared/limits.ts";
-import { parseModelKey } from "#lib/shared/transcription-models.ts";
+import {
+  acceptsOption,
+  parseModelKey,
+} from "#lib/shared/transcription-models.ts";
 
 type TranscriptionOptions = {
-  alignment: boolean;
-  maxLineLength: number;
+  alignment?: boolean;
+  maxLineLength?: number;
   batchSize?: number;
   precision?: Precision;
 };
@@ -98,7 +98,8 @@ export function enqueueTranscription(
     }
 
     const { precision } = readInstanceSettings(tx);
-    const model = availableTranscriptionModels(
+    const model = transcriptionModelChoices(
+      tx,
       activeWorkerManifests(tx),
       precision,
     ).find(
@@ -110,13 +111,13 @@ export function enqueueTranscription(
       throw conflict("That model is not available on a connected worker.");
     }
     // Precision is the administrator's choice, so it applies to every run of
-    // an adapter that offers it.
-    const options: TranscriptionOptions = acceptsOption(
-      model.optionsSchema,
-      "precision",
-    )
-      ? { ...request.options, precision }
-      : request.options;
+    // an adapter that offers it. A remote model takes only the options its
+    // schema lists, without alignment or batch size.
+    const options: TranscriptionOptions = model.remote
+      ? remoteOptions(model.optionsSchema, request.options)
+      : acceptsOption(model.optionsSchema, "precision")
+        ? { ...request.options, precision }
+        : request.options;
 
     const run = tx
       .insert(transcriptionRuns)
@@ -149,4 +150,15 @@ export function enqueueTranscription(
       })
       .run();
   });
+}
+
+function remoteOptions(
+  optionsSchema: Record<string, unknown>,
+  options: TranscriptionOptions,
+): TranscriptionOptions {
+  return Object.fromEntries(
+    Object.entries(options).filter(([name]) =>
+      acceptsOption(optionsSchema, name),
+    ),
+  );
 }

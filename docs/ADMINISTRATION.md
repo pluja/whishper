@@ -1,10 +1,10 @@
 # Administration
 
-Open **Administration** from the account menu. It has four pages: **Models**, **Transcription**, **Storage** and **Workers**. The Anysub version is at the top right; include it in bug reports.
+Open **Administration** from the account menu. It has five pages: **Local models**, **External providers**, **Transcription**, **Storage** and **Workers**. The Anysub version is at the top right; include it in bug reports.
 
 Container settings, such as the port, go in `.env` instead. See [Configuration](CONFIGURATION.md).
 
-## Models
+## Local models
 
 Lists each model with its size, memory needs and how well it fits your hardware. The one marked **Recommended** is what Automatic picks.
 
@@ -13,6 +13,10 @@ Lists each model with its size, memory needs and how well it fits your hardware.
 Downloading ahead isn't required, since models download on first use. It just means transcription starts right away and works offline.
 
 The panel above the list shows the worker's hardware and free disk space. With several workers, pick one at the top: each has its own models.
+
+## External providers
+
+Adds speech services, such as OpenAI or Groq, whose models people can choose instead of the local ones. Each provider has a base URL and an optional API key. Adding one checks the connection and adds its transcription models. You can set a price per minute for each model, and the page counts its transcriptions and their estimated cost. See [External providers](PROVIDERS.md).
 
 ## Transcription defaults
 

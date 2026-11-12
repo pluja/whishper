@@ -166,9 +166,9 @@
           <form
             method="POST"
             action="?/remove"
-            use:enhance={submission.handle(
-              `Remove ${model.displayName} from ${workerName}? Transcriptions that use it will download it again.`,
-            )}
+            use:enhance={submission.handle({
+              confirm: `Remove ${model.displayName} from ${workerName}? Transcriptions that use it will download it again.`,
+            })}
           >
             {@render modelFields()}
             <IconButton

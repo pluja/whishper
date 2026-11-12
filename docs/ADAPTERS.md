@@ -18,6 +18,7 @@ An adapter package must:
 4. Validate model-specific options before loading expensive model state.
 5. Return normalized Anysub artifacts with integer-microsecond timestamps.
 6. Report progress without contacting the Anysub application directly.
+7. Use an adapter ID other than `remote`, which the worker reserves for [external providers](PROVIDERS.md).
 
 Adapters run as trusted code inside a worker. Only install packages you trust.
 
@@ -25,7 +26,7 @@ The Pydantic models in `anysub_worker.models` define the manifest and every mess
 
 ## Minimal package
 
-The package metadata registers a class or instance. The worker instantiates a class with no arguments, so an adapter reads its own settings, for example from environment variables.
+The package metadata registers a class or instance. The worker instantiates a class with no arguments, so an adapter reads its own settings, for example from environment variables. A constructor that raises `AdapterLibraryMissing` from `anysub_worker.adapter` makes the worker skip the adapter, for example in an image built without its libraries.
 
 ```toml
 [project]

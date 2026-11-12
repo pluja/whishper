@@ -34,6 +34,7 @@ const manifest = {
   capabilities: {
     mediaPreparation: MEDIA_PREPARATION_VERSION,
     modelCache: MODEL_CACHE_VERSION,
+    remoteTranscription: null,
   },
   adapters: [adapter],
   hardware,
@@ -56,7 +57,11 @@ describe("worker manifest validation", () => {
   it("accepts a worker without media preparation or hardware details", () => {
     const parsed = parseWorkerManifest({
       ...manifest,
-      capabilities: { mediaPreparation: null, modelCache: null },
+      capabilities: {
+        mediaPreparation: null,
+        modelCache: null,
+        remoteTranscription: null,
+      },
       hardware: null,
       modelStorage: null,
     });

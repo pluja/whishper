@@ -42,7 +42,11 @@ function worker(
     name: "worker",
     version: "1.0.0",
     architecture: "x86_64",
-    capabilities: { mediaPreparation: null, modelCache: null },
+    capabilities: {
+      mediaPreparation: null,
+      modelCache: null,
+      remoteTranscription: null,
+    },
     adapters: [
       {
         protocolVersion: "1.0",

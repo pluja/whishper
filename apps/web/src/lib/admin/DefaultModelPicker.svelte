@@ -65,7 +65,11 @@
     <span class="flex min-w-0 items-center gap-2">
       <span class="shrink-0 text-text-muted">
         <Icon
-          name={choice?.key === AUTOMATIC_MODEL ? "gauge" : "cube"}
+          name={choice?.key === AUTOMATIC_MODEL
+            ? "gauge"
+            : choice?.model?.remote
+              ? "globe"
+              : "cube"}
           size={16}
         />
       </span>
@@ -74,7 +78,9 @@
       </strong>
       {#if choice?.model}
         <span class="shrink-0">
-          <Badge tone={FIT_TONES[choice.model.fit]}>
+          <Badge
+            tone={choice.model.remote ? "neutral" : FIT_TONES[choice.model.fit]}
+          >
             {choice.model.recommended ? "Recommended" : choice.model.fitLabel}
           </Badge>
         </span>
@@ -106,7 +112,7 @@
     {#snippet option(choice)}
       <span class="grid gap-1">
         {@render choiceLabel(choice)}
-        {#if choice.model}
+        {#if choice.model && !choice.model.remote}
           <span
             class="inline-flex items-center gap-1 text-xs {choice.model
               .downloaded

@@ -68,21 +68,37 @@ def describe_error(error: BaseException) -> str:
         status = f"{response.status_code} {response.reason_phrase}".rstrip()
         message = f"{type(error).__name__}: {status}"
         with suppress(httpx.ResponseNotRead):
-            detail = _summarize_response_body(response)
+            detail = response_detail(response)
             if detail:
                 message = f"{message}: {detail}"
         return message
     return f"{type(error).__name__}: {error}" if str(error) else type(error).__name__
 
 
-def _summarize_response_body(response: httpx.Response) -> str:
+def response_detail(response: httpx.Response) -> str:
+    """The first line of an error response, from the message field of a JSON body if any.
+
+    Reads the message shapes of the application, OpenAI and FastAPI.
+    """
     text = response.text
     with suppress(ValueError, RecursionError):
         body = json.loads(text)
-        if isinstance(body, dict) and isinstance(body.get("message"), str):
-            text = body["message"]
+        if isinstance(body, dict):
+            text = _body_message(body) or text
     for line in HTML_TAG.sub(" ", text).splitlines():
         collapsed = " ".join(line.split())
         if collapsed:
             return collapsed[:MAX_RESPONSE_DETAIL_CHARS]
     return ""
+
+
+def _body_message(body: dict[str, Any]) -> str | None:
+    error = body.get("error")
+    for candidate in (
+        error.get("message") if isinstance(error, dict) else error,
+        body.get("message"),
+        body.get("detail"),
+    ):
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate
+    return None

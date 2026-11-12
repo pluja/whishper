@@ -171,6 +171,9 @@ export const transcriptionRuns = sqliteTable(
     adapterId: text("adapter_id").notNull(),
     modelId: text("model_id").notNull(),
     options: json<JsonObject>("options").notNull().default({}),
+    // Set when a remote model with a price finishes: the transcribed length
+    // times that price, in millionths of a US dollar.
+    estimatedCostMicros: integer("estimated_cost_micros"),
     createdBy: text("created_by")
       .notNull()
       .references(() => user.id),
@@ -183,6 +186,44 @@ export const transcriptionRuns = sqliteTable(
       table.createdAt,
     ),
     enumCheck("transcription_runs_status_check", table.status),
+  ],
+);
+
+// An OpenAI-compatible speech API the administrator added. Its models appear
+// next to the workers' own, and choosing one sends the audio to that API.
+export const transcriptionProviders = sqliteTable("transcription_providers", {
+  id: uuidPrimaryKey(),
+  name: text("name").notNull(),
+  baseUrl: text("base_url").notNull(),
+  // Kept like the instance secrets, and never sent to the browser.
+  apiKey: text("api_key"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+export const providerModels = sqliteTable(
+  "provider_models",
+  {
+    id: uuidPrimaryKey(),
+    providerId: text("provider_id")
+      .notNull()
+      .references(() => transcriptionProviders.id, { onDelete: "cascade" }),
+    remoteId: text("remote_id").notNull(),
+    displayName: text("display_name").notNull(),
+    // US dollars per minute of audio, in millionths. Null when not set.
+    priceMicrosPerMinute: integer("price_micros_per_minute"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    unique("provider_models_provider_remote_unique").on(
+      table.providerId,
+      table.remoteId,
+    ),
+    check(
+      "provider_models_price_check",
+      sql`${table.priceMicrosPerMinute} is null or ${table.priceMicrosPerMinute} >= 0`,
+    ),
   ],
 );
 

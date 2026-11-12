@@ -22,7 +22,11 @@ function connect(name: string): WorkerManifest {
     name,
     version: "1.2.0",
     architecture: "x86_64",
-    capabilities: { mediaPreparation: "1.0", modelCache: "1.0" },
+    capabilities: {
+      mediaPreparation: "1.0",
+      modelCache: "1.0",
+      remoteTranscription: null,
+    },
     adapters: [],
     hardware: {
       device: "cuda",

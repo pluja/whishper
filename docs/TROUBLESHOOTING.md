@@ -48,7 +48,7 @@ docker compose logs web
 
 **The project is waiting for a speech worker.** The worker isn't connected. Check that it's running and that its log has a `worker started` line. **Administration > Workers** shows whether Anysub sees it.
 
-**A model download fails.** The error shows in **Administration > Models**. The worker needs internet access to Hugging Face. Fix that and choose **Try again**.
+**A model download fails.** The error shows in **Administration > Local models**. The worker needs internet access to Hugging Face. Fix that and choose **Try again**.
 
 **Transcription is slow.** It is on a CPU, especially with larger models. Use a smaller model or an [NVIDIA GPU](GPU.md).
 

@@ -5,13 +5,14 @@
     AvailableTranscriptionModel,
     DetectedWorkerHardware,
   } from "#lib/shared/transcription-models.ts";
-  import TranscribePanel, { PROCESSING_NOTE } from "./TranscribePanel.svelte";
+  import TranscribePanel, { processingNote } from "./TranscribePanel.svelte";
 
   type Props = {
     open?: boolean;
     models: AvailableTranscriptionModel[];
     hardware: DetectedWorkerHardware[];
     defaults: TranscriptionDefaults;
+    mediaDurationUs: number | null;
     onbeforesubmit: () => Promise<string | null>;
   };
 
@@ -20,10 +21,17 @@
     models,
     hardware,
     defaults,
+    mediaDurationUs,
     onbeforesubmit,
   }: Props = $props();
 </script>
 
-<Dialog bind:open title="Re-transcribe" description={PROCESSING_NOTE}>
-  <TranscribePanel {models} {hardware} {defaults} {onbeforesubmit} />
+<Dialog bind:open title="Re-transcribe" description={processingNote(models)}>
+  <TranscribePanel
+    {models}
+    {hardware}
+    {defaults}
+    {mediaDurationUs}
+    {onbeforesubmit}
+  />
 </Dialog>

@@ -10,6 +10,7 @@ import { and, eq } from "drizzle-orm";
 import { db, type Executor } from "#lib/server/db/index.ts";
 import {
   jobs,
+  providerModels,
   subtitleTracks,
   transcriptionRuns,
 } from "#lib/server/db/schema.ts";
@@ -25,6 +26,8 @@ import {
 } from "#lib/server/media/finalize.ts";
 import { withKeyedLock } from "#lib/server/storage/keyed-lock.ts";
 import { insertCues } from "#lib/server/subtitles/cues.ts";
+import { priceForDuration } from "#lib/shared/money.ts";
+import { REMOTE_ADAPTER_ID } from "#lib/shared/transcription-models.ts";
 
 type CompletionOutcome = "completed" | "already-completed" | "lease-rejected";
 
@@ -55,6 +58,7 @@ export async function completeJob(
         if (typeof current === "string") return current;
         storeTranscript(tx, current.runId, payload, completion);
         markCompleted(tx, jobId, current.runId, completion);
+        recordRemoteCost(tx, current.runId, payload, completion.artifact);
         return "completed";
       });
     }
@@ -173,7 +177,7 @@ function storeTranscript(
     .values({
       projectId: payload.projectId,
       sourceRunId: runId,
-      name: `${completion.adapter.id} · ${completion.adapter.modelId}`,
+      name: trackName(completion),
       language: artifact.language,
       kind: "transcription",
       metadata: {
@@ -186,6 +190,38 @@ function storeTranscript(
     .returning({ id: subtitleTracks.id })
     .get();
   insertCues(tx, track.id, { ids: "generate", cues: artifact.cues });
+}
+
+// Uses the length of the audio the provider received and the model's price
+// at that moment. The provider's own bill is what counts.
+function recordRemoteCost(
+  tx: Executor,
+  runId: string | null,
+  payload: TranscriptionJobPayload,
+  artifact: TranscriptArtifact,
+): void {
+  if (!runId || payload.adapterId !== REMOTE_ADAPTER_ID) return;
+  const price = tx
+    .select({ micros: providerModels.priceMicrosPerMinute })
+    .from(providerModels)
+    .where(eq(providerModels.id, payload.modelId))
+    .get()?.micros;
+  if (price === undefined || price === null) return;
+  tx.update(transcriptionRuns)
+    .set({ estimatedCostMicros: priceForDuration(price, artifact.durationUs) })
+    .where(eq(transcriptionRuns.id, runId))
+    .run();
+}
+
+// A remote transcript is named after the provider the administrator added,
+// not the internal adapter ID.
+function trackName({ adapter, artifact }: TranscriptionJobCompletion): string {
+  const provider = artifact.metadata.provider;
+  const source =
+    adapter.id === REMOTE_ADAPTER_ID && typeof provider === "string"
+      ? provider
+      : adapter.id;
+  return `${source} · ${adapter.modelId}`;
 }
 
 function completionKindMismatch(): Error {

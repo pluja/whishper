@@ -8,7 +8,7 @@
   import EditorToolbar from "./EditorToolbar.svelte";
   import JournalNotice from "./JournalNotice.svelte";
   import ProcessingStatus from "./ProcessingStatus.svelte";
-  import TranscribePanel, { PROCESSING_NOTE } from "./TranscribePanel.svelte";
+  import TranscribePanel, { processingNote } from "./TranscribePanel.svelte";
   import type { StudioData } from "#lib/shared/studio-data.ts";
 
   type Props = {
@@ -18,6 +18,7 @@
     preparation: StudioData["preparation"];
     mediaPreparationStatus: StudioData["project"]["mediaPreparationStatus"];
     hasSourceMedia: boolean;
+    mediaDurationUs: number | null;
     transcriptionModels: StudioData["transcriptionModels"];
     detectedHardware: StudioData["detectedHardware"];
     transcriptionDefaults: StudioData["transcriptionDefaults"];
@@ -30,6 +31,7 @@
     preparation,
     mediaPreparationStatus,
     hasSourceMedia,
+    mediaDurationUs,
     transcriptionModels,
     detectedHardware,
     transcriptionDefaults,
@@ -94,7 +96,9 @@
               processing finishes.
             </p>
           {:else if hasSourceMedia}
-            <p class="text-xs text-text-muted">{PROCESSING_NOTE}</p>
+            <p class="text-xs text-text-muted">
+              {processingNote(transcriptionModels)}
+            </p>
           {:else}
             <p class="text-sm text-text-muted">
               This project does not have source media or a transcription run.
@@ -106,6 +110,7 @@
             models={transcriptionModels}
             hardware={detectedHardware}
             defaults={transcriptionDefaults}
+            {mediaDurationUs}
           />
         {/if}
       </div>

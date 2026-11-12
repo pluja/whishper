@@ -10,6 +10,7 @@ export type ProtocolMessage =
   | LeaseResponse;
 export type MediaPreparationVersion = "1.0";
 export type ModelCacheVersion = "1.0";
+export type RemoteTranscriptionVersion = "1.0";
 export type AdapterCapability = "transcribe" | "align";
 export type WorkerDevice = "cpu" | "cuda";
 export type JobFailureCode =
@@ -43,6 +44,7 @@ export interface WorkerManifest {
 export interface WorkerCapabilities {
   mediaPreparation: MediaPreparationVersion | null;
   modelCache: ModelCacheVersion | null;
+  remoteTranscription: RemoteTranscriptionVersion | null;
 }
 export interface AdapterManifest {
   protocolVersion: "1.0";
@@ -215,6 +217,7 @@ export interface WorkerLease {
   attempt: number;
   leaseExpiresAt: string;
   payload: WorkerJobPayload;
+  remote?: RemoteModelAccess | null;
 }
 export interface TranscriptionJobPayload {
   kind: "transcribe";
@@ -242,9 +245,16 @@ export interface ModelCacheJobPayload {
   adapterId: string;
   modelId: string;
 }
+export interface RemoteModelAccess {
+  providerName: string;
+  baseUrl: string;
+  apiKey?: string | null;
+  model: string;
+}
 
 export const ADAPTER_PROTOCOL_VERSION = "1.0";
 export const MEDIA_PREPARATION_VERSION = "1.0";
 export const MODEL_CACHE_VERSION = "1.0";
+export const REMOTE_TRANSCRIPTION_VERSION = "1.0";
 export const TRANSCRIPT_SCHEMA_VERSION = "1.0";
 export const WORKER_PROTOCOL_VERSION = "1.0";

@@ -48,6 +48,8 @@ The picker marks each model as **Recommended**, **Runs well**, **May be slow**, 
 
 Speed depends on the model, your hardware and the length of the file. A two-hour film on a CPU takes a while.
 
+If the owner added a [speech provider](PROVIDERS.md), its models are in the same list, marked with the provider's name and their price per minute. Choosing one sends the project's audio to that provider, and the form says where it goes and roughly what it costs. These models time the words themselves, so the form hides word alignment and batch size for them.
+
 ### Line length
 
 After transcription, long lines are split at natural breaks. The limit is 42 characters by default and can be 20 to 120. Words are never cut, so a single very long word can go over. Scripts such as Chinese, Japanese and Korean get shorter limits automatically.

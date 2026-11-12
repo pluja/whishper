@@ -27,8 +27,8 @@ import {
   parseTranscriptionRequest,
 } from "#lib/server/transcription/enqueue.ts";
 import {
-  availableTranscriptionModels,
   detectedWorkerHardware,
+  transcriptionModelChoices,
 } from "#lib/server/transcription/models.ts";
 import { activeWorkerManifests } from "#lib/server/workers/presence.ts";
 import { projectDerivativeUrl, projectPageUrl } from "#lib/shared/routes.ts";
@@ -64,7 +64,8 @@ export const load: PageServerLoad = async ({
     })),
     track,
     cues,
-    transcriptionModels: availableTranscriptionModels(
+    transcriptionModels: transcriptionModelChoices(
+      db,
       workerManifests,
       transcriptionDefaults.precision,
     ),
