@@ -12,36 +12,36 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@anysub/contracts": "workspace:*",
-    "@fontsource-variable/geist": "^5.3.0",
-    "@fontsource-variable/geist-mono": "^5.3.0",
-    "@tus/file-store": "2.1.0",
-    "@tus/server": "2.4.1",
-    "better-auth": "1.7.20",
-    "better-sqlite3": "^13.0.3",
-    "drizzle-orm": "^0.45.4",
-    "flag-icons": "7.6.0",
-    "tus-js-client": "4.3.1",
-    "zod": "^4.6.7"
+    "better-sqlite3": "^13.0.3"
   },
   "devDependencies": {
+    "@anysub/contracts": "workspace:*",
     "@axe-core/playwright": "4.14.0",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
     "@sveltejs/adapter-node": "^6.0.2",
     "@sveltejs/kit": "^3.2.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/vite": "^4.3.5",
+    "@tus/file-store": "2.1.0",
+    "@tus/server": "2.4.1",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "catalog:",
+    "better-auth": "1.7.20",
     "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.4",
+    "flag-icons": "7.6.0",
     "playwright": "1.64.1",
     "prettier": "catalog:",
     "prettier-plugin-svelte": "^3.5.2",
     "svelte": "^5.57.3",
     "svelte-check": "^4.7.8",
     "tailwindcss": "^4.3.5",
+    "tus-js-client": "4.3.1",
     "typescript": "catalog:",
     "vite": "^8.3.8",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "zod": "^4.6.7"
   },
   "imports": {
     "#lib/*": "./src/lib/*"

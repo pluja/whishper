@@ -92,7 +92,9 @@ jobs:
         with:
           node-version-file: .node-version
 
-      - run: pnpm audit --prod --audit-level high
+      # Not --prod: the server bundles its libraries from devDependencies, so
+      # those ship in the image too.
+      - run: pnpm audit --audit-level high
 
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:

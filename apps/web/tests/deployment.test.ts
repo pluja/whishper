@@ -26,6 +26,17 @@ describe("production upload deployment", () => {
   });
 });
 
+describe("production image dependencies", () => {
+  // adapter-node bundles every package except those in dependencies, and the
+  // image installs only dependencies. A native module cannot be bundled, so it
+  // is the only kind that belongs there.
+  it("installs only native modules at runtime", async () => {
+    const manifest = JSON.parse(await repositoryFile("apps/web/package.json"));
+
+    expect(Object.keys(manifest.dependencies)).toEqual(["better-sqlite3"]);
+  });
+});
+
 describe("toolchain versions", () => {
   // Dependabot does not substitute build args, so the Dockerfiles carry the
   // tags literally and this test keeps them aligned with the other files.

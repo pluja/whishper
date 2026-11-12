@@ -47,6 +47,8 @@ Comment only what the code cannot say: a hidden invariant, a non-obvious reason,
 
 Keep files under 500 lines and split a module before it gets there. Keep dependencies minimal, validate user input, and never commit secrets.
 
+In `apps/web/package.json`, add new packages to `devDependencies`. The build bundles them into the server, and the production image installs only `dependencies`, which holds native modules such as `better-sqlite3` that cannot be bundled.
+
 ## Toolchain
 
 Everything runs in containers, so none of these need to be on your host. Each version has one source file. Where image tags or CI settings repeat it, a test keeps the copies equal:
