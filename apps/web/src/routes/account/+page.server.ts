@@ -1,18 +1,31 @@
+import {
+  createApiToken,
+  listApiTokens,
+  parseNewApiToken,
+  revokeAllApiTokens,
+  revokeApiToken,
+} from "#lib/server/auth/api-tokens.ts";
 import { auth } from "#lib/server/auth/auth.ts";
 import { isAuthError } from "#lib/server/auth/errors.ts";
-import { passwordLengthProblem } from "#lib/server/auth/password.ts";
+import {
+  isCurrentPassword,
+  passwordLengthProblem,
+} from "#lib/server/auth/password.ts";
 import { requireUserOrLogin } from "#lib/server/auth/session.ts";
 import {
   attemptKeys,
   retryMessage,
   signInThrottle,
 } from "#lib/server/auth/throttle.ts";
+import { runFormAction } from "#lib/server/http/actions.ts";
+import { badRequest } from "#lib/server/http/errors.ts";
+import { isUuid } from "#lib/shared/uuid.ts";
 import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ locals }) => {
-  requireUserOrLogin(locals);
-  return {};
+  const user = requireUserOrLogin(locals);
+  return { apiTokens: listApiTokens(user.id) };
 };
 
 export const actions: Actions = {
@@ -47,6 +60,33 @@ export const actions: Actions = {
       return rejected("currentPassword", "That is not your current password.");
     }
     signInThrottle.recordSuccess(keys);
+    revokeAllApiTokens(user.id);
     return { changed: true };
+  },
+  // A token outlives the session, so making one asks for the password, as
+  // changing it does.
+  createApiToken: async ({ locals, request, getClientAddress }) => {
+    const user = requireUserOrLogin(locals);
+    const form = await request.formData();
+    const keys = attemptKeys(getClientAddress(), user.email);
+    const waitMs = signInThrottle.beginAttempt(keys);
+    if (waitMs > 0) return fail(429, { message: retryMessage(waitMs) });
+    const password = String(form.get("currentPassword") ?? "");
+    if (!(await isCurrentPassword(user.id, password))) {
+      return fail(400, { message: "That is not your current password." });
+    }
+    signInThrottle.recordSuccess(keys);
+    return runFormAction(() => {
+      const input = parseNewApiToken(form);
+      return { createdToken: createApiToken(user.id, input), name: input.name };
+    });
+  },
+  revokeApiToken: async ({ locals, request }) => {
+    const user = requireUserOrLogin(locals);
+    const tokenId = String((await request.formData()).get("tokenId") ?? "");
+    return runFormAction(() => {
+      if (!isUuid(tokenId)) throw badRequest("Choose a token from the list.");
+      revokeApiToken(user.id, tokenId);
+    });
   },
 };

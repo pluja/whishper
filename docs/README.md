@@ -14,6 +14,7 @@
 ## Using Anysub
 
 - [User guide](USER-GUIDE.md): upload, transcribe, edit in the studio, and export.
+- [API](API.md): tokens, a first script, large uploads and errors.
 - [Administration](ADMINISTRATION.md): local models, external providers, transcription defaults, storage and workers.
 
 ## Working on Anysub

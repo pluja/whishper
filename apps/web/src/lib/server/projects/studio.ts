@@ -25,7 +25,7 @@ const JOB_PROGRESS = {
 };
 
 // Rows written within one millisecond keep their insertion order.
-const NEWEST_FIRST = [desc(sql`created_at`), desc(sql`rowid`)];
+export const NEWEST_FIRST = [desc(sql`created_at`), desc(sql`rowid`)];
 
 export function studioProject(
   executor: Executor,
@@ -77,13 +77,7 @@ export function latestRun(
     .limit(1)
     .get();
   if (!run) return null;
-  const job = executor
-    .select({ jobState: jobs.state, ...JOB_PROGRESS })
-    .from(jobs)
-    .where(eq(jobs.runId, run.id))
-    .orderBy(...NEWEST_FIRST)
-    .limit(1)
-    .get();
+  const job = latestRunJob(executor, run.id);
   return {
     ...run,
     jobState: job?.jobState ?? null,
@@ -91,6 +85,16 @@ export function latestRun(
     progressMessage: job?.progressMessage ?? null,
     error: job?.error ?? null,
   };
+}
+
+export function latestRunJob(executor: Executor, runId: string) {
+  return executor
+    .select({ jobState: jobs.state, ...JOB_PROGRESS })
+    .from(jobs)
+    .where(eq(jobs.runId, runId))
+    .orderBy(...NEWEST_FIRST)
+    .limit(1)
+    .get();
 }
 
 export function latestMediaPreparation(

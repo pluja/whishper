@@ -1,4 +1,6 @@
 import type { Handle, HandleServerError } from "@sveltejs/kit/hooks";
+import { apiError, MISSING_TOKEN_MESSAGE } from "#lib/server/api/errors.ts";
+import { authenticateApiToken } from "#lib/server/auth/api-tokens.ts";
 import { auth } from "#lib/server/auth/auth.ts";
 import { isCrossOriginRequest } from "#lib/server/http/cross-origin.ts";
 import { ServerFailure } from "#lib/server/http/errors.ts";
@@ -9,6 +11,9 @@ import {
 import { isAuthenticatedWorker } from "#lib/server/workers/auth.ts";
 
 const WORKER_API = "/api/internal";
+const PUBLIC_API = "/api/v1";
+// Readable without a token, so tools can fetch the description first.
+const PUBLIC_API_DESCRIPTION = "/api/v1/openapi.json";
 const PROJECT_API = "/api/projects";
 const HEALTH_API = "/api/health";
 
@@ -35,17 +40,44 @@ export const authenticateWorkers: Handle = ({ event, resolve }) => {
 };
 
 // Workers and health probes never hold a browser session, so they skip the
-// database lookup.
+// database lookup. The public API ignores cookies: only a token counts there,
+// so a signed-in browser cannot be made to call it.
 export const loadSession: Handle = async ({ event, resolve }) => {
   event.locals.session = null;
   event.locals.user = null;
+  event.locals.apiScope = null;
   const { pathname } = event.url;
-  if (isWithin(pathname, WORKER_API) || isWithin(pathname, HEALTH_API)) {
+  if (
+    isWithin(pathname, WORKER_API) ||
+    isWithin(pathname, HEALTH_API) ||
+    isWithin(pathname, PUBLIC_API)
+  ) {
     return resolve(event);
   }
   const current = await auth.api.getSession({ headers: event.request.headers });
   event.locals.session = current?.session ?? null;
   event.locals.user = current?.user ?? null;
+  return resolve(event);
+};
+
+// Covers the public API, and resumable uploads sent with a token instead of
+// a session.
+export const authenticateApiTokens: Handle = ({ event, resolve }) => {
+  const { pathname } = event.url;
+  const authorization = event.request.headers.get("authorization");
+  const tokenUpload =
+    isUploadPath(pathname) && authorization?.startsWith("Bearer ");
+  if (!tokenUpload && !isWithin(pathname, PUBLIC_API)) return resolve(event);
+  if (pathname === PUBLIC_API_DESCRIPTION) return resolve(event);
+  const caller = authenticateApiToken(authorization);
+  if (!caller) {
+    return apiError(401, MISSING_TOKEN_MESSAGE);
+  }
+  if (tokenUpload && caller.scope !== "write") {
+    return apiError(403, "Uploading needs a token that can read and write.");
+  }
+  event.locals.user = caller.user;
+  event.locals.apiScope = caller.scope;
   return resolve(event);
 };
 

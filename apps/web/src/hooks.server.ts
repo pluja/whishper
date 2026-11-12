@@ -3,6 +3,7 @@ import { announceSetupCode } from "#lib/server/auth/setup-code.ts";
 import { db } from "#lib/server/db/index.ts";
 import { assertSecureRuntimeConfiguration } from "#lib/server/env.ts";
 import {
+  authenticateApiTokens,
   authenticateWorkers,
   handleUploads,
   loadSession,
@@ -29,6 +30,7 @@ export const handle = sequence(
   rejectCrossOriginRequests,
   authenticateWorkers,
   loadSession,
+  authenticateApiTokens,
   requireProjectApiSession,
   handleUploads,
 );

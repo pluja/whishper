@@ -23,6 +23,10 @@ export function formatUsd(micros: number): string {
   return smallAmount.format(dollars);
 }
 
+export function microsToDollars(micros: number): number {
+  return micros / MICROS_PER_DOLLAR;
+}
+
 export function formatPricePerMinute(micros: number): string {
   return `${formatUsd(micros)} per minute`;
 }

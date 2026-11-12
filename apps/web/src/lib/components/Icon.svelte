@@ -10,6 +10,7 @@
 
   const ICONS: Record<IconName, Snippet> = {
     file,
+    copy,
     check,
     edit,
     close,
@@ -69,6 +70,10 @@
 {#snippet file()}
   <path d="M6.5 3.5h7l4 4v13h-11z" />
   <path d="M13.5 3.5v4h4M9 12h6M9 15.5h4" />
+{/snippet}
+{#snippet copy()}
+  <rect x="8" y="8" width="13" height="13" rx="2" />
+  <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
 {/snippet}
 {#snippet key()}
   <circle cx="8" cy="15.5" r="4" />

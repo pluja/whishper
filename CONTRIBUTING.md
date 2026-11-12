@@ -23,11 +23,13 @@ compose.build.yaml        Builds the production images from the checkout
 compose.dev.yaml          Development overlay
 ```
 
-Server domain folders in `apps/web/src/lib/server/`: `auth`, `db`, `http`, `jobs`, `media`, `models`, `projects`, `settings`, `storage`, `subtitles`, `transcription`, `uploads`, `workers`.
+Server domain folders in `apps/web/src/lib/server/`: `api`, `auth`, `db`, `http`, `jobs`, `media`, `models`, `projects`, `settings`, `storage`, `subtitles`, `transcription`, `uploads`, `workers`.
+
+The public API under `/api/v1` is described once, in `lib/server/api/operations.ts` and the zod schemas in `lib/server/api/schemas.ts`. Those schemas check each request and generate the OpenAPI document and the reference page, and a test fails when an operation has no matching route. Add an endpoint there first, then its route.
 
 Worker routes under `/api/internal` check the worker token twice on purpose: once in the `handle` hook and again in each route. Keep both, so a route stays protected if the hook's path match ever changes.
 
-Client folders in `apps/web/src/lib/`: `shared` (code used by server and client), `browser`, `library`, `studio`, `editor`, `timeline`, `admin`, `components`.
+Client folders in `apps/web/src/lib/`: `shared` (code used by server and client), `browser`, `library`, `studio`, `editor`, `timeline`, `admin`, `account`, `api-reference`, `components`.
 
 Pages under `/admin` are for the administrator only. Each page load and each form action calls `requireAdminOrLogin`, because SvelteKit runs form actions without the layout load.
 

@@ -7,6 +7,7 @@ Anysub follows [Semantic Versioning](https://semver.org). The web and worker ima
 ### Added
 
 - External providers: transcribe with OpenAI, Groq or any service that offers OpenAI's transcription API. Add them under **Administration > External providers**, pick their models from the service's list, and set a price per minute to see what a run costs. Their models appear next to the local ones, and the form says where the audio goes. See [External providers](docs/PROVIDERS.md).
+- A public API under `/api/v1` for scripts and other apps: upload media, start and follow transcriptions, and download subtitles. Make personal tokens, read only or read and write, under **Account and API tokens**. Anysub serves an API reference page and an OpenAPI document. See [API](docs/API.md).
 - A remote-only worker image, `anysub-worker:<version>-remote`, for installations that only use providers. It is about 600 MB instead of 3 GB and needs no GPU.
 
 ## [4.1.0] - 2026-11-12

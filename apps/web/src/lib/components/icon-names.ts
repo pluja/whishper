@@ -1,5 +1,6 @@
 export type IconName =
   | "file"
+  | "copy"
   | "check"
   | "edit"
   | "close"

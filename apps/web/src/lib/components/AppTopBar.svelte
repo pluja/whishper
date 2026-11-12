@@ -71,7 +71,11 @@
           {/if}
           <MenuItem href="/account">
             <Icon name="key" size={16} />
-            Change password
+            Account and API tokens
+          </MenuItem>
+          <MenuItem href="/api">
+            <Icon name="file" size={16} />
+            API reference
           </MenuItem>
           <MenuItem form={signOutFormId}>
             <Icon name="logout" size={16} />

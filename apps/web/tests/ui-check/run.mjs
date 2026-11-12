@@ -33,6 +33,7 @@ const screens = [
   },
   { name: "library", path: "/", signedIn: true },
   { name: "account", path: "/account", signedIn: true },
+  { name: "api-reference", path: "/api", signedIn: true },
   { name: "admin-models", path: "/admin/models", signedIn: true },
   { name: "admin-providers", path: "/admin/providers", signedIn: true },
   { name: "admin-transcription", path: "/admin/transcription", signedIn: true },

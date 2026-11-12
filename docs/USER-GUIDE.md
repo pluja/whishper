@@ -163,7 +163,7 @@ Exports use the last saved version, so wait for **Saved** if you just made chang
 
 ## Your account
 
-To change your password, choose **Change password** in the account menu. This signs out your other devices.
+To change your password, choose **Account and API tokens** in the account menu. Changing it signs out your other devices and revokes your API tokens. The same page makes tokens for the [API](API.md), which lets scripts upload and transcribe as you.
 
 If you forget it, choose **Forgot your password?** on the sign-in page, then **Print a recovery code**. Anysub doesn't send email, so the code goes to the log:
 

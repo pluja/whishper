@@ -17,6 +17,7 @@ import {
   MIN_LINE_LENGTH,
   PRECISIONS,
 } from "../../shared/instance-settings";
+import { API_TOKEN_SCOPES } from "../../shared/api-tokens";
 import {
   JOB_STATES,
   PROBE_STATES,
@@ -186,6 +187,30 @@ export const transcriptionRuns = sqliteTable(
       table.createdAt,
     ),
     enumCheck("transcription_runs_status_check", table.status),
+  ],
+);
+
+// A personal access token for the public API. It acts as its user, and only
+// a hash of it is kept.
+export const apiTokens = sqliteTable(
+  "api_tokens",
+  {
+    id: uuidPrimaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    // The first characters of the token, so its owner can tell tokens apart.
+    prefix: text("prefix").notNull(),
+    scope: text("scope", { enum: API_TOKEN_SCOPES }).notNull(),
+    expiresAt: timestamp("expires_at"),
+    lastUsedAt: timestamp("last_used_at"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("api_tokens_user_idx").on(table.userId),
+    enumCheck("api_tokens_scope_check", table.scope),
   ],
 );
 

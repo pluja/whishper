@@ -49,13 +49,15 @@ describe("requireAdminOrLogin", () => {
   >;
 
   it("returns the administrator", () => {
-    expect(requireAdminOrLogin({ user: admin, session: null })).toBe(admin);
+    expect(
+      requireAdminOrLogin({ user: admin, session: null, apiScope: null }),
+    ).toBe(admin);
   });
 
   it("answers 403 to other accounts", () => {
     const member = { ...admin, role: "user" };
     const thrown = thrownBy(() =>
-      requireAdminOrLogin({ user: member, session: null }),
+      requireAdminOrLogin({ user: member, session: null, apiScope: null }),
     );
     expect(isHttpError(thrown, 403)).toBe(true);
   });

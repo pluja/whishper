@@ -325,7 +325,7 @@ The application exposes a health endpoint. Planned: a readiness endpoint, and a 
 
 ## API boundaries
 
-Planned, not built: a public REST API covers stable automation workflows and uses a versioned namespace. Scoped personal access tokens authenticate API clients. Anysub publishes an OpenAPI document.
+The public REST API lives under `/api/v1`. Personal access tokens authenticate it: each has a read or read-and-write scope and an optional expiry, acts as its user with that user's workspace memberships, and is stored only as a hash. The API ignores browser cookies, so a signed-in browser cannot be led into calling it. Each endpoint calls the same server functions as the UI, so access rules, upload limits and model choices match. Zod schemas check every request and generate the OpenAPI document at `/api/v1/openapi.json`, from which the in-app reference page is drawn. Planned: cue editing, webhooks, and an OpenAI-compatible transcription endpoint.
 
 The editor may use private endpoints while patch and collaboration semantics mature. Leases, artifact transfers, and results live under `/api/internal`, authenticated by the shared worker token. Worker enrollment is planned.
 
