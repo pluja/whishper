@@ -2,6 +2,18 @@
 
 Anysub follows [Semantic Versioning](https://semver.org). The web and worker images always share one version. Each release lists what changed for the people who run and use Anysub.
 
+## [4.0.3] - 2026-11-12
+
+This release updates more worker libraries with known security problems. Nothing changes in how Anysub works.
+
+### Security
+
+- Updated the worker libraries nltk, aiohttp, urllib3, multidict, lightning, Mako and OpenTelemetry to versions with security fixes. 4.0.2 missed these because its security check skipped the speech libraries.
+
+### Known issues
+
+- The worker still uses PyTorch 2.8 and transformers 4.57, which have published security advisories. The fixed versions need a newer WhisperX, which isn't released yet. The advisories are about loading untrusted model files and about features Anysub doesn't use. Anysub only downloads models from its own fixed list.
+
 ## [4.0.2] - 2026-11-11
 
 This release updates Node.js and other dependencies with known security problems. Nothing changes in how Anysub works.
@@ -87,6 +99,7 @@ Anysub 4.0.0 is the first release of the Whishper rewrite. It replaces Whishper 
 - More than one account.
 - ARM64 images.
 
+[4.0.3]: https://github.com/pluja/anysub/releases/tag/v4.0.3
 [4.0.2]: https://github.com/pluja/anysub/releases/tag/v4.0.2
 [4.0.1]: https://github.com/pluja/anysub/releases/tag/v4.0.1
 [4.0.0]: https://github.com/pluja/anysub/releases/tag/v4.0.0

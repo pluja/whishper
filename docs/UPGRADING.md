@@ -1,6 +1,6 @@
 # Upgrading
 
-Your `compose.yaml` pins an exact version, for example `ghcr.io/pluja/anysub:4.0.2`, so Anysub only changes when you upgrade. The web and worker images must always be the same version.
+Your `compose.yaml` pins an exact version, for example `ghcr.io/pluja/anysub:4.0.3`, so Anysub only changes when you upgrade. The web and worker images must always be the same version.
 
 ## Before you upgrade
 

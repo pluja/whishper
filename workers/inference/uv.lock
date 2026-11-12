@@ -248,7 +248,7 @@ wheels = [
 
 [[package]]
 name = "anysub-worker"
-version = "4.0.2"
+version = "4.0.3"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
