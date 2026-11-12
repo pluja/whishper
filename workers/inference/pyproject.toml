@@ -73,7 +73,7 @@ explicit = true
 [dependency-groups]
 dev = [
   "pyright[nodejs]>=1.1.400,<2",
-  "pytest>=8.4.1,<9",
+  "pytest>=9.0.3,<10",
   "pytest-asyncio>=1.1.0,<2",
   "respx>=0.22.0,<0.23",
   "ruff>=0.12.7,<0.13",
@@ -87,6 +87,7 @@ minversion = "8.0"
 addopts = ["-ra", "--strict-config", "--strict-markers"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 line-length = 100
