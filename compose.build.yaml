@@ -3,7 +3,8 @@
 #   docker compose -f compose.yaml -f compose.build.yaml up --build -d
 #
 # For the CUDA worker, list compose.cuda.yaml before this file and set
-# ANYSUB_ACCELERATOR=cuda. The local tags keep a source build from ever
+# ANYSUB_ACCELERATOR=cuda. For the remote-only worker, set
+# ANYSUB_LOCAL_MODELS=false. The local tags keep a source build from ever
 # replacing a published image.
 
 services:
@@ -24,3 +25,6 @@ services:
         # Selects the PyTorch wheels compiled into the image, which also sets
         # the image's default ANYSUB_DEVICE.
         ANYSUB_ACCELERATOR: ${ANYSUB_ACCELERATOR:-cpu}
+        # false leaves out the local models, for a worker that only uses
+        # external providers.
+        ANYSUB_LOCAL_MODELS: ${ANYSUB_LOCAL_MODELS:-true}

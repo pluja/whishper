@@ -117,14 +117,21 @@ describe("toolchain versions", () => {
 
 describe("release version", () => {
   it("gives the application, the worker and every published image one version", async () => {
-    const [webPackage, workerProject, compose, cudaCompose, changelog] =
-      await Promise.all([
-        repositoryFile("apps/web/package.json"),
-        repositoryFile("workers/inference/pyproject.toml"),
-        repositoryFile("compose.yaml"),
-        repositoryFile("compose.cuda.yaml"),
-        repositoryFile("CHANGELOG.md"),
-      ]);
+    const [
+      webPackage,
+      workerProject,
+      compose,
+      cudaCompose,
+      remoteCompose,
+      changelog,
+    ] = await Promise.all([
+      repositoryFile("apps/web/package.json"),
+      repositoryFile("workers/inference/pyproject.toml"),
+      repositoryFile("compose.yaml"),
+      repositoryFile("compose.cuda.yaml"),
+      repositoryFile("compose.remote.yaml"),
+      repositoryFile("CHANGELOG.md"),
+    ]);
     const version = JSON.parse(webPackage).version;
     const images = (file: string) =>
       [...file.matchAll(/^\s+image:\s*(\S+)/gm)].map(([, image]) => image);
@@ -137,6 +144,9 @@ describe("release version", () => {
     ]);
     expect(images(cudaCompose)).toEqual([
       `ghcr.io/pluja/anysub-worker:${version}-cuda`,
+    ]);
+    expect(images(remoteCompose)).toEqual([
+      `ghcr.io/pluja/anysub-worker:${version}-remote`,
     ]);
     expect(changelog).toContain(`\n## [${version}] - `);
   });

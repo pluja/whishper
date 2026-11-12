@@ -136,6 +136,9 @@ jobs:
           - name: worker-cuda
             dockerfile: workers/inference/Dockerfile
             build-args: ANYSUB_ACCELERATOR=cuda
+          - name: worker-remote
+            dockerfile: workers/inference/Dockerfile
+            build-args: ANYSUB_LOCAL_MODELS=false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

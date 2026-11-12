@@ -35,20 +35,31 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM deps AS builder
 
 ARG ANYSUB_ACCELERATOR=cpu
+# false leaves out WhisperX and PyTorch. That worker prepares media and
+# transcribes only with the external providers set up under Administration.
+ARG ANYSUB_LOCAL_MODELS=true
 
 WORKDIR /app
 
+RUN case "$ANYSUB_LOCAL_MODELS" in \
+      true|false) ;; \
+      *) echo "ANYSUB_LOCAL_MODELS must be true or false" >&2; exit 1 ;; \
+    esac
+
 COPY workers/inference/pyproject.toml workers/inference/README.md workers/inference/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --extra speech --extra "$ANYSUB_ACCELERATOR" --no-install-project --no-editable
+    if [ "$ANYSUB_LOCAL_MODELS" = true ]; then set -- --extra speech --extra "$ANYSUB_ACCELERATOR"; fi \
+    && uv sync --locked --no-dev "$@" --no-install-project --no-editable
 
 COPY workers/inference/src ./src
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --extra speech --extra "$ANYSUB_ACCELERATOR" --no-editable
+    if [ "$ANYSUB_LOCAL_MODELS" = true ]; then set -- --extra speech --extra "$ANYSUB_ACCELERATOR"; fi \
+    && uv sync --locked --no-dev "$@" --no-editable
 
 FROM base AS runtime
 
 ARG ANYSUB_ACCELERATOR=cpu
+ARG ANYSUB_LOCAL_MODELS=true
 
 ENV PATH="/app/.venv/bin:$PATH" \
     ANYSUB_DEVICE=$ANYSUB_ACCELERATOR \
@@ -80,7 +91,11 @@ RUN if [ "$ANYSUB_ACCELERATOR" = cuda ]; then \
     fi
 
 RUN ["/app/.venv/bin/anysub-adapters"]
-RUN ["/app/.venv/bin/python", "-c", "from transformers import Pipeline; import torchvision; from whisperx import load_model; print('WhisperX runtime imports verified')"]
+RUN if [ "$ANYSUB_LOCAL_MODELS" = true ]; then \
+      /app/.venv/bin/python -c "from transformers import Pipeline; import torchvision; from whisperx import load_model; print('WhisperX runtime imports verified')"; \
+    else \
+      /app/.venv/bin/python -c "from importlib.util import find_spec; import anysub_worker.remote.transcribe; assert find_spec('torch') is None; print('Remote-only runtime verified')"; \
+    fi
 
 WORKDIR /app
 USER anysub

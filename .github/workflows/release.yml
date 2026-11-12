@@ -43,7 +43,7 @@ jobs:
           fi
 
   # Each image gets only its exact version tag here. The promote job moves the
-  # shared tags once all three exist, so a failed build never leaves latest
+  # shared tags once all four exist, so a failed build never leaves latest
   # pointing at different releases for the web and worker images.
   images:
     name: Publish ${{ matrix.name }}
@@ -66,13 +66,19 @@ jobs:
             image: anysub-worker
             dockerfile: workers/inference/Dockerfile
             build-args: ANYSUB_ACCELERATOR=cpu
-            description: Anysub transcription worker. Tags ending in -cuda run on NVIDIA GPUs.
+            description: Anysub transcription worker. Tags ending in -cuda run on NVIDIA GPUs, tags ending in -remote use only speech providers.
           - name: worker-cuda
             image: anysub-worker
             suffix: -cuda
             dockerfile: workers/inference/Dockerfile
             build-args: ANYSUB_ACCELERATOR=cuda
-            description: Anysub transcription worker. Tags ending in -cuda run on NVIDIA GPUs.
+            description: Anysub transcription worker. Tags ending in -cuda run on NVIDIA GPUs, tags ending in -remote use only speech providers.
+          - name: worker-remote
+            image: anysub-worker
+            suffix: -remote
+            dockerfile: workers/inference/Dockerfile
+            build-args: ANYSUB_LOCAL_MODELS=false
+            description: Anysub transcription worker. Tags ending in -cuda run on NVIDIA GPUs, tags ending in -remote use only speech providers.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -143,6 +149,9 @@ jobs:
           - name: worker-cuda
             image: anysub-worker
             suffix: -cuda
+          - name: worker-remote
+            image: anysub-worker
+            suffix: -remote
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -172,8 +181,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The suffix also applies to latest, so the CUDA worker never takes the
-      # CPU worker's latest tag.
+      # The suffix also applies to latest, so the CUDA and remote-only workers
+      # never take the CPU worker's latest tag.
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -233,6 +242,6 @@ jobs:
           fi
           prerelease=()
           if [[ "$version" == *-* ]]; then prerelease=(--prerelease); fi
-          gh release create "$GITHUB_REF_NAME" compose.yaml compose.cuda.yaml \
+          gh release create "$GITHUB_REF_NAME" compose.yaml compose.cuda.yaml compose.remote.yaml \
             --draft --verify-tag --title "Anysub $version" \
             --notes-file notes.md "${prerelease[@]}"

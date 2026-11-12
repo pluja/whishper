@@ -31,6 +31,20 @@ Word alignment and batch size don't apply to provider models: the provider times
 
 Anysub converts the audio to small MP3 files before sending it, and splits recordings longer than 10 minutes at pauses, so no word is cut in half. It sends up to three parts at once and joins the results on one timeline. When a provider limits requests or has a brief outage, Anysub waits as long as the provider asks, up to a minute, and tries each part up to five times. If a part still fails, the transcription stops with the provider's error. Anysub doesn't start it again by itself, because that would send, and could bill, every part again.
 
+## Remote-only worker
+
+Without a GPU, local transcription is slow. If you only use providers, the remote-only worker image skips the local models. It is about 600 MB instead of 3 GB and needs no GPU. It still prepares media, such as previews and waveforms.
+
+Download the overlay next to `compose.yaml` and enable it:
+
+```sh
+curl -LO https://github.com/pluja/anysub/releases/latest/download/compose.remote.yaml
+echo "COMPOSE_FILE=compose.yaml:compose.remote.yaml" >> .env
+docker compose up -d
+```
+
+To go back to local models, remove the `COMPOSE_FILE` line from `.env` and run `docker compose up -d` again.
+
 ## When a transcription fails
 
 The error names the problem. The most common ones:

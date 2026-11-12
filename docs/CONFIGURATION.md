@@ -43,10 +43,11 @@ Uploads come in 32 MiB chunks, so if this limit, or your reverse proxy's, is low
 
 ## Compose files
 
-| Variable             | Default        | Notes                                                                                                               |
-| -------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `COMPOSE_FILE`       | `compose.yaml` | Read by Compose itself. `compose.yaml:compose.cuda.yaml` runs the [NVIDIA worker](GPU.md). Separate files with `:`. |
-| `ANYSUB_ACCELERATOR` | `cpu`          | Only for [source builds](INSTALL.md#build-from-source) with `compose.build.yaml`: `cuda` builds the NVIDIA worker.  |
+| Variable              | Default        | Notes                                                                                                                                                                                                             |
+| --------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `COMPOSE_FILE`        | `compose.yaml` | Read by Compose itself. `compose.yaml:compose.cuda.yaml` runs the [NVIDIA worker](GPU.md), `compose.yaml:compose.remote.yaml` the [remote-only worker](PROVIDERS.md#remote-only-worker). Separate files with `:`. |
+| `ANYSUB_ACCELERATOR`  | `cpu`          | Only for [source builds](INSTALL.md#build-from-source) with `compose.build.yaml`: `cuda` builds the NVIDIA worker.                                                                                                |
+| `ANYSUB_LOCAL_MODELS` | `true`         | Only for source builds: `false` builds the remote-only worker.                                                                                                                                                    |
 
 ## Worker
 

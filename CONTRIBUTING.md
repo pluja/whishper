@@ -18,6 +18,7 @@ packages/contracts/       JSON Schema and the TypeScript generated from it
 docs/                     User and contributor documentation
 compose.yaml              Production stack, pulls the published images
 compose.cuda.yaml         NVIDIA overlay
+compose.remote.yaml       Remote-only worker overlay
 compose.build.yaml        Builds the production images from the checkout
 compose.dev.yaml          Development overlay
 ```

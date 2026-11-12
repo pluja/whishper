@@ -12,11 +12,12 @@ Anysub uses [Semantic Versioning](https://semver.org). The web application and t
 
 Every release publishes these tags:
 
-| Image                         | Tags                                              |
-| ----------------------------- | ------------------------------------------------- |
-| `ghcr.io/pluja/anysub`        | `4.1.0`, `4.1`, `4`, `latest`                     |
-| `ghcr.io/pluja/anysub-worker` | `4.1.0`, `4.1`, `4`, `latest`                     |
-| `ghcr.io/pluja/anysub-worker` | `4.1.0-cuda`, `4.1-cuda`, `4-cuda`, `latest-cuda` |
+| Image                         | Tags                                                      |
+| ----------------------------- | --------------------------------------------------------- |
+| `ghcr.io/pluja/anysub`        | `4.1.0`, `4.1`, `4`, `latest`                             |
+| `ghcr.io/pluja/anysub-worker` | `4.1.0`, `4.1`, `4`, `latest`                             |
+| `ghcr.io/pluja/anysub-worker` | `4.1.0-cuda`, `4.1-cuda`, `4-cuda`, `latest-cuda`         |
+| `ghcr.io/pluja/anysub-worker` | `4.1.0-remote`, `4.1-remote`, `4-remote`, `latest-remote` |
 
 The Compose files pin the exact version, so an installation changes only when its administrator upgrades it.
 
@@ -32,7 +33,8 @@ A shared tag only moves forward. A release moves `latest` when it is the highest
      ```
    - `compose.yaml`: both image tags.
    - `compose.cuda.yaml`: the worker tag, with `-cuda`.
-2. Add a `## [4.1.0] - YYYY-MM-DD` section to `CHANGELOG.md`, written for the people who run and use Anysub, and a link for it at the bottom. The release notes are this section.
+   - `compose.remote.yaml`: the worker tag, with `-remote`.
+2. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [4.1.0] - YYYY-MM-DD`, or add that section, written for the people who run and use Anysub, and add a link for it at the bottom. The release notes are this section.
 3. Run `make verify`.
 4. Commit with `chore(release): 4.1.0` and push to `main`. Wait for CI to pass, including the image builds.
 5. Tag the commit and push the tag:
@@ -40,7 +42,7 @@ A shared tag only moves forward. A release moves `latest` when it is the highest
    git tag -a v4.1.0 -m "Anysub 4.1.0"
    git push origin v4.1.0
    ```
-6. Watch the Release workflow. It runs the checks again and confirms the tag matches the version. It then pushes each image under its exact version, moves the shared tags this release is the newest for once all three images exist, and drafts the release with `compose.yaml` and `compose.cuda.yaml` attached.
+6. Watch the Release workflow. It runs the checks again and confirms the tag matches the version. It then pushes each image under its exact version, moves the shared tags this release is the newest for once all four images exist, and drafts the release with `compose.yaml`, `compose.cuda.yaml` and `compose.remote.yaml` attached.
 7. Read the draft on the Releases page, then publish it. Check **Set as the latest release** only when this is the highest version: the install guide downloads `releases/latest/download/compose.yaml`, so the latest release must be the newest version.
 
 If an image fails, `latest` and the other shared tags stay on the previous release. For a transient failure, such as a registry timeout, choose **Re-run failed jobs**. If the build itself is broken, fix it and release the next patch version. Never move a tag that published images.

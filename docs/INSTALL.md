@@ -115,7 +115,7 @@ To keep using the source build for every command, add this line to `.env`:
 COMPOSE_FILE=compose.yaml:compose.build.yaml
 ```
 
-For the NVIDIA worker, use `COMPOSE_FILE=compose.yaml:compose.cuda.yaml:compose.build.yaml` and add `ANYSUB_ACCELERATOR=cuda`. Your builds get their own tags, so they never replace a published image.
+For the NVIDIA worker, use `COMPOSE_FILE=compose.yaml:compose.cuda.yaml:compose.build.yaml` and add `ANYSUB_ACCELERATOR=cuda`. For the remote-only worker, add `ANYSUB_LOCAL_MODELS=false`. Your builds get their own tags, so they never replace a published image.
 
 ## Stop and remove
 

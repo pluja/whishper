@@ -101,6 +101,8 @@ Administrators add OpenAI-compatible speech APIs and choose which of their model
 
 The worker runs these jobs itself, without an adapter: it encodes the audio as small mono MP3 files, splits recordings longer than 10 minutes at pauses, sends up to three parts at once, and asks for word and segment timestamps. It then places every part on the media timeline and splits the result into subtitles by line length. Models that return text without timestamps cannot make subtitles, so the application refuses them.
 
+A worker image built without the local models, the `-remote` tag, runs media preparation and these jobs only. WhisperX skips itself when its library is missing, so that worker never offers local models.
+
 ## Model adapter boundary
 
 The worker core does not import Faster-Whisper, WhisperX, or another model library directly. It discovers adapter packages through the `anysub.adapters` Python entry-point group. Each adapter publishes a manifest with its protocol version, adapter version, models, languages, capabilities, and a JSON Schema for model-specific options.

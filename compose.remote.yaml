@@ -1,0 +1,15 @@
+# Remote-only worker. Enable it for every command with this line in .env:
+#
+#   COMPOSE_FILE=compose.yaml:compose.remote.yaml
+#
+# This worker image has no local models, so it is much smaller and needs no
+# GPU. It prepares media and transcribes with the external providers set up
+# under Administration > External providers. Keep the image tag equal to the worker tag in
+# compose.yaml. See
+# https://github.com/pluja/anysub/blob/main/docs/PROVIDERS.md
+
+services:
+  worker:
+    image: ghcr.io/pluja/anysub-worker:4.1.0-remote
+    environment:
+      ANYSUB_WORKER_NAME: ${ANYSUB_WORKER_NAME:-remote-worker}
