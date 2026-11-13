@@ -32,12 +32,21 @@ You need Linux on x86-64 with Docker and Docker Compose.
    curl -fsSLO https://github.com/pluja/anysub/releases/latest/download/compose.yaml
    ```
 
-2. **Optional, NVIDIA GPU only.** Skip to step 3 if you don't have an NVIDIA GPU. Otherwise, download the GPU file into the same folder and turn it on. You need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) and a GTX 16xx, RTX 20xx or newer card.
+2. **Optional.** Skip to step 3 to transcribe on the CPU. Otherwise, download one extra file into the same folder and turn it on:
 
-   ```sh
-   curl -fsSLO https://github.com/pluja/anysub/releases/latest/download/compose.cuda.yaml
-   echo "COMPOSE_FILE=compose.yaml:compose.cuda.yaml" >> .env
-   ```
+   - **NVIDIA GPU.** You need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) and a GTX 16xx, RTX 20xx or newer card.
+
+     ```sh
+     curl -fsSLO https://github.com/pluja/anysub/releases/latest/download/compose.cuda.yaml
+     echo "COMPOSE_FILE=compose.yaml:compose.cuda.yaml" >> .env
+     ```
+
+   - **External providers only.** If you only transcribe with a service such as OpenAI or Groq, this smaller worker leaves out the local models and needs no GPU. Add the service under **Administration > External providers** once Anysub runs. See [External providers](docs/PROVIDERS.md).
+
+     ```sh
+     curl -fsSLO https://github.com/pluja/anysub/releases/latest/download/compose.remote.yaml
+     echo "COMPOSE_FILE=compose.yaml:compose.remote.yaml" >> .env
+     ```
 
 3. Start Anysub:
 

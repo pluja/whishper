@@ -17,7 +17,7 @@ docker compose pull
 docker compose up -d
 ```
 
-With an NVIDIA GPU, download `compose.cuda.yaml` the same way before `docker compose pull`.
+With an NVIDIA GPU, download `compose.cuda.yaml` the same way before `docker compose pull`. With the remote-only worker, download `compose.remote.yaml`.
 
 This overwrites `compose.yaml`, so keep your changes in `.env` or a [`compose.override.yaml`](CONFIGURATION.md#worker-defaults). You can also edit the image tags by hand instead.
 
