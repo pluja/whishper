@@ -10,6 +10,10 @@ Anysub follows [Semantic Versioning](https://semver.org). The web and worker ima
 - A public API under `/api/v1` for scripts and other apps: upload media, start and follow transcriptions, and download subtitles. Make personal tokens, read only or read and write, under **Account and API tokens**. Anysub serves an API reference page and an OpenAPI document. See [API](docs/API.md).
 - A remote-only worker image, `anysub-worker:<version>-remote`, for installations that only use providers. It is about 600 MB instead of 3 GB and needs no GPU.
 
+### Changed
+
+- Uploads are refused when they would leave less than 1 GB free on the data volume, so a large upload can't fill the disk and break the server.
+
 ## [4.1.0] - 2026-11-12
 
 This release moves the web app to new versions of its main libraries. Nothing changes in how Anysub works.

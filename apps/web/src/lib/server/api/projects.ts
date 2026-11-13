@@ -27,6 +27,7 @@ import {
 } from "#lib/server/projects/studio.ts";
 import { readInstanceSettings } from "#lib/server/settings/instance.ts";
 import { stagedUploadPath } from "#lib/server/storage/paths.ts";
+import { requireRoomForUpload } from "#lib/server/storage/usage.ts";
 import {
   completeUpload,
   createUploadProject,
@@ -136,6 +137,7 @@ export async function createProjectFromBody(
   if (sizeBytes > maxUploadBytes) {
     throw new StatusError(413, "The file is larger than the upload limit.");
   }
+  await requireRoomForUpload(db, sizeBytes);
   const workspaceId =
     query.workspaceId ?? primaryWorkspaceForUser(db, userId)?.id;
   if (!workspaceId) throw notFound("Workspace not found.");

@@ -6,10 +6,40 @@ import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { Executor } from "#lib/server/db/index.ts";
 import { mediaDerivatives, mediaUploads } from "#lib/server/db/schema.ts";
 import { privateEnv } from "#lib/server/env.ts";
+import { StatusError } from "#lib/server/http/errors.ts";
 import type { StorageUsage, StoredFiles } from "#lib/shared/storage-usage.ts";
 
 const DATABASE_SIDE_FILES = ["", "-wal", "-shm"];
 const NO_FILES: StoredFiles = { bytes: 0, count: 0 };
+// Left free for previews, the database and the system, which a full disk
+// would break.
+export const DISK_RESERVE_BYTES = 1024 ** 3;
+
+// Counts the bytes that uploads in progress have yet to write, so parallel
+// uploads cannot together fill the disk. Without a readable volume size, the
+// check cannot tell and lets the upload through.
+export async function requireRoomForUpload(
+  executor: Executor,
+  sizeBytes: number,
+): Promise<void> {
+  const volume = await volumeSpace(privateEnv.dataRoot);
+  if (!volume) return;
+  const pending = executor
+    .select({
+      bytes: sql<number>`coalesce(sum(${mediaUploads.sizeBytes} - ${mediaUploads.receivedBytes}), 0)`,
+    })
+    .from(mediaUploads)
+    .where(inArray(mediaUploads.status, ["uploading", "finalizing"]))
+    .get();
+  const room =
+    volume.availableBytes - (pending?.bytes ?? 0) - DISK_RESERVE_BYTES;
+  if (sizeBytes > room) {
+    throw new StatusError(
+      413,
+      "The server is low on disk space. Ask an administrator to free some space, then try again.",
+    );
+  }
+}
 
 export async function storageUsage(executor: Executor): Promise<StorageUsage> {
   const originals = executor

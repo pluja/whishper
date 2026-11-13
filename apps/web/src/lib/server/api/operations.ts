@@ -104,7 +104,9 @@ export const API_OPERATIONS: ApiOperation[] = [
       201: { description: "The new project.", schema: ProjectSchema },
       400: error("The query or the body is invalid."),
       404: error("The workspace does not exist or is not yours."),
-      413: error("The file is larger than the upload limit."),
+      413: error(
+        "The file is larger than the upload limit, or the server is low on disk space.",
+      ),
     },
   },
   {

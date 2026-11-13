@@ -19,7 +19,9 @@ import {
 } from "#lib/server/uploads/maintenance.ts";
 import { isNodeError } from "#lib/server/guards.ts";
 import { readInstanceSettings } from "#lib/server/settings/instance.ts";
+import { db } from "#lib/server/db/index.ts";
 import { uploadStagingDirectory } from "#lib/server/storage/paths.ts";
+import { requireRoomForUpload } from "#lib/server/storage/usage.ts";
 import { isUuid } from "#lib/shared/uuid.ts";
 
 const TUS_PATH = "/api/uploads";
@@ -159,6 +161,7 @@ async function createServer(): Promise<Server> {
       const mediaType = declaredUploadMediaType(upload.metadata?.filetype);
       let projectId: string;
       try {
+        await requireRoomForUpload(db, upload.size);
         projectId = createUploadProject({
           uploadId: upload.id,
           workspaceId,
