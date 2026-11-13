@@ -15,7 +15,7 @@ Send the token with every request:
 curl -H "Authorization: Bearer $ANYSUB_TOKEN" https://anysub.example/api/v1/me
 ```
 
-A token acts as you, with your rights in each workspace you belong to. Revoke it on the same page when you no longer need it. The page also shows when each token was last used. Changing or resetting your password revokes all your tokens, so whoever knew the old password loses access through them too.
+A token acts as you, with your rights in each workspace you belong to. Revoke it on the same page when you no longer need it. The page also shows when each token was last used, and keeps expired tokens for 30 days before deleting them. Changing or resetting your password revokes all your tokens, so whoever knew the old password loses access through them too.
 
 ## From a file to subtitles
 

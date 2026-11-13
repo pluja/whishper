@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   authenticateApiToken,
   createApiToken,
+  deleteLongExpiredApiTokens,
   listApiTokens,
   parseNewApiToken,
   revokeAllApiTokens,
@@ -141,5 +142,17 @@ describe("API tokens", () => {
     for (let index = 0; index < 50; index += 1) newToken(userId);
 
     expect(() => newToken(userId)).toThrow("50 tokens already");
+  });
+
+  it("are deleted a month after they expire", () => {
+    const { userId } = seedProject();
+    newToken(userId, 1);
+    newToken(userId, 40);
+    newToken(userId, null);
+    const day = 86_400_000;
+
+    expect(deleteLongExpiredApiTokens(new Date(Date.now() + 30 * day))).toBe(0);
+    expect(deleteLongExpiredApiTokens(new Date(Date.now() + 32 * day))).toBe(1);
+    expect(listApiTokens(userId)).toHaveLength(2);
   });
 });

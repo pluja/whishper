@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, lt, sql } from "drizzle-orm";
 
 import { user } from "#lib/server/auth/schema.ts";
 import { db } from "#lib/server/db/index.ts";
@@ -23,6 +23,9 @@ const DAY_MS = 86_400_000;
 // Busy scripts would otherwise write to the database on every request.
 const LAST_USED_RESOLUTION_MS = 60_000;
 const MAX_TOKENS_PER_USER = 50;
+// Expired tokens stay listed for a while, so their owners can tell which
+// script stopped working.
+const EXPIRED_TOKEN_RETENTION_MS = 30 * DAY_MS;
 
 export type NewApiToken = {
   name: string;
@@ -105,6 +108,18 @@ export function revokeAllApiTokens(userId: string): void {
 
 // Null for anything but a current token: missing, malformed, unknown,
 // revoked or expired.
+export function deleteLongExpiredApiTokens(now: Date): number {
+  return db
+    .delete(apiTokens)
+    .where(
+      lt(
+        apiTokens.expiresAt,
+        new Date(now.getTime() - EXPIRED_TOKEN_RETENTION_MS),
+      ),
+    )
+    .run().changes;
+}
+
 export function authenticateApiToken(
   authorization: string | null,
   now = new Date(),

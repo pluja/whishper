@@ -1,4 +1,5 @@
 import { building } from "$app/env";
+import { startTokenMaintenance } from "#lib/server/auth/maintenance.ts";
 import { announceSetupCode } from "#lib/server/auth/setup-code.ts";
 import { db } from "#lib/server/db/index.ts";
 import { assertSecureRuntimeConfiguration } from "#lib/server/env.ts";
@@ -22,6 +23,7 @@ export const init: ServerInit = async () => {
   await publishWorkerToken();
   startUploadCleanup();
   startJobMaintenance();
+  startTokenMaintenance();
   announceSetupCode();
   process.once("sveltekit:shutdown", () => db.$client.close());
 };
