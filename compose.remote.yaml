@@ -10,6 +10,6 @@
 
 services:
   worker:
-    image: ghcr.io/pluja/anysub-worker:4.1.0-remote
+    image: ghcr.io/pluja/anysub-worker:4.2.0-remote
     environment:
       ANYSUB_WORKER_NAME: ${ANYSUB_WORKER_NAME:-remote-worker}

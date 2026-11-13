@@ -1,6 +1,6 @@
 # Upgrading
 
-Your `compose.yaml` pins an exact version, for example `ghcr.io/pluja/anysub:4.1.0`, so Anysub only changes when you upgrade. The web and worker images must always be the same version.
+Your `compose.yaml` pins an exact version, for example `ghcr.io/pluja/anysub:4.2.0`, so Anysub only changes when you upgrade. The web and worker images must always be the same version.
 
 ## Before you upgrade
 
@@ -21,7 +21,7 @@ With an NVIDIA GPU, download `compose.cuda.yaml` the same way before `docker com
 
 This overwrites `compose.yaml`, so keep your changes in `.env` or a [`compose.override.yaml`](CONFIGURATION.md#worker-defaults). You can also edit the image tags by hand instead.
 
-For a specific version, replace `latest/download` with `download/v4.1.0`.
+For a specific version, replace `latest/download` with `download/v4.2.0`.
 
 ## After the upgrade
 
@@ -54,6 +54,6 @@ If you [build from source](INSTALL.md#build-from-source), check out the new rele
 
 ```sh
 git fetch --tags
-git checkout v4.1.0
+git checkout v4.2.0
 docker compose up --build -d
 ```

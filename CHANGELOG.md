@@ -2,13 +2,16 @@
 
 Anysub follows [Semantic Versioning](https://semver.org). The web and worker images always share one version. Each release lists what changed for the people who run and use Anysub.
 
-## [Unreleased]
+## [4.2.0] - 2026-11-13
+
+This release adds external providers, so Anysub can transcribe without a GPU, and a public API for scripts and other apps.
 
 ### Added
 
-- External providers: transcribe with OpenAI, Groq or any service that offers OpenAI's transcription API. Add them under **Administration > External providers**, pick their models from the service's list, and set a price per minute to see what a run costs. Their models appear next to the local ones, and the form says where the audio goes. See [External providers](docs/PROVIDERS.md).
-- A public API under `/api/v1` for scripts and other apps: upload media, start and follow transcriptions, and download subtitles. Make personal tokens, read only or read and write, under **Account and API tokens**. Anysub serves an API reference page and an OpenAPI document. See [API](docs/API.md).
-- A remote-only worker image, `anysub-worker:<version>-remote`, for installations that only use providers. It is about 600 MB instead of 3 GB and needs no GPU.
+- External providers: transcribe with OpenAI, Groq or any service that offers OpenAI's transcription API. Add them under **Administration > External providers**, pick their models from the service's list, and set a price per minute to see what a run costs. Their models appear next to the local ones, and the form says where the audio goes. See [External providers](https://github.com/pluja/anysub/blob/main/docs/PROVIDERS.md).
+- A public API under `/api/v1` for scripts and other apps: upload media, start and follow transcriptions, and download subtitles. Make personal tokens, read only or read and write, under **Account and API tokens**. Anysub serves an API reference page and an OpenAPI document. See [API](https://github.com/pluja/anysub/blob/main/docs/API.md).
+- A remote-only worker image, `anysub-worker:<version>-remote`, for installations that only use providers. It is about 600 MB instead of 3 GB and needs no GPU. The install steps in the README show how to use it.
+- Administrators get a settings button in the top bar that opens **Administration**.
 
 ### Changed
 
@@ -128,6 +131,7 @@ Anysub 4.0.0 is the first release of the Whishper rewrite. It replaces Whishper 
 - More than one account.
 - ARM64 images.
 
+[4.2.0]: https://github.com/pluja/anysub/releases/tag/v4.2.0
 [4.1.0]: https://github.com/pluja/anysub/releases/tag/v4.1.0
 [4.0.3]: https://github.com/pluja/anysub/releases/tag/v4.0.3
 [4.0.2]: https://github.com/pluja/anysub/releases/tag/v4.0.2
